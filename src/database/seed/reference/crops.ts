@@ -74,7 +74,8 @@ export const CROPS: readonly CropReference[] = [
     nameFr: "Maïs",
     category: "CEREAL",
     cycle: "ANNUAL",
-    mainZones: ["ZAE_6", "ZAE_7", "ZAE_5", "ZAE_3", "ZAE_2"],
+    // Culture vivrière présente dans toutes les zones : la liste couvre aussi la Donga et le littoral.
+    mainZones: ["ZAE_6", "ZAE_7", "ZAE_5", "ZAE_3", "ZAE_2", "ZAE_4", "ZAE_8", "ZAE_1"],
     calendar: {
       south: { sowing: [3, 4], harvest: [7, 8] },
       north: { sowing: [5, 6], harvest: [9, 10] },
