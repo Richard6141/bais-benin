@@ -63,7 +63,7 @@ export default defineConfig([
             allow("components", ["components", "lib", "types", "styles"]),
             allow("modules", ["modules", "services", "database", "lib", "types", "generated"]),
             allow("services", ["services", "lib", "types"]),
-            allow("database", ["database", "lib", "types", "generated"]),
+            allow("database", ["database", "lib", "types", "styles", "generated"]),
             allow("lib", ["lib", "types"]),
             allow("types", ["types"]),
           ],

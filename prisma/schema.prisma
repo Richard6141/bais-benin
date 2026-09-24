@@ -1,6 +1,11 @@
-// Schéma Prisma de BAIS.
-// Les entités métier arrivent à l'étape 2 (registre). Cette version ne porte que
-// la configuration et sert à valider la chaîne migration → génération → connexion.
+// Schéma Prisma de BAIS — Bénin Agricultural Intelligence System.
+//
+// Conventions (docs/04-modele-donnees.md) :
+// - tables et colonnes en snake_case via @map, identifiants UUID v7 ;
+// - chaque table métier porte la provenance : source_id, source_date, reliability ;
+// - suppression logique par archived_at, jamais de DELETE sur les entités du registre ;
+// - les géométries sont des colonnes PostGIS déclarées Unsupported : Prisma les crée,
+//   les requêtes spatiales passent par src/database/sql (SQL paramétré + Zod).
 
 generator client {
   provider = "prisma-client"
@@ -9,4 +14,492 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Énumérations
+// ---------------------------------------------------------------------------
+
+// Niveau de fiabilité d'une donnée (docs/08 §1).
+enum Reliability {
+  DECLARED
+  AGENT_VERIFIED
+  FIELD_VERIFIED
+  OFFICIAL
+  ESTIMATED
+  SYNTHETIC
+}
+
+enum DataSourceKind {
+  OFFICIAL
+  FIELD
+  PUBLIC_OPEN_DATA
+  SENSOR
+  MODEL
+  SYNTHETIC
+}
+
+enum RainfallRegime {
+  BIMODAL
+  UNIMODAL
+}
+
+enum CropCategory {
+  CEREAL
+  ROOT_TUBER
+  LEGUME
+  CASH_CROP
+  VEGETABLE
+  FRUIT
+  OILSEED
+}
+
+enum CropCycle {
+  ANNUAL
+  PERENNIAL
+  GATHERED
+}
+
+enum TradeUnit {
+  KG
+  T
+  BAG_100KG
+  BAG_50KG
+  BUNCH
+  HEAP
+  BASIN
+}
+
+enum CampaignStatus {
+  PLANNED
+  OPEN
+  CLOSED
+}
+
+enum SubSeason {
+  MAIN_RAINY
+  SHORT_RAINY
+  DRY
+  ANNUAL
+}
+
+enum Role {
+  ADMIN_STATE
+  AGENT_AGRICULTURE
+  FARMER
+  COOPERATIVE
+  BUYER
+}
+
+// Périmètre sur lequel un rôle s'applique (docs/06 §3).
+enum ScopeType {
+  NATIONAL
+  DEPARTEMENT
+  COMMUNE
+  ORGANIZATION
+  SELF
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum Gender {
+  M
+  F
+  UNSPECIFIED
+}
+
+enum LandTenure {
+  OWNED
+  RENTED
+  FAMILY
+  SHARED
+  UNKNOWN
+}
+
+enum FarmActivity {
+  CROPS
+  MIXED
+  LIVESTOCK_DOMINANT
+}
+
+enum VerificationStatus {
+  DECLARED
+  AGENT_VERIFIED
+  FIELD_VERIFIED
+  DISPUTED
+}
+
+enum ParcelCaptureMethod {
+  GPS_WALK
+  MAP_DRAW
+  DECLARED_ONLY
+}
+
+enum IrrigationType {
+  NONE
+  MANUAL
+  DRIP
+  FLOOD
+}
+
+enum CropStage {
+  PLANNED
+  SOWN
+  GROWING
+  HARVESTED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Référentiels transverses
+// ---------------------------------------------------------------------------
+
+model DataSource {
+  id           String         @id
+  name         String
+  organization String?
+  url          String?
+  licence      String?
+  kind         DataSourceKind
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  departements   Departement[]
+  communes       Commune[]
+  zones          AgroEcologicalZone[]
+  crops          Crop[]
+  campaigns      AgriculturalCampaign[]
+  farmers        Farmer[]
+  farms          Farm[]
+  parcels        Parcel[]
+  parcelCrops    ParcelCrop[]
+
+  @@map("data_source")
+}
+
+// ---------------------------------------------------------------------------
+// Territoire
+// ---------------------------------------------------------------------------
+
+model AgroEcologicalZone {
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  code                  String         @unique
+  name                  String
+  rainfallRegime        RainfallRegime @map("rainfall_regime")
+  dominantSystems       String[]       @map("dominant_systems")
+  indicativeRainfallMin Int            @map("indicative_rainfall_min_mm")
+  indicativeRainfallMax Int            @map("indicative_rainfall_max_mm")
+  // Rattachement de phase 1 : un département peut relever de plusieurs zones (docs/08 §3).
+  departementCodes      String[]       @map("departement_codes")
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  communes Commune[]
+
+  @@map("agro_ecological_zone")
+}
+
+model Departement {
+  id       String @id @default(uuid(7)) @db.Uuid
+  // Code ISO 3166-2:BJ, par exemple BJ-DO pour la Donga.
+  code     String @unique
+  name     String
+  chefLieu String @map("chef_lieu")
+  // Identifiant de la géométrie chez geoBoundaries, pour suivre les mises à jour.
+  geoboundariesId String? @map("geoboundaries_id")
+  geom     Unsupported("geography(MultiPolygon, 4326)")?
+  centroid Unsupported("geography(Point, 4326)")?
+  areaKm2  Decimal? @map("area_km2") @db.Decimal(12, 3)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  communes Commune[]
+
+  @@map("departement")
+}
+
+model Commune {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  // Code stable BJ-<DEP>-<NNN>, indépendant du libellé (docs/08 §2.1).
+  code          String  @unique
+  name          String
+  // Variantes d'orthographe acceptées en recherche (Sèmè-Podji pour Sèmè-Kpodji).
+  aliases       String[]
+  departementId String  @map("departement_id") @db.Uuid
+  departement   Departement @relation(fields: [departementId], references: [id])
+  zoneId        String? @map("agro_ecological_zone_id") @db.Uuid
+  zone          AgroEcologicalZone? @relation(fields: [zoneId], references: [id])
+  geoboundariesId String? @map("geoboundaries_id")
+  geom          Unsupported("geography(MultiPolygon, 4326)")?
+  centroid      Unsupported("geography(Point, 4326)")?
+  areaKm2       Decimal? @map("area_km2") @db.Decimal(12, 3)
+  ruralPopulationEstimate Int? @map("rural_population_estimate")
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  farmers Farmer[]
+  farms   Farm[]
+
+  @@index([departementId])
+  @@index([zoneId])
+  @@map("commune")
+}
+
+// ---------------------------------------------------------------------------
+// Référentiels agricoles
+// ---------------------------------------------------------------------------
+
+model Crop {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  code              String       @unique
+  nameFr            String       @map("name_fr")
+  category          CropCategory
+  cycle             CropCycle
+  tradeUnit         TradeUnit    @map("trade_unit")
+  typicalYieldTPerHa Decimal?    @map("typical_yield_t_per_ha") @db.Decimal(6, 2)
+  // Zones où la culture est significative, par ordre d'importance (codes ZAE).
+  mainZoneCodes     String[]     @map("main_zone_codes")
+  // Fenêtres de semis et de récolte par régime, en numéros de mois : { south: {...}, north: {...} }.
+  calendar          Json
+  // Couleur fixe dans l'interface pour les cultures majeures (docs/07 §3).
+  colorHex          String?      @map("color_hex")
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  parcelCrops ParcelCrop[]
+
+  @@map("crop")
+}
+
+// Campagne agricole nationale : du 1er avril au 31 mars (docs/08 §5).
+model AgriculturalCampaign {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  code      String         @unique
+  startYear Int            @unique @map("start_year")
+  startsOn  DateTime       @map("starts_on") @db.Date
+  endsOn    DateTime       @map("ends_on") @db.Date
+  status    CampaignStatus @default(PLANNED)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  parcelCrops ParcelCrop[]
+
+  @@map("agricultural_campaign")
+}
+
+// ---------------------------------------------------------------------------
+// Identité et accès (les mécanismes de connexion arrivent à l'étape 3)
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  // Identifiant principal des agriculteurs et des agents : +229 01 XX XX XX XX.
+  phoneE164       String?    @unique @map("phone_e164")
+  email           String?    @unique @db.Citext
+  passwordHash    String?    @map("password_hash")
+  displayName     String     @map("display_name")
+  preferredLocale String     @default("fr") @map("preferred_locale")
+  status          UserStatus @default(PENDING)
+  // NPI (ANIP) : jamais en clair. Le haché sert à l'unicité, le chiffré à la restitution habilitée.
+  npiHash         Bytes?     @unique @map("npi_hash")
+  npiEncrypted    Bytes?     @map("npi_encrypted")
+  npiVerifiedAt   DateTime?  @map("npi_verified_at")
+  npiVerificationProvider String? @map("npi_verification_provider")
+  lastLoginAt     DateTime?  @map("last_login_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  archivedAt      DateTime?  @map("archived_at")
+
+  roles         RoleAssignment[] @relation("assignments")
+  grantedRoles  RoleAssignment[] @relation("grants")
+  farmer        Farmer?
+  registeredFarms Farm[]   @relation("registeredBy")
+  verifiedFarms Farm[]     @relation("verifiedBy")
+
+  @@map("user")
+}
+
+model RoleAssignment {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation("assignments", fields: [userId], references: [id])
+  role      Role
+  scopeType ScopeType @map("scope_type")
+  // Identifiant du territoire ou de l'organisation ciblé ; nul pour NATIONAL et SELF.
+  scopeId   String?   @map("scope_id") @db.Uuid
+  grantedById String? @map("granted_by_id") @db.Uuid
+  grantedBy User?     @relation("grants", fields: [grantedById], references: [id])
+  grantedAt DateTime  @default(now()) @map("granted_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([userId, role])
+  @@index([scopeType, scopeId])
+  @@map("role_assignment")
+}
+
+// ---------------------------------------------------------------------------
+// Registre national
+// ---------------------------------------------------------------------------
+
+model Farmer {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  code          String  @unique
+  // Un agriculteur peut exister sans compte : il est enregistré par un agent.
+  userId        String? @unique @map("user_id") @db.Uuid
+  user          User?   @relation(fields: [userId], references: [id])
+  firstName     String  @map("first_name")
+  lastName      String  @map("last_name")
+  gender        Gender  @default(UNSPECIFIED)
+  // Année seulement : minimisation des données personnelles.
+  birthYear     Int?    @map("birth_year")
+  phoneE164     String? @map("phone_e164")
+  communeId     String  @map("commune_id") @db.Uuid
+  commune       Commune @relation(fields: [communeId], references: [id])
+  village       String?
+  householdSize Int?    @map("household_size")
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  farms Farm[]
+
+  @@index([communeId])
+  @@index([lastName, firstName])
+  @@map("farmer")
+}
+
+model Farm {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  code               String   @unique
+  farmerId           String   @map("farmer_id") @db.Uuid
+  farmer             Farmer   @relation(fields: [farmerId], references: [id])
+  name               String?
+  communeId          String   @map("commune_id") @db.Uuid
+  commune            Commune  @relation(fields: [communeId], references: [id])
+  village            String?
+  location           Unsupported("geography(Point, 4326)")?
+  declaredAreaHa     Decimal  @map("declared_area_ha") @db.Decimal(10, 3)
+  computedAreaHa     Decimal? @map("computed_area_ha") @db.Decimal(10, 3)
+  tenure             LandTenure @default(UNKNOWN)
+  mainActivity       FarmActivity @default(CROPS) @map("main_activity")
+  verificationStatus VerificationStatus @default(DECLARED) @map("verification_status")
+  verifiedAt         DateTime? @map("verified_at")
+  verifiedById       String?  @map("verified_by_id") @db.Uuid
+  verifiedBy         User?    @relation("verifiedBy", fields: [verifiedById], references: [id])
+  registeredById     String?  @map("registered_by_id") @db.Uuid
+  registeredBy       User?    @relation("registeredBy", fields: [registeredById], references: [id])
+  // Verrou optimiste pour la synchronisation hors-ligne.
+  version            Int      @default(1)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  parcels Parcel[]
+
+  @@index([communeId, verificationStatus])
+  @@index([farmerId])
+  @@map("farm")
+}
+
+model Parcel {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  code           String  @unique
+  farmId         String  @map("farm_id") @db.Uuid
+  farm           Farm    @relation(fields: [farmId], references: [id])
+  geom           Unsupported("geography(Polygon, 4326)")?
+  centroid       Unsupported("geography(Point, 4326)")?
+  declaredAreaHa Decimal  @map("declared_area_ha") @db.Decimal(10, 3)
+  computedAreaHa Decimal? @map("computed_area_ha") @db.Decimal(10, 3)
+  captureMethod  ParcelCaptureMethod @default(DECLARED_ONLY) @map("capture_method")
+  gpsAccuracyM   Decimal? @map("gps_accuracy_m") @db.Decimal(6, 1)
+  irrigation     IrrigationType @default(NONE)
+  soilType       String? @map("soil_type")
+  version        Int     @default(1)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  crops ParcelCrop[]
+
+  @@index([farmId])
+  @@map("parcel")
+}
+
+// Culture pratiquée sur une parcelle pendant une campagne et une sous-saison.
+model ParcelCrop {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  parcelId   String    @map("parcel_id") @db.Uuid
+  parcel     Parcel    @relation(fields: [parcelId], references: [id])
+  cropId     String    @map("crop_id") @db.Uuid
+  crop       Crop      @relation(fields: [cropId], references: [id])
+  campaignId String    @map("campaign_id") @db.Uuid
+  campaign   AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  subSeason  SubSeason @default(MAIN_RAINY) @map("sub_season")
+  areaHa     Decimal   @map("area_ha") @db.Decimal(10, 3)
+  sowingDate DateTime? @map("sowing_date") @db.Date
+  expectedHarvestDate DateTime? @map("expected_harvest_date") @db.Date
+  stage      CropStage @default(PLANNED)
+  variety    String?
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  @@unique([parcelId, cropId, campaignId, subSeason])
+  @@index([cropId, campaignId])
+  @@map("parcel_crop")
 }
