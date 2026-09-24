@@ -6,6 +6,7 @@ import {
   type CropInput,
   type SyntheticRegistry,
 } from "../generators";
+import { attachDemoFarmerAccount } from "./accounts.seed";
 
 // Registre synthétique de démonstration (docs/08 §6). Le générateur est déterministe :
 // même graine, même jeu de données. Le volume par défaut reste modeste pour un poste de
@@ -222,6 +223,14 @@ export interface FarmSeedSummary {
 // Idempotent par construction : les identifiants sont déterministes et createMany ignore
 // les doublons. Si le registre synthétique est déjà chargé, l'étape est sautée.
 export async function seedSyntheticFarms(prisma: PrismaClient): Promise<FarmSeedSummary> {
+  const summary = await loadOrGenerateRegistry(prisma);
+  // Après le registre (chargé ou déjà présent), le compte agricultrice de démonstration est
+  // relié à une exploitation de Djougou ; refait après SEED_FARM_RESET puisque les fermes changent.
+  await attachDemoFarmerAccount(prisma);
+  return summary;
+}
+
+async function loadOrGenerateRegistry(prisma: PrismaClient): Promise<FarmSeedSummary> {
   const farmCount = Number(process.env.SEED_FARM_COUNT ?? DEFAULT_FARM_COUNT);
   if (process.env.SEED_FARM_RESET === "1") await deleteSyntheticRegistry(prisma);
   const existing = await prisma.farm.count({ where: { sourceId: "BAIS_SEED" } });

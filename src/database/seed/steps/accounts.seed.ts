@@ -128,3 +128,63 @@ export async function seedDemoAccounts(prisma: PrismaClient): Promise<number> {
 
   return DEMO_ACCOUNTS.length;
 }
+
+export const DEMO_FARMER_PHONE = "+2290190000002";
+export const DEMO_FARMER_COMMUNE_CODE = "BJ-DON-003";
+
+// Rattache le compte agricultrice de démonstration à une exploitation synthétique de Djougou,
+// choisie de façon déterministe (première par code) parmi celles qui ont au moins une culture
+// déclarée pour la campagne ouverte : « Déclarer ma récolte » a ainsi toujours quelque chose à
+// proposer. Idempotent : si le compte est déjà relié à une exploitation de la commune, rien ne
+// change ; après SEED_FARM_RESET, le rattachement est refait sur le nouveau registre. Le nom du
+// compte prend celui du producteur pour que l'espace agriculteur soit cohérent.
+export async function attachDemoFarmerAccount(prisma: PrismaClient): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { phoneNumber: DEMO_FARMER_PHONE },
+    select: { id: true },
+  });
+  if (!user) return false;
+
+  const current = await prisma.farmer.findUnique({
+    where: { userId: user.id },
+    select: { id: true, firstName: true, lastName: true, commune: { select: { code: true } } },
+  });
+  if (current && current.commune.code === DEMO_FARMER_COMMUNE_CODE) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { name: `${current.firstName} ${current.lastName}` },
+    });
+    return true;
+  }
+
+  const farm = await prisma.farm.findFirst({
+    where: {
+      archivedAt: null,
+      sourceId: "BAIS_SEED",
+      commune: { code: DEMO_FARMER_COMMUNE_CODE },
+      parcels: {
+        some: {
+          archivedAt: null,
+          crops: { some: { archivedAt: null, campaign: { status: "OPEN" } } },
+        },
+      },
+    },
+    orderBy: { code: "asc" },
+    select: { farmerId: true, farmer: { select: { firstName: true, lastName: true } } },
+  });
+  if (!farm) return false;
+
+  // Un compte ne peut être relié qu'à un seul producteur : l'ancien lien est levé avant le nouveau.
+  if (current) {
+    await prisma.farmer.update({ where: { id: current.id }, data: { userId: null } });
+  }
+  await prisma.farmer.update({
+    where: { id: farm.farmerId },
+    data: { userId: user.id, phoneE164: DEMO_FARMER_PHONE },
+  });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { name: `${farm.farmer.firstName} ${farm.farmer.lastName}` },
+  });
+  return true;
+}
