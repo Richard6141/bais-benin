@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: true,
+  experimental: {
+    // La génération statique par défaut lance un worker par cœur ; sur les postes
+    // de développement modestes cela épuise la mémoire. Deux workers suffisent
+    // pour le nombre de pages statiques de l'application.
+    cpus: 2,
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
