@@ -24,6 +24,7 @@ function cookieFromResponse(response: Response): string {
 describe("authentification", () => {
   beforeAll(async () => {
     await seedReferenceData();
+    // Les affectations et les sessions suivent la suppression du compte (onDelete: Cascade).
     await prisma.user.deleteMany({ where: { phoneNumber: PHONE } });
   }, 120_000);
 

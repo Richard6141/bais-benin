@@ -11,6 +11,8 @@ async function signInByPhone(page: Page, nationalDigits: string) {
   await page.getByRole("button", { name: "Recevoir mon code" }).click();
   await expect(page.getByText(/Code reçu au \+229/)).toBeVisible();
   await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
+  // La vérification et la redirection sont asynchrones : on attend d'avoir quitté la connexion.
+  await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
 }
 
 test.describe("connexion par téléphone", () => {
@@ -49,7 +51,8 @@ test.describe("connexion institutionnelle", () => {
     await page.getByLabel("Adresse e-mail professionnelle").fill("ministere@bais.demo");
     await page.getByLabel("Mot de passe").fill(DEMO_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
-    await expect(page).toHaveURL(/\/compte\/securite\?obligatoire=1$/);
+    // Deux redirections serveur successives (pilotage puis sécurité) : on laisse le temps au mobile.
+    await expect(page).toHaveURL(/\/compte\/securite\?obligatoire=1$/, { timeout: 15_000 });
     await expect(page.getByText("Étape obligatoire pour votre rôle")).toBeVisible();
   });
 
@@ -70,7 +73,9 @@ test.describe("protection des espaces", () => {
     await expect(page).toHaveURL(/\/connexion\?suite=%2Fagent$/);
   });
 
-  test("la page compte affiche le NPI masqué après enregistrement", async ({ page }) => {
+  test("la page compte affiche le NPI masqué après enregistrement", async ({ page }, testInfo) => {
+    // Un seul profil enregistre le NPI : les deux profils en parallèle se disputeraient le même compte.
+    test.skip(testInfo.project.name !== "desktop", "profil desktop uniquement");
     await signInByPhone(page, "0190000002");
     await page.goto("/compte");
     const npiField = page.getByLabel("Numéro personnel d'identification (NPI)");
@@ -78,7 +83,7 @@ test.describe("protection des espaces", () => {
       await npiField.fill("1122334455667");
       await page.getByLabel("Nom de famille").fill("Démonstration");
       await page.getByRole("button", { name: "Enregistrer mon NPI" }).click();
-      await expect(page.getByText("NPI enregistré")).toBeVisible();
+      await expect(page.getByText("NPI enregistré").first()).toBeVisible({ timeout: 15_000 });
     }
     await page.reload();
     await expect(page.getByText("•••• •••• •••6 7")).toBeVisible();
