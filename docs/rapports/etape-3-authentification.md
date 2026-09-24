@@ -69,9 +69,15 @@ feat(auth): audit sign-out, otp requests, two-factor and session revocation
 docs(auth): record the better-auth decision and document the module
 ```
 
+## Complément : refonte de l'accueil (branche `feature/landing-design`, fusionnée)
+
+- Banque de 14 photographies de l'agriculture béninoise (Wikimedia Commons, CC BY-SA, crédits dans `docs/credits-images.md` et sur la page `/credits`), servies en WebP en deux largeurs.
+- Accueil réorganisé : héros photographique avec une fiche d'exploitation superposée (l'élément mémorable), les six questions nationales et leurs réponses, les six espaces illustrés, chiffres du territoire lus dans la base, état de la plateforme discret, pied de page institutionnel. Titres en casse de phrase, plus de capitales espacées, une seule animation d'entrée, aucun dégradé.
+- Captures : [accueil desktop](captures/etape-0/accueil-desktop.png), [accueil mobile](captures/etape-0/accueil-mobile.png). Tests `tests/e2e/home.spec.ts` verts.
+
 ## Prochaine étape
 
-Refonte visuelle de l'accueil avec de vraies photographies (banque d'images constituée), puis étape 4 — Cartographie agricole : tuiles vectorielles PostGIS, carte MapLibre des départements, communes, exploitations et parcelles, filtres culture, zone, campagne, tableau de bord carte, tests de chargement, performance et mobile. Branche `feature/agri-map`.
+Étape 4 — Cartographie agricole : tuiles vectorielles PostGIS, carte MapLibre des départements, communes, exploitations et parcelles, filtres culture, zone, campagne, tableau de bord carte, tests de chargement, performance et mobile. Branche `feature/agri-map`.
 
 ## Guide de test
 
