@@ -1,0 +1,43 @@
+# Dépendances
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Tests et couverture
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Build et caches
+dist/
+*.tsbuildinfo
+.turbo/
+.eslintcache
+
+# Prisma (client généré)
+src/generated/
+
+# Données locales
+docker/db/data/
+*.pmtiles
+!public/tiles/*.pmtiles
+
+# Outils locaux (jamais versionnés : propres à une machine)
+graphify-out/
+.le modèle/settings.local.json
+.vercel/
+
+# Système
+.DS_Store
+Thumbs.db
+*.log
