@@ -2,7 +2,7 @@
 
 Plateforme numérique nationale de connaissance, d'accompagnement et de pilotage de l'agriculture béninoise : registre des exploitations, carte agricole, monitoring et alertes, marché, assistant et centre de pilotage pour l'État.
 
-> État du projet : **phase 1 terminée (analyse et conception)**. Le code applicatif démarre en phase 2 selon le plan de développement. Ce dépôt contient à ce stade la documentation de conception complète.
+> État du projet : **étape 0 (fondations techniques) livrée**. L'application démarre, se connecte à PostGIS, s'installe comme PWA et affiche la page d'accueil avec le design system initial. Les étapes suivantes sont décrites dans le [plan de développement](docs/05-plan-developpement.md).
 
 ## Pourquoi
 
@@ -47,14 +47,34 @@ Next.js 16 (App Router, TypeScript strict) · Tailwind CSS 4 · shadcn/ui · Mot
 4. Intégrations externes derrière des ports ; l'application fonctionne sans aucune d'elles.
 5. Design institutionnel moderne, jamais « administratif ancien ».
 
-## Démarrage (à partir de la phase 2)
+## Démarrage
+
+Prérequis : Node.js 22, pnpm 10, Docker.
 
 ```bash
 pnpm install
-cp .env.example .env
-docker compose up -d db
-pnpm db:migrate && pnpm db:seed
-pnpm dev
+cp .env.example .env          # renseigner DATABASE_URL et les variables POSTGRES_*
+pnpm db:up                    # PostgreSQL 16 + PostGIS + pgvector (port POSTGRES_PORT)
+pnpm db:generate              # client Prisma
+pnpm db:migrate               # migrations (extensions PostGIS, pg_trgm, citext, pgcrypto)
+pnpm dev                      # http://localhost:3000
+```
+
+Si un PostgreSQL local occupe déjà le port 5432, définir `POSTGRES_PORT=5433` et adapter `DATABASE_URL`.
+
+### Vérifier
+
+```bash
+pnpm check                    # lint + types + tests unitaires
+pnpm test:integration         # exige la base démarrée et migrée
+pnpm build && pnpm test:e2e   # parcours Playwright sur le build de production
+curl http://localhost:3000/api/health
+```
+
+### Conteneur complet
+
+```bash
+docker compose --profile full up --build
 ```
 
 ## Contribuer

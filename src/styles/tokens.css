@@ -1,0 +1,99 @@
+/*
+ * Jetons de design de BAIS — voir docs/07-identite-visuelle-design-system.md.
+ * La palette part du territoire : golfe de Guinée (primaire), latérite du Nord (accent),
+ * galeries forestières de l'Ouémé (validation), craie du plateau d'Abomey (fonds).
+ * Les composants shadcn/ui lisent les variables sémantiques (--background, --primary...) ;
+ * les variables de marque (--gulf, --laterite...) restent disponibles pour les visualisations.
+ */
+
+:root {
+  /* Marque */
+  --ink: #0b1f2a;
+  --gulf: #0f4c5c;
+  --gulf-strong: #0a3642;
+  --gulf-soft: #e3edf0;
+  --laterite: #b7410e;
+  --laterite-soft: #f6e6dd;
+  --forest: #1f5a3c;
+  --forest-soft: #e4efe8;
+  --chalk: #f6f3ee;
+  --paper: #ffffff;
+
+  /* Neutres chauds */
+  --stone-50: #faf8f5;
+  --stone-100: #f1ede6;
+  --stone-200: #e2dcd2;
+  --stone-300: #cfc7ba;
+  --stone-400: #a9a196;
+  --stone-500: #7d766d;
+  --stone-600: #5b5f66;
+  --stone-700: #444a52;
+  --stone-800: #2b333b;
+  --stone-900: #18222a;
+
+  /* Sémantique produit */
+  --info: #1e5a8a;
+  --success: #1f5a3c;
+  --watch: #b7791f;
+  --warning: #b7410e;
+  --critical: #8b1e2d;
+  --offline: #5b5f66;
+
+  /* Variables lues par shadcn/ui */
+  --background: var(--chalk);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--gulf);
+  --primary-foreground: var(--chalk);
+  --secondary: var(--stone-100);
+  --secondary-foreground: var(--ink);
+  --muted: var(--stone-100);
+  --muted-foreground: var(--stone-600);
+  --accent: var(--gulf-soft);
+  --accent-foreground: var(--gulf-strong);
+  --destructive: var(--critical);
+  --destructive-foreground: var(--paper);
+  --border: var(--stone-200);
+  --input: var(--stone-300);
+  --ring: var(--gulf);
+
+  /* Séries de données (cultures majeures : couleurs fixes dans tout le produit) */
+  --chart-1: #0f4c5c;
+  --chart-2: #b7410e;
+  --chart-3: #1f5a3c;
+  --chart-4: #b7791f;
+  --chart-5: #1e5a8a;
+
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: var(--ink);
+  --foreground: var(--chalk);
+  --card: #112b37;
+  --card-foreground: var(--chalk);
+  --popover: #112b37;
+  --popover-foreground: var(--chalk);
+  --primary: #5aa9bb;
+  --primary-foreground: var(--ink);
+  --secondary: #183643;
+  --secondary-foreground: var(--chalk);
+  --muted: #183643;
+  --muted-foreground: #a9b7bd;
+  --accent: #1c4250;
+  --accent-foreground: #cfe6ec;
+  --destructive: #c8384a;
+  --destructive-foreground: var(--chalk);
+  --border: #1f3a47;
+  --input: #274755;
+  --ring: #5aa9bb;
+
+  --chart-1: #5aa9bb;
+  --chart-2: #e07a45;
+  --chart-3: #5fa77f;
+  --chart-4: #d9a24a;
+  --chart-5: #6f9fd0;
+}

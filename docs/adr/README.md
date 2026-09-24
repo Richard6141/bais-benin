@@ -11,3 +11,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0005 | Hors-ligne d'abord : Serwist, Dexie et file d'attente outbox avec idempotence serveur | acceptée |
 | 0006 | Déploiement bi-cible : Docker Compose et Vercel, sans code spécifique à l'hébergeur | acceptée |
 | 0007 | wapy.pro intégré comme canal de messagerie WhatsApp, pas comme fournisseur d'identité | acceptée |
+| 0008 | Prisma 7 avec adaptateur `pg`, configuration hors schéma, et Serwist en mode Turbopack | acceptée |
