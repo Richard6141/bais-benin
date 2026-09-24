@@ -1,0 +1,128 @@
+import { z } from "zod";
+import { prisma } from "@/database/client";
+import { isValidTile, simplifyToleranceMeters } from "@/lib/geo/tile-math";
+
+// Tuiles vectorielles (Mapbox Vector Tiles) produites par PostGIS. Chaque fonction renvoie
+// le contenu binaire d'une tuile XYZ, ou null quand rien ne tombe dans son emprise.
+//
+// Choix :
+// - le filtre `geom && ST_Transform(ST_TileEnvelope(z, x, y), 4326)::geography` s'appuie sur
+//   l'index spatial des colonnes geography, avant toute transformation coûteuse ;
+// - les contours sont simplifiés en mètres (EPSG:3857) à environ deux pixels près pour le zoom
+//   demandé, en préservant la topologie, puis découpés par ST_AsMVTGeom avec une marge de 64
+//   unités sur une grille de 4 096 ;
+// - les paramètres sont castés explicitement : le pilote pg ne distingue pas entier et flottant.
+
+const EXTENT = 4096;
+const BUFFER = 64;
+
+const tileRowSchema = z.object({
+  tile: z.instanceof(Uint8Array).nullable(),
+});
+
+export type TileLayer = "communes" | "departements" | "farms";
+
+function assertTile(z: number, x: number, y: number): void {
+  if (!isValidTile(z, x, y)) {
+    throw new RangeError(`Tuile invalide : z=${z} x=${x} y=${y}`);
+  }
+}
+
+function toBuffer(rows: unknown[]): Buffer | null {
+  const first = rows[0];
+  if (!first) return null;
+  const { tile } = tileRowSchema.parse(first);
+  if (!tile || tile.byteLength === 0) return null;
+  return Buffer.from(tile);
+}
+
+/** Tuile des communes : attributs code, name, departement_code, area_km2. */
+export async function communeTile(z: number, x: number, y: number): Promise<Buffer | null> {
+  assertTile(z, x, y);
+  const tolerance = simplifyToleranceMeters(z);
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH bounds AS (
+      SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
+    ),
+    q AS (
+      SELECT
+        c."code",
+        c."name",
+        d."code" AS departement_code,
+        c."area_km2"::float8 AS area_km2,
+        ST_AsMVTGeom(
+          ST_SimplifyPreserveTopology(ST_Transform(c."geom"::geometry, 3857), ${tolerance}::float8),
+          bounds.env, ${EXTENT}::int, ${BUFFER}::int, true
+        ) AS geom
+      FROM "commune" c
+      JOIN "departement" d ON d."id" = c."departement_id"
+      CROSS JOIN bounds
+      WHERE c."archived_at" IS NULL
+        AND c."geom" IS NOT NULL
+        AND c."geom" && ST_Transform(bounds.env, 4326)::geography
+    )
+    SELECT ST_AsMVT(q, 'communes', ${EXTENT}::int, 'geom') AS tile
+    FROM q
+    WHERE q.geom IS NOT NULL`;
+  return toBuffer(rows);
+}
+
+/** Tuile des départements : attributs code, name, area_km2. */
+export async function departementTile(z: number, x: number, y: number): Promise<Buffer | null> {
+  assertTile(z, x, y);
+  const tolerance = simplifyToleranceMeters(z);
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH bounds AS (
+      SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
+    ),
+    q AS (
+      SELECT
+        d."code",
+        d."name",
+        d."area_km2"::float8 AS area_km2,
+        ST_AsMVTGeom(
+          ST_SimplifyPreserveTopology(ST_Transform(d."geom"::geometry, 3857), ${tolerance}::float8),
+          bounds.env, ${EXTENT}::int, ${BUFFER}::int, true
+        ) AS geom
+      FROM "departement" d
+      CROSS JOIN bounds
+      WHERE d."archived_at" IS NULL
+        AND d."geom" IS NOT NULL
+        AND d."geom" && ST_Transform(bounds.env, 4326)::geography
+    )
+    SELECT ST_AsMVT(q, 'departements', ${EXTENT}::int, 'geom') AS tile
+    FROM q
+    WHERE q.geom IS NOT NULL`;
+  return toBuffer(rows);
+}
+
+/**
+ * Tuile des exploitations (points) : attributs code, verification_status, commune_id.
+ * Prévue pour l'étape 5 ; tant que la table est vide, elle renvoie null.
+ */
+export async function farmPointsTile(z: number, x: number, y: number): Promise<Buffer | null> {
+  assertTile(z, x, y);
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH bounds AS (
+      SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
+    ),
+    q AS (
+      SELECT
+        f."code",
+        f."verification_status"::text AS verification_status,
+        f."commune_id"::text AS commune_id,
+        ST_AsMVTGeom(
+          ST_Transform(f."location"::geometry, 3857),
+          bounds.env, ${EXTENT}::int, ${BUFFER}::int, true
+        ) AS geom
+      FROM "farm" f
+      CROSS JOIN bounds
+      WHERE f."archived_at" IS NULL
+        AND f."location" IS NOT NULL
+        AND f."location" && ST_Transform(bounds.env, 4326)::geography
+    )
+    SELECT ST_AsMVT(q, 'farms', ${EXTENT}::int, 'geom') AS tile
+    FROM q
+    WHERE q.geom IS NOT NULL`;
+  return toBuffer(rows);
+}
