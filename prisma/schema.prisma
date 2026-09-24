@@ -1,0 +1,12 @@
+// Schéma Prisma de BAIS.
+// Les entités métier arrivent à l'étape 2 (registre). Cette version ne porte que
+// la configuration et sert à valider la chaîne migration → génération → connexion.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
