@@ -104,7 +104,7 @@ bais/
 │   │   ├── messaging/console/         # dev : affiche le message dans les logs
 │   │   ├── identity/anip-stub/        # simulateur ANIP, même contrat que le futur adaptateur réel
 │   │   ├── identity/wapy-stub/        # réservé : si wapy.pro expose un jour un OIDC
-│   │   ├── ai/gateway/                # AI SDK via passerelle (le modèle par défaut)
+│   │   ├── ai/gateway/                # AI SDK via passerelle, modèle configurable
 │   │   ├── ai/fixture/                # réponses déterministes pour tests
 │   │   └── geo/                       # géocodage inverse OSM (Nominatim), simplification
 │   │

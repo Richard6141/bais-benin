@@ -69,7 +69,7 @@ interface IdentityVerificationProvider {
 
 ## 4. Assistant IA
 
-- Port `LlmProvider` et port `EmbeddingProvider`, implémentés via le Vercel AI SDK et une passerelle (AI Gateway) qui permet de changer de modèle par configuration. Modèle par défaut : le modèle (famille 5), modèle exact fixé par variable d'environnement ; adaptateur `fixture` pour les tests.
+- Port `LlmProvider` et port `EmbeddingProvider`, implémentés via le Vercel AI SDK et une passerelle (AI Gateway) qui permet de changer de modèle par configuration. Fournisseur et modèle fixés par variables d'environnement, ce qui permet de retenir un modèle hébergé en Afrique de l'Ouest ou en Europe selon les exigences de souveraineté ; adaptateur `fixture` pour les tests.
 - **Garde-fous** : le modèle ne reçoit que le contexte autorisé pour l'utilisateur ; il doit citer des passages du corpus pour toute affirmation technique ; un scoring de confiance combine la similarité des passages, la couverture des citations et une auto-évaluation ; en dessous d'un seuil, la réponse est « je ne dispose pas d'une information fiable sur ce point » avec orientation vers un agent.
 - Le modèle n'a jamais accès aux chiffres officiels agrégés pour les produire lui-même : les indicateurs viennent du module `analytics` et sont insérés tels quels, avec leur source.
 - Toute conversation est journalisée (sans données personnelles inutiles) pour évaluation et amélioration du corpus.

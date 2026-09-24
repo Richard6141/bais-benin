@@ -30,7 +30,7 @@ BAIS est une application **full-stack Next.js 16 (App Router)** adossée à **Po
 │ PostgreSQL 16 + PostGIS       │   │ Externes (tous optionnels)            │
 │ · registre, géométries        │   │ · Open-Meteo (météo, sans clé)        │
 │ · alertes, marché, audit      │   │ · wapy.pro (WhatsApp) · SMS · e-mail  │
-│ · vues matérialisées agrégats │   │ · AI Gateway / le modèle (assistant)     │
+│ · vues matérialisées agrégats │   │ · passerelle LLM (assistant)          │
 │ · pgvector (corpus IA)        │   │ · ANIP (futur) · INStaD (futur)       │
 └───────────────────────────────┘   └───────────────────────────────────────┘
 ```

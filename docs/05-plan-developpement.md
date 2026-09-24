@@ -91,7 +91,7 @@ Le brief numérote les modules de 1 à 7. Nous les réalisons dans l'ordre suiva
 **Branche** : `feature/assistant`.
 
 - Corpus de fiches techniques (données de démonstration réalistes), découpage, embeddings, pgvector.
-- Port `LlmProvider` via AI SDK et AI Gateway (le modèle par défaut, modèle configurable), adaptateur fixtures pour les tests.
+- Port `LlmProvider` via AI SDK et AI Gateway (fournisseur et modèle configurables par variable d'environnement), adaptateur fixtures pour les tests.
 - Génération avec contexte (exploitation, météo, alertes) + passages cités ; scoring de confiance combinant similarité, couverture des citations et auto-évaluation ; seuil sous lequel l'assistant répond « je ne dispose pas d'une information fiable ».
 - UI : chat, citations dépliables, jauge de confiance, suggestions contextuelles, garde-fous visibles.
 - **Tests** : scoring de confiance (unitaires), refus hors corpus, non-fabrication de chiffres officiels (jeu de questions pièges), e2e.

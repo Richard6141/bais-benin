@@ -34,7 +34,6 @@ docker/db/data/
 
 # Outils locaux (jamais versionnés : propres à une machine)
 graphify-out/
-.le modèle/settings.local.json
 .vercel/
 
 # Système
