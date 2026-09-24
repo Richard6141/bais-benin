@@ -1,0 +1,326 @@
+{
+  "images": [
+    {
+      "id": "champ-mais-manioc-oueme",
+      "file": "champ-mais-manioc-oueme-1600.webp",
+      "alt": "Champ de maïs et de manioc en association dans l'Ouémé, sous un ciel voilé",
+      "width": 1600,
+      "height": 900,
+      "credit": "Photo : Fawaz.tairou, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Champ_de_cultures_dans_l%27Ou%C3%A9m%C3%A9_au_B%C3%A9nin.jpg",
+      "tags": ["mais", "manioc", "oueme", "sud", "hero", "paysage"],
+      "variants": [
+        {
+          "file": "champ-mais-manioc-oueme-1600.webp",
+          "width": 1600,
+          "height": 900
+        },
+        {
+          "file": "champ-mais-manioc-oueme-800.webp",
+          "width": 800,
+          "height": 450
+        }
+      ]
+    },
+    {
+      "id": "recolte-coton-atacora",
+      "file": "recolte-coton-atacora-1600.webp",
+      "alt": "Coton-graine récolté, entassé dans un enclos de nattes au pied d'un baobab, nord-ouest du Bénin",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Ji-Elle, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:B%C3%A9nin-R%C3%A9colte_de_coton_(2).jpg",
+      "tags": ["coton", "recolte", "atacora", "nord", "stock"],
+      "variants": [
+        {
+          "file": "recolte-coton-atacora-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "recolte-coton-atacora-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "buttes-igname-atacora",
+      "file": "buttes-igname-atacora-1600.webp",
+      "alt": "Buttes d'igname fraîchement montées dans un champ de l'Atacora, arbres de savane en arrière-plan",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Ji-Elle, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Atakora-Culture_de_l%27igname_(4).jpg",
+      "tags": ["igname", "tubercule", "atacora", "nord", "semis"],
+      "variants": [
+        {
+          "file": "buttes-igname-atacora-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "buttes-igname-atacora-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "riziere-bas-fond-benin",
+      "file": "riziere-bas-fond-benin-1600.webp",
+      "alt": "Rizière de bas-fond en pleine végétation, deux baobabs à l'horizon",
+      "width": 1600,
+      "height": 1200,
+      "credit": "Photo : Africa Rice Center, Wikimedia Commons, CC BY-SA 3.0",
+      "license": "CC BY-SA 3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Rice_in_Benin_-_panoramio_-_Africa_Rice_Center_(5).jpg",
+      "tags": ["riz", "bas-fond", "riziere", "hero", "paysage"],
+      "variants": [
+        {
+          "file": "riziere-bas-fond-benin-1600.webp",
+          "width": 1600,
+          "height": 1200
+        },
+        {
+          "file": "riziere-bas-fond-benin-800.webp",
+          "width": 800,
+          "height": 600
+        }
+      ]
+    },
+    {
+      "id": "champ-ananas-tori",
+      "file": "champ-ananas-tori-1600.webp",
+      "alt": "Champ d'ananas à Tori-Azohoué-Cada sous un ciel chargé de nuages, palmiers à l'horizon",
+      "width": 1600,
+      "height": 1200,
+      "credit": "Photo : Saliousoft, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Culture_de_l%27ananas_dans_l%27arrondissement_de_Tori-Azohoue-Cada.jpg",
+      "tags": ["ananas", "atlantique", "sud", "ciel", "orage"],
+      "variants": [
+        {
+          "file": "champ-ananas-tori-1600.webp",
+          "width": 1600,
+          "height": 1200
+        },
+        {
+          "file": "champ-ananas-tori-800.webp",
+          "width": 800,
+          "height": 600
+        }
+      ]
+    },
+    {
+      "id": "fruit-anacarde-benin",
+      "file": "fruit-anacarde-benin-1600.webp",
+      "alt": "Pommes de cajou rouge et jaune avec leurs noix, sur l'arbre",
+      "width": 1600,
+      "height": 2133,
+      "credit": "Photo : Saogou, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Fruit_d%27acajou_sur_un_arbre_au_B%C3%A9nin.jpg",
+      "tags": ["anacarde", "cajou", "rente", "portrait", "gros-plan"],
+      "variants": [
+        {
+          "file": "fruit-anacarde-benin-1600.webp",
+          "width": 1600,
+          "height": 2133
+        },
+        {
+          "file": "fruit-anacarde-benin-800.webp",
+          "width": 800,
+          "height": 1067
+        }
+      ]
+    },
+    {
+      "id": "etal-vivriers-porto-novo",
+      "file": "etal-vivriers-porto-novo-1600.webp",
+      "alt": "Étal de tomates et de piments sous un abri de bambou au marché de Kpintoukpinmédé, Porto-Novo",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Ksperentos, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Etalage_de_produits_vivriers.jpg",
+      "tags": ["marche", "tomate", "piment", "vivrier", "oueme", "porto-novo"],
+      "variants": [
+        {
+          "file": "etal-vivriers-porto-novo-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "etal-vivriers-porto-novo-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "productrices-retour-champ-savalou",
+      "file": "productrices-retour-champ-savalou-1600.webp",
+      "alt": "Femmes et enfants de dos, bassines de légumes et fagots sur la tête, sur une piste de latérite à Savalou",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Gbetongninougbo Joseph Hervé Ahissou, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:The_clich%C3%A9_of_equality!.jpg",
+      "tags": ["femmes", "productrices", "collines", "savalou", "transport", "hero"],
+      "variants": [
+        {
+          "file": "productrices-retour-champ-savalou-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "productrices-retour-champ-savalou-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "producteur-recolte-manioc",
+      "file": "producteur-recolte-manioc-1600.webp",
+      "alt": "Producteur tenant un pied de manioc fraîchement arraché, tubercules apparents, mains et vêtements de travail",
+      "width": 1600,
+      "height": 1200,
+      "credit": "Photo : Mhope2010, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:R%C3%A9colte_de_tubercules_de_manioc_01.jpg",
+      "tags": ["manioc", "recolte", "producteur", "terrain"],
+      "variants": [
+        {
+          "file": "producteur-recolte-manioc-1600.webp",
+          "width": 1600,
+          "height": 1200
+        },
+        {
+          "file": "producteur-recolte-manioc-800.webp",
+          "width": 800,
+          "height": 600
+        }
+      ]
+    },
+    {
+      "id": "sacs-gari-savalou",
+      "file": "sacs-gari-savalou-1600.webp",
+      "alt": "Sacs de gari alignés sur des tréteaux au bord de la route, région de Savalou",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Ji-Elle, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:B%C3%A9nin-Vente_de_sacs_de_gari_(1).jpg",
+      "tags": ["gari", "manioc", "vente", "collines", "stock", "cooperative"],
+      "variants": [
+        {
+          "file": "sacs-gari-savalou-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "sacs-gari-savalou-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "rizerie-malanville-entrepot",
+      "file": "rizerie-malanville-entrepot-1600.webp",
+      "alt": "Rizerie de Malanville : hangar industriel, camion bâché et tracteur devant l'entrée",
+      "width": 1600,
+      "height": 1200,
+      "credit": "Photo : Africa Rice Center, Wikimedia Commons, CC BY-SA 3.0",
+      "license": "CC BY-SA 3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Riziere_in_Malanville_-_Rice_milling_factory_in_Malanville_-_panoramio.jpg",
+      "tags": ["riz", "entrepot", "transformation", "alibori", "nord", "logistique"],
+      "variants": [
+        {
+          "file": "rizerie-malanville-entrepot-1600.webp",
+          "width": 1600,
+          "height": 1200
+        },
+        {
+          "file": "rizerie-malanville-entrepot-800.webp",
+          "width": 800,
+          "height": 600
+        }
+      ]
+    },
+    {
+      "id": "savane-baobabs-atacora",
+      "file": "savane-baobabs-atacora-1600.webp",
+      "alt": "Savane en saison sèche au pied de l'Atacora : grand baobab défeuillé, rôniers, chèvre et greniers de village",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Ji-Elle, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Baobabs_et_r%C3%B4niers_au_pied_de_l%27Atacora.jpg",
+      "tags": ["savane", "atacora", "nord", "saison-seche", "paysage"],
+      "variants": [
+        {
+          "file": "savane-baobabs-atacora-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "savane-baobabs-atacora-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    },
+    {
+      "id": "vue-aerienne-parcelles-fsa",
+      "file": "vue-aerienne-parcelles-fsa-1600.webp",
+      "alt": "Vue aérienne de parcelles maraîchères rectangulaires et de personnes au travail sur une planche de culture",
+      "width": 1600,
+      "height": 900,
+      "credit": "Photo : Fawaz.tairou, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Vue_du_ciel_d%27une_ferme_de_la_FSA.jpg",
+      "tags": ["aerien", "parcelles", "maraichage", "abomey-calavi", "cartographie"],
+      "variants": [
+        {
+          "file": "vue-aerienne-parcelles-fsa-1600.webp",
+          "width": 1600,
+          "height": 900
+        },
+        {
+          "file": "vue-aerienne-parcelles-fsa-800.webp",
+          "width": 800,
+          "height": 450
+        }
+      ]
+    },
+    {
+      "id": "maraichage-irrigue-grand-popo",
+      "file": "maraichage-irrigue-grand-popo-1600.webp",
+      "alt": "Planches de carottes irriguées au goutte-à-goutte à Grand-Popo, cocotiers en arrière-plan",
+      "width": 1600,
+      "height": 1067,
+      "credit": "Photo : Kulttuurinavigaattori, Wikimedia Commons, CC BY-SA 4.0",
+      "license": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Carrot_field_Grand_Popo_Benin.jpg",
+      "tags": ["maraichage", "irrigation", "carotte", "mono", "sud"],
+      "variants": [
+        {
+          "file": "maraichage-irrigue-grand-popo-1600.webp",
+          "width": 1600,
+          "height": 1067
+        },
+        {
+          "file": "maraichage-irrigue-grand-popo-800.webp",
+          "width": 800,
+          "height": 533
+        }
+      ]
+    }
+  ]
+}

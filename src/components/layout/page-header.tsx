@@ -18,11 +18,7 @@ export function PageHeader({ eyebrow, title, description, actions, className }: 
       )}
     >
       <div className="max-w-2xl">
-        {eyebrow ? (
-          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-primary uppercase">
-            {eyebrow}
-          </p>
-        ) : null}
+        {eyebrow ? <p className="mb-2 text-sm font-medium text-primary">{eyebrow}</p> : null}
         <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{title}</h1>
         {description ? (
           <p className="mt-2 text-sm text-pretty text-muted-foreground sm:text-base">

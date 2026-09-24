@@ -1,16 +1,21 @@
 import { SourceCaption } from "@/components/data-display/source-caption";
+import { listDepartements } from "@/modules/territory";
 
-// Découpage administratif du Bénin (docs/08, §2). Chiffres officiels, stables.
-const figures = [
-  { label: "Départements", value: "12" },
-  { label: "Communes", value: "77" },
-  { label: "Arrondissements", value: "546" },
-  { label: "Villages et quartiers", value: "≈ 5 300" },
-];
+// Le territoire couvert, lu dans la base : les départements et communes sont ceux du
+// référentiel chargé, pas des constantes d'affichage.
+export async function TerritoryFigures() {
+  const departements = await listDepartements();
+  const communeCount = departements.reduce((sum, d) => sum + d.communeCount, 0);
 
-export function TerritoryFigures() {
+  const figures = [
+    { label: "Départements", value: String(departements.length) },
+    { label: "Communes", value: String(communeCount) },
+    { label: "Arrondissements", value: "546" },
+    { label: "Cultures suivies", value: "21" },
+  ];
+
   return (
-    <section aria-labelledby="territoire" className="border-y border-border/70">
+    <section aria-labelledby="territoire" className="border-b border-border/70 bg-card">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
         <h2 id="territoire" className="sr-only">
           Le territoire couvert
@@ -18,17 +23,17 @@ export function TerritoryFigures() {
         <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           {figures.map((figure) => (
             <div key={figure.label} className="flex flex-col gap-1">
-              <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {figure.label}
-              </dt>
-              <dd className="tabular text-3xl font-semibold tracking-tight">{figure.value}</dd>
+              <dd className="tabular order-1 text-3xl font-semibold tracking-tight">
+                {figure.value}
+              </dd>
+              <dt className="order-2 text-sm text-muted-foreground">{figure.label}</dt>
             </div>
           ))}
         </dl>
         <SourceCaption
           className="mt-6"
-          source="découpage administratif officiel de la République du Bénin"
-          date="référentiel 2026"
+          source="découpage administratif officiel et référentiel des cultures"
+          date="septembre 2026"
         />
       </div>
     </section>
