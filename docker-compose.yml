@@ -32,6 +32,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # production par défaut : les comptes et codes de démonstration sont alors refusés.
+      APP_ENV: ${APP_ENV:-production}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET est obligatoire}
       APP_URL: ${APP_URL:-http://localhost:3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-bais}:${POSTGRES_PASSWORD:-bais}@db:5432/${POSTGRES_DB:-bais}?schema=public
       LOG_LEVEL: ${LOG_LEVEL:-info}

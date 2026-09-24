@@ -13,6 +13,9 @@ const globalForPrisma = globalThis as unknown as {
 
 function createClient() {
   const env = getServerEnv();
+  if (!env.DATABASE_URL) {
+    throw new Error("DATABASE_URL est obligatoire pour ouvrir une connexion à la base");
+  }
   const pool = globalForPrisma.pgPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
   const adapter = new PrismaPg(pool);
   const client = new PrismaClient({

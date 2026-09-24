@@ -1,4 +1,5 @@
 import { betterAuth, type GenericEndpointContext } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { phoneNumber, twoFactor } from "better-auth/plugins";
@@ -7,6 +8,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { isDemoPhone, isValidBeninPhone } from "@/lib/auth/phone";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { recordAudit, type AuditAction } from "@/modules/audit";
 import { getMessagingChannel } from "@/services/messaging";
 
 const env = getServerEnv();
@@ -51,13 +53,30 @@ export const auth = betterAuth({
     storage: "database",
     modelName: "rateLimit",
     window: 60,
-    max: 30,
+    max: 60,
+    // Les limites sont par adresse IP. Au Bénin, un quartier entier peut sortir derrière la
+    // même adresse (opérateurs mobiles en CGNAT) : les fenêtres restent larges ici, et la
+    // protection fine par numéro vient d'allowedAttempts sur le code lui-même.
     customRules: {
-      "/phone-number/send-otp": { window: 60 * 60, max: 5 },
-      "/phone-number/verify": { window: 15 * 60, max: 5 },
-      "/sign-in/email": { window: 15 * 60, max: 10 },
-      "/two-factor/verify-totp": { window: 15 * 60, max: 10 },
+      "/phone-number/send-otp": { window: 15 * 60, max: 30 },
+      "/phone-number/verify": { window: 15 * 60, max: 60 },
+      "/sign-in/email": { window: 15 * 60, max: 30 },
+      "/two-factor/verify-totp": { window: 15 * 60, max: 30 },
     },
+  },
+  hooks: {
+    // Journal d'audit des événements de compte que la bibliothèque traite seule.
+    after: createAuthMiddleware(async (ctx) => {
+      const action = AUDITED_PATHS[ctx.path];
+      if (!action) return;
+      const session = ctx.context.newSession ?? ctx.context.session;
+      await recordAudit({
+        action,
+        actorId: session?.user.id ?? null,
+        ip: ctx.request?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+        userAgent: ctx.request?.headers.get("user-agent") ?? null,
+      });
+    }),
   },
   plugins: [
     phoneNumber({
@@ -101,6 +120,17 @@ export const auth = betterAuth({
     nextCookies(),
   ],
 });
+
+// Chemins better-auth dont le succès mérite une trace d'audit (docs/06 §6).
+const AUDITED_PATHS: Record<string, AuditAction> = {
+  "/sign-out": "auth.sign_out",
+  "/phone-number/send-otp": "auth.otp_requested",
+  "/two-factor/enable": "auth.two_factor_enabled",
+  "/two-factor/disable": "auth.two_factor_disabled",
+  "/revoke-session": "auth.session_revoked",
+  "/revoke-sessions": "auth.session_revoked",
+  "/revoke-other-sessions": "auth.session_revoked",
+};
 
 type VerifyContext = GenericEndpointContext | undefined;
 

@@ -15,13 +15,22 @@ const base64Key = (bytes: number, name: string) =>
 const serverSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // NODE_ENV vaut "production" dès `next build` ou `next start`, y compris pour une
+    // démonstration locale. APP_ENV distingue le déploiement réel (production) des
+    // environnements de démonstration et de recette, où les comptes de démo sont admis.
+    APP_ENV: z
+      .enum(["development", "test", "demo", "staging", "production"])
+      .default("development"),
     APP_URL: z.url().default("http://localhost:3000"),
+    // Vide au moment du build (image Docker sans base) : la connexion est vérifiée au premier usage.
     DATABASE_URL: z
       .string()
-      .min(1, "DATABASE_URL est obligatoire")
-      .refine((value) => value.startsWith("postgres://") || value.startsWith("postgresql://"), {
-        message: "DATABASE_URL doit être une URL PostgreSQL",
-      }),
+      .default("")
+      .refine(
+        (value) =>
+          value === "" || value.startsWith("postgres://") || value.startsWith("postgresql://"),
+        { message: "DATABASE_URL doit être une URL PostgreSQL" },
+      ),
     LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 
     // Authentification
@@ -44,7 +53,7 @@ const serverSchema = z
     IDENTITY_VERIFICATION_PROVIDER: z.enum(["anip-local", "anip-xroad"]).default("anip-local"),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === "production") {
+    if (env.APP_ENV === "production") {
       if (!env.AUTH_SECRET) {
         ctx.addIssue({
           code: "custom",
