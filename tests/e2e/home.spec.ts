@@ -4,8 +4,11 @@ test.describe("page d'accueil", () => {
   test("affiche le nom de la plateforme et les six espaces", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Bénin Agricultural Intelligence System/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      "Connaître chaque exploitation",
+    );
     await expect(
-      page.getByRole("heading", { level: 1, name: "Bénin Agricultural Intelligence System" }),
+      page.locator("footer").getByText("Bénin Agricultural Intelligence System"),
     ).toBeVisible();
 
     const spaces = page.locator("#espaces li");
