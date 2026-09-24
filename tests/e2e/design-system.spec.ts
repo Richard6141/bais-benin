@@ -24,7 +24,7 @@ test.describe("page design system", () => {
     await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByRole("tab", { name: "Parcelles" })).toBeVisible();
     await expect(page.getByRole("alert").first()).toBeVisible();
-    await expect(page.locator("[data-reliability]")).toHaveCount(8);
+    await expect(page.locator("[data-reliability]")).toHaveCount(11);
     await expect(page.locator("[data-confidence]")).toHaveCount(4);
     await expect(page.locator("section#pictogrammes svg[role='img']")).toHaveCount(3 + 21 * 2);
   });
