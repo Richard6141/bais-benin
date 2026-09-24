@@ -50,6 +50,43 @@ const plans = {
     { name: "design-system-mobile", path: "/design-system", context: mobile },
     { name: "accueil-sombre", path: "/", context: desktop, dark: true },
   ],
+  "etape-4": [
+    {
+      name: "carte-nationale-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: async (page) => {
+        await page.goto(`${baseUrl}/carte`);
+        await page.getByText("Pour ces filtres").waitFor({ timeout: 20_000 });
+        await page.locator('[data-map-idle="true"]').waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(500);
+      },
+    },
+    {
+      name: "carte-mais-donga-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: async (page) => {
+        await page.goto(
+          `${baseUrl}/carte?cropCode=MAIZE&departementCode=BJ-DO&metric=verifiedShare`,
+        );
+        await page.getByText("Pour ces filtres").waitFor({ timeout: 20_000 });
+        await page.locator('[data-map-idle="true"]').waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(500);
+      },
+    },
+    {
+      name: "carte-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await page.goto(`${baseUrl}/carte`);
+        await page.getByText("Pour ces filtres").waitFor({ timeout: 20_000 });
+        await page.locator('[data-map-idle="true"]').waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(500);
+      },
+    },
+  ],
   "etape-3": [
     { name: "connexion-telephone-mobile", path: "/connexion", context: mobile },
     {
@@ -124,7 +161,9 @@ for (const target of targets) {
     await page.waitForTimeout(300);
   }
   const file = `${outputDir}/${target.name}.png`;
-  await page.screenshot({ path: file, fullPage: true });
+  // Une page pleine hauteur redimensionne la fenêtre au moment de la capture, ce qui vide le
+  // tampon WebGL de la carte : les écrans cartographiques sont capturés à la taille de la fenêtre.
+  await page.screenshot({ path: file, fullPage: target.fullPage ?? true });
   console.log(file);
   await context.close();
 }
