@@ -18,7 +18,7 @@ describe("référentiels et territoire", () => {
   });
 
   it("charge les volumes attendus", () => {
-    expect(summary).toEqual({
+    expect(summary).toMatchObject({
       dataSources: 7,
       zones: 8,
       departements: 12,
@@ -27,6 +27,7 @@ describe("référentiels et territoire", () => {
       campaigns: 4,
       demoAccounts: 5,
     });
+    expect(summary.registry.farms).toBeGreaterThan(0);
   });
 
   it("est idempotent : relancer le seed ne duplique rien", async () => {

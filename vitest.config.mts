@@ -35,6 +35,8 @@ export default defineConfig({
         test: {
           name: "integration",
           environment: "node",
+          // Une seule base partagée : les fichiers s'enchaînent pour ne pas se marcher dessus.
+          fileParallelism: false,
           setupFiles: ["./tests/integration/setup.ts"],
           include: ["tests/integration/**/*.test.ts"],
           testTimeout: 30_000,

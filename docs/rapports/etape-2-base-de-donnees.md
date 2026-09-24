@@ -37,7 +37,7 @@ OK.
 - **Campagne courante** : nous sommes en septembre 2026, la campagne ouverte est 2026-2027 ; le seed charge 2024-2025 à 2027-2028.
 - **Prisma et JSON** : les tuples en lecture seule du référentiel ne sont pas acceptés comme `InputJsonValue` ; clonage explicite dans le seed.
 - **Mémoire** : les workers Vitest plantaient (poste avec Docker, serveur de développement et plusieurs sessions) ; limitation à deux workers, comme pour le build.
-- **Next.js 16** génère des fichiers d'instructions pour agents (`AGENTS.md`, `le modèle.md`) quand il détecte un assistant : supprimés et exclus localement, jamais versionnés.
+- **Next.js 16** génère des fichiers d'instructions pour outils d'assistance au code quand il en détecte un : supprimés et exclus localement, jamais versionnés.
 - Le dossier `docs/recherche/` (ANIP, portails officiels, authentification) reste hors dépôt jusqu'à exploitation à l'étape 3.
 
 ## Améliorations possibles
