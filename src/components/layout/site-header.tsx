@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Monogram } from "@/components/brand/monogram";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function SiteHeader() {
   return (
@@ -15,9 +16,16 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav aria-label="Navigation principale" className="flex items-center gap-1 text-sm">
-          <span className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
-            Prototype · étape 0
+          <Link
+            href="/design-system"
+            className="rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Design system
+          </Link>
+          <span className="hidden rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-block">
+            Prototype
           </span>
+          <ThemeToggle />
         </nav>
       </div>
     </header>

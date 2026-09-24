@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/feedback/offline-banner";
 import { PwaProvider } from "@/components/providers/pwa-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,12 +58,22 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr" dir="ltr" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
+    // suppressHydrationWarning : next-themes pose la classe de thème sur <html> avant React.
+    <html
+      lang="fr"
+      dir="ltr"
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
+      suppressHydrationWarning
+    >
       <body className="flex min-h-full flex-col">
-        <PwaProvider>
-          <OfflineBanner />
-          {children}
-        </PwaProvider>
+        <ThemeProvider>
+          <TooltipProvider delayDuration={200}>
+            <PwaProvider>
+              <OfflineBanner />
+              {children}
+            </PwaProvider>
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
