@@ -8,6 +8,8 @@ import boundaries from "eslint-plugin-boundaries";
 // Le domaine (modules/) ne doit jamais dépendre de Next, de React ni de l'UI :
 // c'est ce qui garantit qu'il pourra être extrait vers un service séparé.
 const layers = [
+  // Points de câblage : ils assemblent bibliothèques, adaptateurs et modules (auth, conteneur).
+  { type: "wiring", pattern: ["src/lib/auth/auth.ts", "src/lib/container.ts"], mode: "file" },
   { type: "app", pattern: "src/app/**" },
   { type: "features", pattern: "src/features/*", capture: ["feature"] },
   { type: "components", pattern: "src/components/**" },
@@ -42,7 +44,9 @@ export default defineConfig([
         {
           default: "disallow",
           policies: [
+            allow("wiring", ["modules", "services", "database", "lib", "types", "generated"]),
             allow("app", [
+              "wiring",
               "features",
               "components",
               "modules",
@@ -52,6 +56,7 @@ export default defineConfig([
               "styles",
             ]),
             allow("features", [
+              "wiring",
               "features",
               "components",
               "modules",

@@ -100,12 +100,6 @@ enum ScopeType {
   SELF
 }
 
-enum UserStatus {
-  PENDING
-  ACTIVE
-  SUSPENDED
-  DELETED
-}
 
 enum Gender {
   M
@@ -451,7 +445,8 @@ model AuditLog {
   id            String   @id @default(uuid(7)) @db.Uuid
   occurredAt    DateTime @default(now()) @map("occurred_at")
   actorId       String?  @map("actor_id") @db.Uuid
-  actor         User?    @relation(fields: [actorId], references: [id])
+  // La trace survit à la suppression du compte : l'acteur passe simplement à nul.
+  actor         User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   action        String
   resourceType  String?  @map("resource_type")
   resourceId    String?  @map("resource_id")
@@ -469,7 +464,7 @@ model AuditLog {
 model RoleAssignment {
   id        String    @id @default(uuid(7)) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
-  user      User      @relation("assignments", fields: [userId], references: [id])
+  user      User      @relation("assignments", fields: [userId], references: [id], onDelete: Cascade)
   role      Role
   scopeType ScopeType @map("scope_type")
   // Identifiant du territoire ou de l'organisation ciblé ; nul pour NATIONAL et SELF.
