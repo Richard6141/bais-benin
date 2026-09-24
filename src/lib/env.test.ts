@@ -13,8 +13,22 @@ describe("parseServerEnv", () => {
     expect(env.LOG_LEVEL).toBe("info");
   });
 
-  it("refuse une configuration sans DATABASE_URL", () => {
-    expect(() => parseServerEnv({})).toThrow(/DATABASE_URL/);
+  it("accepte une DATABASE_URL vide au moment du build", () => {
+    expect(parseServerEnv({}).DATABASE_URL).toBe("");
+  });
+
+  it("interdit le code de démonstration et exige le secret en production réelle", () => {
+    expect(() =>
+      parseServerEnv({ ...validEnv, APP_ENV: "production", OTP_DEMO_CODE: "123456" }),
+    ).toThrow(/OTP_DEMO_CODE|AUTH_SECRET/);
+    expect(
+      parseServerEnv({
+        ...validEnv,
+        APP_ENV: "demo",
+        OTP_DEMO_CODE: "123456",
+        NODE_ENV: "production",
+      }).OTP_DEMO_CODE,
+    ).toBe("123456");
   });
 
   it("refuse une DATABASE_URL qui n'est pas PostgreSQL", () => {

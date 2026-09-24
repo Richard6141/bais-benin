@@ -25,6 +25,7 @@ describe("référentiels et territoire", () => {
       communes: 77,
       crops: 21,
       campaigns: 4,
+      demoAccounts: 5,
     });
   });
 
