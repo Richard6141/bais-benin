@@ -34,7 +34,7 @@
   /* Sémantique produit */
   --info: #1e5a8a;
   --success: #1f5a3c;
-  --watch: #b7791f;
+  --watch: #82540f;
   --warning: #b7410e;
   --critical: #8b1e2d;
   --offline: #5b5f66;
@@ -57,7 +57,7 @@
   --destructive: var(--critical);
   --destructive-foreground: var(--paper);
   --border: var(--stone-200);
-  --input: var(--stone-300);
+  --input: var(--stone-500);
   --ring: var(--gulf);
 
   /* Séries de données (cultures majeures : couleurs fixes dans tout le produit) */
@@ -68,6 +68,24 @@
   --chart-5: #1e5a8a;
 
   --radius: 0.625rem;
+
+  /* Tailles de contrôles : 44 px minimum pour le tactile (WCAG 2.5.8), 56 px sur l'espace agriculteur */
+  --size-control-sm: 2rem;
+  --size-control-md: 2.5rem;
+  --size-control-lg: 2.75rem;
+  --size-control-xl: 3.5rem;
+  --size-touch-min: 2.75rem;
+
+  /* Ombres : presque absentes, la hiérarchie vient des fonds et des bordures */
+  --shadow-card: 0 1px 2px rgb(11 31 42 / 0.04);
+  --shadow-raised: 0 4px 12px -2px rgb(11 31 42 / 0.08), 0 1px 2px rgb(11 31 42 / 0.04);
+  --shadow-overlay: 0 16px 40px -8px rgb(11 31 42 / 0.22);
+
+  /* Durées et courbes de mouvement */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
@@ -85,15 +103,27 @@
   --muted-foreground: #a9b7bd;
   --accent: #1c4250;
   --accent-foreground: #cfe6ec;
-  --destructive: #c8384a;
-  --destructive-foreground: var(--chalk);
+  --destructive: #e36b7a;
+  --destructive-foreground: var(--ink);
   --border: #1f3a47;
-  --input: #274755;
+  --input: #4d7989;
   --ring: #5aa9bb;
+
+  /* Sémantique produit éclaircie : les valeurs de :root sont calibrées pour du texte sur fond clair
+     et tombent sous 3:1 sur les cartes sombres. Celles-ci tiennent 4,5:1 minimum sur --card. */
+  --info: #8fc3d9;
+  --success: #5fa77f;
+  --watch: #d9a24a;
+  --warning: #e07a45;
+  --critical: #f08a95;
 
   --chart-1: #5aa9bb;
   --chart-2: #e07a45;
   --chart-3: #5fa77f;
   --chart-4: #d9a24a;
   --chart-5: #6f9fd0;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-raised: 0 4px 12px -2px rgb(0 0 0 / 0.45);
+  --shadow-overlay: 0 16px 40px -8px rgb(0 0 0 / 0.6);
 }
