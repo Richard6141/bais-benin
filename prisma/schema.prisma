@@ -326,32 +326,144 @@ model AgriculturalCampaign {
 // Identité et accès (les mécanismes de connexion arrivent à l'étape 3)
 // ---------------------------------------------------------------------------
 
+// Table des comptes gérée par better-auth (ADR-0010). Les noms de champs sont ceux
+// qu'attend la bibliothèque ; les colonnes restent en snake_case.
 model User {
-  id              String     @id @default(uuid(7)) @db.Uuid
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  name                String     @map("display_name")
+  // better-auth exige un e-mail unique : les comptes créés par téléphone reçoivent une
+  // adresse technique <numéro>@telephone.bais.invalid, jamais affichée.
+  email               String     @unique @db.Citext
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  image               String?
   // Identifiant principal des agriculteurs et des agents : +229 01 XX XX XX XX.
-  phoneE164       String?    @unique @map("phone_e164")
-  email           String?    @unique @db.Citext
-  passwordHash    String?    @map("password_hash")
-  displayName     String     @map("display_name")
-  preferredLocale String     @default("fr") @map("preferred_locale")
-  status          UserStatus @default(PENDING)
-  // NPI (ANIP) : jamais en clair. Le haché sert à l'unicité, le chiffré à la restitution habilitée.
-  npiHash         Bytes?     @unique @map("npi_hash")
-  npiEncrypted    Bytes?     @map("npi_encrypted")
-  npiVerifiedAt   DateTime?  @map("npi_verified_at")
+  phoneNumber         String?    @unique @map("phone_e164")
+  phoneNumberVerified Boolean?   @map("phone_verified")
+  twoFactorEnabled    Boolean?   @default(false) @map("two_factor_enabled")
+  preferredLocale     String?    @default("fr") @map("preferred_locale")
+  status              String?    @default("ACTIVE")
+  // NPI (ANIP) : jamais en clair. L'index HMAC sert à l'unicité, le chiffré à la restitution
+  // habilitée (format versionné, voir lib/crypto/npi.ts).
+  npiIndex            Bytes?     @unique @map("npi_index")
+  npiCiphertext       String?    @map("npi_ciphertext")
+  npiStatus           NpiStatus  @default(NONE) @map("npi_status")
+  npiVerifiedAt       DateTime?  @map("npi_verified_at")
   npiVerificationProvider String? @map("npi_verification_provider")
-  lastLoginAt     DateTime?  @map("last_login_at")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
-  archivedAt      DateTime?  @map("archived_at")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  archivedAt          DateTime?  @map("archived_at")
 
+  sessions      Session[]
+  accounts      Account[]
+  twoFactors    TwoFactor[]
   roles         RoleAssignment[] @relation("assignments")
   grantedRoles  RoleAssignment[] @relation("grants")
+  auditEntries  AuditLog[]
   farmer        Farmer?
   registeredFarms Farm[]   @relation("registeredBy")
   verifiedFarms Farm[]     @relation("verifiedBy")
 
   @@map("user")
+}
+
+enum NpiStatus {
+  NONE
+  PENDING
+  VERIFIED
+  MISMATCH
+}
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_session")
+}
+
+model Account {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  // Argon2id pour le fournisseur "credential" (comptes institutionnels).
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("auth_account")
+}
+
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("auth_verification")
+}
+
+model TwoFactor {
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  userId                  String    @map("user_id") @db.Uuid
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until")
+
+  @@index([secret])
+  @@index([userId])
+  @@map("auth_two_factor")
+}
+
+model RateLimit {
+  id          String @id @default(uuid(7)) @db.Uuid
+  key         String @unique
+  count       Int
+  lastRequest BigInt @map("last_request")
+
+  @@map("auth_rate_limit")
+}
+
+// Journal d'audit en ajout seul (docs/06 §6) : connexions, rôles, révélations de NPI…
+model AuditLog {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  occurredAt    DateTime @default(now()) @map("occurred_at")
+  actorId       String?  @map("actor_id") @db.Uuid
+  actor         User?    @relation(fields: [actorId], references: [id])
+  action        String
+  resourceType  String?  @map("resource_type")
+  resourceId    String?  @map("resource_id")
+  outcome       String   @default("SUCCESS")
+  details       Json?
+  ipHash        String?  @map("ip_hash")
+  userAgent     String?  @map("user_agent")
+  correlationId String?  @map("correlation_id")
+
+  @@index([actorId, occurredAt])
+  @@index([action, occurredAt])
+  @@map("audit_log")
 }
 
 model RoleAssignment {
