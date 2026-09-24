@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Montserrat } from "next/font/google";
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/feedback/offline-banner";
 import { PwaProvider } from "@/components/providers/pwa-provider";
@@ -7,9 +7,20 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
+// Inter pour le corps, les formulaires et les chiffres : lisible à 14 px sur Android
+// d'entrée de gamme. Montserrat pour les titres : police de fait des portails officiels
+// béninois (docs/recherche/plateformes-officielles-ui.md).
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  subsets: ["latin", "latin-ext"],
+  weight: ["600", "700"],
   display: "swap",
 });
 
@@ -62,7 +73,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="fr"
       dir="ltr"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${inter.variable} ${montserrat.variable} ${jetbrainsMono.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">

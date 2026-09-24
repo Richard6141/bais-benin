@@ -52,7 +52,6 @@ function GridBackdrop() {
       className="pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_top_left,black_35%,transparent_75%)]"
     >
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--stone-200)_1px,transparent_1px),linear-gradient(to_bottom,var(--stone-200)_1px,transparent_1px)] bg-[size:56px_56px] opacity-60 dark:opacity-25" />
-      <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-gradient-to-br from-laterite/15 to-transparent blur-3xl" />
     </div>
   );
 }

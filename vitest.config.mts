@@ -12,6 +12,9 @@ export default defineConfig({
   test: {
     globals: true,
     passWithNoTests: true,
+    // Deux workers suffisent et évitent d'épuiser la mémoire sur un poste qui fait aussi
+    // tourner Docker et le serveur de développement (même logique que le build Next).
+    maxWorkers: 2,
     coverage: {
       provider: "v8",
       include: ["src/modules/**", "src/lib/**", "src/services/**"],

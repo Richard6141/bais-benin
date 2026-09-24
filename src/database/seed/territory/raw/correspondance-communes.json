@@ -1,0 +1,877 @@
+{
+  "source": "geoBoundaries gbOpen BEN ADM1 (BEN-ADM1-11314189) et ADM2 (BEN-ADM2-17685819), release 9469f09, build 2023-12-12",
+  "reference": "docs/08-donnees-et-sources.md, tableau 2.1",
+  "genere_le": "2026-09-24",
+  "resume": {
+    "adm1": 12,
+    "adm2": 77,
+    "ecarts_orthographe_adm1": 4,
+    "ecarts_orthographe_adm2": 35,
+    "non_apparies": [],
+    "incoherences_spatiales": 0
+  },
+  "notes": [
+    "Les shapeName geoBoundaries sont sans accents (source Map Maker Ltd. / Stanford Earthworks, 2007) ; le libellé officiel provient du tableau 2.1 du document 08.",
+    "Écarts au-delà des accents : Kobli = Cobly ; Akpo-Misserete = Akpro-Missérété ; Boukombe = Boukoumbé ; N'dali = N'Dali (casse). ADM1 : Atakora = Atacora, Kouffo = Couffo, Atlanique = Atlantique (faute de frappe dans la source), Oueme = Ouémé.",
+    "shapeISO ADM2 est vide dans la source ; shapeISO ADM1 manque pour Kouffo/Couffo (code ISO 3166-2 attendu : BJ-KO).",
+    "departement_spatial_adm1 : département ADM1 qui contient la majorité d'une grille de points intérieurs de la commune ; part_points_interieurs : part de ces points tombant dans ce département (les couches ADM1 2012 et ADM2 2007 ne sont pas topologiquement alignées, d'où des parts inférieures à 1 le long des limites) ; coherence_spatiale compare au rattachement officiel."
+  ],
+  "departements": [
+    {
+      "shapeName_geoboundaries": "Borgou",
+      "shapeID": "11314189B6086502013331",
+      "shapeISO": "BJ-BO",
+      "libelle_officiel": "Borgou",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Alibori",
+      "shapeID": "11314189B84365908568321",
+      "shapeISO": "BJ-AL",
+      "libelle_officiel": "Alibori",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Atakora",
+      "shapeID": "11314189B98234112011604",
+      "shapeISO": "BJ-AK",
+      "libelle_officiel": "Atacora",
+      "ecart_orthographe": true
+    },
+    {
+      "shapeName_geoboundaries": "Donga",
+      "shapeID": "11314189B13023113934095",
+      "shapeISO": "BJ-DO",
+      "libelle_officiel": "Donga",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Collines",
+      "shapeID": "11314189B64147716128567",
+      "shapeISO": "BJ-CO",
+      "libelle_officiel": "Collines",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Plateau",
+      "shapeID": "11314189B63929627317717",
+      "shapeISO": "BJ-PL",
+      "libelle_officiel": "Plateau",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Zou",
+      "shapeID": "11314189B15837635829289",
+      "shapeISO": "BJ-ZO",
+      "libelle_officiel": "Zou",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Littoral",
+      "shapeID": "11314189B51785125282818",
+      "shapeISO": "BJ-LI",
+      "libelle_officiel": "Littoral",
+      "ecart_orthographe": false
+    },
+    {
+      "shapeName_geoboundaries": "Kouffo",
+      "shapeID": "11314189B98727282609866",
+      "shapeISO": null,
+      "libelle_officiel": "Couffo",
+      "ecart_orthographe": true
+    },
+    {
+      "shapeName_geoboundaries": "Oueme",
+      "shapeID": "11314189B51984097201256",
+      "shapeISO": "BJ-OU",
+      "libelle_officiel": "Ouémé",
+      "ecart_orthographe": true
+    },
+    {
+      "shapeName_geoboundaries": "Atlanique",
+      "shapeID": "11314189B92184841279532",
+      "shapeISO": "BJ-AQ",
+      "libelle_officiel": "Atlantique",
+      "ecart_orthographe": true
+    },
+    {
+      "shapeName_geoboundaries": "Mono",
+      "shapeID": "11314189B32238589455429",
+      "shapeISO": "BJ-MO",
+      "libelle_officiel": "Mono",
+      "ecart_orthographe": false
+    }
+  ],
+  "communes": [
+    {
+      "shapeName_geoboundaries": "Banikoara",
+      "shapeID": "17685819B57139564746449",
+      "libelle_officiel": "Banikoara",
+      "departement": "Alibori",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 0.91,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Gogounou",
+      "shapeID": "17685819B47850119626851",
+      "libelle_officiel": "Gogounou",
+      "departement": "Alibori",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 0.91,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kandi",
+      "shapeID": "17685819B31910055772004",
+      "libelle_officiel": "Kandi",
+      "departement": "Alibori",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Karimama",
+      "shapeID": "17685819B85973060374162",
+      "libelle_officiel": "Karimama",
+      "departement": "Alibori",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Malanville",
+      "shapeID": "17685819B18003775101914",
+      "libelle_officiel": "Malanville",
+      "departement": "Alibori",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Segbana",
+      "shapeID": "17685819B25902777071239",
+      "libelle_officiel": "Ségbana",
+      "departement": "Alibori",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Alibori",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Boukombe",
+      "shapeID": "17685819B99804537894120",
+      "libelle_officiel": "Boukoumbé",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kobli",
+      "shapeID": "17685819B4092451643280",
+      "libelle_officiel": "Cobly",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kouande",
+      "shapeID": "17685819B73911627176990",
+      "libelle_officiel": "Kouandé",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.89,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kerou",
+      "shapeID": "17685819B98321853839803",
+      "libelle_officiel": "Kérou",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Materi",
+      "shapeID": "17685819B2600041724770",
+      "libelle_officiel": "Matéri",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Natitingou",
+      "shapeID": "17685819B66349454131554",
+      "libelle_officiel": "Natitingou",
+      "departement": "Atacora",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Pehunco",
+      "shapeID": "17685819B12843899137908",
+      "libelle_officiel": "Péhunco",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Tanguieta",
+      "shapeID": "17685819B98348434447391",
+      "libelle_officiel": "Tanguiéta",
+      "departement": "Atacora",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Toucountouna",
+      "shapeID": "17685819B76954688832254",
+      "libelle_officiel": "Toucountouna",
+      "departement": "Atacora",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atacora",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Abomey-Calavi",
+      "shapeID": "17685819B50728061848372",
+      "libelle_officiel": "Abomey-Calavi",
+      "departement": "Atlantique",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.98,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Allada",
+      "shapeID": "17685819B11652159225436",
+      "libelle_officiel": "Allada",
+      "departement": "Atlantique",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kpomasse",
+      "shapeID": "17685819B13654727190048",
+      "libelle_officiel": "Kpomassè",
+      "departement": "Atlantique",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.77,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ouidah",
+      "shapeID": "17685819B59667857223414",
+      "libelle_officiel": "Ouidah",
+      "departement": "Atlantique",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "So-Ava",
+      "shapeID": "17685819B57130091553848",
+      "libelle_officiel": "Sô-Ava",
+      "departement": "Atlantique",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.78,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Toffo",
+      "shapeID": "17685819B42315243749993",
+      "libelle_officiel": "Toffo",
+      "departement": "Atlantique",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Tori-Bossito",
+      "shapeID": "17685819B70132266072899",
+      "libelle_officiel": "Tori-Bossito",
+      "departement": "Atlantique",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ze",
+      "shapeID": "17685819B72435311571007",
+      "libelle_officiel": "Zè",
+      "departement": "Atlantique",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Atlantique",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bembereke",
+      "shapeID": "17685819B44038505687321",
+      "libelle_officiel": "Bembèrèkè",
+      "departement": "Borgou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.88,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Kalale",
+      "shapeID": "17685819B22505126398074",
+      "libelle_officiel": "Kalalé",
+      "departement": "Borgou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.94,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "N'dali",
+      "shapeID": "17685819B79860756135863",
+      "libelle_officiel": "N'Dali",
+      "departement": "Borgou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.97,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Nikki",
+      "shapeID": "17685819B92421826245631",
+      "libelle_officiel": "Nikki",
+      "departement": "Borgou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Parakou",
+      "shapeID": "17685819B32176770628240",
+      "libelle_officiel": "Parakou",
+      "departement": "Borgou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Perere",
+      "shapeID": "17685819B73457125885179",
+      "libelle_officiel": "Pèrèrè",
+      "departement": "Borgou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Sinende",
+      "shapeID": "17685819B44866040554021",
+      "libelle_officiel": "Sinendé",
+      "departement": "Borgou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.83,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Tchaourou",
+      "shapeID": "17685819B56321809459452",
+      "libelle_officiel": "Tchaourou",
+      "departement": "Borgou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Borgou",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bante",
+      "shapeID": "17685819B31481778008604",
+      "libelle_officiel": "Bantè",
+      "departement": "Collines",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 0.97,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Dassa-Zoume",
+      "shapeID": "17685819B57031298313635",
+      "libelle_officiel": "Dassa-Zoumè",
+      "departement": "Collines",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Glazoue",
+      "shapeID": "17685819B86631365550325",
+      "libelle_officiel": "Glazoué",
+      "departement": "Collines",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 0.97,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ouesse",
+      "shapeID": "17685819B6698534807541",
+      "libelle_officiel": "Ouèssè",
+      "departement": "Collines",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Savalou",
+      "shapeID": "17685819B6734193751411",
+      "libelle_officiel": "Savalou",
+      "departement": "Collines",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Save",
+      "shapeID": "17685819B5479142895221",
+      "libelle_officiel": "Savè",
+      "departement": "Collines",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Collines",
+      "part_points_interieurs": 0.98,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Aplahoue",
+      "shapeID": "17685819B24804117588339",
+      "libelle_officiel": "Aplahoué",
+      "departement": "Couffo",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Djakotomey",
+      "shapeID": "17685819B33333613616473",
+      "libelle_officiel": "Djakotomey",
+      "departement": "Couffo",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Dogbo",
+      "shapeID": "17685819B88590181370069",
+      "libelle_officiel": "Dogbo",
+      "departement": "Couffo",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 0.7,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Klouekanme",
+      "shapeID": "17685819B74075406499118",
+      "libelle_officiel": "Klouékanmè",
+      "departement": "Couffo",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Lalo",
+      "shapeID": "17685819B4559503573339",
+      "libelle_officiel": "Lalo",
+      "departement": "Couffo",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 0.89,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Toviklin",
+      "shapeID": "17685819B54561297103056",
+      "libelle_officiel": "Toviklin",
+      "departement": "Couffo",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Couffo",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bassila",
+      "shapeID": "17685819B94511677610410",
+      "libelle_officiel": "Bassila",
+      "departement": "Donga",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Donga",
+      "part_points_interieurs": 0.88,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Copargo",
+      "shapeID": "17685819B95850649576266",
+      "libelle_officiel": "Copargo",
+      "departement": "Donga",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Donga",
+      "part_points_interieurs": 0.99,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Djougou",
+      "shapeID": "17685819B31222842827733",
+      "libelle_officiel": "Djougou",
+      "departement": "Donga",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Donga",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ouake",
+      "shapeID": "17685819B25851007312804",
+      "libelle_officiel": "Ouaké",
+      "departement": "Donga",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Donga",
+      "part_points_interieurs": 0.97,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Cotonou",
+      "shapeID": "17685819B58605420666587",
+      "libelle_officiel": "Cotonou",
+      "departement": "Littoral",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Littoral",
+      "part_points_interieurs": 0.96,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Athieme",
+      "shapeID": "17685819B69046773697304",
+      "libelle_officiel": "Athiémé",
+      "departement": "Mono",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 0.92,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bopa",
+      "shapeID": "17685819B20513081200557",
+      "libelle_officiel": "Bopa",
+      "departement": "Mono",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 0.73,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Come",
+      "shapeID": "17685819B27582361148713",
+      "libelle_officiel": "Comè",
+      "departement": "Mono",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Grand-Popo",
+      "shapeID": "17685819B53348586225757",
+      "libelle_officiel": "Grand-Popo",
+      "departement": "Mono",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 0.82,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Houeyogbe",
+      "shapeID": "17685819B14284481019860",
+      "libelle_officiel": "Houéyogbé",
+      "departement": "Mono",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Lokossa",
+      "shapeID": "17685819B68764251362376",
+      "libelle_officiel": "Lokossa",
+      "departement": "Mono",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Mono",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Adjarra",
+      "shapeID": "17685819B66402044537068",
+      "libelle_officiel": "Adjarra",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.9,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Adjohoun",
+      "shapeID": "17685819B34979669430532",
+      "libelle_officiel": "Adjohoun",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.92,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Aguegues",
+      "shapeID": "17685819B55066990993617",
+      "libelle_officiel": "Aguégués",
+      "departement": "Ouémé",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.91,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Akpo-Misserete",
+      "shapeID": "17685819B47795371701587",
+      "libelle_officiel": "Akpro-Missérété",
+      "departement": "Ouémé",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.95,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Avrankou",
+      "shapeID": "17685819B15816629354661",
+      "libelle_officiel": "Avrankou",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.55,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bonou",
+      "shapeID": "17685819B32706375807456",
+      "libelle_officiel": "Bonou",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.85,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Dangbo",
+      "shapeID": "17685819B52071067315918",
+      "libelle_officiel": "Dangbo",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.97,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Porto-Novo",
+      "shapeID": "17685819B68474195135253",
+      "libelle_officiel": "Porto-Novo",
+      "departement": "Ouémé",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Seme-Kpodji",
+      "shapeID": "17685819B13440574347317",
+      "libelle_officiel": "Sèmè-Kpodji",
+      "departement": "Ouémé",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Ouémé",
+      "part_points_interieurs": 0.85,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Adja-Ouere",
+      "shapeID": "17685819B3857845768140",
+      "libelle_officiel": "Adja-Ouèrè",
+      "departement": "Plateau",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Plateau",
+      "part_points_interieurs": 0.91,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ifangni",
+      "shapeID": "17685819B36498320143439",
+      "libelle_officiel": "Ifangni",
+      "departement": "Plateau",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Plateau",
+      "part_points_interieurs": 0.71,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ketou",
+      "shapeID": "17685819B61468565661274",
+      "libelle_officiel": "Kétou",
+      "departement": "Plateau",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Plateau",
+      "part_points_interieurs": 0.91,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Pobe",
+      "shapeID": "17685819B21167128046214",
+      "libelle_officiel": "Pobè",
+      "departement": "Plateau",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Plateau",
+      "part_points_interieurs": 0.89,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Sakete",
+      "shapeID": "17685819B6397671477640",
+      "libelle_officiel": "Sakété",
+      "departement": "Plateau",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Plateau",
+      "part_points_interieurs": 0.9,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Abomey",
+      "shapeID": "17685819B36696986957740",
+      "libelle_officiel": "Abomey",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Agbangnizoun",
+      "shapeID": "17685819B54194513987818",
+      "libelle_officiel": "Agbangnizoun",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Bohicon",
+      "shapeID": "17685819B15106537416311",
+      "libelle_officiel": "Bohicon",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Cove",
+      "shapeID": "17685819B69592983793811",
+      "libelle_officiel": "Covè",
+      "departement": "Zou",
+      "ecart_orthographe": true,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Djidja",
+      "shapeID": "17685819B67930032483199",
+      "libelle_officiel": "Djidja",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 0.93,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Ouinhi",
+      "shapeID": "17685819B27727011440945",
+      "libelle_officiel": "Ouinhi",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 0.85,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Za-Kpota",
+      "shapeID": "17685819B78854505931864",
+      "libelle_officiel": "Za-Kpota",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 1.0,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Zagnanado",
+      "shapeID": "17685819B16235974739823",
+      "libelle_officiel": "Zagnanado",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 0.78,
+      "coherence_spatiale": true
+    },
+    {
+      "shapeName_geoboundaries": "Zogbodomey",
+      "shapeID": "17685819B53288119636086",
+      "libelle_officiel": "Zogbodomey",
+      "departement": "Zou",
+      "ecart_orthographe": false,
+      "departement_spatial_adm1": "Zou",
+      "part_points_interieurs": 0.98,
+      "coherence_spatiale": true
+    }
+  ]
+}
