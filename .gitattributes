@@ -1,0 +1,5 @@
+# Fins de ligne LF pour tout le dépôt, quel que soit le poste (Windows compris).
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.woff2 binary
