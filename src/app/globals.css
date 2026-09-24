@@ -59,6 +59,7 @@
   --color-chart-5: var(--chart-5);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -87,9 +88,20 @@
     font-feature-settings: "cv11", "ss01";
   }
 
+  /* Titres en Montserrat, graisse 600 : identité institutionnelle, sans dégrader la lisibilité
+     du corps qui reste en Inter. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
+
   /* Les chiffres s'alignent dans les tableaux et les tuiles d'indicateurs. */
   .tabular {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "cv11", "ss01", "tnum";
   }
 
   @media (prefers-reduced-motion: reduce) {
