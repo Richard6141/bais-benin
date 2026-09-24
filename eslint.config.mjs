@@ -64,7 +64,8 @@ export default defineConfig([
             allow("modules", ["modules", "services", "database", "lib", "types", "generated"]),
             allow("services", ["services", "lib", "types"]),
             allow("database", ["database", "lib", "types", "styles", "generated"]),
-            allow("lib", ["lib", "types"]),
+            // lib/auth et lib/container câblent les adaptateurs : ils peuvent voir services et database.
+            allow("lib", ["lib", "types", "services", "database", "generated"]),
             allow("types", ["types"]),
           ],
         },

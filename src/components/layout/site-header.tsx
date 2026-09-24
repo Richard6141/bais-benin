@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Monogram } from "@/components/brand/monogram";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
   return (
@@ -22,9 +23,9 @@ export function SiteHeader() {
           >
             Design system
           </Link>
-          <span className="hidden rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-block">
-            Prototype
-          </span>
+          <Button asChild size="sm" className="ml-1">
+            <Link href="/connexion">Se connecter</Link>
+          </Button>
           <ThemeToggle />
         </nav>
       </div>
