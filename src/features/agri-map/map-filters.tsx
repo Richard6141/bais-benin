@@ -128,7 +128,11 @@ export function MapFiltersBar({
             Exploitations
             {!canShowFarms ? (
               <span className="block text-xs text-muted-foreground">Zoomez pour les voir</span>
-            ) : null}
+            ) : (
+              <span className="block text-xs text-muted-foreground">
+                Comptes connectés, dans leur périmètre
+              </span>
+            )}
           </Label>
         </div>
       </div>
