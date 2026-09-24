@@ -18,8 +18,14 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Navigation principale" className="flex items-center gap-1 text-sm">
           <Link
-            href="/design-system"
+            href="/carte"
             className="rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Carte
+          </Link>
+          <Link
+            href="/design-system"
+            className="hidden rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-block"
           >
             Design system
           </Link>

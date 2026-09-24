@@ -106,6 +106,7 @@ export default defineConfig([
     "playwright-report/**",
     "test-results/**",
     "src/generated/**",
+    "public/vendor/**",
     "next-env.d.ts",
   ]),
 ]);
