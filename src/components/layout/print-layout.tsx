@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Monogram } from "@/components/brand/monogram";
+import { GovernmentEmblem } from "@/components/brand/government-emblem";
 
 interface PrintLayoutProps {
   title: string;
@@ -37,7 +37,7 @@ export function PrintLayout({
           <p className="text-sm">{scope}</p>
           <p className="text-xs text-muted-foreground">Données au {dataDate}</p>
         </div>
-        <Monogram />
+        <GovernmentEmblem size={48} />
       </header>
       {children}
       <footer className="border-t pt-4 text-xs text-muted-foreground" data-print-block>

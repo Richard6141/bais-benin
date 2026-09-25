@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { GovernmentEmblem } from "@/components/brand/government-emblem";
-import { Monogram } from "@/components/brand/monogram";
 
-// Pied de page institutionnel : identité, nature de la plateforme, liens utiles.
+// Pied de page institutionnel : armoiries et nom de la plateforme (sans monogramme en double),
+// nature de la plateforme, liens utiles.
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/70 bg-card print:hidden">
@@ -10,7 +10,6 @@ export function SiteFooter() {
         <div className="max-w-sm">
           <div className="flex items-center gap-3">
             <GovernmentEmblem size={36} />
-            <Monogram className="size-8" />
             <span className="font-semibold">Bénin Agricultural Intelligence System</span>
           </div>
           <p className="mt-3 text-muted-foreground">
