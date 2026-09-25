@@ -82,8 +82,81 @@ const actions = {
   },
 };
 
-// Chaque étape déclare ses écrans ; `dark` bascule le thème, `prepare` joue un parcours avant la capture.
+// Chaque étape déclare ses écrans ; `dark` bascule le thème, `print` rend la feuille d'impression,
+// `prepare` joue un parcours avant la capture.
 const plans = {
+  // Tableau de bord national : compte ministère jetable, double authentification comprise.
+  "etape-7": [
+    {
+      name: "pilotage-national-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage"),
+    },
+    {
+      name: "pilotage-production-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage");
+        await page.locator("#production").evaluate((section) => section.scrollIntoView());
+        await page.waitForTimeout(1200);
+      },
+    },
+    {
+      name: "pilotage-carte-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage");
+        await page.locator("#carte").evaluate((section) => section.scrollIntoView());
+        await actions.waitForMap(page);
+        await page.waitForTimeout(700);
+      },
+    },
+    {
+      name: "pilotage-territoires-desktop",
+      context: desktop,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/territoires"),
+    },
+    {
+      name: "pilotage-communes-donga-desktop",
+      context: desktop,
+      prepare: (page) =>
+        actions.ministrySignIn(page, "/pilotage/territoires?departementCode=BJ-DO"),
+    },
+    {
+      name: "pilotage-commune-fiche-desktop",
+      context: desktop,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/communes/BJ-DON-003"),
+    },
+    {
+      name: "pilotage-qualite-desktop",
+      context: desktop,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/qualite"),
+    },
+    {
+      name: "pilotage-fiche-impression",
+      context: desktop,
+      // Rendu de la feuille d'impression (A4) : sans navigation, en-tête ni commandes.
+      print: true,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/fiche"),
+    },
+    {
+      name: "pilotage-national-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage");
+        // Les listes de filtres affichent leur valeur une fois hydratées.
+        await page
+          .getByLabel("Campagne")
+          .first()
+          .filter({ hasText: /\d{4}-\d{4}/ })
+          .waitFor();
+      },
+    },
+  ],
   "etape-6": [
     {
       name: "agriculteur-alertes-mobile",
@@ -419,6 +492,10 @@ try {
       await target.prepare(page);
     } else {
       await page.goto(`${baseUrl}${target.path}`, { waitUntil: "networkidle" });
+    }
+    if (target.print) {
+      await page.emulateMedia({ media: "print" });
+      await page.waitForTimeout(200);
     }
     if (target.dark) {
       await page.getByRole("button", { name: "Passer au thème sombre" }).click();

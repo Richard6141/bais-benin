@@ -95,8 +95,18 @@ async function activateTwoFactor(page, baseUrl) {
   const secret = ((await manual.textContent()) ?? "").trim();
   if (!/^[A-Z2-7]+=*$/.test(secret)) throw new Error(`Clé TOTP illisible : « ${secret} »`);
   state.secret = secret;
-  await fillFreshCode(page);
-  await page.getByRole("button", { name: "Activer" }).waitFor({ state: "hidden", timeout: 20_000 });
+  // Pendant la vérification, « Activer » devient « Vérification… » : attendre sa disparition
+  // validait avant la réponse du serveur. On attend l'écran de confirmation, et on retente une
+  // fois au pas suivant si le code est refusé.
+  const done = page.getByText("Double authentification activée");
+  const refused = page.getByText(/Code refusé/);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) state.lastStep = currentStep();
+    await fillFreshCode(page);
+    await done.or(refused).first().waitFor({ timeout: 20_000 });
+    if (await done.isVisible()) return;
+  }
+  throw new Error("Activation de la double authentification refusée deux fois");
 }
 
 /**
