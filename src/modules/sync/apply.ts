@@ -29,6 +29,16 @@ export interface SyncApplierDeps {
   db: Pick<typeof prisma, "$transaction" | "syncCommand">;
   handlers: SyncHandlers;
   now?: () => Date;
+  /**
+   * Sérialise les applications d'une même clé d'idempotence (deux lots identiques envoyés en
+   * parallèle par deux onglets ou deux composants). Par défaut : verrou consultatif Postgres
+   * pris dans la transaction ; absent dans les tests unitaires.
+   */
+  lockKey?: (tx: Db, idempotencyKey: string) => Promise<void>;
+}
+
+async function advisoryLock(tx: Db, idempotencyKey: string): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idempotencyKey}))`;
 }
 
 function toJson(result: SyncApplyResult): Prisma.InputJsonValue {
@@ -114,6 +124,18 @@ export function createSyncApplier(deps: SyncApplierDeps) {
     let audit: Extract<HandlerOutcome, { outcome: "APPLIED" }>["audit"] | null = null;
     try {
       result = await deps.db.$transaction(async (tx) => {
+        if (deps.lockKey) {
+          // Une requête concurrente sur la même clé attend ici ; si elle a appliqué la commande
+          // entre-temps, on renvoie son résultat au lieu de rejouer les créations.
+          await deps.lockKey(tx, command.idempotencyKey);
+          const concurrent = await tx.syncCommand.findUnique({
+            where: { idempotencyKey: command.idempotencyKey },
+            select: { outcome: true, result: true },
+          });
+          if (concurrent && !FAILED.has(concurrent.outcome)) {
+            return fromStored(command.id, concurrent.result);
+          }
+        }
         const target = await handler.target(command as never, tx);
         if (!target) {
           return {
@@ -168,6 +190,12 @@ export function createSyncApplier(deps: SyncApplierDeps) {
     }
 
     if (result.outcome !== "APPLIED" && result.outcome !== "DUPLICATE") {
+      // Un échec ne remplace jamais une application réussie entre-temps : on renvoie celle-ci.
+      const latest = await deps.db.syncCommand.findUnique({
+        where: { idempotencyKey: command.idempotencyKey },
+        select: { outcome: true, result: true },
+      });
+      if (latest && !FAILED.has(latest.outcome)) return fromStored(command.id, latest.result);
       await persistCommand(deps.db, command, context.actor.userId, context.deviceId, result, null);
     }
     if (audit) {
@@ -221,4 +249,8 @@ export function createSyncApplier(deps: SyncApplierDeps) {
 }
 
 /** Applicateur par défaut, branché sur la base et les handlers du registre. */
-export const applySyncBatch = createSyncApplier({ db: prisma, handlers: syncHandlers });
+export const applySyncBatch = createSyncApplier({
+  db: prisma,
+  handlers: syncHandlers,
+  lockKey: advisoryLock,
+});

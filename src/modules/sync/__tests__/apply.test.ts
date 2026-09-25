@@ -43,12 +43,14 @@ function fakeDb() {
       ),
     },
   };
+  const findUnique = vi.fn(async ({ where }: { where: { idempotencyKey: string } }) => {
+    const found = store.get(where.idempotencyKey);
+    return found ? { outcome: found.outcome, result: found.result } : null;
+  });
+  Object.assign(tx.syncCommand, { findUnique });
   const db = {
     syncCommand: {
-      findUnique: vi.fn(async ({ where }: { where: { idempotencyKey: string } }) => {
-        const found = store.get(where.idempotencyKey);
-        return found ? { outcome: found.outcome, result: found.result } : null;
-      }),
+      findUnique,
       upsert: tx.syncCommand.upsert,
     },
     $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
@@ -289,5 +291,60 @@ describe("applySyncBatch", () => {
     ]);
     expect(results[0]).toMatchObject({ outcome: "REJECTED", error: { code: "INTERNAL_ERROR" } });
     expect(results[1]).toMatchObject({ outcome: "REJECTED", error: { code: "X" } });
+  });
+
+  it("renvoie le résultat d'une application concurrente au lieu de rejouer la création", async () => {
+    const { db, store } = fakeDb();
+    const handler = handlerReturning({
+      outcome: "APPLIED",
+      entity: { type: "farmer", id: FARMER_ID, code: "BJ-F-000000001", version: 1 },
+      audit: { action: "registry.farmer.created" },
+    });
+    const handlers = { "farmer.create": handler } as unknown as SyncHandlers;
+    // Pendant l'attente du verrou, un autre lot identique a appliqué la commande.
+    const lockKey = vi.fn(async (_tx: unknown, key: string) => {
+      store.set(key, {
+        id: FARMER_ID,
+        idempotencyKey: key,
+        outcome: "APPLIED",
+        result: {
+          id: FARMER_ID,
+          outcome: "APPLIED",
+          entity: { type: "farmer", id: FARMER_ID, code: "BJ-F-000000001", version: 1 },
+        },
+      });
+    });
+    const apply = createSyncApplier({ db: db as never, handlers, lockKey });
+    const [result] = await apply(AGENT, "device-abcd", [farmerCommand(FARMER_ID)]);
+    expect(lockKey).toHaveBeenCalledWith(expect.anything(), `key-${FARMER_ID}`);
+    expect(handler.apply).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ outcome: "DUPLICATE", entity: { code: "BJ-F-000000001" } });
+  });
+
+  it("ne remplace pas une application réussie par l'échec d'une requête concurrente", async () => {
+    const { db, store } = fakeDb();
+    const key = `key-${FARMER_ID}`;
+    const handler = {
+      target: vi.fn(async () => ({ action: "farm.create", resource: { communeId: "commune-1" } })),
+      apply: vi.fn(async () => {
+        // L'autre requête a validé sa transaction ; la nôtre échoue sur la clé primaire.
+        store.set(key, {
+          id: FARMER_ID,
+          idempotencyKey: key,
+          outcome: "APPLIED",
+          result: {
+            id: FARMER_ID,
+            outcome: "APPLIED",
+            entity: { type: "farmer", id: FARMER_ID, version: 1 },
+          },
+        });
+        throw new Error("Unique constraint failed on the constraint: `farmer_pkey`");
+      }),
+    };
+    const handlers = { "farmer.create": handler } as unknown as SyncHandlers;
+    const apply = createSyncApplier({ db: db as never, handlers });
+    const [result] = await apply(AGENT, "device-abcd", [farmerCommand(FARMER_ID)]);
+    expect(result?.outcome).toBe("DUPLICATE");
+    expect(store.get(key)?.outcome).toBe("APPLIED");
   });
 });

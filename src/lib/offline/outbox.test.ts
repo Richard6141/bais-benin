@@ -148,3 +148,29 @@ describe("outbox hors ligne", () => {
     expect(await pendingCommands(db)).toHaveLength(0);
   });
 });
+
+describe("synchronisation unique par compte", () => {
+  it("ne lance qu'un envoi quand deux composants demandent la synchronisation ensemble", async () => {
+    const { syncOnce } = await import("./sync-runner");
+    const db = new AgentDatabase(`single-${crypto.randomUUID()}`);
+    await enqueueCommand(db, { id: farmerId, type: "farmer.create", payload: farmerPayload() });
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { commands: { id: string }[] };
+      return new Response(
+        JSON.stringify({
+          receivedAt: new Date().toISOString(),
+          results: body.commands.map((c) => ({ id: c.id, outcome: "APPLIED" })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    const options = { deviceId: "appareil-test", fetchImpl: fetchImpl as typeof fetch };
+    const [first, second] = await Promise.all([
+      syncOnce("compte-1", db, options),
+      syncOnce("compte-1", db, options),
+    ]);
+    expect(first).toBe(second);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await db.delete();
+  });
+});

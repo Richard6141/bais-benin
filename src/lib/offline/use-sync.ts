@@ -6,7 +6,8 @@ import { getAgentDatabase } from "./db";
 import { getDeviceId } from "./device-id";
 import { readLastSyncedAt, subscribeLastSynced, writeLastSyncedAt } from "./last-sync-store";
 import { outboxCounts } from "./outbox";
-import { runSync, type SyncRunOutcome } from "./sync-client";
+import type { SyncRunOutcome } from "./sync-client";
+import { syncOnce } from "./sync-runner";
 import { useIsOnline } from "./use-online";
 
 const BACKGROUND_INTERVAL_MS = 5 * 60 * 1000;
@@ -42,13 +43,11 @@ export function useSync(userId: string): SyncState {
     runningRef.current = true;
     setSyncing(true);
     try {
-      // On enchaîne les lots tant qu'il reste des commandes et que le serveur répond.
-      let outcome: SyncRunOutcome;
-      do {
-        outcome = await runSync(db, { deviceId: getDeviceId() });
+      const outcome = await syncOnce(userId, db, { deviceId: getDeviceId() });
+      if (outcome) {
         setLastOutcome(outcome);
-      } while (outcome.sent > 0 && !outcome.error && outcome.applied > 0);
-      if (!outcome.error) writeLastSyncedAt(userId, new Date().toISOString());
+        if (!outcome.error) writeLastSyncedAt(userId, new Date().toISOString());
+      }
     } finally {
       runningRef.current = false;
       setSyncing(false);
