@@ -1,7 +1,7 @@
 "use client";
 
 import { History, SendHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ListenButton } from "@/components/assistant/listen-button";
 import { SuggestionChips } from "@/components/assistant/suggestion-chips";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,15 @@ export function AssistantPanel({
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const state = questionState(question);
+  const latestRef = useRef<HTMLDivElement>(null);
+
+  // Nouvelle réponse : elle arrive sous le champ, souvent hors de l'écran d'un téléphone. On la
+  // fait défiler en tête de vue (sans animation si l'utilisateur les a réduites).
+  useEffect(() => {
+    if (exchanges.length === 0) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    latestRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [exchanges.length]);
   const farmer = audience === "farmer";
 
   async function ask(text: string) {
@@ -145,26 +154,32 @@ export function AssistantPanel({
       ) : null}
 
       <div aria-live="polite" className="flex flex-col gap-4">
-        {exchanges.map(({ question: asked, reply }) => (
-          <AnswerCard
+        {exchanges.map(({ question: asked, reply }, index) => (
+          <div
             key={reply.messageId}
-            question={asked}
-            reply={reply}
-            actions={
-              <>
-                <ListenButton text={speechText(reply)} />
-                {reply.outcome === "ANSWERED" ? (
-                  <FeedbackControl messageId={reply.messageId} />
-                ) : null}
-                {farmer && (reply.outcome === "ANSWERED" || reply.outcome === "LOW_CONFIDENCE") ? (
-                  <AskAgentButton messageId={reply.messageId} />
-                ) : null}
-                {audience === "agent" && reply.outcome === "ANSWERED" ? (
-                  <CopyForProducerButton answer={reply.answer} advice={reply.advice} />
-                ) : null}
-              </>
-            }
-          />
+            ref={index === 0 ? latestRef : undefined}
+            className="scroll-mt-24"
+          >
+            <AnswerCard
+              question={asked}
+              reply={reply}
+              actions={
+                <>
+                  <ListenButton text={speechText(reply)} />
+                  {reply.outcome === "ANSWERED" ? (
+                    <FeedbackControl messageId={reply.messageId} />
+                  ) : null}
+                  {farmer &&
+                  (reply.outcome === "ANSWERED" || reply.outcome === "LOW_CONFIDENCE") ? (
+                    <AskAgentButton messageId={reply.messageId} />
+                  ) : null}
+                  {audience === "agent" && reply.outcome === "ANSWERED" ? (
+                    <CopyForProducerButton answer={reply.answer} advice={reply.advice} />
+                  ) : null}
+                </>
+              }
+            />
+          </div>
         ))}
       </div>
 

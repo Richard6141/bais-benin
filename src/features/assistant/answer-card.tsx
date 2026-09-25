@@ -94,7 +94,8 @@ export function AnswerCard({ question, reply, actions }: AnswerCardProps) {
         </p>
       ) : null}
 
-      {reply.facts.length > 0 ? (
+      {/* Le contexte n'a de sens qu'avec une réponse sur le fond, pas avec un refus hors sujet. */}
+      {reply.facts.length > 0 && reply.outcome !== "OFF_TOPIC" ? (
         <ul
           aria-label="Ce que l'assistant sait de votre situation"
           className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3"
