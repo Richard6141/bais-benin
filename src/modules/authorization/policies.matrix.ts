@@ -50,6 +50,9 @@ export const ACTIONS = [
   "report.create",
   "report.read",
   "report.review",
+  // Palmarès nominatif des producteurs (ADR-0018) : exception volontaire au masquage des petits
+  // effectifs, réservée au ministère.
+  "ranking.read",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -87,6 +90,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.create": "NONE",
     "report.read": "ALL",
     "report.review": "ALL",
+    "ranking.read": "ALL",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -124,6 +128,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.create": "OWN",
     "report.read": "OWN",
     "report.review": "OWN",
+    "ranking.read": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -154,6 +159,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.create": "SELF",
     "report.read": "SELF",
     "report.review": "NONE",
+    "ranking.read": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -184,6 +190,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.create": "NONE",
     "report.read": "NONE",
     "report.review": "NONE",
+    "ranking.read": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -214,5 +221,6 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.create": "NONE",
     "report.read": "NONE",
     "report.review": "NONE",
+    "ranking.read": "NONE",
   },
 };

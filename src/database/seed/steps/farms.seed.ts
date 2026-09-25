@@ -207,6 +207,7 @@ async function insertRegistry(prisma: PrismaClient, registry: SyntheticRegistry)
 // Purge du registre synthétique (SEED_FARM_RESET=1) : utile après un changement de référentiel
 // ou de générateur. Ne touche jamais aux données saisies sur le terrain (autre source).
 export async function deleteSyntheticRegistry(prisma: PrismaClient): Promise<void> {
+  await prisma.$executeRaw`DELETE FROM "production_declaration" WHERE "source_id" = 'BAIS_SEED'`;
   await prisma.$executeRaw`DELETE FROM "parcel_crop" WHERE "source_id" = 'BAIS_SEED'`;
   await prisma.$executeRaw`DELETE FROM "parcel" WHERE "source_id" = 'BAIS_SEED'`;
   await prisma.$executeRaw`DELETE FROM "farm" WHERE "source_id" = 'BAIS_SEED'`;

@@ -25,6 +25,18 @@ export * from "./dashboard-types";
 export type * from "./quality-types";
 export { getCampaignComparison, getCropProduction, getDashboardOverview } from "./dashboard";
 export { getTerritoryRanking } from "./ranking";
+export {
+  DEFAULT_RANKING_CROP,
+  DEFAULT_RANKING_LIMIT,
+  MAX_RANKING_LIMIT,
+  MIN_AREA_FOR_YIELD_HA,
+  exportProducerRankingCsv,
+  getProducerRanking,
+  parseProducerRankingFilters,
+  type ProducerRanking,
+  type ProducerRankingFilters,
+  type ProducerRankingRow,
+} from "./producer-ranking";
 export { getCommuneProfile } from "./commune-profile";
 export {
   AGGREGATES_STALE_MS,

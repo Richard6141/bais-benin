@@ -60,7 +60,9 @@ export type AuditAction =
   | "monitoring.ingest.completed"
   | "monitoring.ingest.fallback"
   | "assistant.journal.read"
-  | "analytics.export";
+  | "analytics.export"
+  | "analytics.ranking.read"
+  | "analytics.ranking.export";
 
 export interface AuditEntry {
   action: AuditAction;

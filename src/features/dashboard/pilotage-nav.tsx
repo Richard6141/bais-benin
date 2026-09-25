@@ -20,6 +20,11 @@ const ENTRIES = [
     match: ["/pilotage/territoires", "/pilotage/communes"],
   },
   {
+    href: "/pilotage/palmares",
+    label: "Palmarès",
+    match: ["/pilotage/palmares"],
+  },
+  {
     href: "/pilotage/qualite",
     label: "Qualité des données",
     match: ["/pilotage/qualite"],
