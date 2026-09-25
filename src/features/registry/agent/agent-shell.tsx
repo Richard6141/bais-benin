@@ -54,16 +54,19 @@ export function AgentShell({ userId, children }: AgentShellProps) {
 
   return (
     <div className="flex flex-col gap-6 pb-24 md:pb-0">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        {/* Huit entrées depuis le tableau de bord et l'assistant : la puce de synchronisation passe
+            sous la navigation jusqu'à 1280 px, et les marges sont resserrées, pour que la barre
+            tienne sur une ligne dès 1024 px. */}
         <nav aria-label="Espace agent" className="hidden md:block">
-          <ul className="flex flex-wrap gap-1">
+          <ul className="flex flex-wrap gap-0.5 xl:gap-1">
             {NAV.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href as Route}
                   aria-current={isActive(item) ? "page" : undefined}
                   className={cn(
-                    "inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors",
+                    "inline-flex h-10 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors xl:gap-2 xl:px-3",
                     isActive(item)
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -76,7 +79,7 @@ export function AgentShell({ userId, children }: AgentShellProps) {
             ))}
           </ul>
         </nav>
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex items-center gap-2 self-start xl:self-auto">
           <SyncStatusChip
             pending={sync.pending}
             failed={sync.failed}
