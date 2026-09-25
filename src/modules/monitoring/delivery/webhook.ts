@@ -41,6 +41,23 @@ export type WebhookResult =
 const ACK_WORDS = new Set(["ok", "oui", "daccord", "d'accord", "compris", "merci"]);
 const REPLY_WINDOW_MS = 72 * 60 * 60 * 1000;
 
+// Fenêtre de fraîcheur sur l'horodatage signé (remise_le / recu_le, couvert par la signature
+// HMAC du corps puisqu'il en fait partie) : un événement rejoué plus tard qu'elle est refusé.
+// Défense en profondeur plutôt que la seule protection contre le rejeu — les transitions de
+// statut sont déjà non régressives (voir `blocked` plus bas) et l'accusé de lecture ne
+// s'applique qu'une fois (acknowledgedAt: null) — mais un horodatage hors fenêtre est en
+// lui-même un signal net d'anomalie, qu'il vienne d'un rejeu ou d'une horloge cassée chez
+// l'émetteur. Un événement sans horodatage (champ optionnel, compatibilité) n'est pas soumis à
+// cette vérification : rien à comparer.
+const FRESHNESS_WINDOW_MS = 15 * 60 * 1000;
+
+function isFresh(value: string | undefined, now: Date): boolean {
+  if (!value) return true;
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return true;
+  return Math.abs(now.getTime() - at.getTime()) <= FRESHNESS_WINDOW_MS;
+}
+
 export function isAcknowledgementReply(text: string): boolean {
   const normalized = text
     .normalize("NFD")
@@ -61,6 +78,11 @@ export async function applyWapyEvent(
   now = new Date(),
   db: Db = prisma,
 ): Promise<WebhookResult> {
+  const signedTimestamp = event.evenement === "remise" ? event.remise_le : event.recu_le;
+  if (!isFresh(signedTimestamp, now)) {
+    return { handled: false, reason: "Horodatage hors fenêtre de fraîcheur (rejeu potentiel)" };
+  }
+
   if (event.evenement === "remise") {
     const at = toDate(event.remise_le, now);
     const data =
