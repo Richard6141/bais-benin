@@ -35,7 +35,8 @@ export type AuditAction =
   | "rule.toggled"
   | "rule.simulated"
   | "monitoring.ingest.completed"
-  | "monitoring.ingest.fallback";
+  | "monitoring.ingest.fallback"
+  | "assistant.journal.read";
 
 export interface AuditEntry {
   action: AuditAction;
