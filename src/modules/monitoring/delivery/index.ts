@@ -37,3 +37,11 @@ export {
   type WapyEvent,
   type WebhookResult,
 } from "./webhook";
+export {
+  attentionOf,
+  listAffectedFarms,
+  sortAffectedFarms,
+  type AffectedFarm,
+  type AttentionReason,
+  type ChannelStatus,
+} from "./affected";
