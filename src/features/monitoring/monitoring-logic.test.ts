@@ -23,14 +23,15 @@ describe("freshnessOf", () => {
     const f = freshnessOf(
       {
         finishedAt: "2026-09-25T05:00:00Z",
-        provider: "OPEN_METEO",
+        provider: "open-meteo",
         fallback: false,
         status: "SUCCEEDED",
       },
       NOW,
     );
     expect(f.state).toBe("FRESH");
-    expect(f.label).toBe("À jour, il y a 7 h");
+    expect(f.label).toBe("À jour");
+    expect(f.source).toBe("Open-Meteo · il y a 7 h");
     expect(f.warning).toBeNull();
   });
 
@@ -45,6 +46,7 @@ describe("freshnessOf", () => {
       NOW,
     );
     expect(f.state).toBe("STALE");
+    expect(f.label).toBe("Anciennes");
     expect(f.warning).toMatch(/alertes suspendues/);
   });
 
@@ -59,7 +61,8 @@ describe("freshnessOf", () => {
       NOW,
     );
     expect(f.state).toBe("FALLBACK");
-    expect(f.label).toBe("Démonstration, il y a moins d'une heure");
+    expect(f.label).toBe("Démonstration");
+    expect(f.source).toBe("Série de secours · il y a moins d'une heure");
   });
 });
 

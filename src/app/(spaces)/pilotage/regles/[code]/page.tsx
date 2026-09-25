@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CATEGORY_LABELS } from "@/components/data-display/alert-card";
+import { CATEGORY_LABELS } from "@/components/data-display/alert-labels";
 import { SeverityBadge } from "@/components/data-display/severity-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";

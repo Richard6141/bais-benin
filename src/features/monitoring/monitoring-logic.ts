@@ -17,6 +17,12 @@ export const CATEGORIES: readonly Category[] = [
 /** Au-delà de 48 h sans ingestion réussie, les règles ne déclenchent plus (monitoring §2.E). */
 export const STALE_AFTER_MS = 48 * 60 * 60 * 1000;
 
+/** Noms affichés des fournisseurs météo (identifiants de `ingestion_run.provider`). */
+export const PROVIDER_LABELS: Record<string, string> = {
+  "open-meteo": "Open-Meteo",
+  fixture: "Série de secours",
+};
+
 export interface IngestionInfo {
   finishedAt: string | null;
   provider: string;
@@ -27,8 +33,10 @@ export interface IngestionInfo {
 export interface Freshness {
   state: "FRESH" | "STALE" | "FALLBACK" | "NONE";
   ageHours: number | null;
-  /** Texte court pour la tuile d'indicateur. */
+  /** Valeur courte de la tuile d'indicateur (un ou deux mots). */
   label: string;
+  /** Ligne de source de la tuile : fournisseur et ancienneté, « Open-Meteo · il y a 2 h ». */
+  source: string;
   /** Texte du bandeau d'avertissement, null quand tout va bien. */
   warning: string | null;
 }
@@ -38,17 +46,20 @@ export function freshnessOf(ingestion: IngestionInfo | null, now: number = Date.
     return {
       state: "NONE",
       ageHours: null,
-      label: "Aucune ingestion",
+      label: "Aucune",
+      source: "Aucune ingestion",
       warning: "Aucune donnée météo ingérée : les alertes ne peuvent pas être calculées.",
     };
   }
   const ageHours = Math.max(0, (now - new Date(ingestion.finishedAt).getTime()) / 3_600_000);
   const age = ageHours < 1 ? "il y a moins d'une heure" : `il y a ${Math.round(ageHours)} h`;
+  const source = `${PROVIDER_LABELS[ingestion.provider] ?? "Fournisseur météo"} · ${age}`;
   if (ingestion.fallback) {
     return {
       state: "FALLBACK",
       ageHours,
-      label: `Démonstration, ${age}`,
+      label: "Démonstration",
+      source,
       warning:
         "Données de démonstration : le fournisseur météo était injoignable. Aucune alerte n'est diffusée hors de l'application.",
     };
@@ -57,12 +68,13 @@ export function freshnessOf(ingestion: IngestionInfo | null, now: number = Date.
     return {
       state: "STALE",
       ageHours,
-      label: `Anciennes, ${age}`,
+      label: "Anciennes",
+      source,
       warning:
         "Données météo anciennes (plus de 48 h) : alertes suspendues pour les communes concernées.",
     };
   }
-  return { state: "FRESH", ageHours, label: `À jour, ${age}`, warning: null };
+  return { state: "FRESH", ageHours, label: "À jour", source, warning: null };
 }
 
 export function unreadCount(items: readonly { readAt: string | null }[]): number {

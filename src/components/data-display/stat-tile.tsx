@@ -21,6 +21,11 @@ interface StatTileProps {
   sourceDate?: string;
   reliability?: Reliability;
   icon?: ReactNode;
+  /**
+   * Valeur en mots (« À jour », « Démonstration ») plutôt qu'un chiffre : corps plus petit sur
+   * la même hauteur de ligne, pour tenir dans une tuile étroite sans changer sa hauteur.
+   */
+  wordValue?: boolean;
   className?: string;
 }
 
@@ -37,6 +42,7 @@ export function StatTile({
   sourceDate,
   reliability,
   icon,
+  wordValue = false,
   className,
 }: StatTileProps) {
   const formattedValue = typeof value === "number" ? numberFormatter.format(value) : value;
@@ -53,13 +59,22 @@ export function StatTile({
         {icon ? <span className="text-muted-foreground [&>svg]:size-4">{icon}</span> : null}
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="tabular text-3xl font-semibold tracking-tight">{formattedValue}</span>
+        <span
+          className={cn(
+            "font-semibold tracking-tight",
+            wordValue ? "text-xl leading-9 break-words" : "tabular text-3xl",
+          )}
+        >
+          {formattedValue}
+        </span>
         {unit ? <span className="text-sm text-muted-foreground">{unit}</span> : null}
       </div>
       {trend ? <TrendLine trend={trend} /> : null}
       {(source || reliability) && (
         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3">
-          {reliability ? <ReliabilityBadge level={reliability} /> : null}
+          {reliability ? (
+            <ReliabilityBadge level={reliability} className="max-w-full whitespace-normal" />
+          ) : null}
           {source ? <SourceCaption source={source} date={sourceDate} /> : null}
         </div>
       )}

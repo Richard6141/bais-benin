@@ -109,7 +109,8 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
         <StatTile
           label="Données météo"
           value={freshness.label}
-          source={overview.lastIngestion?.provider ?? "Aucune ingestion"}
+          wordValue
+          source={freshness.source}
           reliability={freshness.state === "FALLBACK" ? "SYNTHETIC" : "ESTIMATED"}
         />
       </section>

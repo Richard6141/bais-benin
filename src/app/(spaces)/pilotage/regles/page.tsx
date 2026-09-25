@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CATEGORY_LABELS } from "@/components/data-display/alert-card";
+import { CATEGORY_LABELS } from "@/components/data-display/alert-labels";
 import { SeverityBadge } from "@/components/data-display/severity-badge";
 import { SourceCaption } from "@/components/data-display/source-caption";
 import { PageHeader } from "@/components/layout/page-header";
