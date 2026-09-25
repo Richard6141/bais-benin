@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import { betterAuth, type GenericEndpointContext } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { phoneNumber, twoFactor } from "better-auth/plugins";
 import { prisma } from "@/database/client";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { isDemoPhone, isValidBeninPhone } from "@/lib/auth/phone";
+import { checkPhoneOtpRateLimit } from "@/lib/auth/otp-phone-rate-limit";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { recordAudit, type AuditAction } from "@/modules/audit";
@@ -45,6 +46,17 @@ export const auth = betterAuth({
   advanced: {
     database: { generateId: "uuid" },
     cookiePrefix: "bais",
+    // B4 : X-Forwarded-For n'est crédité que derrière un relais explicitement listé
+    // (TRUSTED_PROXIES) — sinon better-auth ignore l'en-tête par défaut et retombe sur une
+    // adresse indistincte, ce qui affaiblirait silencieusement la limite de débit par IP.
+    ipAddress: {
+      ipAddressHeaders: ["x-forwarded-for"],
+      trustedProxies: env.TRUSTED_PROXIES
+        ? env.TRUSTED_PROXIES.split(",")
+            .map((entry) => entry.trim())
+            .filter(Boolean)
+        : [],
+    },
   },
   user: {
     additionalFields: {
@@ -88,10 +100,14 @@ export const auth = betterAuth({
       const action = AUDITED_PATHS[ctx.path];
       if (!action) return;
       const session = ctx.context.newSession ?? ctx.context.session;
+      // B4 : ip vient de la session déjà créée par better-auth (internal-adapter.mjs), qui
+      // applique advanced.ipAddress.trustedProxies — jamais d'une relecture manuelle de
+      // X-Forwarded-For ici, qui accorderait foi à l'en-tête même hors de tout relais de
+      // confiance et permettrait à n'importe quel client d'usurper l'adresse journalisée.
       await recordAudit({
         action,
         actorId: session?.user.id ?? null,
-        ip: ctx.request?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+        ip: session?.session.ipAddress || null,
         userAgent: ctx.request?.headers.get("user-agent") ?? null,
       });
     }),
@@ -102,7 +118,12 @@ export const auth = betterAuth({
       expiresIn: OTP_EXPIRY_MINUTES * 60,
       allowedAttempts: 5,
       phoneNumberValidator: (value) => isValidBeninPhone(value),
-      sendOTP: ({ phoneNumber: to, code }) => {
+      sendOTP: async ({ phoneNumber: to, code }) => {
+        // B4 : limite par numéro, en plus de la limite par IP déjà posée sur ce chemin
+        // (rateLimit.customRules ci-dessus) — voir otp-phone-rate-limit.ts pour le raisonnement.
+        if (!(await checkPhoneOtpRateLimit(to))) {
+          throw new APIError("FORBIDDEN", { message: "Trop de codes envoyés pour ce numéro" });
+        }
         // Envoi sans attente : la latence du fournisseur ne doit pas révéler si le numéro existe.
         void getMessagingChannel()
           .send({

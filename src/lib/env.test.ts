@@ -23,8 +23,36 @@ describe("parseServerEnv", () => {
     // (secrets obligatoires), jamais l'inverse.
     expect(() => parseServerEnv({ DATABASE_URL: validEnv.DATABASE_URL })).toThrow(/CRON_SECRET/);
     expect(
-      parseServerEnv({ DATABASE_URL: validEnv.DATABASE_URL, CRON_SECRET: "x".repeat(32) }).APP_ENV,
+      parseServerEnv({
+        DATABASE_URL: validEnv.DATABASE_URL,
+        CRON_SECRET: "x".repeat(32),
+        MESSAGING_PRIMARY_CHANNEL: "wapy",
+        WAPY_API_KEY: "x".repeat(20),
+      }).APP_ENV,
     ).toBe("production");
+  });
+
+  it("interdit le canal console/fixture d'envoi de code en production (B5)", () => {
+    const prodBase = {
+      ...validEnv,
+      APP_ENV: "production",
+      CRON_SECRET: "x".repeat(32),
+      AUTH_SECRET: "x".repeat(32),
+    };
+    expect(() => parseServerEnv(prodBase)).toThrow(/MESSAGING_PRIMARY_CHANNEL/);
+    expect(() => parseServerEnv({ ...prodBase, MESSAGING_PRIMARY_CHANNEL: "fixture" })).toThrow(
+      /MESSAGING_PRIMARY_CHANNEL/,
+    );
+    expect(() => parseServerEnv({ ...prodBase, MESSAGING_PRIMARY_CHANNEL: "wapy" })).toThrow(
+      /WAPY_API_KEY/,
+    );
+    expect(
+      parseServerEnv({
+        ...prodBase,
+        MESSAGING_PRIMARY_CHANNEL: "wapy",
+        WAPY_API_KEY: "x".repeat(20),
+      }).MESSAGING_PRIMARY_CHANNEL,
+    ).toBe("wapy");
   });
 
   it("accepte une configuration vide au moment du build Next.js", () => {

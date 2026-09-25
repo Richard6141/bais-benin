@@ -44,6 +44,12 @@ const serverSchema = z
       .string()
       .regex(/^\d{6}$/, "OTP_DEMO_CODE doit être un code à 6 chiffres")
       .optional(),
+    // B4 : adresses IP ou plages CIDR du ou des relais inverses de confiance placés devant
+    // l'application (nginx du docker-compose fourni, load balancer managé…), séparées par des
+    // virgules. Sans ceci, better-auth ignore X-Forwarded-For par défaut — un client pourrait
+    // sinon usurper son adresse en la falsifiant lui-même dans cet en-tête, faussant la limite
+    // de débit et le journal d'audit. Vide en développement (accès direct sans relais).
+    TRUSTED_PROXIES: z.string().optional(),
 
     // Messagerie
     MESSAGING_PRIMARY_CHANNEL: z.enum(["console", "wapy", "fixture"]).default("console"),
@@ -94,6 +100,23 @@ const serverSchema = z
           code: "custom",
           path: ["OTP_DEMO_CODE"],
           message: "le code de démonstration est interdit en production",
+        });
+      }
+      // B5 : le canal "console" journalise le code en clair (services/messaging/console/
+      // console-channel.ts) et "fixture" ne fait qu'accumuler les messages en mémoire pour les
+      // tests — ni l'un ni l'autre n'envoie quoi que ce soit à un vrai téléphone. En
+      // production, seul "wapy" (avec sa clé) est un canal d'envoi réel.
+      if (env.MESSAGING_PRIMARY_CHANNEL !== "wapy") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["MESSAGING_PRIMARY_CHANNEL"],
+          message: 'seul "wapy" est autorisé en production (jamais console ni fixture)',
+        });
+      } else if (!env.WAPY_API_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["WAPY_API_KEY"],
+          message: "obligatoire en production quand MESSAGING_PRIMARY_CHANNEL=wapy",
         });
       }
     }
