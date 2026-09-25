@@ -230,6 +230,112 @@ async function cleanSuiteWrites(
     (await tx.syncCommand.deleteMany({ where: { id: { in: suiteCommands.map((c) => c.id) } } }))
       .count,
   );
+
+  await cleanRuleChanges(tx, since, add);
+}
+
+const E2E_EMAIL_SUFFIX = "@e2e.bais.invalid";
+
+/**
+ * Règles d'alerte modifiées par les parcours du pilotage (tests/e2e/rules.spec.ts) : les
+ * versions créées depuis le début de la suite par un compte ministère de test sont supprimées,
+ * leurs simulations et évaluations avec elles, et chaque code touché retrouve une version
+ * active (celle qui a été remplacée). Le globalTeardown supprime les comptes de test avant ce
+ * nettoyage : une version dont l'auteur n'existe plus est donc attribuée à la suite. Le journal
+ * d'audit n'est jamais modifié.
+ */
+async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: number) => void) {
+  const created = await tx.rule.findMany({
+    where: { createdAt: { gte: since }, createdById: { not: null } },
+    select: { id: true, code: true, createdById: true, supersedesId: true },
+    orderBy: { version: "desc" },
+  });
+  const authorIds = [...new Set(created.map((r) => r.createdById as string))];
+  const authors = await tx.user.findMany({
+    where: { id: { in: authorIds } },
+    select: { id: true, email: true },
+  });
+  const realAuthors = new Set(
+    authors.filter((u) => !u.email.endsWith(E2E_EMAIL_SUFFIX)).map((u) => u.id),
+  );
+  const suiteVersions = created.filter((r) => !realAuthors.has(r.createdById as string));
+  const touchedCodes = new Set(suiteVersions.map((r) => r.code));
+
+  for (const version of suiteVersions) {
+    const runs = await tx.simulationRun.findMany({
+      where: { ruleId: version.id },
+      select: { id: true },
+    });
+    add(
+      "rule_evaluation",
+      (
+        await tx.ruleEvaluation.deleteMany({
+          where: {
+            OR: [{ ruleId: version.id }, { simulationId: { in: runs.map((r) => r.id) } }],
+          },
+        })
+      ).count,
+    );
+    add(
+      "simulation_run",
+      (await tx.simulationRun.deleteMany({ where: { ruleId: version.id } })).count,
+    );
+    // Une alerte levée entre-temps par cette version est rattachée à la version remplacée.
+    if (version.supersedesId) {
+      await tx.alert.updateMany({
+        where: { ruleId: version.id },
+        data: { ruleId: version.supersedesId },
+      });
+    }
+    await tx.rule.delete({ where: { id: version.id } });
+    add("rule (version de test)", 1);
+  }
+
+  // Simulations lancées par un compte de test : elles visent souvent la version d'origine (un
+  // brouillon est simulé contre la version active), et restent donc hors de la boucle ci-dessus.
+  const runs = await tx.simulationRun.findMany({
+    where: { createdAt: { gte: since }, requestedById: { not: null } },
+    select: { id: true, requestedById: true },
+  });
+  const requesters = await tx.user.findMany({
+    where: { id: { in: [...new Set(runs.map((r) => r.requestedById as string))] } },
+    select: { id: true, email: true },
+  });
+  const realRequesters = new Set(
+    requesters.filter((u) => !u.email.endsWith(E2E_EMAIL_SUFFIX)).map((u) => u.id),
+  );
+  const suiteRunIds = runs
+    .filter((r) => !realRequesters.has(r.requestedById as string))
+    .map((r) => r.id);
+  add(
+    "rule_evaluation",
+    (await tx.ruleEvaluation.deleteMany({ where: { simulationId: { in: suiteRunIds } } })).count,
+  );
+  add(
+    "simulation_run",
+    (await tx.simulationRun.deleteMany({ where: { id: { in: suiteRunIds } } })).count,
+  );
+
+  // Codes désactivés ou modifiés par un compte de test (auteur supprimé : acteur nul) : la
+  // version la plus récente restante redevient active si aucune ne l'est.
+  const toggled = await tx.auditLog.findMany({
+    where: {
+      action: { in: ["rule.toggled", "rule.updated"] },
+      occurredAt: { gte: since },
+      resourceType: "rule",
+      OR: [{ actorId: null }, { actor: { email: { endsWith: E2E_EMAIL_SUFFIX } } }],
+    },
+    select: { resourceId: true },
+  });
+  for (const entry of toggled) if (entry.resourceId) touchedCodes.add(entry.resourceId);
+  for (const code of touchedCodes) {
+    const active = await tx.rule.count({ where: { code, enabled: true } });
+    if (active > 0) continue;
+    const latest = await tx.rule.findFirst({ where: { code }, orderBy: { version: "desc" } });
+    if (!latest) continue;
+    await tx.rule.update({ where: { id: latest.id }, data: { enabled: true } });
+    add("rule (réactivée)", 1);
+  }
 }
 
 class DryRunRollback extends Error {}
