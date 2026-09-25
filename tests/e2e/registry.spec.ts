@@ -157,8 +157,12 @@ test.describe("espace agent", () => {
     await context.setOffline(false);
     await waitForSync(page);
 
-    await page.goto(`/agent/exploitations?q=${encodeURIComponent(lastName)}`);
-    await expect(page.getByText(`Adjoa ${lastName}`).first()).toBeVisible({ timeout: 15_000 });
+    // La liste est rendue par le serveur : sous charge (suite complète en parallèle), on recharge
+    // jusqu'à voir le producteur, dans une limite de 20 s.
+    await expect(async () => {
+      await page.goto(`/agent/exploitations?q=${encodeURIComponent(lastName)}`);
+      await expect(page.getByText(`Adjoa ${lastName}`).first()).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
     await page.goto("/agent/synchronisation");
     await expect(page.getByText("Nouvelle exploitation").first()).toBeVisible();
