@@ -136,7 +136,7 @@ export default async function AgentHomePage() {
         <FarmList
           items={recent.items}
           emptyTitle="Aucune exploitation dans votre périmètre"
-          emptyDescription="Enregistrez la première : sept écrans courts, même sans réseau."
+          emptyDescription="Enregistrement en sept étapes, possible sans réseau."
         />
       </section>
     </div>

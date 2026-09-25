@@ -20,7 +20,7 @@ export default async function EnrolmentPage() {
       <PageHeader
         eyebrow="Registre"
         title="Enregistrer une exploitation"
-        description="Sept écrans courts. Tout est sauvegardé sur l'appareil à chaque étape."
+        description="Enregistrement en sept étapes, sauvegardé sur l'appareil après chaque étape."
       />
       <Suspense fallback={<Skeleton className="h-40" />}>
         <EnrolmentWizard userId={user.id} allowedCommuneCodes={allowedCommuneCodes} />

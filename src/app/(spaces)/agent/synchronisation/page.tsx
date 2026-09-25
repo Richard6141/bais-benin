@@ -12,7 +12,7 @@ export default async function SyncPage() {
       <PageHeader
         eyebrow="Appareil"
         title="Synchronisation"
-        description="Vos saisies partent seules au retour du réseau, dans l'ordre où vous les avez faites. Une saisie refusée reste ici jusqu'à correction."
+        description="Les saisies sont envoyées automatiquement au retour du réseau, dans l'ordre de saisie. Une saisie refusée reste ici jusqu'à sa correction."
       />
       <OutboxList userId={user.id} />
     </div>

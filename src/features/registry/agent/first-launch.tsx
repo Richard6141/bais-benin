@@ -24,16 +24,16 @@ interface FirstLaunchProps {
 
 const EXPLANATIONS = [
   {
-    title: "Tout fonctionne sans réseau",
-    text: "Enregistrement, parcelles, cultures et visites se font sur l'appareil.",
+    title: "Travail sans réseau",
+    text: "L'enregistrement, les parcelles, les cultures et les visites se font sur l'appareil.",
   },
   {
-    title: "Vos saisies partent seules",
-    text: "Au retour du réseau, elles sont envoyées dans l'ordre de saisie.",
+    title: "Envoi automatique",
+    text: "Au retour du réseau, les saisies sont envoyées dans l'ordre de saisie.",
   },
   {
-    title: "La puce en haut vous guide",
-    text: "Elle indique ce qui attend, ce qui est parti et ce qui a été refusé.",
+    title: "État de la synchronisation",
+    text: "L'indicateur en haut de l'écran affiche les saisies en attente, envoyées et refusées.",
   },
 ];
 

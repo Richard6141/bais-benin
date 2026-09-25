@@ -28,7 +28,7 @@ export default async function FarmerAlertsPage() {
       <PageHeader
         eyebrow="Mes alertes"
         title={weather ? `Météo et alertes à ${weather.communeName}` : "Mes alertes"}
-        description="Les alertes vous disent ce qui se passe et ce que vous pouvez faire."
+        description="Prévisions météo et alertes agro-climatiques de votre commune, avec les conseils à appliquer."
       />
 
       {weather ? (
@@ -48,7 +48,7 @@ export default async function FarmerAlertsPage() {
         <EmptyState
           icon={<ShieldCheck />}
           title="Aucune alerte en cours pour votre commune"
-          description="Tout va bien pour le moment. Si un risque apparaît (sécheresse, forte pluie, chaleur, ravageurs), vous serez prévenu ici et par message."
+          description="Aucune alerte en cours pour votre commune. En cas de risque (sécheresse, forte pluie, chaleur, ravageurs), vous serez prévenu ici et par message."
         />
       ) : (
         <AlertLinkList

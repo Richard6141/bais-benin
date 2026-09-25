@@ -37,7 +37,7 @@ export default function DesignSystemPage() {
         <PageHeader
           eyebrow="Fondations visuelles"
           title="Design system"
-          description="Tout ce que voient les utilisateurs part d'ici : les jetons du territoire, les composants shadcn/ui personnalisés et les composants métier propres à la plateforme."
+          description="Jetons, composants de base et composants métier de la plateforme, selon la charte des portails de l'administration."
         />
         <nav
           aria-label="Sections"
