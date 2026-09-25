@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import { seedReferenceData } from "@/database/seed";
 import { loadActor } from "@/modules/identity";
+import { getReportForActor, listReportsForActor, reviewReport } from "@/modules/reports";
 import { applySyncBatch } from "@/modules/sync";
 
 // Signalements de terrain (phase 0) par la synchronisation : droits (producteur sur sa propre
@@ -68,6 +69,12 @@ describe("signalements de terrain", () => {
   }, 180_000);
 
   afterAll(async () => {
+    await prisma.farmEvent.deleteMany({
+      where: {
+        kind: { in: ["REPORT_SUBMITTED", "REPORT_REVIEWED"] },
+        occurredAt: { gte: new Date(AT) },
+      },
+    });
     await prisma.fieldReport.deleteMany({ where: { id: { in: Object.values(ids) } } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
     await prisma.farmEvent.deleteMany({ where: { farmId: ids.farm } });
@@ -160,7 +167,65 @@ describe("signalements de terrain", () => {
     expect(outside).toMatchObject({ outcome: "REJECTED", error: { code: "INVALID_POSITION" } });
     const stored = await prisma.fieldReport.findUniqueOrThrow({ where: { id: ids.byFarmer } });
     expect(stored).toMatchObject({ locationSource: "GPS", status: "SUBMITTED" });
-    await prisma.farmEvent.deleteMany({ where: { farmId: own.id, kind: "REPORT_SUBMITTED" } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: "test-device-reports-farmer" } });
+  });
+
+  it("montre à chacun les signalements de sa portée seulement", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const ministryUser = await prisma.user.findUniqueOrThrow({
+      where: { email: "ministere@bais.demo" },
+    });
+    const ministry = await loadActor(ministryUser.id);
+
+    const agentIds = (await listReportsForActor(agent)).map((r) => r.id);
+    expect(agentIds).toContain(ids.byAgent);
+    // L'agent voit le signalement de l'agricultrice seulement s'il a enregistré sa ferme (ADR-0014).
+    const farmerFarm = await prisma.fieldReport.findUniqueOrThrow({
+      where: { id: ids.byFarmer },
+      select: { farm: { select: { registeredById: true } } },
+    });
+    expect(agentIds.includes(ids.byFarmer)).toBe(farmerFarm.farm.registeredById === agent.userId);
+
+    const farmerIds = (await listReportsForActor(farmer)).map((r) => r.id);
+    expect(farmerIds).toContain(ids.byFarmer);
+    expect(farmerIds).not.toContain(ids.byAgent);
+    expect(await getReportForActor(farmer, ids.byAgent)).toBeNull();
+
+    const ministryIds = (await listReportsForActor(ministry)).map((r) => r.id);
+    expect(ministryIds).toEqual(expect.arrayContaining([ids.byAgent, ids.byFarmer]));
+    expect(await getReportForActor(ministry, ids.byAgent)).toMatchObject({
+      hasPhoto: true,
+      farm: { id: ids.farm, farmerName: "Rachidatou Signalement" },
+    });
+  });
+
+  it("laisse l'agent confirmer après visite, une seule fois, jamais le producteur", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farmer = await actorForPhone(FARMER_PHONE);
+    expect(await reviewReport(farmer, ids.byAgent, "CONFIRMED", "")).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+    expect(await reviewReport(farmer, ids.byFarmer, "CONFIRMED", "")).toEqual({
+      ok: false,
+      code: "FORBIDDEN",
+    });
+    expect(await reviewReport(agent, ids.byAgent, "DISMISSED", "non")).toEqual({
+      ok: false,
+      code: "NOTE_REQUIRED",
+    });
+    expect(await reviewReport(agent, ids.byAgent, "CONFIRMED", "Chenilles vues sur place")).toEqual(
+      { ok: true },
+    );
+    expect(await reviewReport(agent, ids.byAgent, "DISMISSED", "Changement d'avis")).toEqual({
+      ok: false,
+      code: "ALREADY_REVIEWED",
+    });
+    const report = await getReportForActor(agent, ids.byAgent);
+    expect(report).toMatchObject({
+      status: "CONFIRMED",
+      review: { note: "Chenilles vues sur place" },
+    });
   });
 });
