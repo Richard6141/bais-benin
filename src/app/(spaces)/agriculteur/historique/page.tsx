@@ -32,6 +32,7 @@ const EVENT_LABELS: Record<string, string> = {
   CROP_DECLARED: "Culture déclarée",
   HARVEST_DECLARED: "Récolte déclarée",
   VERIFIED: "Visite de vérification",
+  ALERT_RELAYED: "Alerte transmise par votre agent",
 };
 
 /** Tendance de la récolte totale par rapport à la campagne précédente, si les deux existent. */

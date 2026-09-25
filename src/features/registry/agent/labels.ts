@@ -30,6 +30,7 @@ export const COMMAND_LABELS: Record<SyncCommandType, string> = {
   "cropSeason.declare": "Culture de la campagne",
   "harvest.declare": "Récolte déclarée",
   "verification.record": "Visite de vérification",
+  "alert.relay": "Alerte relayée",
 };
 
 export const OUTBOX_STATUS_LABELS = {
@@ -49,6 +50,7 @@ export const EVENT_LABELS: Record<string, string> = {
   CROP_DECLARED: "Culture déclarée",
   HARVEST_DECLARED: "Récolte déclarée",
   VERIFIED: "Visite de vérification",
+  ALERT_RELAYED: "Alerte relayée au producteur",
 };
 
 export const TENURE_LABELS: Record<string, string> = {

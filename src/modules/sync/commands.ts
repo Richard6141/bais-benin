@@ -97,6 +97,17 @@ export const verificationRecordPayload = z.object({
   correctedDeclaredAreaHa: z.number().positive().max(10_000).optional(),
 });
 
+// Relais oral d'une alerte par l'agent (docs/modules/monitoring-parcours-ux.md §2.B, B3) :
+// le producteur sans téléphone ou sans consentement est prévenu de vive voix.
+export const alertRelayPayload = z.object({
+  id: uuid,
+  alertId: uuid,
+  farmId: uuid,
+  mode: z.enum(["CALL", "VISIT", "GROUP_MEETING"]),
+  note: z.string().trim().max(500).optional(),
+  relayedAt: isoDate,
+});
+
 export const syncPayloadSchemas = {
   "farmer.create": farmerCreatePayload,
   "farm.create": farmCreatePayload,
@@ -105,6 +116,7 @@ export const syncPayloadSchemas = {
   "cropSeason.declare": cropSeasonDeclarePayload,
   "harvest.declare": harvestDeclarePayload,
   "verification.record": verificationRecordPayload,
+  "alert.relay": alertRelayPayload,
 } as const;
 
 export type SyncCommandType = keyof typeof syncPayloadSchemas;
