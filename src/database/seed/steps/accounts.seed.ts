@@ -1,12 +1,40 @@
+import crypto from "node:crypto";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/auth/password";
+import { getServerEnv } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
-// Comptes de démonstration. Les téléphones commencent par 01 9 (jamais attribués par les
-// opérateurs) et acceptent le code OTP_DEMO_CODE quand il est défini ; les comptes
+// Comptes de démonstration. Les téléphones sont la liste blanche exacte de isDemoPhone
+// (lib/auth/phone.ts) et acceptent le code OTP_DEMO_CODE quand il est défini ; les comptes
 // institutionnels partagent le mot de passe DEMO_ACCOUNT_PASSWORD. Rien de tout cela
-// n'existe en production : lib/env.ts interdit OTP_DEMO_CODE hors développement.
+// n'existe en production : lib/env.ts interdit OTP_DEMO_CODE hors développement, et
+// seedDemoAccounts (A4) refuse de créer le moindre compte si APP_ENV=production, même si la
+// commande de seed est lancée par erreur.
 
-export const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
+// A4 : DEMO_ACCOUNT_PASSWORD est obligatoire dès que l'environnement n'est pas "development"
+// (démo, recette, production — bien que ce dernier cas n'atteigne jamais seedDemoAccounts).
+// En développement pur, un mot de passe aléatoire est généré à défaut, avec un avertissement
+// explicite : jamais de repli silencieux sur une valeur connue à l'avance.
+function resolveDemoPassword(): string {
+  const configured = process.env.DEMO_ACCOUNT_PASSWORD;
+  if (configured) return configured;
+
+  const env = getServerEnv();
+  if (env.APP_ENV !== "development") {
+    throw new Error(
+      "DEMO_ACCOUNT_PASSWORD est obligatoire hors développement (APP_ENV=" + env.APP_ENV + ")",
+    );
+  }
+  const generated = crypto.randomBytes(18).toString("base64url");
+  logger.warn(
+    { generatedDemoPassword: generated },
+    "DEMO_ACCOUNT_PASSWORD absent : mot de passe de démonstration aléatoire généré pour ce " +
+      "process de développement (il change à chaque redémarrage)",
+  );
+  return generated;
+}
+
+export const DEMO_PASSWORD = resolveDemoPassword();
 
 export interface DemoAccount {
   key: string;
@@ -62,6 +90,10 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
 ];
 
 export async function seedDemoAccounts(prisma: PrismaClient): Promise<number> {
+  // A4 : filet de sécurité définitif — aucun compte de démonstration n'est créé en
+  // production, quelle que soit la façon dont le seed a été déclenché.
+  if (getServerEnv().APP_ENV === "production") return 0;
+
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   for (const account of DEMO_ACCOUNTS) {
@@ -139,6 +171,9 @@ export const DEMO_FARMER_COMMUNE_CODE = "BJ-DON-003";
 // change ; après SEED_FARM_RESET, le rattachement est refait sur le nouveau registre. Le nom du
 // compte prend celui du producteur pour que l'espace agriculteur soit cohérent.
 export async function attachDemoFarmerAccount(prisma: PrismaClient): Promise<boolean> {
+  // A4 : même filet qu'au-dessus, par défense en profondeur.
+  if (getServerEnv().APP_ENV === "production") return false;
+
   const user = await prisma.user.findUnique({
     where: { phoneNumber: DEMO_FARMER_PHONE },
     select: { id: true },
