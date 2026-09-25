@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import { getApiActor } from "@/features/auth/api-actor";
 import { markRequestHandled } from "@/modules/assistant";
 import { assistantErrorResponse, unauthenticated } from "../../errors";
@@ -10,6 +11,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const api = await getApiActor(request.headers);
   if (!api) return unauthenticated();
   const { id } = await context.params;
+  if (!z.uuid().safeParse(id).success) {
+    return NextResponse.json(
+      { error: "INVALID", message: "Identifiant invalide" },
+      { status: 400 },
+    );
+  }
   try {
     await markRequestHandled(api.actor, id);
     return NextResponse.json({ ok: true });

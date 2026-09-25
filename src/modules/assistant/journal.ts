@@ -233,10 +233,29 @@ export async function readJournal(
   });
 }
 
-/** Purge des conversations arrivées à échéance (12 mois), à appeler par une tâche planifiée. */
-export async function purgeExpiredConversations(now = new Date()): Promise<number> {
+/** Texte des questions conservé 90 jours ; au-delà, seules l'issue et les sources restent. */
+export const QUESTION_TEXT_RETENTION_DAYS = 90;
+export const ERASED_QUESTION = "[texte effacé après 90 jours]";
+
+export interface AssistantPurge {
+  erasedQuestions: number;
+  deletedConversations: number;
+}
+
+// Tâche planifiée quotidienne : efface le texte des questions de plus de 90 jours (il peut
+// contenir des éléments personnels malgré le masquage), puis supprime les conversations arrivées
+// à échéance (12 mois), avec leurs messages, retours et demandes.
+export async function purgeExpiredConversations(now = new Date()): Promise<AssistantPurge> {
+  const erased = await prisma.assistantMessage.updateMany({
+    where: {
+      role: "USER",
+      createdAt: { lt: new Date(now.getTime() - QUESTION_TEXT_RETENTION_DAYS * 86_400_000) },
+      content: { not: ERASED_QUESTION },
+    },
+    data: { content: ERASED_QUESTION },
+  });
   const deleted = await prisma.assistantConversation.deleteMany({
     where: { purgeAfter: { lt: now } },
   });
-  return deleted.count;
+  return { erasedQuestions: erased.count, deletedConversations: deleted.count };
 }

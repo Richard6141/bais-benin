@@ -26,7 +26,7 @@ function add(vector: Float64Array, feature: string, weight: number): void {
  * Référence enregistrée avec chaque extrait. Le numéro change avec l'algorithme (normalisation,
  * hachage) : les extraits calculés avec une version antérieure sont alors recalculés au seed.
  */
-export const FIXTURE_EMBEDDING_REF = "fixture:3";
+export const FIXTURE_EMBEDDING_REF = "fixture:4";
 
 export function hashEmbedding(text: string, dimensions = EMBEDDING_DIMENSIONS): number[] {
   const vector = new Float64Array(dimensions);

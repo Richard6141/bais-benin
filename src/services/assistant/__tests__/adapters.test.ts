@@ -125,6 +125,6 @@ describe("adaptateurs du SDK", () => {
   it("se replie sur la démonstration sans modèle configuré", () => {
     const providers = createAssistantProviders({ dimensions: 1024, timeoutMs: 5000 });
     expect(providers.llm.demonstration).toBe(true);
-    expect(providers.embeddings.modelRef).toBe("fixture:3");
+    expect(providers.embeddings.modelRef).toBe("fixture:4");
   });
 });

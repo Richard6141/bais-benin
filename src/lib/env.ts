@@ -68,7 +68,18 @@ const serverSchema = z
     // compatible OpenAI indiqué est interrogé.
     ASSISTANT_LLM_MODEL: optionalText(z.string().trim().min(1)),
     ASSISTANT_EMBEDDING_MODEL: optionalText(z.string().trim().min(1)),
-    ASSISTANT_LLM_BASE_URL: optionalText(z.url()),
+    // https obligatoire, sauf point d'accès local (poste de développement, conteneur voisin).
+    ASSISTANT_LLM_BASE_URL: optionalText(
+      z.url().refine(
+        (value) => {
+          const url = new URL(value);
+          return (
+            url.protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+          );
+        },
+        { message: "ASSISTANT_LLM_BASE_URL doit être en https (sauf localhost)" },
+      ),
+    ),
     ASSISTANT_LLM_API_KEY: optionalText(z.string()),
     // Dimension de la colonne assistant_chunk.embedding (migration assistant) : 1024.
     ASSISTANT_EMBEDDING_DIMENSIONS: z.coerce
@@ -80,6 +91,8 @@ const serverSchema = z
       .default(1024),
     ASSISTANT_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
     ASSISTANT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(20000),
+    // Plafond global de questions par jour (heure de Porto-Novo) : borne le coût d'un modèle payant.
+    ASSISTANT_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
   })
   .superRefine((env, ctx) => {
     if (env.APP_ENV === "production") {

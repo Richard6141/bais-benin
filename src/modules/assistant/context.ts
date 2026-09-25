@@ -19,6 +19,8 @@ export interface AssistantContext {
   audience: AssistantAudience;
   communeId: string | null;
   farmId: string | null;
+  /** Code de l'exploitation choisie : affiché à l'agent, jamais transmis au modèle. */
+  farmCode: string | null;
   crops: string[];
   facts: ContextFact[];
 }
@@ -111,7 +113,7 @@ async function farmFacts(farmIds: string[]): Promise<{ crops: string[]; facts: C
 export async function buildContext(actor: Actor, farmCode?: string): Promise<AssistantContext> {
   const audience = audienceOf(actor);
   if (audience === "MINISTRY") {
-    return { audience, communeId: null, farmId: null, crops: [], facts: [] };
+    return { audience, communeId: null, farmId: null, farmCode: null, crops: [], facts: [] };
   }
   if (audience === "FARMER") {
     const farms = await prisma.farm.findMany({
@@ -124,11 +126,14 @@ export async function buildContext(actor: Actor, farmCode?: string): Promise<Ass
       audience,
       communeId,
       farmId: farms.length === 1 ? farms[0]!.id : null,
+      farmCode: null,
       crops,
       facts: [...facts, ...(communeId ? await communeFacts(communeId) : [])],
     };
   }
-  if (!farmCode) return { audience, communeId: null, farmId: null, crops: [], facts: [] };
+  if (!farmCode) {
+    return { audience, communeId: null, farmId: null, farmCode: null, crops: [], facts: [] };
+  }
   const farm = await prisma.farm.findFirst({
     where: { code: farmCode, archivedAt: null },
     select: { id: true, code: true, communeId: true, commune: { select: { departementId: true } } },
@@ -146,11 +151,8 @@ export async function buildContext(actor: Actor, farmCode?: string): Promise<Ass
     audience,
     communeId: farm.communeId,
     farmId: farm.id,
+    farmCode: farm.code,
     crops,
-    facts: [
-      { text: `Exploitation ${farm.code}`, source: "Registre BAIS" },
-      ...facts,
-      ...(await communeFacts(farm.communeId)),
-    ],
+    facts: [...facts, ...(await communeFacts(farm.communeId))],
   };
 }

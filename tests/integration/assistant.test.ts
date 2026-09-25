@@ -96,7 +96,10 @@ describe("assistant agricole : réponses", () => {
 
   it("rejette la réponse d'un modèle qui invente une dose ou une citation", async () => {
     const question = "Comment lutter contre la chenille légionnaire du maïs ?";
-    const [best] = await retrievePassages(question, embeddings);
+    // Extrait de la fiche de test qui porte la phrase citée (le vrai corpus est aussi en base).
+    const [best] = (await retrievePassages(question, embeddings, { limit: 20 })).filter(
+      (p) => p.slug === `${SLUG}-chenille` && p.content.includes("Inspectez"),
+    );
     const liar = (answer: string, chunkId: string, quote: string): LlmProvider => ({
       modelRef: "modele-de-test",
       demonstration: false,
@@ -109,7 +112,8 @@ describe("assistant agricole : réponses", () => {
         indicatorRequest: null,
       }),
     });
-    const quote = "Inspectez les plants de maïs deux fois par semaine";
+    const quote =
+      "Inspectez les plants de maïs deux fois par semaine pendant les six premières semaines.";
     const dose = await askAssistant(
       actors.farmer,
       { question },

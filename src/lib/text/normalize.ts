@@ -14,11 +14,12 @@ export function foldText(text: string): string {
     .trim();
 }
 
-// « mais » n'y figure pas : sans accent, c'est aussi « maïs ».
+// « mais » n'y figure pas : sans accent, c'est aussi « maïs ». Les négations (ne, pas…) non plus :
+// « Ne pas traiter » et « Traiter » ne doivent jamais passer pour la même phrase.
 const STOP_WORDS = new Set(
   (
     "a au aux avec ce ces cette dans de des du elle en est et il ils je la le les leur leurs lui " +
-    "ma me mes mon ne nos notre nous on ou par pas plus pour qu que qui sa se ses si son " +
+    "ma me mes mon nos notre nous on ou par plus pour qu que qui sa se ses si son " +
     "sont sur ta te tes ton tu un une vos votre vous y d l s n c j m t quand comment quel quelle " +
     "quels quelles faut faire peut peux dois doit etre avoir fait mon ma mes"
   ).split(" "),
@@ -53,4 +54,32 @@ export function sentences(text: string): string[] {
     .split(/(?<=[.!?])\s+|\n+/)
     .map((s) => s.replace(/^[-*•]\s*/, "").trim())
     .filter((s) => s.length > 0);
+}
+
+const NEGATIONS = new Set([
+  "ne",
+  "n",
+  "pas",
+  "jamais",
+  "sans",
+  "aucun",
+  "aucune",
+  "ni",
+  "non",
+  "nullement",
+  "interdit",
+  "interdite",
+  "interdits",
+  "eviter",
+  "evitez",
+  "evite",
+  "proscrire",
+  "proscrit",
+]);
+
+/** Vrai quand une phrase est négative ou prohibitive (« ne pas », « jamais », « évitez »…). */
+export function isNegated(text: string): boolean {
+  return foldText(text)
+    .split(/[^a-z0-9]+/)
+    .some((w) => NEGATIONS.has(w));
 }

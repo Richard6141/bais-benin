@@ -4,36 +4,31 @@ import type { Prisma } from "@/generated/prisma/client";
 import { getServerEnv } from "@/lib/env";
 import type { Actor } from "@/modules/authorization";
 import type { AssistantProviders } from "@/services/assistant";
+import { EmbeddingProviderError } from "@/services/ports/embedding-provider";
 import { LlmProviderError, type ModelAnswer } from "@/services/ports/llm-provider";
 import { buildContext, type ContextFact } from "./context";
 import { AssistantError } from "./errors";
-import {
-  CONFIDENCE_WORDS,
-  checkCitations,
-  confidenceLabel,
-  confidenceScore,
-  coverage,
-  unsupportedDosages,
-  type ConfidenceLabel,
-} from "./guardrails";
+import { CONFIDENCE_WORDS, analyzeAnswer, type ConfidenceLabel } from "./guardrails";
 import {
   MINISTRY_INDICATORS,
   isMinistryIndicator,
   readIndicator,
   type IndicatorBlock,
 } from "./indicators";
+import { redactPersonalData } from "./privacy";
 import { ASSISTANT_INSTRUCTIONS, buildPrompt } from "./prompt";
 import { getAssistantProviders } from "./providers";
+import { reserveQuestion } from "./quota";
 import { retrievePassages, type RetrievedPassage } from "./retrieve";
 
 // Réponse de l'assistant (assistant-parcours-ux §2.A à 2.C) : contexte limité au périmètre,
-// recherche des extraits, appel du modèle, contrôles serveur, score de confiance, journal.
+// réservation atomique de la question (limites), masquage des numéros et adresses saisis,
+// recherche des extraits, appel du modèle, contrôles serveur (guardrails.ts), journal.
 // Toute issue est enregistrée : réponse, confiance insuffisante, hors sujet, dose sans source,
-// modèle indisponible.
+// fournisseur indisponible.
 
 export const QUESTION_MAX = 500;
 export const QUESTIONS_PER_HOUR = 20;
-const RETENTION_DAYS = 365;
 
 export const askInputSchema = z.object({
   question: z
@@ -74,6 +69,8 @@ export interface AssistantReply {
   sources: ReplySource[];
   /** Faits du contexte affichés avec leur source (jamais produits par le modèle). */
   facts: ContextFact[];
+  /** Exploitation choisie par l'agent : affichée, jamais transmise au modèle. */
+  farmCode: string | null;
   indicator: IndicatorBlock | null;
   /** Modèle ou fiches de démonstration : l'interface l'indique. */
   demonstration: boolean;
@@ -89,11 +86,14 @@ const NOTICES: Record<Exclude<AskOutcome, "ANSWERED">, string> = {
   PROVIDER_ERROR: "L'assistant ne répond pas pour l'instant. Réessayez plus tard.",
 };
 
-function sourcesOf(cited: Map<string, string[]>, passages: RetrievedPassage[]): ReplySource[] {
+function sourcesOf(
+  citations: ReadonlyArray<{ chunkId: string; quote: string }>,
+  passages: readonly RetrievedPassage[],
+): ReplySource[] {
   const bySlug = new Map<string, ReplySource>();
-  for (const passage of passages) {
-    const quotes = cited.get(passage.chunkId);
-    if (!quotes) continue;
+  for (const citation of citations) {
+    const passage = passages.find((p) => p.chunkId === citation.chunkId);
+    if (!passage) continue;
     const entry = bySlug.get(passage.slug) ?? {
       slug: passage.slug,
       title: passage.documentTitle,
@@ -105,7 +105,7 @@ function sourcesOf(cited: Map<string, string[]>, passages: RetrievedPassage[]): 
       checkedOn: passage.checkedOn,
       quotes: [],
     };
-    entry.quotes.push(...quotes);
+    entry.quotes.push(citation.quote);
     bySlug.set(passage.slug, entry);
   }
   return [...bySlug.values()];
@@ -119,34 +119,17 @@ export async function askAssistant(
 ): Promise<AssistantReply> {
   const parsed = askInputSchema.safeParse(input);
   if (!parsed.success) throw new AssistantError("INVALID", parsed.error.issues[0]!.message);
-  const { question, farmCode, conversationId } = parsed.data;
+  const { farmCode, conversationId } = parsed.data;
+  // Numéros et adresses saisis ne partent ni au fournisseur ni au journal.
+  const question = redactPersonalData(parsed.data.question);
   const started = performance.now();
+  const env = getServerEnv();
 
-  const recent = await prisma.assistantMessage.count({
-    where: {
-      role: "USER",
-      createdAt: { gte: new Date(now.getTime() - 3_600_000) },
-      conversation: { userId: actor.userId },
-    },
-  });
-  if (recent >= QUESTIONS_PER_HOUR) {
-    throw new AssistantError(
-      "RATE_LIMITED",
-      "Vous avez posé beaucoup de questions : réessayez dans une heure",
-    );
-  }
   const context = await buildContext(actor, farmCode);
-
-  let conversation = conversationId
-    ? await prisma.assistantConversation.findFirst({
-        where: { id: conversationId, userId: actor.userId },
-      })
-    : null;
-  if (conversationId && !conversation)
-    throw new AssistantError("NOT_FOUND", "Conversation introuvable");
-  conversation ??= await prisma.assistantConversation.create({
-    data: {
-      userId: actor.userId,
+  const reservation = await reserveQuestion({
+    userId: actor.userId,
+    conversationId,
+    newConversation: {
       role:
         context.audience === "MINISTRY"
           ? "ADMIN_STATE"
@@ -155,19 +138,20 @@ export async function askAssistant(
             : "FARMER",
       communeId: context.communeId,
       farmId: context.farmId,
-      purgeAfter: new Date(now.getTime() + RETENTION_DAYS * 86_400_000),
     },
-  });
-  await prisma.assistantMessage.create({
-    data: { conversationId: conversation.id, role: "USER", content: question },
+    content: question,
+    perHour: QUESTIONS_PER_HOUR,
+    perDay: env.ASSISTANT_DAILY_LIMIT,
+    now,
   });
 
-  const passages = await retrievePassages(question, providers.embeddings, { crops: context.crops });
   const indicators = context.audience === "MINISTRY" ? [...MINISTRY_INDICATORS] : [];
   const facts = context.facts.map((f) => f.text);
+  let passages: RetrievedPassage[] = [];
   let model: ModelAnswer | null = null;
   let outcome: AskOutcome = "ANSWERED";
   try {
+    passages = await retrievePassages(question, providers.embeddings, { crops: context.crops });
     model = await providers.llm.answer({
       instructions: ASSISTANT_INSTRUCTIONS,
       prompt: buildPrompt({ question, passages, facts, indicators }),
@@ -177,70 +161,49 @@ export async function askAssistant(
       indicators,
     });
   } catch (error) {
-    if (!(error instanceof LlmProviderError)) throw error;
+    if (!(error instanceof LlmProviderError) && !(error instanceof EmbeddingProviderError)) {
+      throw error;
+    }
     outcome = "PROVIDER_ERROR";
   }
 
   let indicator: IndicatorBlock | null = null;
-  if (
-    model?.indicatorRequest &&
-    isMinistryIndicator(model.indicatorRequest.indicator) &&
-    indicators.length > 0
-  ) {
-    indicator = await readIndicator(
-      actor,
-      model.indicatorRequest.indicator,
-      model.indicatorRequest.filters,
-      now,
-    );
+  const request = model?.indicatorRequest;
+  if (request && isMinistryIndicator(request.indicator) && indicators.length > 0) {
+    indicator = await readIndicator(actor, request.indicator, request.filters, now);
   }
 
-  const { valid } = model ? checkCitations(model.citations, passages) : { valid: [] };
-  const citedIds = new Set(valid.map((c) => c.chunkId));
-  const cited = passages.filter((p) => citedIds.has(p.chunkId));
-  const texts = model ? [model.answer, model.advice].filter((t) => t.trim().length > 0) : [];
-  let score: number | null = null;
-  if (model && outcome === "ANSWERED") {
-    if (model.offTopic) outcome = "OFF_TOPIC";
-    else if (unsupportedDosages(texts, cited).length > 0) outcome = "UNSAFE_DOSAGE";
-    else if (texts.length === 0 || valid.length === 0)
-      outcome = indicator ? "ANSWERED" : "LOW_CONFIDENCE";
-    else {
-      score = confidenceScore({
-        citedSimilarities: cited.map((p) => p.similarity),
-        coverage: coverage(texts, cited, facts),
-        selfConfidence: model.selfConfidence,
-      });
-      if (confidenceLabel(score, getServerEnv().ASSISTANT_CONFIDENCE_THRESHOLD) === "unreliable") {
-        outcome = "LOW_CONFIDENCE";
-      }
-    }
+  const analysis =
+    model && outcome === "ANSWERED" && !model.offTopic
+      ? analyzeAnswer({ model, passages, facts, threshold: env.ASSISTANT_CONFIDENCE_THRESHOLD })
+      : null;
+  if (model?.offTopic && outcome === "ANSWERED") outcome = "OFF_TOPIC";
+  if (analysis) {
+    // Indicateur du ministère sans texte : l'indicateur suffit comme réponse.
+    const indicatorOnly =
+      indicator !== null && analysis.outcome === "LOW_CONFIDENCE" && !model?.answer.trim();
+    outcome = indicatorOnly ? "ANSWERED" : analysis.outcome;
   }
-  const answered = outcome === "ANSWERED" && score !== null;
-  const label = answered
-    ? confidenceLabel(score!, getServerEnv().ASSISTANT_CONFIDENCE_THRESHOLD)
-    : null;
-  const quotes = new Map<string, string[]>();
-  for (const c of valid) quotes.set(c.chunkId, [...(quotes.get(c.chunkId) ?? []), c.quote]);
-  const sources = answered ? sourcesOf(quotes, passages) : [];
+  const answered = outcome === "ANSWERED" && analysis?.outcome === "ANSWERED";
+  const sources = answered ? sourcesOf(analysis.citations, passages) : [];
 
   const message = await prisma.assistantMessage.create({
     data: {
-      conversationId: conversation.id,
+      conversationId: reservation.conversationId,
       role: "ASSISTANT",
       content: answered
-        ? [model!.answer, model!.advice].join("\n").trim()
+        ? [analysis.answer, analysis.advice].filter(Boolean).join("\n")
         : outcome === "ANSWERED"
           ? `Indicateur affiché : ${indicator?.title ?? ""}`
           : NOTICES[outcome],
       citations: answered
-        ? (valid.map((c) => ({
+        ? (analysis.citations.map((c) => ({
             ...c,
             slug: passages.find((p) => p.chunkId === c.chunkId)?.slug ?? null,
           })) as Prisma.InputJsonValue)
         : undefined,
-      confidence: score,
-      confidenceLabel: label,
+      confidence: answered ? analysis.score : null,
+      confidenceLabel: answered ? analysis.label : null,
       outcome,
       modelRef: providers.llm.modelRef,
       latencyMs: Math.round(performance.now() - started),
@@ -248,17 +211,18 @@ export async function askAssistant(
   });
 
   return {
-    conversationId: conversation.id,
+    conversationId: reservation.conversationId,
     messageId: message.id,
     outcome,
-    answer: answered ? model!.answer : null,
-    advice: answered && model!.advice ? model!.advice : null,
-    confidence: score,
-    confidenceLabel: label,
-    confidenceWords: label ? CONFIDENCE_WORDS[label] : null,
+    answer: answered ? analysis.answer : null,
+    advice: answered ? analysis.advice : null,
+    confidence: answered ? analysis.score : null,
+    confidenceLabel: answered ? analysis.label : null,
+    confidenceWords: answered && analysis.label ? CONFIDENCE_WORDS[analysis.label] : null,
     notice: outcome === "ANSWERED" ? null : NOTICES[outcome],
     sources,
     facts: context.facts,
+    farmCode: context.farmCode,
     indicator,
     demonstration: providers.llm.demonstration || sources.some((s) => s.demonstration),
   };

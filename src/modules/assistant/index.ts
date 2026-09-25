@@ -23,20 +23,27 @@ export { audienceOf, buildContext, type AssistantAudience, type ContextFact } fr
 export { AssistantError } from "./errors";
 export {
   CONFIDENCE_WORDS,
+  MIN_COVERAGE,
+  analyzeAnswer,
   checkCitations,
   confidenceLabel,
   confidenceScore,
-  coverage,
-  unsupportedDosages,
+  type AnswerAnalysis,
   type ConfidenceLabel,
 } from "./guardrails";
+export { checkQuantities, extractQuantities, mentionsDose, type Quantity } from "./quantities";
+export { redactPersonalData } from "./privacy";
+export { RETENTION_DAYS, reserveQuestion, startOfBeninDay } from "./quota";
 export { MINISTRY_INDICATORS, readIndicator, type IndicatorBlock } from "./indicators";
 export {
   feedbackSchema,
   listAgentRequests,
   listMyQuestions,
   markRequestHandled,
+  ERASED_QUESTION,
+  QUESTION_TEXT_RETENTION_DAYS,
   purgeExpiredConversations,
+  type AssistantPurge,
   readJournal,
   recordFeedback,
   requestAgent,

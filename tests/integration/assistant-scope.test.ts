@@ -48,7 +48,7 @@ describe("assistant agricole : périmètre et journal", () => {
       },
       providers,
     );
-    expect(reply.facts[0]?.text).toBe(`Exploitation ${inside.code}`);
+    expect(reply.farmCode).toBe(inside.code);
     expect(JSON.stringify(reply.facts)).not.toMatch(/\+229|NPI/);
   });
 
