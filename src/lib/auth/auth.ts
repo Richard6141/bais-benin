@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { betterAuth, type GenericEndpointContext } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -16,13 +17,30 @@ const env = getServerEnv();
 const OTP_EXPIRY_MINUTES = 5;
 const DAY = 60 * 60 * 24;
 
+// A1 : plus aucun repli sur un secret par défaut. lib/env.ts fait déjà échouer le
+// démarrage si AUTH_SECRET manque en production (NODE_ENV=production, hors phase de build
+// Next.js) ; en développement/test, un secret éphémère est généré ici si l'opérateur n'en a
+// pas fourni, pour ne pas bloquer un `pnpm dev` sans .env complet — il change à chaque
+// redémarrage du process, donc les sessions ne survivent jamais un redéploiement.
+function resolveAuthSecret(): string {
+  if (env.AUTH_SECRET) return env.AUTH_SECRET;
+  if (env.NODE_ENV === "production") {
+    // lib/env.ts aurait déjà dû lever une erreur avant d'arriver ici ; filet de sécurité.
+    throw new Error("AUTH_SECRET est obligatoire en production");
+  }
+  logger.warn(
+    "AUTH_SECRET absent : secret de session éphémère généré pour ce process de développement",
+  );
+  return crypto.randomBytes(32).toString("base64");
+}
+
 // Pile d'authentification (ADR-0010) : sessions en base révocables, OTP téléphone
 // livré par le canal de messagerie, TOTP pour les comptes institutionnels, limiteur
 // de débit stocké en base pour rester cohérent entre plusieurs instances.
 export const auth = betterAuth({
   appName: "BAIS",
   baseURL: env.APP_URL,
-  secret: env.AUTH_SECRET ?? "secret-de-developpement-a-remplacer-avant-mise-en-production",
+  secret: resolveAuthSecret(),
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   advanced: {
     database: { generateId: "uuid" },
@@ -99,11 +117,18 @@ export const auth = betterAuth({
             logger.error({ err: error }, "Échec d'envoi du code à usage unique");
           });
       },
-      // Comptes de démonstration : un code fixe, uniquement pour les numéros fictifs 01 9X…
-      // et seulement si OTP_DEMO_CODE est défini (interdit en production, voir lib/env.ts).
+      // Comptes de démonstration (A2) : un code fixe, uniquement pour la liste blanche exacte
+      // de isDemoPhone (les numéros réellement semés, jamais un motif large), et seulement si
+      // OTP_DEMO_CODE est défini — ce qui est de toute façon interdit en production par
+      // lib/env.ts. Fournir verifyOTP remplace entièrement la vérification native du greffon,
+      // y compris son compteur de tentatives : verifyStoredOtp le reproduit ci-dessous pour
+      // que ce chemin personnalisé ne devienne pas un moyen de forcer un code par essais
+      // répétés.
       verifyOTP: env.OTP_DEMO_CODE
         ? async ({ phoneNumber: to, code }, ctx) => {
-            if (isDemoPhone(to) && code === env.OTP_DEMO_CODE) return true;
+            if (env.APP_ENV !== "production" && isDemoPhone(to) && code === env.OTP_DEMO_CODE) {
+              return true;
+            }
             return verifyStoredOtp(ctx, to, code);
           }
         : undefined,
@@ -134,13 +159,49 @@ const AUDITED_PATHS: Record<string, AuditAction> = {
 
 type VerifyContext = GenericEndpointContext | undefined;
 
-// Reproduit la vérification par défaut du greffon quand le code de démonstration ne s'applique pas.
+// A2 : reproduit la vérification par défaut du greffon phone-number (routes.mjs,
+// verifyPhoneNumberOTP) quand le code de démonstration ne s'applique pas — y compris son
+// compteur de tentatives, qui serait sinon totalement contourné par notre verifyOTP
+// personnalisé (fournir verifyOTP désactive le chemin natif dans son ensemble, compteur
+// inclus). Le budget (OTP_ALLOWED_ATTEMPTS) doit rester aligné avec allowedAttempts déclaré
+// juste au-dessus dans la configuration du greffon.
+const OTP_ALLOWED_ATTEMPTS = 5;
+
 async function verifyStoredOtp(ctx: VerifyContext, to: string, code: string): Promise<boolean> {
   if (!ctx) return false;
-  const record = await ctx.context.internalAdapter.findVerificationValue(to);
-  if (!record || record.expiresAt < new Date()) return false;
-  const [storedCode] = record.value.split(":");
-  return storedCode === code;
+  const existing = await ctx.context.internalAdapter.findVerificationValue(to);
+  if (!existing || existing.expiresAt < new Date()) return false;
+
+  const [, rawAttempts] = existing.value.split(":");
+  const priorAttempts = parseAttempts(rawAttempts);
+  if (priorAttempts >= OTP_ALLOWED_ATTEMPTS) {
+    await ctx.context.internalAdapter.deleteVerificationByIdentifier(to);
+    return false;
+  }
+
+  // Consomme la ligne : deux vérifications concurrentes ne peuvent jamais réussir toutes les
+  // deux avec le même code (protection contre les courses).
+  const consumed = await ctx.context.internalAdapter.consumeVerificationValue(to);
+  if (!consumed) return false;
+  const [storedCode, consumedRawAttempts] = consumed.value.split(":");
+  const attempts = parseAttempts(consumedRawAttempts);
+  if (attempts >= OTP_ALLOWED_ATTEMPTS) return false;
+
+  if (storedCode !== code) {
+    // Recrée la ligne avec le compteur incrémenté, comme le ferait le greffon natif.
+    await ctx.context.internalAdapter.createVerificationValue({
+      value: `${storedCode}:${attempts + 1}`,
+      identifier: to,
+      expiresAt: consumed.expiresAt,
+    });
+    return false;
+  }
+  return true;
+}
+
+function parseAttempts(value: string | undefined): number {
+  const attempts = Number(value ?? 0);
+  return Number.isSafeInteger(attempts) && attempts > 0 ? attempts : 0;
 }
 
 export type AuthSession = typeof auth.$Infer.Session;

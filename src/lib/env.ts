@@ -15,12 +15,17 @@ const base64Key = (bytes: number, name: string) =>
 const serverSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Next.js positionne NEXT_PHASE=phase-production-build pendant `next build`, avant que
+    // les variables de déploiement ne soient forcément disponibles (cf. next.config.ts,
+    // qui importe ce module). On ne doit pas faire échouer le build pour ça (A1).
+    NEXT_PHASE: z.string().optional(),
     // NODE_ENV vaut "production" dès `next build` ou `next start`, y compris pour une
     // démonstration locale. APP_ENV distingue le déploiement réel (production) des
     // environnements de démonstration et de recette, où les comptes de démo sont admis.
-    APP_ENV: z
-      .enum(["development", "test", "demo", "staging", "production"])
-      .default("development"),
+    // Défaut fail-closed (A1) : une variable oubliée en déploiement doit se comporter
+    // comme de la production (comptes de démo bloqués, secrets obligatoires), jamais
+    // l'inverse. En local, .env.example fixe APP_ENV=development explicitement.
+    APP_ENV: z.enum(["development", "test", "demo", "staging", "production"]).default("production"),
     APP_URL: z.url().default("http://localhost:3000"),
     // Vide au moment du build (image Docker sans base) : la connexion est vérifiée au premier usage.
     DATABASE_URL: z
@@ -59,14 +64,24 @@ const serverSchema = z
     IDENTITY_VERIFICATION_PROVIDER: z.enum(["anip-local", "anip-xroad"]).default("anip-local"),
   })
   .superRefine((env, ctx) => {
+    // A1 : pendant la phase de build Next.js (NEXT_PHASE=phase-production-build), aucune
+    // requête n'est encore servie et les secrets de déploiement peuvent ne pas être présents
+    // dans l'environnement de build (image Docker construite avant injection des variables
+    // d'exécution, par exemple) : on n'exige rien de production ici, seulement au démarrage
+    // réel du serveur (nouveau process, donc nouvel appel à parseServerEnv).
+    const isBuildPhase = env.NEXT_PHASE === "phase-production-build";
+    if (isBuildPhase) return;
+
+    // AUTH_SECRET est obligatoire dès que NODE_ENV=production (déploiement réel ou
+    // démonstration lancée avec `next start`), pas seulement quand APP_ENV=production.
+    if (env.NODE_ENV === "production" && !env.AUTH_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SECRET"],
+        message: "obligatoire dès que NODE_ENV=production",
+      });
+    }
     if (env.APP_ENV === "production") {
-      if (!env.AUTH_SECRET) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["AUTH_SECRET"],
-          message: "obligatoire en production",
-        });
-      }
       if (!env.CRON_SECRET) {
         ctx.addIssue({
           code: "custom",

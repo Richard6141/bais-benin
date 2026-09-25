@@ -25,7 +25,13 @@ export function isValidBeninPhone(raw: string): boolean {
   return normalizeBeninPhone(raw) !== null;
 }
 
-// Les numéros de démonstration commencent par 01 9 : ils n'existent pas chez les opérateurs.
+// A2 : liste blanche EXACTE des numéros de démonstration réellement semés
+// (src/database/seed/steps/accounts.seed.ts — DEMO_ACCOUNTS et DEMO_FARMER_PHONE), et non un
+// motif large « 01 9X… » qui couvrirait dix millions de numéros fictifs jamais attribués mais
+// jamais vérifiés non plus. N'importe quel autre numéro béninois valide passe par le circuit
+// OTP réel, même en développement.
+const DEMO_PHONE_NUMBERS: ReadonlySet<string> = new Set(["+2290190000001", "+2290190000002"]);
+
 export function isDemoPhone(e164: string): boolean {
-  return /^\+229019\d{7}$/.test(e164);
+  return DEMO_PHONE_NUMBERS.has(e164);
 }
