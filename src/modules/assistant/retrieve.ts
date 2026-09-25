@@ -4,7 +4,8 @@ import type { AssistantPassage } from "@/services/ports/llm-provider";
 
 // Recherche des extraits qui répondent à une question : plongement de la question avec le même
 // modèle que le corpus, plus proches voisins dans pgvector, puis léger avantage aux fiches des
-// cultures du contexte de l'utilisateur. La similarité rendue reste la similarité brute.
+// cultures du contexte de l'utilisateur. La similarité rendue est la pertinence calibrée par
+// l'adaptateur de plongement (relevance), sur une échelle commune de 0 à 1.
 
 export const RETRIEVE_LIMIT = 8;
 /** En dessous, un extrait n'est pas transmis au modèle : trop éloigné pour appuyer une réponse. */
@@ -51,6 +52,7 @@ export async function retrievePassages(
   const limit = options.limit ?? RETRIEVE_LIMIT;
   // Pas de filtre strict : un producteur de maïs peut interroger sur l'igname. Les fiches des
   // cultures du contexte sont seulement avantagées au classement.
+  const relevance = (similarity: number) => embeddings.relevance?.(similarity) ?? similarity;
   const hits = await searchChunks({
     embedding,
     embeddingModel: embeddings.modelRef,
@@ -59,6 +61,7 @@ export async function retrievePassages(
   const crops = new Set(options.crops ?? []);
   const boost = (hit: ChunkHit) => (hit.crops.some((c) => crops.has(c)) ? CROP_BOOST : 0);
   return hits
+    .map((h) => ({ ...h, similarity: relevance(h.similarity) }))
     .filter((h) => h.similarity >= MIN_PASSAGE_SIMILARITY)
     .sort((a, b) => b.similarity + boost(b) - (a.similarity + boost(a)))
     .slice(0, limit)

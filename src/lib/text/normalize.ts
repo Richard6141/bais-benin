@@ -14,10 +14,11 @@ export function foldText(text: string): string {
     .trim();
 }
 
+// « mais » n'y figure pas : sans accent, c'est aussi « maïs ».
 const STOP_WORDS = new Set(
   (
     "a au aux avec ce ces cette dans de des du elle en est et il ils je la le les leur leurs lui " +
-    "ma mais me mes mon ne nos notre nous on ou par pas plus pour qu que qui sa se ses si son " +
+    "ma me mes mon ne nos notre nous on ou par pas plus pour qu que qui sa se ses si son " +
     "sont sur ta te tes ton tu un une vos votre vous y d l s n c j m t quand comment quel quelle " +
     "quels quelles faut faire peut peux dois doit etre avoir fait mon ma mes"
   ).split(" "),
@@ -30,6 +31,10 @@ function stem(word: string): string {
     if (w.length > suffix.length + 3 && w.endsWith(suffix)) return w.slice(0, -suffix.length);
   }
   if (w.length > 4 && (w.endsWith("s") || w.endsWith("x"))) w = w.slice(0, -1);
+  // Formes verbales courantes des fiches et des questions : semer, semez, semé, séchez…
+  for (const suffix of ["ez", "er", "ee", "ent", "ons", "ai", "is"]) {
+    if (w.length >= suffix.length + 3 && w.endsWith(suffix)) return w.slice(0, -suffix.length);
+  }
   if (w.length > 4 && w.endsWith("e")) w = w.slice(0, -1);
   return w;
 }

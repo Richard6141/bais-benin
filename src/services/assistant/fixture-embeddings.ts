@@ -22,6 +22,12 @@ function add(vector: Float64Array, feature: string, weight: number): void {
   vector[index]! += (hash & 0x80000000 ? -1 : 1) * weight;
 }
 
+/**
+ * Référence enregistrée avec chaque extrait. Le numéro change avec l'algorithme (normalisation,
+ * hachage) : les extraits calculés avec une version antérieure sont alors recalculés au seed.
+ */
+export const FIXTURE_EMBEDDING_REF = "fixture:3";
+
 export function hashEmbedding(text: string, dimensions = EMBEDDING_DIMENSIONS): number[] {
   const vector = new Float64Array(dimensions);
   const words = contentWords(text);
@@ -38,8 +44,11 @@ export function hashEmbedding(text: string, dimensions = EMBEDDING_DIMENSIONS): 
 
 export function createFixtureEmbeddingProvider(): EmbeddingProvider {
   return {
-    modelRef: "fixture",
+    modelRef: FIXTURE_EMBEDDING_REF,
     dimensions: EMBEDDING_DIMENSIONS,
     embed: async (values) => values.map((value) => hashEmbedding(value)),
+    // Similarité lexicale : un extrait long partage peu de mots avec une question courte, le
+    // cosinus reste bas (0,15 à 0,45 pour un bon extrait). Ramené à une échelle de 0 à 1.
+    relevance: (similarity) => Math.min(1, Math.max(0, similarity * 2.5)),
   };
 }

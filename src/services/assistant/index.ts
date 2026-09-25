@@ -4,7 +4,11 @@ import { createFixtureEmbeddingProvider } from "./fixture-embeddings";
 import { createFixtureLlmProvider } from "./fixture-llm";
 import { createSdkEmbeddingProvider, createSdkLlmProvider, type SdkAssistantConfig } from "./sdk";
 
-export { createFixtureEmbeddingProvider, hashEmbedding } from "./fixture-embeddings";
+export {
+  FIXTURE_EMBEDDING_REF,
+  createFixtureEmbeddingProvider,
+  hashEmbedding,
+} from "./fixture-embeddings";
 export { createFixtureLlmProvider, looksAgricultural } from "./fixture-llm";
 export { createSdkEmbeddingProvider, createSdkLlmProvider, type SdkAssistantConfig } from "./sdk";
 

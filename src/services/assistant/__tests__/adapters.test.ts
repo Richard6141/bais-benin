@@ -39,6 +39,12 @@ describe("plongements de démonstration", () => {
     expect(hashEmbedding("Comment lutter contre la chenille légionnaire sur le maïs ?")).toEqual(a);
     expect(cosine(a!, a!)).toBeCloseTo(1, 6);
     expect(cosine(a!, b!)).toBeGreaterThan(cosine(a!, c!) + 0.2);
+    // « maïs » sans accent n'est pas le mot vide « mais » ; semer et semez se rapprochent.
+    expect(cosine(hashEmbedding("semer le maïs"), hashEmbedding("semez du maïs"))).toBeGreaterThan(
+      0.9,
+    );
+    expect(provider.relevance?.(0.2)).toBe(0.5);
+    expect(provider.relevance?.(0.6)).toBe(1);
   });
 });
 
@@ -119,6 +125,6 @@ describe("adaptateurs du SDK", () => {
   it("se replie sur la démonstration sans modèle configuré", () => {
     const providers = createAssistantProviders({ dimensions: 1024, timeoutMs: 5000 });
     expect(providers.llm.demonstration).toBe(true);
-    expect(providers.embeddings.modelRef).toBe("fixture");
+    expect(providers.embeddings.modelRef).toBe("fixture:3");
   });
 });

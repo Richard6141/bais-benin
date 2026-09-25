@@ -30,13 +30,15 @@ describe("assistant agricole : réponses", () => {
   });
 
   it("retrouve l'extrait qui répond, par similarité dans pgvector", async () => {
-    const passages = await retrievePassages(
-      "Comment lutter contre la chenille légionnaire du maïs ?",
-      embeddings,
-    );
+    // Le vrai corpus est aussi en base : on regarde l'ordre des fiches de test entre elles.
+    const ours = async (question: string) =>
+      (await retrievePassages(question, embeddings, { limit: 20 })).filter((p) =>
+        p.slug.startsWith(SLUG),
+      );
+    const passages = await ours("Comment lutter contre la chenille légionnaire du maïs ?");
     expect(passages[0]?.slug).toBe(`${SLUG}-chenille`);
     expect(passages[0]?.similarity).toBeGreaterThan(passages.at(-1)!.similarity - 1e-9);
-    const storage = await retrievePassages("Où stocker mes ignames après la récolte ?", embeddings);
+    const storage = await ours("Où stocker mes ignames après la récolte ?");
     expect(storage[0]?.slug).toBe(`${SLUG}-igname`);
   });
 

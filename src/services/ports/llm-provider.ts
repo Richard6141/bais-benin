@@ -14,7 +14,7 @@ export interface AssistantPassage {
   content: string;
   /** Organisme et titre de la source, pour la citation. */
   source: string;
-  /** Similarité cosinus avec la question, de 0 à 1. */
+  /** Pertinence de l'extrait pour la question, de 0 à 1 (similarité cosinus calibrée). */
   similarity: number;
 }
 

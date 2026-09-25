@@ -12,6 +12,12 @@ export interface EmbeddingProvider {
   readonly dimensions: number;
   /** Vecteurs dans l'ordre des textes, normalisés ou non (la recherche utilise le cosinus). */
   embed(values: readonly string[]): Promise<number[][]>;
+  /**
+   * Pertinence de 0 à 1 à partir de la similarité cosinus brute. L'échelle du cosinus dépend du
+   * modèle : l'adaptateur la ramène à une échelle commune, utilisée par le seuil de recherche et
+   * le score de confiance. Absente : la similarité brute est la pertinence.
+   */
+  relevance?(similarity: number): number;
 }
 
 export class EmbeddingProviderError extends Error {
