@@ -70,14 +70,17 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
   {
+    // A3 : NetworkOnly, pas de cache partagé pour des données propres à un compte. Ces routes
+    // renvoient des exploitations et des référentiels scoping-dépendants (commune, rôle) ; un
+    // cache clé uniquement sur l'URL laisserait un agent B qui reprend le même téléphone après
+    // un agent A recevoir les données de A. Le mode hors-ligne reste assuré côté client par
+    // Dexie (lib/offline/db.ts), qui a sa propre copie déjà scoping-consciente : aucune perte
+    // de fonctionnalité.
     matcher: ({ sameOrigin, url }) =>
       sameOrigin &&
       (url.pathname.startsWith("/api/v1/referentiel") ||
         url.pathname.startsWith("/api/v1/registry/farms")),
-    handler: new StaleWhileRevalidate({
-      cacheName: "bais-registry-data",
-      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 7 * DAY })],
-    }),
+    handler: new NetworkOnly({ networkTimeoutSeconds: 30 }),
   },
   {
     // Tuiles des limites administratives : stables, servies depuis le cache dès qu'elles y sont.
