@@ -30,5 +30,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|serwist|icons|manifest.webmanifest|~offline).*)"],
+  matcher: ["/((?!api|_next|serwist|icons|manifest.webmanifest|hors-ligne).*)"],
 };
