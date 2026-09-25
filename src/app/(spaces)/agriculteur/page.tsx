@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireRole } from "@/features/auth/session";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
+import { PendingReports } from "@/features/reports/pending-reports";
 import { listAlertsForActor } from "@/modules/monitoring";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
@@ -159,9 +160,13 @@ export default async function FarmerSpacePage() {
         </CardContent>
       </Card>
 
+      <PendingReports userId={user.id} />
       <div className="flex flex-col gap-3">
         <Button asChild className="h-14 w-full text-base">
           <Link href="/agriculteur/recolte">Déclarer ma récolte</Link>
+        </Button>
+        <Button asChild variant="outline" className="h-14 w-full text-base">
+          <Link href="/agriculteur/signaler">Signaler un problème sur une parcelle</Link>
         </Button>
         <Button asChild variant="outline" className="h-14 w-full text-base">
           <Link href="/agriculteur/assistant">

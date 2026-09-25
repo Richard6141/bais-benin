@@ -45,6 +45,11 @@ export const ACTIONS = [
   "assistant.ask",
   "assistant.journal.read",
   "assistant.corpus.manage",
+  // Signalements de terrain (phase 0) : signaler un problème sur une parcelle, lire les
+  // signalements, les confirmer ou les écarter après une visite.
+  "report.create",
+  "report.read",
+  "report.review",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -77,6 +82,11 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.ask": "ALL",
     "assistant.journal.read": "ALL",
     "assistant.corpus.manage": "ALL",
+    // Le ministère voit tout et peut statuer sur un signalement qu'aucun agent ne suit
+    // (exploitation auto-enregistrée par son producteur, ADR-0013).
+    "report.create": "NONE",
+    "report.read": "ALL",
+    "report.review": "ALL",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -110,6 +120,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.ask": "SCOPE",
     "assistant.journal.read": "SCOPE",
     "assistant.corpus.manage": "NONE",
+    // Comme le registre (ADR-0014) : les exploitations que l'agent a enregistrées.
+    "report.create": "OWN",
+    "report.read": "OWN",
+    "report.review": "OWN",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -137,6 +151,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.ask": "SELF",
     "assistant.journal.read": "NONE",
     "assistant.corpus.manage": "NONE",
+    "report.create": "SELF",
+    "report.read": "SELF",
+    "report.review": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -164,6 +181,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.ask": "SELF",
     "assistant.journal.read": "NONE",
     "assistant.corpus.manage": "NONE",
+    "report.create": "NONE",
+    "report.read": "NONE",
+    "report.review": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -191,5 +211,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.ask": "NONE",
     "assistant.journal.read": "NONE",
     "assistant.corpus.manage": "NONE",
+    "report.create": "NONE",
+    "report.read": "NONE",
+    "report.review": "NONE",
   },
 };

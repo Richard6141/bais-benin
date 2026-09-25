@@ -99,6 +99,53 @@ describe("outbox hors ligne", () => {
     expect(await outboxCounts(db)).toEqual({ pending: 0, failed: 1 });
   });
 
+  it("coupe le lot avant 2 Mo quand des signalements portent des photos", async () => {
+    // Cinq signalements d'environ 380 000 caractères de photo : 50 commandes dépasseraient le
+    // plafond du serveur, le lot s'arrête avant et les suivants partent au passage suivant.
+    for (let index = 0; index < 5; index += 1) {
+      const id = `01923456-0000-7000-8000-00000000010${index}`;
+      await enqueueCommand(db, {
+        id,
+        type: "fieldReport.create",
+        payload: {
+          id,
+          farmId,
+          type: "PEST",
+          description: "Chenilles sur le maïs",
+          observedAt: new Date().toISOString(),
+          photo: { contentType: "image/webp", dataBase64: "A".repeat(380_000) },
+        },
+      });
+    }
+    const sizes: number[] = [];
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      sizes.push(String(init?.body).length);
+      const body = JSON.parse(String(init?.body)) as { commands: { id: string }[] };
+      return new Response(
+        JSON.stringify({
+          receivedAt: new Date().toISOString(),
+          results: body.commands.map((c) => ({
+            id: c.id,
+            outcome: "APPLIED",
+            entity: { type: "fieldReport", id: c.id, version: 1 },
+          })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    const first = await runSync(db, {
+      deviceId: "appareil-test",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+    expect(first.sent).toBe(4);
+    const second = await runSync(db, {
+      deviceId: "appareil-test",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+    expect(second.sent).toBe(1);
+    expect(Math.max(...sizes)).toBeLessThan(2 * 1024 * 1024);
+  });
+
   it("remet le lot en attente quand le réseau échoue", async () => {
     await enqueueCommand(db, { id: farmerId, type: "farmer.create", payload: farmerPayload() });
     const fetchImpl = vi.fn(async () => {

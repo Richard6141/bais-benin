@@ -107,7 +107,7 @@ Hors production et avec `OTP_DEMO_CODE` défini, `/connexion` affiche ces compte
 
 ## 5. Matrice des permissions
 
-Source : `src/modules/authorization/policies.matrix.ts`. Portées : **ALL** toute ressource, **SCOPE** ressources du périmètre territorial ou organisationnel de l'affectation, **SELF** ressources de l'acteur, **NONE** jamais. Une affectation porte un type de périmètre (`NATIONAL`, `DEPARTEMENT`, `COMMUNE`, `ORGANIZATION`, `SELF`) et un identifiant ; les affectations départementales sont résolues en listes de communes au chargement de l'acteur. Plusieurs affectations peuvent coexister, la première qui autorise suffit.
+Source : `src/modules/authorization/policies.matrix.ts`. Portées : **ALL** toute ressource, **SCOPE** ressources du périmètre territorial ou organisationnel de l'affectation, **SELF** ressources de l'acteur, **OWN** ressources enregistrées par l'acteur (agent, ADR-0014), **NONE** jamais. Une affectation porte un type de périmètre (`NATIONAL`, `DEPARTEMENT`, `COMMUNE`, `ORGANIZATION`, `SELF`) et un identifiant ; les affectations départementales sont résolues en listes de communes au chargement de l'acteur. Plusieurs affectations peuvent coexister, la première qui autorise suffit.
 
 | Action | ADMIN_STATE | AGENT_AGRICULTURE | FARMER | COOPERATIVE | BUYER |
 |---|---|---|---|---|---|
@@ -129,6 +129,9 @@ Source : `src/modules/authorization/policies.matrix.ts`. Portées : **ALL** tout
 | `user.role.grant` | ALL | NONE | NONE | NONE | NONE |
 | `user.npi.reveal` | ALL | NONE | NONE | NONE | NONE |
 | `audit.read` | ALL | NONE | NONE | NONE | NONE |
+| `report.create` | NONE | OWN | SELF | NONE | NONE |
+| `report.read` | ALL | OWN | SELF | NONE | NONE |
+| `report.review` | ALL | OWN | NONE | NONE | NONE |
 
 Les tests unitaires du moteur (`src/modules/authorization/__tests__/authorize.test.ts`) sont générés à partir de cette matrice : chaque cellule produit au moins un cas autorisé et un cas refusé. `scopeFilter` traduit l'union des affectations en filtre de liste (`all`, `none`, `self` ou `territory` avec communes, départements et organisations) que les dépôts convertissent en clause SQL.
 
