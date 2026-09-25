@@ -1,5 +1,6 @@
 import { UserRound } from "lucide-react";
 import Link from "next/link";
+import { GovernmentEmblem } from "@/components/brand/government-emblem";
 import { Monogram } from "@/components/brand/monogram";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur print:hidden">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-3">
+          <GovernmentEmblem className="hidden sm:inline-flex" />
           <Monogram />
           <span className="text-sm font-semibold tracking-tight">BAIS</span>
         </Link>

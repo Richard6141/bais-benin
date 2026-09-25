@@ -47,3 +47,7 @@ Chaque licence a été lue sur la page source le 24 septembre 2026 (champ « Lic
 2. Ajouter une entrée au catalogue de `scripts/optimize-images.mjs` (titre exact du fichier Commons, base en kebab-case, texte alternatif en français, crédit, étiquettes).
 3. Lancer `node scripts/optimize-images.mjs` ; vérifier que la version 1600 px reste sous 250 Ko.
 4. Ajouter la ligne correspondante au tableau ci-dessus.
+
+## Armoiries de la République du Bénin
+
+`public/images/logos/maep-benin.png` n'est pas une photographie de la banque ci-dessus : ce sont les armoiries officielles de l'État, utilisées par les portails de l'administration (téléchargées depuis `https://agriculture.gouv.bj/logo.png`, en-tête du site du ministère en charge de l'agriculture, le 25 septembre 2026). Elles ne sont pas soumises à une licence Creative Commons ; elles identifient la République du Bénin comme destinataire prévu de la plateforme et n'impliquent aucune approbation officielle du produit à ce stade de démonstration. Affichées dans l'en-tête public, l'en-tête des espaces connectés et le pied de page (`src/components/brand/government-emblem.tsx`), sur une plaque blanche pour rester lisibles en thème sombre.
