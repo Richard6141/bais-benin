@@ -5,7 +5,7 @@ import {
   writeParcelGeometry,
 } from "./geometry";
 import { farmTarget, findFarm } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Ajout d'une parcelle à une exploitation. Le contour est facultatif (DECLARED_ONLY) ; quand il
 // existe, la surface mesurée est calculée par PostGIS et comparée à la surface déclarée.
@@ -36,9 +36,10 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
 
     const existing = await db.parcel.findUnique({
       where: { id: payload.id },
-      select: { id: true, code: true, version: true },
+      select: { id: true, code: true, version: true, farmId: true },
     });
     if (existing) {
+      if (existing.farmId !== farm.id) return idConflict();
       return {
         outcome: "DUPLICATE",
         entity: { type: "parcel", id: existing.id, code: existing.code, version: existing.version },

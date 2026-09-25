@@ -1,6 +1,6 @@
 import { farmCode } from "@/database/seed/generators/identifiers";
 import { findCommuneByCode } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Création d'une exploitation rattachée à un producteur existant (créé dans le même lot ou
 // avant). La position est un point GPS écrit par PostGIS ; le code suit le format
@@ -22,6 +22,8 @@ export const farmCreate: SyncHandler<"farm.create"> = {
         departementId: commune.departementId,
         ownerUserId: farmer.userId,
       },
+      // Le producteur est désigné par son identifiant : un refus ne doit pas en révéler l'existence.
+      byId: true,
     };
   },
 
@@ -37,9 +39,10 @@ export const farmCreate: SyncHandler<"farm.create"> = {
 
     const existing = await db.farm.findUnique({
       where: { id: payload.id },
-      select: { id: true, code: true, version: true },
+      select: { id: true, code: true, version: true, farmerId: true, communeId: true },
     });
     if (existing) {
+      if (existing.farmerId !== farmer.id || existing.communeId !== commune.id) return idConflict();
       return {
         outcome: "DUPLICATE",
         entity: { type: "farm", id: existing.id, code: existing.code, version: existing.version },

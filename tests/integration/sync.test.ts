@@ -22,6 +22,7 @@ const ids = {
   harvest: "019284a0-0000-7000-8000-00000000a005",
   verification: "019284a0-0000-7000-8000-00000000a006",
   forbiddenFarmer: "019284a0-0000-7000-8000-00000000b001",
+  secondFarm: "019284a0-0000-7000-8000-00000000c001",
 };
 
 // Carré d'environ 100 m de côté au nord de Djougou (1,67° E, 9,70° N) : près d'un hectare.
@@ -148,12 +149,12 @@ describe("serveur de synchronisation", () => {
 
   afterAll(async () => {
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
-    await prisma.farmEvent.deleteMany({ where: { farmId: ids.farm } });
+    await prisma.farmEvent.deleteMany({ where: { farmId: { in: [ids.farm, ids.secondFarm] } } });
     await prisma.farmVerification.deleteMany({ where: { farmId: ids.farm } });
     await prisma.productionDeclaration.deleteMany({ where: { parcelCropId: ids.parcelCrop } });
     await prisma.parcelCrop.deleteMany({ where: { parcelId: ids.parcel } });
     await prisma.parcel.deleteMany({ where: { farmId: ids.farm } });
-    await prisma.farm.deleteMany({ where: { id: ids.farm } });
+    await prisma.farm.deleteMany({ where: { id: { in: [ids.farm, ids.secondFarm] } } });
     await prisma.farmer.deleteMany({ where: { id: { in: [ids.farmer, ids.forbiddenFarmer] } } });
     await prisma.$disconnect();
   });
@@ -260,5 +261,57 @@ describe("serveur de synchronisation", () => {
     expect(results[0]).toMatchObject({ outcome: "REJECTED", error: { code: "FORBIDDEN" } });
     expect(await prisma.farmer.count({ where: { id: ids.forbiddenFarmer } })).toBe(0);
     await prisma.syncCommand.deleteMany({ where: { deviceId: "test-device-farmer" } });
+  });
+
+  // C2 : ce qu'un compte apprend des saisies des autres par la synchronisation.
+  it("refuse la clé d'idempotence d'un autre compte sans renvoyer son résultat", async () => {
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const [replayed] = await applySyncBatch(farmer, "test-device-farmer", [batch[0]]);
+    expect(replayed).toMatchObject({
+      outcome: "REJECTED",
+      error: { code: "IDEMPOTENCY_KEY_CONFLICT" },
+    });
+    expect(replayed?.entity).toBeUndefined();
+    const stored = await prisma.syncCommand.findUniqueOrThrow({
+      where: { idempotencyKey: `it-${ids.farmer}` },
+      select: { userId: true, outcome: true },
+    });
+    const agent = await actorForPhone(AGENT_PHONE);
+    expect(stored).toEqual({ userId: agent.userId, outcome: "APPLIED" });
+  });
+
+  it("répond comme une absence pour une exploitation hors périmètre désignée par identifiant", async () => {
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const [outside] = await applySyncBatch(farmer, "test-device-farmer", [
+      command("019284a0-0000-7000-8000-00000000c002", "parcel.create", {
+        id: "019284a0-0000-7000-8000-00000000c002",
+        farmId: ids.farm,
+        declaredAreaHa: 0.5,
+      }),
+    ]);
+    expect(outside).toMatchObject({ outcome: "REJECTED", error: { code: "NOT_FOUND" } });
+    await prisma.syncCommand.deleteMany({ where: { deviceId: "test-device-farmer" } });
+  });
+
+  it("refuse un identifiant déjà pris par une autre exploitation sans en donner le code", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const [secondFarm, reused] = await applySyncBatch(agent, DEVICE, [
+      command(ids.secondFarm, "farm.create", {
+        id: ids.secondFarm,
+        farmerId: ids.farmer,
+        communeCode: DJOUGOU,
+        location: [1.671, 9.701],
+        declaredAreaHa: 0.8,
+        tenure: "FAMILY",
+      }),
+      command("019284a0-0000-7000-8000-00000000c003", "parcel.create", {
+        id: ids.parcel,
+        farmId: ids.secondFarm,
+        declaredAreaHa: 0.8,
+      }),
+    ]);
+    expect(secondFarm?.outcome).toBe("APPLIED");
+    expect(reused).toMatchObject({ outcome: "REJECTED", error: { code: "ID_CONFLICT" } });
+    expect(reused?.entity).toBeUndefined();
   });
 });

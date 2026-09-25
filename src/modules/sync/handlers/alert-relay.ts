@@ -12,6 +12,8 @@ export const alertRelay: SyncHandler<"alert.relay"> = {
     return {
       action: "alert.relay",
       resource: { communeId: target.communeId, departementId: target.departementId },
+      // Alerte et exploitation sont désignées par leur identifiant (C2).
+      byId: true,
     };
   },
 

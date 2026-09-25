@@ -76,5 +76,6 @@ export function farmTarget(farm: FarmRef, action: CommandTarget["action"]): Comm
       departementId: farm.departementId,
       ownerUserId: farm.ownerUserId,
     },
+    byId: true,
   };
 }

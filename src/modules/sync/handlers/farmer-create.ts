@@ -1,6 +1,6 @@
 import { farmerCode } from "@/database/seed/generators/identifiers";
 import { findCommuneByCode } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Création d'un producteur par un agent de terrain. L'identifiant vient du client (UUID v7) pour
 // que les commandes suivantes du lot puissent le référencer ; le code officiel est attribué par
@@ -30,9 +30,10 @@ export const farmerCreate: SyncHandler<"farmer.create"> = {
 
     const existing = await db.farmer.findUnique({
       where: { id: payload.id },
-      select: { id: true, code: true },
+      select: { id: true, code: true, communeId: true },
     });
     if (existing) {
+      if (existing.communeId !== commune.id) return idConflict();
       return {
         outcome: "DUPLICATE",
         entity: { type: "farmer", id: existing.id, code: existing.code, version: 1 },

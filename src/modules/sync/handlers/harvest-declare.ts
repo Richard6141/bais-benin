@@ -1,5 +1,5 @@
 import { farmTarget, findFarmOfParcel } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Déclaration de récolte sur une culture de parcelle. La quantité est normalisée en kilogrammes
 // par le facteur de l'unité ; les unités locales sans équivalent fixe (régime, tas, bassine)
@@ -43,9 +43,10 @@ export const harvestDeclare: SyncHandler<"harvest.declare"> = {
 
     const existing = await db.productionDeclaration.findUnique({
       where: { id: payload.id },
-      select: { id: true },
+      select: { id: true, parcelCropId: true },
     });
     if (existing) {
+      if (existing.parcelCropId !== parcelCrop.id) return idConflict();
       return {
         outcome: "DUPLICATE",
         entity: { type: "productionDeclaration", id: existing.id, version: 1 },
