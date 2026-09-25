@@ -17,7 +17,8 @@ export interface CurrentUser {
   name: string;
   email: string;
   phoneNumber: string | null;
-  twoFactorEnabled: boolean;
+  /** État du NPI lié au compte (ADR-0012) : toujours présent pour une session valide. */
+  npiStatus: string;
   status: string;
   actor: Actor;
   primaryRole: RoleCode | null;
@@ -48,6 +49,9 @@ export async function resolveSession(headersInput: Headers): Promise<ResolvedSes
   if (!result) return null;
   const { user, session } = result;
   if (user.status === "SUSPENDED" || user.status === "DELETED") return null;
+  // ADR-0012 : toute connexion lie un NPI au compte. Une session sans NPI (ouverte avant la
+  // connexion par NPI) n'est plus reconnue : l'utilisateur se reconnecte avec son NPI.
+  if (!user.npiStatus || user.npiStatus === "NONE") return null;
 
   const actor = await loadActor(user.id);
   const role = primaryRole(actor);
@@ -69,7 +73,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     name: user.name,
     email: user.email,
     phoneNumber: user.phoneNumber ?? null,
-    twoFactorEnabled: user.twoFactorEnabled ?? false,
+    npiStatus: user.npiStatus ?? "NONE",
     status: user.status ?? "ACTIVE",
     actor,
     primaryRole: role,
@@ -88,8 +92,8 @@ export async function requireUser(options: { returnTo?: string } = {}): Promise<
   return user;
 }
 
-// Garde d'espace : le rôle attendu doit être présent ; les administrateurs de l'État
-// doivent avoir activé la double authentification avant d'accéder au pilotage.
+// Garde d'espace : le rôle attendu doit être présent. L'identité (NPI et code WhatsApp) est
+// déjà exigée à la connexion de tout compte, ministère compris (ADR-0012).
 export async function requireRole(
   role: RoleCode,
   options: { returnTo?: string } = {},
@@ -97,7 +101,6 @@ export async function requireRole(
   const user = await requireUser(options);
   const hasRole = user.actor.grants.some((g) => g.role === role);
   if (!hasRole) redirect("/acces-refuse");
-  if (role === "ADMIN_STATE" && !user.twoFactorEnabled) redirect("/compte/securite?obligatoire=1");
   return user;
 }
 

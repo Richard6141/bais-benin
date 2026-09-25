@@ -12,7 +12,7 @@ import {
 } from "@/modules/monitoring/rule-admin";
 
 // Actions serveur de la gouvernance des règles (/pilotage/regles). Chaque action repasse par
-// requireRole("ADMIN_STATE"), qui impose la double authentification, puis par le service qui
+// requireRole("ADMIN_STATE"), réservé au ministère identifié par NPI, puis par le service qui
 // vérifie le droit et journalise.
 
 export type ActionResult<T = undefined> =

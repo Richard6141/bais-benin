@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
+import type { NpiStatus } from "@/generated/prisma/client";
 import { seedReferenceData } from "@/database/seed";
 import type { Actor } from "@/modules/authorization";
 import { loadActor } from "@/modules/identity";
@@ -26,7 +27,7 @@ const INGEST_TODAY = "2024-08-10";
 const runIds: string[] = [];
 let ministry: Actor;
 let agent: Actor;
-let ministryTwoFactor: boolean | null = null;
+let ministryNpiStatus: NpiStatus | null = null;
 
 const floodDefinition = {
   any: [
@@ -62,8 +63,8 @@ describe("gouvernance des règles", () => {
     const ministryUser = await prisma.user.findUniqueOrThrow({
       where: { email: "ministere@bais.demo" },
     });
-    ministryTwoFactor = ministryUser.twoFactorEnabled;
-    await prisma.user.update({ where: { id: ministryUser.id }, data: { twoFactorEnabled: true } });
+    ministryNpiStatus = ministryUser.npiStatus;
+    await prisma.user.update({ where: { id: ministryUser.id }, data: { npiStatus: "PENDING" } });
     ministry = await loadActor(ministryUser.id);
     const agentUser = await prisma.user.findFirstOrThrow({
       where: { phoneNumber: "+2290190000001" },
@@ -89,16 +90,16 @@ describe("gouvernance des règles", () => {
     await prisma.rule.deleteMany({ where: { id: { in: ruleIds } } });
     await prisma.weatherObservation.deleteMany({ where: { ingestionRunId: { in: runIds } } });
     await prisma.ingestionRun.deleteMany({ where: { id: { in: runIds } } });
-    if (ministryTwoFactor !== null) {
+    if (ministryNpiStatus !== null) {
       await prisma.user.update({
         where: { email: "ministere@bais.demo" },
-        data: { twoFactorEnabled: ministryTwoFactor },
+        data: { npiStatus: ministryNpiStatus },
       });
     }
     await prisma.$disconnect();
   });
 
-  it("réserve la gouvernance au ministère avec double authentification", async () => {
+  it("réserve la gouvernance au ministère identifié par son NPI", async () => {
     const rules = await listRules(ministry);
     expect(rules.map((r) => r.code)).toEqual(expect.arrayContaining([WARNING_CODE, CRITICAL_CODE]));
     expect(rules.find((r) => r.code === WARNING_CODE)).toMatchObject({
@@ -108,9 +109,9 @@ describe("gouvernance des règles", () => {
     });
     await expect(listRules(agent)).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    await prisma.user.update({ where: { id: ministry.userId }, data: { twoFactorEnabled: false } });
+    await prisma.user.update({ where: { id: ministry.userId }, data: { npiStatus: "NONE" } });
     await expect(listRules(ministry)).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await prisma.user.update({ where: { id: ministry.userId }, data: { twoFactorEnabled: true } });
+    await prisma.user.update({ where: { id: ministry.userId }, data: { npiStatus: "PENDING" } });
   });
 
   it("désactive une règle avec motif et confirmation quand elle est critique", async () => {

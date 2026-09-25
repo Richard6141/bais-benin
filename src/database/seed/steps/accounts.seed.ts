@@ -1,49 +1,22 @@
-import crypto from "node:crypto";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { hashPassword } from "@/lib/auth/password";
+import { demoAccount, demoPhoneE164 } from "@/lib/auth/demo-accounts";
+import { encryptNpi, keyringFromEnv, npiBlindIndex } from "@/lib/crypto/npi";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
-// Comptes de démonstration. Les téléphones sont la liste blanche exacte de isDemoPhone
-// (lib/auth/phone.ts) et acceptent le code OTP_DEMO_CODE quand il est défini ; les comptes
-// institutionnels partagent le mot de passe DEMO_ACCOUNT_PASSWORD. Rien de tout cela
+// Comptes de démonstration (ADR-0012). Chaque rôle a un NPI et un numéro fictifs
+// (lib/auth/demo-accounts.ts) et se connecte comme tout le monde : NPI et numéro, puis code.
+// Le code OTP_DEMO_CODE n'est accepté que pour ces numéros-là (isDemoPhone). Rien de tout cela
 // n'existe en production : lib/env.ts interdit OTP_DEMO_CODE hors développement, et
 // seedDemoAccounts (A4) refuse de créer le moindre compte si APP_ENV=production, même si la
 // commande de seed est lancée par erreur.
-
-// A4 : DEMO_ACCOUNT_PASSWORD est obligatoire dès que l'environnement n'est pas "development"
-// (démo, recette, production — bien que ce dernier cas n'atteigne jamais seedDemoAccounts).
-// En développement pur, un mot de passe aléatoire est généré à défaut, avec un avertissement
-// explicite : jamais de repli silencieux sur une valeur connue à l'avance.
-function resolveDemoPassword(): string {
-  const configured = process.env.DEMO_ACCOUNT_PASSWORD;
-  if (configured) return configured;
-
-  const env = getServerEnv();
-  if (env.APP_ENV !== "development") {
-    throw new Error(
-      "DEMO_ACCOUNT_PASSWORD est obligatoire hors développement (APP_ENV=" + env.APP_ENV + ")",
-    );
-  }
-  const generated = crypto.randomBytes(18).toString("base64url");
-  logger.warn(
-    { generatedDemoPassword: generated },
-    "DEMO_ACCOUNT_PASSWORD absent : mot de passe de démonstration aléatoire généré pour ce " +
-      "process de développement (il change à chaque redémarrage)",
-  );
-  return generated;
-}
-
-export const DEMO_PASSWORD = resolveDemoPassword();
 
 export interface DemoAccount {
   key: string;
   name: string;
   email: string;
-  phone?: string;
   role: "ADMIN_STATE" | "AGENT_AGRICULTURE" | "FARMER" | "COOPERATIVE" | "BUYER";
   scope: { type: "NATIONAL" | "COMMUNE" | "SELF" | "ORGANIZATION"; communeCode?: string };
-  password?: boolean;
 }
 
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
@@ -53,13 +26,11 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     email: "ministere@bais.demo",
     role: "ADMIN_STATE",
     scope: { type: "NATIONAL" },
-    password: true,
   },
   {
     key: "agent-djougou",
     name: "Agent de terrain, Djougou (démonstration)",
     email: "+2290190000001@telephone.bais.invalid",
-    phone: "+2290190000001",
     role: "AGENT_AGRICULTURE",
     scope: { type: "COMMUNE", communeCode: "BJ-DON-003" },
   },
@@ -67,7 +38,6 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     key: "agricultrice-djougou",
     name: "Agricultrice, Djougou (démonstration)",
     email: "+2290190000002@telephone.bais.invalid",
-    phone: "+2290190000002",
     role: "FARMER",
     scope: { type: "SELF" },
   },
@@ -77,7 +47,6 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     email: "cooperative@bais.demo",
     role: "COOPERATIVE",
     scope: { type: "SELF" },
-    password: true,
   },
   {
     key: "acheteur",
@@ -85,53 +54,57 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     email: "acheteur@bais.demo",
     role: "BUYER",
     scope: { type: "SELF" },
-    password: true,
   },
 ];
 
 export async function seedDemoAccounts(prisma: PrismaClient): Promise<number> {
   // A4 : filet de sécurité définitif — aucun compte de démonstration n'est créé en
   // production, quelle que soit la façon dont le seed a été déclenché.
-  if (getServerEnv().APP_ENV === "production") return 0;
-
-  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const env = getServerEnv();
+  if (env.APP_ENV === "production") return 0;
+  const keyring = keyringFromEnv(env);
+  if (!keyring) {
+    logger.warn(
+      "NPI_ENCRYPTION_KEY ou NPI_HASH_KEY absent : comptes de démonstration créés sans NPI, " +
+        "impossible de s'y connecter",
+    );
+  }
 
   for (const account of DEMO_ACCOUNTS) {
+    const { npi } = demoAccount(account.key);
+    const phone = demoPhoneE164(demoAccount(account.key));
     const user = await prisma.user.upsert({
       where: { email: account.email },
       create: {
         name: account.name,
         email: account.email,
-        emailVerified: account.password === true,
-        phoneNumber: account.phone ?? null,
-        phoneNumberVerified: account.phone ? true : null,
+        emailVerified: false,
+        phoneNumber: phone,
+        phoneNumberVerified: true,
         status: "ACTIVE",
       },
-      update: { name: account.name, status: "ACTIVE" },
+      update: {
+        name: account.name,
+        status: "ACTIVE",
+        phoneNumber: phone,
+        phoneNumberVerified: true,
+      },
       select: { id: true },
     });
-
-    if (account.password) {
-      const existing = await prisma.account.findFirst({
-        where: { userId: user.id, providerId: "credential" },
-        select: { id: true },
+    if (keyring) {
+      const context = { table: "user", column: "npi_ciphertext", recordId: user.id };
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          npiIndex: Uint8Array.from(npiBlindIndex(npi, keyring)),
+          npiCiphertext: encryptNpi(npi, context, keyring),
+          npiStatus: "PENDING",
+          npiVerificationProvider: "anip-local",
+        },
       });
-      if (existing) {
-        await prisma.account.update({
-          where: { id: existing.id },
-          data: { password: passwordHash },
-        });
-      } else {
-        await prisma.account.create({
-          data: {
-            userId: user.id,
-            providerId: "credential",
-            accountId: user.id,
-            password: passwordHash,
-          },
-        });
-      }
     }
+    // Plus de mot de passe (ADR-0012) : les anciens identifiants de démonstration sont retirés.
+    await prisma.account.deleteMany({ where: { userId: user.id, providerId: "credential" } });
 
     let scopeId: string | null = null;
     if (account.scope.type === "COMMUNE" && account.scope.communeCode) {

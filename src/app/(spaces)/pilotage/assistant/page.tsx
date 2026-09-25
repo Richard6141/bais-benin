@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Assistant d'analyse" };
 
 // C : assistant d'analyse du ministère. Le modèle choisit un indicateur dans une liste fermée ;
 // les chiffres viennent du registre et du monitoring, tels quels, masqués et sourcés. Le modèle
-// n'écrit aucun chiffre. requireRole("ADMIN_STATE") impose la double authentification.
+// n'écrit aucun chiffre. requireRole("ADMIN_STATE") réserve la page au ministère.
 export default async function MinistryAssistantPage() {
   await requireRole("ADMIN_STATE", { returnTo: "/pilotage/assistant" });
   return (

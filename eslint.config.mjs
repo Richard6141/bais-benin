@@ -15,6 +15,7 @@ const layers = [
     type: "wiring",
     pattern: [
       "src/lib/auth/auth.ts",
+      "src/lib/auth/npi-sign-in.ts",
       "src/lib/container.ts",
       "src/database/seed/index.ts",
       "src/database/seed/steps/monitoring.seed.ts",

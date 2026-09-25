@@ -26,8 +26,8 @@ export const metadata: Metadata = { title: "Centre d'alertes" };
 
 const integer = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 
-// C1 : vue nationale des alertes. requireRole("ADMIN_STATE") impose aussi la double
-// authentification, comme sur le reste du pilotage.
+// C1 : vue nationale des alertes. requireRole("ADMIN_STATE") la réserve au ministère, comme le
+// reste du pilotage (compte identifié par NPI, ADR-0012).
 export default async function AlertCenterPage(props: PageProps<"/pilotage/alertes">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/alertes" });
   const params = await props.searchParams;

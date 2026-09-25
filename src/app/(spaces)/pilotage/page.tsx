@@ -35,7 +35,7 @@ import { listDepartements } from "@/modules/territory";
 export const metadata: Metadata = { title: "Centre de pilotage" };
 
 // A : vue nationale. Lecture seule ; les filtres sont dans l'adresse, partagés avec la carte.
-// requireRole("ADMIN_STATE") impose aussi la double authentification.
+// requireRole("ADMIN_STATE") réserve la page au ministère (identifié par NPI, ADR-0012).
 export default async function NationalDashboardPage(props: PageProps<"/pilotage">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage" });
   const filters = parseDashboardFilters(await props.searchParams);

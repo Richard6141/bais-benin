@@ -3,11 +3,16 @@ import { betterAuth, type GenericEndpointContext } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { phoneNumber, twoFactor } from "better-auth/plugins";
+import { phoneNumber } from "better-auth/plugins";
 import { prisma } from "@/database/client";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { isDemoPhone, isValidBeninPhone } from "@/lib/auth/phone";
+import {
+  assertNpiFreeForNewAccount,
+  bindSignInNpi,
+  requireSignInIntent,
+} from "@/lib/auth/npi-sign-in";
 import { checkPhoneOtpRateLimit } from "@/lib/auth/otp-phone-rate-limit";
+import { SIGN_IN_INTENT_COOKIE } from "@/lib/auth/sign-in-intent";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { recordAudit, type AuditAction } from "@/modules/audit";
@@ -35,9 +40,10 @@ function resolveAuthSecret(): string {
   return crypto.randomBytes(32).toString("base64");
 }
 
-// Pile d'authentification (ADR-0010) : sessions en base révocables, OTP téléphone
-// livré par le canal de messagerie, TOTP pour les comptes institutionnels, limiteur
-// de débit stocké en base pour rester cohérent entre plusieurs instances.
+// Pile d'authentification (ADR-0010, ADR-0012) : sessions en base révocables, connexion unique
+// pour tous les rôles par NPI et code à usage unique livré sur WhatsApp (canal de messagerie),
+// limiteur de débit stocké en base pour rester cohérent entre plusieurs instances. Aucun mot
+// de passe : les rôles institutionnels sont attribués à un compte identifié par son NPI.
 export const auth = betterAuth({
   appName: "BAIS",
   baseURL: env.APP_URL,
@@ -62,6 +68,7 @@ export const auth = betterAuth({
     additionalFields: {
       preferredLocale: { type: "string", required: false, defaultValue: "fr", input: false },
       status: { type: "string", required: false, defaultValue: "ACTIVE", input: false },
+      npiStatus: { type: "string", required: false, defaultValue: "NONE", input: false },
     },
   },
   session: {
@@ -70,13 +77,6 @@ export const auth = betterAuth({
     expiresIn: 30 * DAY,
     updateAge: DAY,
     cookieCache: { enabled: true, maxAge: 5 * 60 },
-  },
-  emailAndPassword: {
-    enabled: true,
-    // Les comptes institutionnels sont créés par invitation, jamais par inscription libre.
-    disableSignUp: true,
-    minPasswordLength: 12,
-    password: { hash: hashPassword, verify: verifyPassword },
   },
   rateLimit: {
     enabled: true,
@@ -90,13 +90,30 @@ export const auth = betterAuth({
     customRules: {
       "/phone-number/send-otp": { window: 15 * 60, max: 30 },
       "/phone-number/verify": { window: 15 * 60, max: 60 },
-      "/sign-in/email": { window: 15 * 60, max: 30 },
-      "/two-factor/verify-totp": { window: 15 * 60, max: 30 },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Numéro inconnu : le compte n'est créé que si le NPI saisi n'appartient à personne.
+        before: async (user, ctx) => {
+          await assertNpiFreeForNewAccount(ctx, user.phoneNumber);
+        },
+      },
     },
   },
   hooks: {
+    // ADR-0012 : pas d'envoi ni de vérification de code sans NPI saisi pour ce numéro.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/phone-number/send-otp" || ctx.path === "/phone-number/verify") {
+        requireSignInIntent(ctx, (ctx.body as { phoneNumber?: unknown } | undefined)?.phoneNumber);
+      }
+    }),
     // Journal d'audit des événements de compte que la bibliothèque traite seule.
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/phone-number/verify" && ctx.context.newSession) {
+        ctx.setCookie(SIGN_IN_INTENT_COOKIE, "", { maxAge: 0, path: "/" });
+      }
       const action = AUDITED_PATHS[ctx.path];
       if (!action) return;
       const session = ctx.context.newSession ?? ctx.context.session;
@@ -127,6 +144,8 @@ export const auth = betterAuth({
         if (!isDemoPhone(to) && !(await checkPhoneOtpRateLimit(to))) {
           throw new APIError("FORBIDDEN", { message: "Trop de codes envoyés pour ce numéro" });
         }
+        // Numéros de démonstration fictifs : rien à envoyer, le code de démonstration suffit.
+        if (isDemoPhone(to) && env.OTP_DEMO_CODE && env.APP_ENV !== "production") return;
         // Envoi sans attente : la latence du fournisseur ne doit pas révéler si le numéro existe.
         void getMessagingChannel()
           .send({
@@ -156,15 +175,15 @@ export const auth = betterAuth({
             return verifyStoredOtp(ctx, to, code);
           }
         : undefined,
+      // Code vérifié, compte trouvé ou créé, session pas encore ouverte : liaison du NPI.
+      callbackOnVerification: async ({ phoneNumber: to, user }, ctx) => {
+        await bindSignInNpi(ctx, to, user);
+      },
       signUpOnVerification: {
         // better-auth exige un e-mail unique ; les agriculteurs n'en ont pas.
         getTempEmail: (to) => `${to.replace("+", "")}@telephone.bais.invalid`,
         getTempName: (to) => to,
       },
-    }),
-    twoFactor({
-      issuer: "BAIS",
-      totpOptions: { digits: 6, period: 30 },
     }),
     nextCookies(),
   ],
@@ -174,8 +193,6 @@ export const auth = betterAuth({
 const AUDITED_PATHS: Record<string, AuditAction> = {
   "/sign-out": "auth.sign_out",
   "/phone-number/send-otp": "auth.otp_requested",
-  "/two-factor/enable": "auth.two_factor_enabled",
-  "/two-factor/disable": "auth.two_factor_disabled",
   "/revoke-session": "auth.session_revoked",
   "/revoke-sessions": "auth.session_revoked",
   "/revoke-other-sessions": "auth.session_revoked",

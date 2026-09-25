@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
+import type { NpiStatus } from "@/generated/prisma/client";
 import { seedReferenceData } from "@/database/seed";
 import type { Actor } from "@/modules/authorization";
 import { loadActor } from "@/modules/identity";
@@ -19,14 +20,14 @@ const DRAFT = { any: [{ indicator: "rain_sum_3d", op: ">=", value: 1 }] };
 const runIds: string[] = [];
 const simulationIds: string[] = [];
 let ministry: Actor;
-let ministryTwoFactor: boolean | null = null;
+let ministryNpiStatus: NpiStatus | null = null;
 
 describe("historique météo et simulation", () => {
   beforeAll(async () => {
     await seedReferenceData();
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "ministere@bais.demo" } });
-    ministryTwoFactor = user.twoFactorEnabled;
-    await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+    ministryNpiStatus = user.npiStatus;
+    await prisma.user.update({ where: { id: user.id }, data: { npiStatus: "PENDING" } });
     ministry = await loadActor(user.id);
   }, 120_000);
 
@@ -35,10 +36,10 @@ describe("historique météo et simulation", () => {
     await prisma.simulationRun.deleteMany({ where: { id: { in: simulationIds } } });
     await prisma.weatherObservation.deleteMany({ where: { ingestionRunId: { in: runIds } } });
     await prisma.ingestionRun.deleteMany({ where: { id: { in: runIds } } });
-    if (ministryTwoFactor !== null) {
+    if (ministryNpiStatus !== null) {
       await prisma.user.update({
         where: { email: "ministere@bais.demo" },
-        data: { twoFactorEnabled: ministryTwoFactor },
+        data: { npiStatus: ministryNpiStatus },
       });
     }
     await prisma.$disconnect();

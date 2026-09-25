@@ -38,8 +38,6 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.55",
     "@hookform/resolvers": "^5.9.1",
-    "@node-rs/argon2": "2.2.1",
-    "@paulmillr/qr": "0.3.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@serwist/turbopack": "9.5.12",
