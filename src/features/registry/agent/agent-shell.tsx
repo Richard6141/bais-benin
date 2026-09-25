@@ -1,6 +1,14 @@
 "use client";
 
-import { BellRing, ClipboardCheck, Home, LandPlot, PlusCircle, RefreshCw } from "lucide-react";
+import {
+  BarChart3,
+  BellRing,
+  ClipboardCheck,
+  Home,
+  LandPlot,
+  PlusCircle,
+  RefreshCw,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -20,6 +28,8 @@ const NAV = [
   { href: "/agent/enregistrer", label: "Enregistrer", icon: PlusCircle, primary: true },
   { href: "/agent/verification", label: "À vérifier", icon: ClipboardCheck },
   { href: "/agent/alertes", label: "Alertes", icon: BellRing },
+  // Barre basse pleine (cinq entrées) : sur téléphone, le tableau de bord s'ouvre depuis l'accueil.
+  { href: "/agent/tableau-de-bord", label: "Tableau de bord", icon: BarChart3, desktopOnly: true },
   // Absent de la barre basse mobile : la puce de synchronisation, toujours visible en haut, y mène.
   { href: "/agent/synchronisation", label: "Synchro", icon: RefreshCw, desktopOnly: true },
 ] as const;

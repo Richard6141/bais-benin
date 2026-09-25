@@ -17,6 +17,8 @@ interface OverviewTilesProps {
   overview: Pick<DashboardOverview, "figures" | "previous" | "provenance">;
   /** Chaîne de requête des filtres, reportée sur les liens des tuiles. */
   query: string;
+  /** Faux hors du pilotage (espace agent) : les tuiles ne mènent pas aux écrans nationaux. */
+  linked?: boolean;
 }
 
 const formatTonnes = (t: number) => `${t >= 100 ? formatInteger(t) : formatDecimal(t)} t`;
@@ -34,7 +36,7 @@ function trendAgainst(
 
 // A2 : six indicateurs clés. Déclaré et mesuré côte à côte, jamais l'un à la place de l'autre.
 // Chaque tuile ouvre l'écran qui détaille son chiffre, avec les mêmes filtres.
-export function OverviewTiles({ overview, query }: OverviewTilesProps) {
+export function OverviewTiles({ overview, query, linked = true }: OverviewTilesProps) {
   const { figures, previous, provenance } = overview;
   const masked = figures.masked;
   const against = previous?.masked ? undefined : previous?.campaign.code;
@@ -130,7 +132,7 @@ export function OverviewTiles({ overview, query }: OverviewTilesProps) {
     <section aria-label="Indicateurs clés" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {tiles.map(({ key, href, tile }) =>
         // Valeur masquée : l'explication est un bouton, qui ne peut pas vivre dans un lien.
-        masked ? (
+        masked || !linked ? (
           <div key={key}>{tile}</div>
         ) : (
           <Link

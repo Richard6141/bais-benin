@@ -15,11 +15,19 @@ const count = (value: number | null | undefined): SortableCell =>
 const share = (value: number | null): SortableCell =>
   value === null ? { display: "—", sort: null } : { display: formatShare(value), sort: value };
 
-const communeHref = (code: string) => `/pilotage/communes/${code}`;
+/** Lien d'une commune : fiche du pilotage par défaut ; null hors du pilotage (espace agent). */
+type CommuneHref = ((code: string) => string) | null;
+const pilotageCommune = (code: string) => `/pilotage/communes/${code}`;
 
 // D1 : écarts entre superficie déclarée et superficie relevée, par tranche, puis les communes
 // aux écarts médians les plus forts. Seuil de signalement 20 %, comme dans le registre.
-export function GapsSection({ gaps }: { gaps: DataQuality["gaps"] }) {
+export function GapsSection({
+  gaps,
+  communeHref = pilotageCommune,
+}: {
+  gaps: DataQuality["gaps"];
+  communeHref?: CommuneHref;
+}) {
   const b = gaps.buckets;
   return (
     <div className="flex flex-col gap-6">
@@ -65,7 +73,7 @@ export function GapsSection({ gaps }: { gaps: DataQuality["gaps"] }) {
           ]}
           rows={gaps.worstCommunes.map((c) => ({
             key: c.code,
-            href: communeHref(c.code),
+            href: communeHref?.(c.code),
             cells: {
               name: { display: c.name, sort: c.name },
               parcels: count(c.measuredParcels),
@@ -83,7 +91,13 @@ export function GapsSection({ gaps }: { gaps: DataQuality["gaps"] }) {
 // en retard seulement (le service les trie par déclarations de plus de 180 jours).
 const AGEING_ROWS = 20;
 
-export function AgeingSection({ ageing }: { ageing: DataQuality["ageing"] }) {
+export function AgeingSection({
+  ageing,
+  communeHref = pilotageCommune,
+}: {
+  ageing: DataQuality["ageing"];
+  communeHref?: CommuneHref;
+}) {
   const t = ageing.totals;
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +142,7 @@ export function AgeingSection({ ageing }: { ageing: DataQuality["ageing"] }) {
           ]}
           rows={ageing.communes.slice(0, AGEING_ROWS).map((c) => ({
             key: c.code,
-            href: communeHref(c.code),
+            href: communeHref?.(c.code),
             cells: {
               name: { display: c.name, sort: c.name },
               declared: c.masked ? masked() : count(c.declaredFarms),
