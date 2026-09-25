@@ -1,14 +1,14 @@
 /*
- * Jetons de design de BAIS — voir docs/07-identite-visuelle-design-system.md.
- * La palette part du territoire : golfe de Guinée (primaire), latérite du Nord (accent),
- * galeries forestières de l'Ouémé (validation), craie du plateau d'Abomey (fonds).
- * Les composants shadcn/ui lisent les variables sémantiques (--background, --primary...) ;
- * les variables de marque (--gulf, --laterite...) restent disponibles pour les visualisations.
+ * Jetons de design de BAIS — charte « portail officiel » (docs/modules/charte-officielle.md).
+ * Alignée sur les téléservices de l'État béninois (service-public.bj, eservices.anip.bj) :
+ * bleu marine d'autorité en aplat pour l'action, gris froids, angles de 4 px, cartes délimitées
+ * par une bordure plutôt que par une ombre, aucun dégradé. Les couleurs de données (--gulf,
+ * --laterite, séries --chart-*) restent réservées aux visualisations.
  */
 
 :root {
   /* Marque */
-  --ink: #0b1f2a;
+  --ink: #1d2530;
   --gulf: #0f4c5c;
   --gulf-strong: #0a3642;
   --gulf-soft: #e3edf0;
@@ -16,24 +16,32 @@
   --laterite-soft: #f6e6dd;
   --forest: #1f5a3c;
   --forest-soft: #e4efe8;
-  --chalk: #f6f3ee;
+  --chalk: #f5f7fa;
   --paper: #ffffff;
+  /* Bleu marine des téléservices de l'État (service-public.bj) : action principale, en-tête */
+  --marine: #0a3764;
+  --marine-strong: #082b4f;
+  --marine-soft: #e8eef6;
+  /* Couleurs du drapeau : réservées au filet du bloc du ministère, jamais en bandeau */
+  --flag-green: #008751;
+  --flag-yellow: #fcd116;
+  --flag-red: #e8112d;
 
-  /* Neutres chauds */
-  --stone-50: #faf8f5;
-  --stone-100: #f1ede6;
-  --stone-200: #e2dcd2;
-  --stone-300: #cfc7ba;
-  --stone-400: #a9a196;
-  --stone-500: #7d766d;
-  --stone-600: #5b5f66;
-  --stone-700: #444a52;
-  --stone-800: #2b333b;
-  --stone-900: #18222a;
+  /* Neutres froids, comme les gris des portails de l'administration */
+  --stone-50: #f7f9fb;
+  --stone-100: #eef2f6;
+  --stone-200: #dbe2ea;
+  --stone-300: #c3ccd6;
+  --stone-400: #97a3b0;
+  --stone-500: #6b7785;
+  --stone-600: #525d69;
+  --stone-700: #3f4852;
+  --stone-800: #2a323b;
+  --stone-900: #1a2028;
 
   /* Sémantique produit */
   --info: #1e5a8a;
-  --success: #1f5a3c;
+  --success: #287d3c;
   --watch: #82540f;
   --warning: #b7410e;
   --critical: #8b1e2d;
@@ -42,23 +50,25 @@
   /* Variables lues par shadcn/ui */
   --background: var(--paper);
   --foreground: var(--ink);
+  /* Titres : bleu marine foncé des portails (service-public.bj) */
+  --heading: #0a2a4a;
   --card: var(--paper);
   --card-foreground: var(--ink);
   --popover: var(--paper);
   --popover-foreground: var(--ink);
-  --primary: var(--gulf);
-  --primary-foreground: var(--chalk);
+  --primary: var(--marine);
+  --primary-foreground: var(--paper);
   --secondary: var(--stone-100);
   --secondary-foreground: var(--ink);
   --muted: var(--stone-100);
   --muted-foreground: var(--stone-600);
-  --accent: var(--gulf-soft);
-  --accent-foreground: var(--gulf-strong);
+  --accent: var(--marine-soft);
+  --accent-foreground: var(--marine-strong);
   --destructive: var(--critical);
   --destructive-foreground: var(--paper);
   --border: var(--stone-200);
   --input: var(--stone-500);
-  --ring: var(--gulf);
+  --ring: var(--marine);
 
   /* Séries de données (cultures majeures : couleurs fixes dans tout le produit) */
   --chart-1: #0f4c5c;
@@ -67,7 +77,8 @@
   --chart-4: #b7791f;
   --chart-5: #1e5a8a;
 
-  --radius: 0.625rem;
+  /* Angles faibles, comme les boutons et champs des téléservices (0 à 4 px) */
+  --radius: 0.25rem;
 
   /* Tailles de contrôles : 44 px minimum pour le tactile (WCAG 2.5.8), 56 px sur l'espace agriculteur */
   --size-control-sm: 2rem;
@@ -76,9 +87,9 @@
   --size-control-xl: 3.5rem;
   --size-touch-min: 2.75rem;
 
-  /* Ombres : presque absentes, la hiérarchie vient des fonds et des bordures */
-  --shadow-card: 0 1px 2px rgb(11 31 42 / 0.04);
-  --shadow-raised: 0 4px 12px -2px rgb(11 31 42 / 0.08), 0 1px 2px rgb(11 31 42 / 0.04);
+  /* Ombres : absentes des cartes (la bordure délimite), légères pour ce qui flotte */
+  --shadow-card: none;
+  --shadow-raised: 0 1px 3px rgb(16 24 40 / 0.1), 0 1px 2px rgb(16 24 40 / 0.06);
   --shadow-overlay: 0 16px 40px -8px rgb(11 31 42 / 0.22);
 
   /* Durées et courbes de mouvement */
@@ -89,25 +100,26 @@
 }
 
 .dark {
-  --background: var(--ink);
+  --background: #0b1624;
   --foreground: var(--chalk);
-  --card: #112b37;
+  --heading: #e4ecf6;
+  --card: #122036;
   --card-foreground: var(--chalk);
-  --popover: #112b37;
+  --popover: #122036;
   --popover-foreground: var(--chalk);
-  --primary: #5aa9bb;
-  --primary-foreground: var(--ink);
-  --secondary: #183643;
+  --primary: #7fa9dc;
+  --primary-foreground: #0b1624;
+  --secondary: #1a2b45;
   --secondary-foreground: var(--chalk);
-  --muted: #183643;
-  --muted-foreground: #a9b7bd;
-  --accent: #1c4250;
-  --accent-foreground: #cfe6ec;
+  --muted: #1a2b45;
+  --muted-foreground: #a7b4c4;
+  --accent: #1e3558;
+  --accent-foreground: #d4e2f3;
   --destructive: #e36b7a;
-  --destructive-foreground: var(--ink);
-  --border: #1f3a47;
-  --input: #4d7989;
-  --ring: #5aa9bb;
+  --destructive-foreground: #0b1624;
+  --border: #253a57;
+  --input: #4a6485;
+  --ring: #7fa9dc;
 
   /* Sémantique produit éclaircie : les valeurs de :root sont calibrées pour du texte sur fond clair
      et tombent sous 3:1 sur les cartes sombres. Celles-ci tiennent 4,5:1 minimum sur --card. */
@@ -123,7 +135,7 @@
   --chart-4: #d9a24a;
   --chart-5: #6f9fd0;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-card: none;
   --shadow-raised: 0 4px 12px -2px rgb(0 0 0 / 0.45);
   --shadow-overlay: 0 16px 40px -8px rgb(0 0 0 / 0.6);
 }
