@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { GovernmentEmblem } from "@/components/brand/government-emblem";
+import { MinistryLockup } from "@/components/brand/ministry-lockup";
 
 interface PrintLayoutProps {
   title: string;
@@ -31,13 +31,13 @@ export function PrintLayout({
       <header className="flex items-start justify-between gap-4 border-b pb-4" data-print-block>
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Centre de pilotage BAIS · Fiche imprimable
+            Centre de pilotage · Fiche imprimable
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm">{scope}</p>
           <p className="text-xs text-muted-foreground">Données au {dataDate}</p>
         </div>
-        <GovernmentEmblem size={48} />
+        <MinistryLockup />
       </header>
       {children}
       <footer className="border-t pt-4 text-xs text-muted-foreground" data-print-block>

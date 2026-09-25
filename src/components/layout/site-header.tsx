@@ -1,37 +1,49 @@
 import Link from "next/link";
-import { GovernmentEmblem } from "@/components/brand/government-emblem";
+import { MinistryLockup } from "@/components/brand/ministry-lockup";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 
-// L'en-tête porte l'identité de l'État (armoiries), sans doublon avec une marque produit :
-// c'est une plateforme du gouvernement, pas un produit tiers qui s'y ajoute.
+const NAV = [
+  { href: "/", label: "Accueil" },
+  { href: "/carte", label: "Carte agricole" },
+  { href: "/#espaces", label: "Les espaces" },
+  { href: "/design-system", label: "Design system", desktopOnly: true },
+] as const;
+
+// En-tête public des portails de l'administration : une bande blanche avec l'identité du
+// ministère et l'accès à son espace, puis une barre de navigation marine en capitales. Seule la
+// marque du ministère apparaît (consigne : pas de logo propre à la plateforme).
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-3">
-          <GovernmentEmblem />
-          <span className="sr-only">BAIS — Accueil</span>
-        </Link>
-        <nav aria-label="Navigation principale" className="flex items-center gap-1 text-sm">
-          <Link
-            href="/carte"
-            className="rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            Carte
+    <header className="print:hidden">
+      <div className="border-b bg-background">
+        <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
+            <MinistryLockup />
+            <span className="sr-only"> — Accueil de la plateforme</span>
           </Link>
-          <Link
-            href="/design-system"
-            className="hidden rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-block"
-          >
-            Design system
-          </Link>
-          <Button asChild size="sm" className="ml-1">
-            <Link href="/connexion">Se connecter</Link>
-          </Button>
-          <ThemeToggle />
-        </nav>
+          <div className="flex items-center gap-2">
+            <Button asChild className="h-10">
+              <Link href="/connexion">Se connecter</Link>
+            </Button>
+            <ThemeToggle />
+          </div>
+        </div>
       </div>
+      <nav aria-label="Navigation principale" className="bg-primary text-primary-foreground">
+        <ul className="mx-auto flex w-full max-w-6xl items-stretch overflow-x-auto px-2 sm:px-4">
+          {NAV.map((item) => (
+            <li key={item.href} className={"desktopOnly" in item ? "hidden sm:block" : undefined}>
+              <Link
+                href={item.href}
+                className="flex h-11 items-center px-3 text-xs font-semibold tracking-wide whitespace-nowrap uppercase hover:bg-white/10 focus-visible:bg-white/15 focus-visible:outline-none"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
   );
 }

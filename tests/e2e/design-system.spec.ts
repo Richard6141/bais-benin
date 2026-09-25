@@ -27,7 +27,8 @@ test.describe("page design system", () => {
     await expect(page.getByRole("alert").first()).toBeVisible();
     await expect(page.locator("[data-reliability]")).toHaveCount(11);
     await expect(page.locator("[data-confidence]")).toHaveCount(4);
-    await expect(page.locator("section#pictogrammes svg[role='img']")).toHaveCount(3 + 21 * 2);
+    // Plus de monogramme propre à la plateforme : seules les silhouettes des 21 cultures (2 tailles).
+    await expect(page.locator("section#pictogrammes svg[role='img']")).toHaveCount(21 * 2);
   });
 
   test("montre les composants du tableau de bord et le secret statistique", async ({ page }) => {

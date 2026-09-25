@@ -41,7 +41,7 @@ export default function DesignSystemPage() {
         />
         <nav
           aria-label="Sections"
-          className="sticky top-16 z-30 -mx-4 border-b bg-background/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6"
+          className="sticky top-0 z-30 -mx-4 border-b bg-background px-4 py-2 sm:-mx-6 sm:px-6"
         >
           <ul className="flex gap-1 overflow-x-auto text-sm">
             {sections.map((section) => (
