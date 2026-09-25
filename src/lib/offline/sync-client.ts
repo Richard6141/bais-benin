@@ -24,7 +24,7 @@ export async function runSync(
 ): Promise<SyncRunOutcome> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const endpoint = options.endpoint ?? "/api/v1/sync";
-  const batch = await pendingCommands(db, 50);
+  const batch = fitInBody(await pendingCommands(db, 50), options.deviceId);
   if (batch.length === 0) return { sent: 0, applied: 0, failed: 0 };
   const ids = batch.map((entry) => entry.id);
   await markSending(db, ids);
@@ -59,6 +59,23 @@ export async function runSync(
   ).length;
   const failed = body.results.length - applied;
   return { sent: batch.length, applied, failed };
+}
+
+// Le serveur refuse un corps de plus de 2 Mo (route /api/v1/sync) : avec des photos de
+// signalement, 50 commandes peuvent le dépasser. Le lot s'arrête avant, les suivantes partent au
+// passage suivant ; une commande seule plus lourde part quand même, le serveur tranchera.
+const MAX_BATCH_BYTES = 1_800_000;
+
+function fitInBody(entries: OutboxEntry[], deviceId: string): OutboxEntry[] {
+  const kept: OutboxEntry[] = [];
+  let size = 0;
+  for (const entry of entries) {
+    const bytes = JSON.stringify(toWireCommand(entry, deviceId)).length;
+    if (kept.length > 0 && size + bytes > MAX_BATCH_BYTES) break;
+    kept.push(entry);
+    size += bytes;
+  }
+  return kept;
 }
 
 // Chaque commande porte l'appareil émetteur (contrat docs/modules/registre-parcours-ux.md §5) ;

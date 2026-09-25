@@ -148,17 +148,25 @@ export async function reportResource(
   };
 }
 
+export interface ReportDetailItem extends ReportListItem {
+  /** L'acteur peut confirmer ou écarter ce signalement (report.review sur son exploitation). */
+  canReview: boolean;
+}
+
 export async function getReportForActor(
   actor: Actor,
   reportId: string,
-): Promise<ReportListItem | null> {
+): Promise<ReportDetailItem | null> {
   const found = await reportResource(reportId);
   if (!found || !authorize(actor, "report.read", found.resource).allowed) return null;
   const row = await prisma.fieldReport.findUniqueOrThrow({
     where: { id: reportId },
     select: listSelect,
   });
-  return toListItem(row);
+  return {
+    ...toListItem(row),
+    canReview: authorize(actor, "report.review", found.resource).allowed,
+  };
 }
 
 export async function getReportPhotoForActor(
