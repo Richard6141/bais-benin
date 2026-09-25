@@ -48,6 +48,20 @@ Chaque licence a été lue sur la page source le 24 septembre 2026 (champ « Lic
 3. Lancer `node scripts/optimize-images.mjs` ; vérifier que la version 1600 px reste sous 250 Ko.
 4. Ajouter la ligne correspondante au tableau ci-dessus.
 
-## Armoiries de la République du Bénin
+## Logo du ministère en charge de l'agriculture
 
-`public/images/logos/maep-benin.png` n'est pas une photographie de la banque ci-dessus : ce sont les armoiries officielles de l'État, utilisées par les portails de l'administration (téléchargées depuis `https://agriculture.gouv.bj/logo.png`, en-tête du site du ministère en charge de l'agriculture, le 25 septembre 2026). Elles ne sont pas soumises à une licence Creative Commons ; elles identifient la République du Bénin comme destinataire prévu de la plateforme et n'impliquent aucune approbation officielle du produit à ce stade de démonstration. Affichées dans l'en-tête public, l'en-tête des espaces connectés et le pied de page (`src/components/brand/government-emblem.tsx`), sur une plaque blanche pour rester lisibles en thème sombre.
+`public/images/logos/maep-benin-logo-complet.png` (version couleur, fond clair) et
+`public/images/logos/maep-benin-logo-complet-blanc.png` (version blanche, fond sombre) sont le
+logo complet officiel du ministère en charge de l'agriculture, de l'élevage et de la pêche :
+armoiries, dénomination du ministère et devise tricolore, tel qu'affiché en en-tête de
+`https://agriculture.gouv.bj`. Téléchargés depuis `https://agriculture.gouv.bj/img/logo-MAEP.png`
+et `https://agriculture.gouv.bj/img/logo-MAEP-white.png` le 25 septembre 2026, fond transparent
+d'origine, aucune retouche. Ils ne sont pas soumis à une licence Creative Commons ; ils identifient
+le ministère comme destinataire prévu de la plateforme et n'impliquent aucune approbation
+officielle du produit à ce stade de démonstration. Affichés dans l'en-tête public, l'en-tête des
+espaces connectés et le pied de page (`src/components/brand/government-emblem.tsx`), la version
+couleur ou la version blanche s'affichant selon le thème clair ou sombre.
+
+`public/images/logos/maep-benin.png` (armoiries seules, sans dénomination ni devise) est l'ancien
+fichier utilisé avant l'adoption du logo complet ci-dessus ; il n'est plus référencé par le code et
+peut être supprimé.

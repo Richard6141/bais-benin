@@ -9,7 +9,7 @@ export function SiteFooter() {
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 text-sm sm:px-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="max-w-sm">
           <div className="flex items-center gap-3">
-            <GovernmentEmblem size={36} />
+            <GovernmentEmblem height={36} />
             <Monogram className="size-8" />
             <span className="font-semibold">Bénin Agricultural Intelligence System</span>
           </div>
