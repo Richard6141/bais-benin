@@ -19,7 +19,7 @@ export function MinistryLockup({
 }: MinistryLockupProps) {
   return (
     <span className={cn("flex items-center gap-3", className)}>
-      <GovernmentEmblem size={compact ? 40 : 48} />
+      <GovernmentEmblem height={compact ? 40 : 48} />
       <span className="flex flex-col gap-1 leading-tight">
         <span
           className={cn(

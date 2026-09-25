@@ -19,9 +19,9 @@ export function GlyphsSection() {
         </div>
       </DemoRow>
       <DemoRow label="Armoiries seules (icônes de l'application et de l'onglet)">
-        <GovernmentEmblem size={36} />
-        <GovernmentEmblem size={48} />
-        <GovernmentEmblem size={64} />
+        <GovernmentEmblem height={36} />
+        <GovernmentEmblem height={48} />
+        <GovernmentEmblem height={64} />
       </DemoRow>
       <DemoRow
         label="Cultures (24 px et 48 px)"
