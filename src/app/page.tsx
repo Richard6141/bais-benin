@@ -12,9 +12,9 @@ export default function HomePage() {
       <SiteHeader />
       <main className="flex-1">
         <HeroSection />
+        <SpacesGrid />
         <TerritoryFigures />
         <QuestionsSection />
-        <SpacesGrid />
         <PlatformStatus />
       </main>
       <SiteFooter />
