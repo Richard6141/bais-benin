@@ -7,6 +7,12 @@ export {
   type NpiBinding,
 } from "./npi";
 export {
+  provisionAccount,
+  provisionFarmerSignUp,
+  type ProvisionInput,
+  type ProvisionResult,
+} from "./provisioning";
+export {
   SPACE_BY_ROLE,
   grantRole,
   loadActor,

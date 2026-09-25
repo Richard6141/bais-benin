@@ -25,9 +25,15 @@ export default async function SignInPage({ searchParams }: PageProps<"/connexion
       <div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Se connecter</h1>
         <p className="mt-2 text-muted-foreground">
-          Avec votre NPI et le numéro de téléphone qui y est relié. Un compte est créé à votre
-          première connexion.
+          Avec votre NPI et le numéro de téléphone qui y est relié.
         </p>
+        <ul className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground">
+          <li>Agriculteurs : votre compte est créé à votre première connexion.</li>
+          <li>
+            Agents, ministère, coopératives et acheteurs : votre compte est ouvert par
+            l&apos;administration, avec le NPI et le numéro que vous lui avez communiqués.
+          </li>
+        </ul>
       </div>
       <SignInForm nextPath={nextPath} demo={demo} />
     </div>

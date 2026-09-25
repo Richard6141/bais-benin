@@ -39,6 +39,7 @@ export type AuditAction =
   | "user.npi.attached"
   | "user.npi.revealed"
   | "user.npi.verification_requested"
+  | "user.farmer.linked"
   | "registry.farmer.created"
   | "registry.farm.created"
   | "registry.parcel.created"

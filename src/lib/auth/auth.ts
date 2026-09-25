@@ -16,6 +16,7 @@ import { SIGN_IN_INTENT_COOKIE } from "@/lib/auth/sign-in-intent";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { recordAudit, type AuditAction } from "@/modules/audit";
+import { provisionFarmerSignUp } from "@/modules/identity";
 import { getMessagingChannel } from "@/services/messaging";
 
 const env = getServerEnv();
@@ -98,6 +99,13 @@ export const auth = betterAuth({
         // Numéro inconnu : le compte n'est créé que si le NPI saisi n'appartient à personne.
         before: async (user, ctx) => {
           await assertNpiFreeForNewAccount(ctx, user.phoneNumber);
+        },
+        // ADR-0013 : une inscription libre ne crée qu'un compte d'agriculteur. Les autres rôles
+        // sont attribués par l'administration (pnpm admin:compte), jamais par la connexion.
+        after: async (user) => {
+          if (typeof user.phoneNumber === "string") {
+            await provisionFarmerSignUp(user.id, user.phoneNumber);
+          }
         },
       },
     },
