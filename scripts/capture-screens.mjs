@@ -76,6 +76,65 @@ const actions = {
 
 // Chaque étape déclare ses écrans ; `dark` bascule le thème, `prepare` joue un parcours avant la capture.
 const plans = {
+  "etape-6": [
+    {
+      name: "agriculteur-alertes-mobile",
+      context: mobile,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/alertes`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agriculteur-alerte-fiche-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/alertes`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agriculteur/alertes/"]').first().click();
+        await page.waitForURL(/\/agriculteur\/alertes\/.+/);
+        await page.waitForLoadState("networkidle");
+      },
+    },
+    {
+      name: "agriculteur-meteo-mobile",
+      context: mobile,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/meteo`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agent-alertes-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/alertes`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agent-alerte-fiche-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/alertes`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agent/alertes/"]').first().click();
+        await page.waitForURL(/\/agent\/alertes\/.+/);
+        await page.waitForLoadState("networkidle");
+      },
+    },
+    {
+      name: "design-system-monitoring-desktop",
+      path: "/design-system#monitoring",
+      context: desktop,
+    },
+  ],
   "etape-5": [
     {
       name: "agent-accueil-desktop",
