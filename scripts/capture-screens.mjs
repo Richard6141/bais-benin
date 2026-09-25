@@ -107,6 +107,9 @@ const plans = {
         await page.getByLabel("Longitude").fill("1,67");
         await page.getByRole("button", { name: "Utiliser ces coordonnées" }).click();
         await page.getByText("Djougou (Donga)").waitFor();
+        // Le bouton s'anime en passant à l'état actif : on attend la fin de la transition.
+        await page.locator("footer button:enabled", { hasText: "Continuer" }).waitFor();
+        await page.waitForTimeout(400);
       },
     },
     {
@@ -270,7 +273,9 @@ const plans = {
   ],
 };
 
-const targets = plans[step];
+// Troisième argument facultatif : ne refaire qu'un écran (`node scripts/capture-screens.mjs etape-5 agent-fiche-desktop`).
+const only = process.argv[3];
+const targets = plans[step]?.filter((target) => !only || target.name === only);
 if (!targets) {
   console.error(`Étape inconnue : ${step}. Étapes disponibles : ${Object.keys(plans).join(", ")}`);
   process.exit(1);
