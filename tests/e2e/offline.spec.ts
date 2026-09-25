@@ -1,20 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openAs } from "./helpers/sessions";
 
 // Mode hors ligne de l'espace agent (ADR-0005). Le service worker n'existe qu'en build de
 // production (`pnpm build` puis `pnpm start`, ce que fait déjà playwright.config.ts) : en
 // `next dev`, Serwist est désactivé par PwaProvider et ces parcours ne s'appliquent pas.
-// Le compte utilisé est l'agent de démonstration (0190000001, code OTP_DEMO_CODE).
-
-const DEMO_CODE = process.env.OTP_DEMO_CODE ?? "246810";
-
-async function signInAsAgent(page: Page) {
-  await page.goto("/connexion");
-  await page.getByLabel("Votre numéro de téléphone").fill("0190000001");
-  await page.getByRole("button", { name: "Recevoir mon code" }).click();
-  await expect(page.getByText(/Code reçu au \+229/)).toBeVisible();
-  await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
-  await expect(page).toHaveURL(/\/agent$/);
-}
+// Le compte utilisé est l'agent de démonstration (0190000001), session ouverte par le globalSetup.
 
 // Attend que le service worker contrôle la page : sans cela, la première navigation hors ligne
 // passerait encore par le réseau.
@@ -38,8 +28,8 @@ test.describe("espace agent hors ligne", () => {
   test("une page déjà visitée s'ouvre sans réseau, une page inconnue mène au repli", async ({
     page,
     context,
-  }) => {
-    await signInAsAgent(page);
+  }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await waitForServiceWorker(page);
 
     // Visite en ligne des deux pages à retrouver hors ligne.
@@ -74,8 +64,8 @@ test.describe("espace agent hors ligne", () => {
   test("les appels d'authentification et de synchronisation ne sont jamais servis depuis le cache", async ({
     page,
     context,
-  }) => {
-    await signInAsAgent(page);
+  }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await waitForServiceWorker(page);
     await context.setOffline(true);
     try {

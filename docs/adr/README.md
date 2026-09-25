@@ -14,3 +14,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0008 | Prisma 7 avec adaptateur `pg`, configuration hors schéma, et Serwist en mode Turbopack | acceptée |
 | 0009 | Géométries des départements dérivées de l'union de leurs communes | acceptée |
 | 0010 | better-auth remplace Auth.js : sessions en base, Argon2id, TOTP, NPI chiffré | acceptée, remplace 0003 |
+| 0011 | Alertes par règles déclaratives versionnées, météo Open-Meteo avec repli sur la fixture | acceptée |

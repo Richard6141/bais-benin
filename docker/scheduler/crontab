@@ -1,0 +1,5 @@
+# Minute Heure Jour Mois JourSemaine Commande (heures UTC)
+# Ingestion météo, évaluation des règles, plan et envoi : chaque jour à 5 h 00, heure de Porto-Novo.
+0 4 * * * /usr/local/bin/call-app.sh ingest
+# Envoi des messages en attente et relances : toutes les 10 minutes.
+*/10 * * * * /usr/local/bin/call-app.sh dispatch

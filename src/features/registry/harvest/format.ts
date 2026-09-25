@@ -25,6 +25,7 @@ export const CROP_STAGE_LABELS: Record<string, string> = {
   PLANNED: "prévue",
   SOWN: "semée",
   GROWING: "en croissance",
+  FLOWERING: "en floraison",
   HARVESTED: "récoltée",
   FAILED: "perdue",
 };

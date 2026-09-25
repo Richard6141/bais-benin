@@ -6,6 +6,7 @@ import { parcelCreate } from "./parcel-create";
 import { parcelGeometrySet } from "./parcel-geometry-set";
 import type { SyncHandlers } from "./types";
 import { verificationRecord } from "./verification-record";
+import { alertRelay } from "./alert-relay";
 
 export const syncHandlers: SyncHandlers = {
   "farmer.create": farmerCreate,
@@ -15,6 +16,7 @@ export const syncHandlers: SyncHandlers = {
   "cropSeason.declare": cropSeasonDeclare,
   "harvest.declare": harvestDeclare,
   "verification.record": verificationRecord,
+  "alert.relay": alertRelay,
 };
 
 export { HARVEST_UNIT_FACTORS_KG, quantityToKg } from "./harvest-declare";

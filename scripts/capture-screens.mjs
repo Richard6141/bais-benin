@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { chromium, devices } from "@playwright/test";
+import { cleanupMinistryAccount, ministrySignIn } from "./capture-ministry.mjs";
 
 // Captures d'écran de vérification manuelle, jointes au rapport de fin d'étape.
 // Usage : le serveur doit tourner (pnpm start), puis : node scripts/capture-screens.mjs <etape>
@@ -72,10 +73,132 @@ const actions = {
     await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
     await page.waitForLoadState("networkidle");
   },
+  // Espace ministère, double authentification comprise (compte jetable, voir capture-ministry.mjs).
+  ministrySignIn: (page, path) => ministrySignIn(page, baseUrl, path),
+  // Carte peinte : la capture se fait à la taille de la fenêtre (voir la boucle plus bas).
+  async waitForMap(page) {
+    await page.locator('[data-map-idle="true"]').waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(500);
+  },
 };
 
 // Chaque étape déclare ses écrans ; `dark` bascule le thème, `prepare` joue un parcours avant la capture.
 const plans = {
+  "etape-6": [
+    {
+      name: "agriculteur-alertes-mobile",
+      context: mobile,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/alertes`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agriculteur-alerte-fiche-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/alertes`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agriculteur/alertes/"]').first().click();
+        await page.waitForURL(/\/agriculteur\/alertes\/.+/);
+        await page.waitForLoadState("networkidle");
+      },
+    },
+    {
+      name: "agriculteur-meteo-mobile",
+      context: mobile,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/meteo`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agent-alertes-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/alertes`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agent-alerte-fiche-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/alertes`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agent/alertes/"]').first().click();
+        await page.waitForURL(/\/agent\/alertes\/.+/);
+        await page.waitForLoadState("networkidle");
+      },
+    },
+    {
+      name: "agent-alerte-fiche-mobile",
+      context: mobile,
+      // Fenêtre seule : résumé chiffré, filtre par village et début de la liste paginée.
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/alertes`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agent/alertes/"]').first().click();
+        await page.waitForURL(/\/agent\/alertes\/.+/);
+        await page.waitForLoadState("networkidle");
+        await page.locator("#exploitations").evaluate((section) => section.scrollIntoView());
+        // L'en-tête collant glisse en place après le défilement : on attend la fin de l'animation.
+        await page.waitForTimeout(1200);
+      },
+    },
+    {
+      name: "pilotage-alertes-desktop",
+      context: desktop,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage/alertes");
+        await actions.waitForMap(page);
+      },
+    },
+    {
+      name: "pilotage-alerte-fiche-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage/alertes");
+        await page.getByRole("list", { name: "Alertes actives" }).getByRole("link").first().click();
+        await page.waitForURL(/\/pilotage\/alertes\/.+/);
+        await page.getByText("Conditions de la règle").first().waitFor();
+        await page.waitForLoadState("networkidle");
+      },
+    },
+    {
+      name: "pilotage-regles-desktop",
+      context: desktop,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/regles"),
+    },
+    {
+      name: "pilotage-regle-fiche-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage/regles");
+        await page.locator('main a[href^="/pilotage/regles/"]').first().click();
+        await page.waitForURL(/\/pilotage\/regles\/.+/);
+        await page.getByText("Conditions actuelles").waitFor();
+        // Simulation en lecture seule sur les seuils actuels : aucune alerte, aucun message.
+        await page.getByRole("button", { name: "Simuler sur 30 jours" }).click();
+        await page.getByRole("heading", { name: /^Simulation/ }).waitFor({ timeout: 120_000 });
+        await page.waitForTimeout(300);
+      },
+    },
+    {
+      name: "design-system-monitoring-desktop",
+      path: "/design-system#monitoring",
+      context: desktop,
+    },
+  ],
   "etape-5": [
     {
       name: "agent-accueil-desktop",
@@ -273,9 +396,10 @@ const plans = {
   ],
 };
 
-// Troisième argument facultatif : ne refaire qu'un écran (`node scripts/capture-screens.mjs etape-5 agent-fiche-desktop`).
-const only = process.argv[3];
-const targets = plans[step]?.filter((target) => !only || target.name === only);
+// Troisième argument facultatif : ne refaire que certains écrans, séparés par des virgules
+// (`node scripts/capture-screens.mjs etape-5 agent-fiche-desktop,agent-accueil-desktop`).
+const only = process.argv[3]?.split(",");
+const targets = plans[step]?.filter((target) => !only || only.includes(target.name));
 if (!targets) {
   console.error(`Étape inconnue : ${step}. Étapes disponibles : ${Object.keys(plans).join(", ")}`);
   process.exit(1);
@@ -284,26 +408,37 @@ if (!targets) {
 await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch();
 
-for (const target of targets) {
-  // Le service worker précache en arrière-plan et empêche l'état « réseau au repos » :
-  // inutile pour une capture, il est bloqué.
-  const context = await browser.newContext({ ...target.context, serviceWorkers: "block" });
-  const page = await context.newPage();
-  if (target.prepare) {
-    await target.prepare(page);
-  } else {
-    await page.goto(`${baseUrl}${target.path}`, { waitUntil: "networkidle" });
+// Le compte ministère jetable est supprimé même si une capture échoue.
+try {
+  for (const target of targets) {
+    // Le service worker précache en arrière-plan et empêche l'état « réseau au repos » :
+    // inutile pour une capture, il est bloqué.
+    const context = await browser.newContext({ ...target.context, serviceWorkers: "block" });
+    const page = await context.newPage();
+    if (target.prepare) {
+      await target.prepare(page);
+    } else {
+      await page.goto(`${baseUrl}${target.path}`, { waitUntil: "networkidle" });
+    }
+    if (target.dark) {
+      await page.getByRole("button", { name: "Passer au thème sombre" }).click();
+      await page.waitForTimeout(300);
+    }
+    const file = `${outputDir}/${target.name}.png`;
+    // Une page pleine hauteur redimensionne la fenêtre au moment de la capture, ce qui vide le
+    // tampon WebGL de la carte : les écrans cartographiques sont capturés à la taille de la fenêtre.
+    const fullPage = target.fullPage ?? true;
+    // Pleine page après un défilement (clic en bas de page) : l'en-tête collant serait dessiné au
+    // milieu de l'image. On remonte en haut avant la capture.
+    if (fullPage) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(200);
+    }
+    await page.screenshot({ path: file, fullPage });
+    console.log(file);
+    await context.close();
   }
-  if (target.dark) {
-    await page.getByRole("button", { name: "Passer au thème sombre" }).click();
-    await page.waitForTimeout(300);
-  }
-  const file = `${outputDir}/${target.name}.png`;
-  // Une page pleine hauteur redimensionne la fenêtre au moment de la capture, ce qui vide le
-  // tampon WebGL de la carte : les écrans cartographiques sont capturés à la taille de la fenêtre.
-  await page.screenshot({ path: file, fullPage: target.fullPage ?? true });
-  console.log(file);
-  await context.close();
+} finally {
+  await browser.close();
+  cleanupMinistryAccount();
 }
-
-await browser.close();

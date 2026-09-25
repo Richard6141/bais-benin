@@ -38,7 +38,8 @@ export type AuditActionOfRegistry =
   | "registry.parcel.created"
   | "registry.crop.declared"
   | "registry.harvest.declared"
-  | "registry.farm.verified";
+  | "registry.farm.verified"
+  | "alert.relayed";
 
 /** Cible d'une commande : l'action à autoriser et la ressource sur laquelle l'évaluer. */
 export interface CommandTarget {

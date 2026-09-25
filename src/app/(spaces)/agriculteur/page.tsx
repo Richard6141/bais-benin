@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/features/auth/session";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
+import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
+import { listAlertsForActor } from "@/modules/monitoring";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
 export const metadata: Metadata = { title: "Mon exploitation" };
@@ -57,9 +59,10 @@ export default async function FarmerSpacePage() {
     );
   }
 
-  const [farm, campaigns] = await Promise.all([
+  const [farm, campaigns, alerts] = await Promise.all([
     getFarmDetail(user.actor, first.id),
     listCampaigns(),
+    listAlertsForActor(user.actor, { status: "ACTIVE" }),
   ]);
   if (!farm) return null;
   const openCampaign = campaigns.find((c) => c.status === "OPEN")?.code ?? null;
@@ -86,6 +89,8 @@ export default async function FarmerSpacePage() {
           Vous avez {farms.length} exploitations enregistrées ; celle-ci est la première.
         </p>
       ) : null}
+
+      <AlertsTeaser alerts={alerts} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StatTile

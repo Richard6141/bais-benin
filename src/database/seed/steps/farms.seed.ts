@@ -7,6 +7,7 @@ import {
   type SyntheticRegistry,
 } from "../generators";
 import { attachDemoFarmerAccount } from "./accounts.seed";
+import { seedChannelConsents } from "./consents.seed";
 
 // Registre synthétique de démonstration (docs/08 §6). Le générateur est déterministe :
 // même graine, même jeu de données. Le volume par défaut reste modeste pour un poste de
@@ -227,6 +228,8 @@ export async function seedSyntheticFarms(prisma: PrismaClient): Promise<FarmSeed
   // Après le registre (chargé ou déjà présent), le compte agricultrice de démonstration est
   // relié à une exploitation de Djougou ; refait après SEED_FARM_RESET puisque les fermes changent.
   await attachDemoFarmerAccount(prisma);
+  // Consentements aux canaux de notification, après le rattachement de la démo.
+  await seedChannelConsents(prisma);
   return summary;
 }
 
