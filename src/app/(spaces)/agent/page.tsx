@@ -102,12 +102,14 @@ export default async function AgentHomePage() {
         />
       </section>
 
-      <section aria-label="Raccourcis" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Cinq raccourcis : une ligne de cinq sur grand écran ; sur deux colonnes, le cinquième
+          occupe toute la largeur pour ne jamais rester seul dans une demi-ligne. */}
+      <section aria-label="Raccourcis" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {SECONDARY.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="group rounded-xl focus-visible:outline-none"
+            className="group rounded-xl focus-visible:outline-none sm:last:col-span-2 lg:last:col-span-1"
           >
             <Card className="h-full transition-colors group-hover:border-primary/50 group-focus-visible:ring-2 group-focus-visible:ring-ring">
               <CardHeader>
