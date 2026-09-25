@@ -7,7 +7,7 @@ Ce document décrit l'assistant livré à l'étape 8 : ce qu'il répond et à qu
 - **Producteur** : répond à une question agricole en trois phrases au plus, avec un conseil pratique, les fiches citées (organisme, titre, adresse, licence, date de vérification) et une confiance dite en mots (« Réponse sûre », « À confirmer avec votre agent »). Les faits de son contexte (cultures de la campagne, alertes en cours et pluie de sa commune) s'affichent avec leur source. Il peut transmettre la question à son agent.
 - **Agent** : même assistant, avec le contexte d'une exploitation de son périmètre (jamais les coordonnées du producteur) ; liste des demandes transmises par les producteurs de ses communes.
 - **Ministère** : le modèle choisit un indicateur dans une liste fermée ; les chiffres viennent du registre et du monitoring, tels quels, avec leur source. Le modèle n'écrit aucun chiffre du registre.
-- **Journal** : chaque question et son issue sont enregistrées sans auteur visible (rôle, commune, date) ; purge à 12 mois.
+- **Journal** : chaque question et son issue sont enregistrées sans auteur visible (rôle, commune, date) ; téléphones, NPI et adresses saisis sont masqués avant tout envoi et toute écriture ; le texte des questions est effacé après 90 jours, les conversations supprimées après 12 mois.
 
 L'assistant ne répond pas quand il ne sait pas : sous le seuil de confiance, il affiche « Je ne dispose pas d'une information fiable sur ce point » et oriente vers l'agent. Il refuse les questions hors agriculture et toute dose de produit qui ne figure pas mot pour mot dans une fiche citée.
 
@@ -15,7 +15,7 @@ L'assistant ne répond pas quand il ne sait pas : sous le seuil de confiance, il
 
 | Étape | Emplacement | Rôle |
 |---|---|---|
-| Contrôles d'entrée | `src/modules/assistant/ask.ts` | droit `assistant.ask`, 500 caractères, 20 questions par heure et par utilisateur |
+| Contrôles d'entrée | `src/modules/assistant/ask.ts`, `quota.ts`, `privacy.ts` | droit `assistant.ask`, 500 caractères ; masquage des téléphones, NPI et adresses ; question réservée sous verrous consultatifs : 20 par heure et par utilisateur, plafond global par jour (`ASSISTANT_DAILY_LIMIT`), tenus même face à des requêtes simultanées |
 | Contexte | `src/modules/assistant/context.ts` | producteur : ses exploitations ; agent : l'exploitation choisie si elle est dans son périmètre (sinon « introuvable ») ; ministère : aucun contexte individuel |
 | Recherche | `src/modules/assistant/retrieve.ts`, `src/database/sql/assistant.sql.ts` | plongement de la question, 8 plus proches extraits dans pgvector (index HNSW, cosinus), pertinence minimale 0,2, léger avantage aux fiches des cultures de l'utilisateur |
 | Modèle | `src/services/ports/llm-provider.ts` | consignes fixes (`prompt.ts`), question délimitée et chevrons neutralisés, extraits et faits passés comme données, sortie structurée (réponse, conseil, citations, auto-évaluation, indicateur) |
@@ -25,10 +25,11 @@ L'assistant ne répond pas quand il ne sait pas : sous le seuil de confiance, il
 
 ### Contrôles serveur
 
-1. **Citations** : une citation n'est gardée que si elle désigne un extrait effectivement retrouvé et que son texte figure dans cet extrait (à la casse, aux accents et aux espaces près). Sans citation valide, pas de réponse.
-2. **Couverture** : part des phrases de la réponse et du conseil dont les mots se retrouvent dans un extrait cité (ou dans un fait du contexte).
-3. **Doses** : toute quantité par surface ou par volume, concentration ou délai avant récolte présente dans la réponse doit figurer dans un extrait cité ; sinon l'issue est « dose sans source » et la réponse n'est pas affichée.
-4. **Confiance** : 0,5 × pertinence moyenne des extraits cités + 0,3 × couverture + 0,2 × auto-évaluation du modèle. Au moins 0,8 : « Réponse sûre » ; au moins le seuil (0,6 par défaut) : « À confirmer avec votre agent » ; en dessous : message de non-fiabilité, sans sources.
+1. **Citations** (`guardrails.ts`) : une citation n'est gardée que si elle désigne un extrait effectivement retrouvé et recopie une à quatre phrases entières et consécutives de cet extrait (à la casse, aux accents, aux espaces et aux puces près). Un morceau de phrase est refusé : « traiter en floraison » ne peut pas être extrait de « Ne pas traiter en floraison ». Sans citation valide, pas de réponse.
+2. **Soutien de chaque phrase** : une phrase affichée doit être portée par une phrase (ou deux consécutives) d'un extrait cité, ou par un fait du contexte, avec au moins 60 % de ses mots et la **même polarité** : les négations (ne, pas, jamais, sans, aucun, éviter, interdit…) comptent. Une phrase non soutenue n'est pas affichée.
+3. **Couverture bloquante** : si moins de 80 % des phrases sont soutenues, pas de réponse (« je ne dispose pas d'une information fiable »).
+4. **Quantités** (`quantities.ts`) : nombres en chiffres (« 1,5 », « 30 000 ») ou en lettres courantes (« deux », « vingt-cinq ») suivis d'une unité (kg, g, l, ml, sac, sachet, bouchon, cuillère, %, formulation EC/SC/WP…, cm, jours…) sont comparés aux extraits cités par **valeur exacte et unité** : « 1 l/ha » ne passe ni contre « 11 l/ha » ni contre « 0,1 l/ha ». Quand la réponse parle de dose, de produit, de surface traitée (« par hectare », « à l'hectare », « pour 15 L ») ou de délai avant récolte, tout nombre en chiffres doit aussi venir d'un extrait. Une dose non portée par la source donne l'issue « dose sans source » : refus en cas de doute.
+5. **Confiance** : 0,5 × pertinence moyenne des extraits cités + 0,3 × couverture + 0,2 × auto-évaluation du modèle, **plafonnée à la pertinence** (le modèle ne peut pas se donner plus de crédit que ses sources). Au moins 0,8 : « Réponse sûre » ; au moins le seuil (0,6 par défaut) : « À confirmer avec votre agent » ; en dessous : message de non-fiabilité, sans sources.
 
 Ces contrôles s'appliquent quoi que rende le modèle : une consigne glissée dans une question ou dans un extrait ne peut ni faire accepter une citation inventée, ni faire passer une dose, ni afficher un chiffre du registre.
 
@@ -50,10 +51,11 @@ Aucun fournisseur ni modèle n'est nommé dans le code ni dans cette documentati
 |---|---|
 | `ASSISTANT_LLM_MODEL` | identifiant du modèle de langage, transmis tel quel au SDK d'IA ; absent : modèle de démonstration (extractif, sans réseau) |
 | `ASSISTANT_EMBEDDING_MODEL` | identifiant du modèle de plongement ; absent : plongements de démonstration |
-| `ASSISTANT_LLM_BASE_URL`, `ASSISTANT_LLM_API_KEY` | point d'accès compatible OpenAI (modèle hébergé sur une infrastructure nationale, par exemple) ; sans adresse, l'identifiant est confié au fournisseur global du SDK, qui lit lui-même ses identifiants d'accès dans l'environnement |
+| `ASSISTANT_LLM_BASE_URL`, `ASSISTANT_LLM_API_KEY` | point d'accès compatible OpenAI, en https (seul `localhost` est admis en http) (modèle hébergé sur une infrastructure nationale, par exemple) ; sans adresse, l'identifiant est confié au fournisseur global du SDK, qui lit lui-même ses identifiants d'accès dans l'environnement |
 | `ASSISTANT_EMBEDDING_DIMENSIONS` | 1024, dimension de la colonne en base (vérifiée au démarrage) |
 | `ASSISTANT_CONFIDENCE_THRESHOLD` | seuil de réponse, 0,6 par défaut |
 | `ASSISTANT_TIMEOUT_MS` | délai maximal d'un appel au modèle, 20 000 ms par défaut |
+| `ASSISTANT_DAILY_LIMIT` | plafond global de questions par jour (heure de Porto-Novo), 2 000 par défaut : borne le coût d'un modèle payant |
 
 Adaptateurs : `src/services/assistant/sdk.ts` (paquet `ai` 7, `generateText` avec `Output.object`, `embedMany`), `src/services/assistant/fixture-*.ts` (démonstration). Le modèle de démonstration recopie les premières phrases de l'extrait le plus pertinent et sa première consigne : il ne rédige rien, et l'interface affiche « démonstration ».
 
@@ -77,7 +79,7 @@ Changer de modèle de plongement : chaque extrait enregistre le modèle qui l'a 
 | `POST /api/v1/assistant/agent-requests` | « Demander à mon agent » | auteur de la question |
 | `GET /api/v1/assistant/agent-requests`, `PATCH …/[id]` | demandes des communes de l'agent, marquer traitée | `assistant.journal.read` |
 | `GET /api/v1/assistant/journal` | journal sans auteur, filtre par issue | `assistant.journal.read` (ministère : tout ; agent : ses communes), lecture journalisée |
-| `GET` ou `POST /api/v1/assistant/maintenance` | purge des conversations de plus de 12 mois | `Authorization: Bearer <CRON_SECRET>` ; planifiée chaque jour (`vercel.json`, `docker/scheduler/crontab`) |
+| `GET` ou `POST /api/v1/assistant/maintenance` | efface le texte des questions de plus de 90 jours, supprime les conversations de plus de 12 mois | `Authorization: Bearer <CRON_SECRET>` ; planifiée chaque jour (`vercel.json`, `docker/scheduler/crontab`) |
 
 ## Limites connues
 
@@ -85,6 +87,8 @@ Changer de modèle de plongement : chaque extrait enregistre le modèle qui l'a 
 - Sujets faibles : coton (source de 2005), drainage des champs de plateau, aflatoxine en Afrique de l'Ouest ; aucune fiche ATDA ni calendrier agricole officiel trouvé en ligne.
 - Plongements de démonstration lexicaux : ils retrouvent une fiche qui emploie les mots de la question, pas une reformulation lointaine ; un vrai modèle de plongement est nécessaire en production.
 - Indicateurs du ministère : vue nationale et alertes branchées ; production par culture, classement et qualité seront branchés sur les services du tableau de bord (étape 7).
+- Données envoyées au modèle : la question masquée, les extraits, les cultures, alertes et pluie de la commune ; jamais le code d'exploitation, le nom, le téléphone ou le NPI venant de la base. Avec un fournisseur hors du Bénin, ce transfert relève de l'APDP : un hébergement national (`ASSISTANT_LLM_BASE_URL`) est préférable.
+- Masquage : téléphones écrits par paires ou d'un bloc, NPI et adresses e-mail. Un nom saisi dans la question n'est pas masqué ; le texte est effacé après 90 jours.
 - Texte en français seulement ; lecture audio par la synthèse vocale du navigateur, prévue dans les écrans.
 
 ## Vérifier
