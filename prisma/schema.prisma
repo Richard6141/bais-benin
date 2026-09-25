@@ -610,6 +610,8 @@ model Farm {
 
   @@index([communeId, verificationStatus])
   @@index([farmerId])
+  // Ancienneté des exploitations déclarées non vérifiées (qualité des données, D2).
+  @@index([verificationStatus, createdAt])
   @@map("farm")
 }
 
@@ -725,6 +727,8 @@ model FarmVerification {
   createdAt   DateTime    @default(now()) @map("created_at")
 
   @@index([farmId, visitedAt])
+  // Couverture terrain par agent (fiche commune C3, qualité D3).
+  @@index([agentId, visitedAt])
   @@map("farm_verification")
 }
 
@@ -1186,4 +1190,20 @@ model AssistantAgentRequest {
 
   @@index([communeId, status, createdAt])
   @@map("assistant_agent_request")
+}
+
+// ---------------------------------------------------------------------------
+// Tableau de bord national (étape 7)
+// ---------------------------------------------------------------------------
+
+// Dernier rafraîchissement de chaque vue matérialisée d'agrégats. Les vues elles-mêmes
+// (mv_crop_stats_by_commune, mv_farm_stats_by_commune) sont en SQL pur dans la migration
+// analytics_views, lues par $queryRaw : Prisma ne représente pas les vues matérialisées.
+model AnalyticsRefresh {
+  viewName    String   @id @map("view_name")
+  refreshedAt DateTime @map("refreshed_at")
+  durationMs  Int      @map("duration_ms")
+  rowCount    Int      @map("row_count")
+
+  @@map("analytics_refresh")
 }

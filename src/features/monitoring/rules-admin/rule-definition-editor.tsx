@@ -47,12 +47,19 @@ interface RuleDefinitionEditorProps {
 // Éditeur des seuils généré depuis l'arbre de conditions (§2.C5) : un champ par condition
 // numérique, bornes physiques vérifiées à la saisie, aperçu du message court, simulation du
 // brouillon sur 30 jours avant d'enregistrer une nouvelle version.
+//
+// La version de référence est figée à l'ouverture de l'édition (`base`) : le brouillon est
+// comparé à elle et elle est envoyée au serveur (`baseVersion`). Sans cela, un rafraîchissement
+// de la page pendant la saisie (nouvelle version enregistrée ailleurs, revalidation après une
+// action) remplaçait la référence par une version qui avait déjà la valeur saisie : le brouillon
+// paraissait inchangé et l'enregistrement répondait « Aucune modification à enregistrer ».
 export function RuleDefinitionEditor({
   rule,
   previewCommune,
   simulationFrom,
   simulationTo,
 }: RuleDefinitionEditorProps) {
+  const [base, setBase] = useState<EditableRule>(rule);
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(rule.thresholds.map((f) => [f.path, String(f.value)])),
   );
@@ -70,39 +77,59 @@ export function RuleDefinitionEditor({
 
   const changedThresholds = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const field of rule.thresholds) {
+    for (const field of base.thresholds) {
       const next = Number((values[field.path] ?? "").replace(",", "."));
       if (Number.isFinite(next) && next !== field.value) out[field.path] = next;
     }
     return out;
-  }, [values, rule.thresholds]);
+  }, [values, base.thresholds]);
 
   const draft = useMemo(() => {
     try {
-      return applyThresholds(rule.definition, changedThresholds);
+      return applyThresholds(base.definition, changedThresholds);
     } catch {
-      return rule.definition;
+      return base.definition;
     }
-  }, [rule.definition, changedThresholds]);
+  }, [base.definition, changedThresholds]);
   const boundIssues = useMemo(
     () => new Map(validateBounds(draft).map((i) => [i.path, i.message])),
     [draft],
   );
-  const invalidNumber = rule.thresholds.some(
+  const invalidNumber = base.thresholds.some(
     (f) => !Number.isFinite(Number((values[f.path] ?? "").replace(",", "."))),
   );
 
   function save() {
     setFeedback(null);
+    const saved = {
+      thresholds: changedThresholds,
+      messageShort: messageShort !== base.messageShort ? messageShort : undefined,
+      adviceFr: adviceFr !== base.adviceFr ? adviceFr : undefined,
+      cooldownHours:
+        Number(cooldownHours) !== base.cooldownHours ? Number(cooldownHours) : undefined,
+    };
     startTransition(async () => {
-      const result = await createRuleVersionAction(rule.code, {
-        thresholds: changedThresholds,
-        messageShort: messageShort !== rule.messageShort ? messageShort : undefined,
-        adviceFr: adviceFr !== rule.adviceFr ? adviceFr : undefined,
-        cooldownHours:
-          Number(cooldownHours) !== rule.cooldownHours ? Number(cooldownHours) : undefined,
+      const result = await createRuleVersionAction(base.code, {
+        ...saved,
         reason: reason.trim() || undefined,
+        baseVersion: base.version,
       });
+      if (result.ok) {
+        // La version enregistrée devient la nouvelle référence de l'édition.
+        const definition = applyThresholds(base.definition, saved.thresholds);
+        setBase({
+          ...base,
+          version: result.data.version,
+          definition,
+          thresholds: base.thresholds.map((f) => ({
+            ...f,
+            value: saved.thresholds[f.path] ?? f.value,
+          })),
+          messageShort: saved.messageShort ?? base.messageShort,
+          adviceFr: saved.adviceFr ?? base.adviceFr,
+          cooldownHours: saved.cooldownHours ?? base.cooldownHours,
+        });
+      }
       setFeedback(
         result.ok
           ? { tone: "success", text: `Version ${result.data.version} enregistrée et activée.` }
@@ -120,7 +147,7 @@ export function RuleDefinitionEditor({
     startTransition(async () => {
       const hasDraft = Object.keys(changedThresholds).length > 0;
       const result = await simulateRuleAction({
-        code: rule.code,
+        code: base.code,
         draftDefinition: hasDraft ? draft : undefined,
         from: simulationFrom,
         to: simulationTo,
@@ -139,12 +166,12 @@ export function RuleDefinitionEditor({
     <div className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-4">
         <legend className="mb-2 text-lg font-semibold">Seuils</legend>
-        {rule.thresholds.length === 0 ? (
+        {base.thresholds.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Cette règle ne comporte aucun seuil numérique.
           </p>
         ) : (
-          rule.thresholds.map((field) => {
+          base.thresholds.map((field) => {
             const issue = boundIssues.get(field.path);
             return (
               <div
@@ -213,6 +240,18 @@ export function RuleDefinitionEditor({
         />
       </fieldset>
 
+      {rule.version > base.version ? (
+        <Alert variant="watch">
+          <AlertTitle>Version plus récente disponible</AlertTitle>
+          <AlertDescription>
+            <p>
+              La version {rule.version} a été enregistrée pendant votre saisie. Rechargez la page
+              pour repartir de cette version : vos modifications seraient sinon refusées.
+            </p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {feedback ? (
         <Alert variant={feedback.tone}>
           <AlertTitle>
@@ -240,7 +279,7 @@ export function RuleDefinitionEditor({
           {pending ? "Calcul…" : "Simuler sur 30 jours"}
         </Button>
         <Button disabled={pending || boundIssues.size > 0 || invalidNumber} onClick={save}>
-          Enregistrer la version {rule.version + 1}
+          Enregistrer la version {base.version + 1}
         </Button>
       </div>
 

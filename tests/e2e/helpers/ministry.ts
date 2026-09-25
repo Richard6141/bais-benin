@@ -92,12 +92,44 @@ async function answerChallenge(page: Page, project: string, secret: string) {
   throw new Error("Défi TOTP refusé deux fois");
 }
 
+// Session du compte ministère de test, enregistrée une fois par profil après l'activation : chaque
+// connexion complète (mot de passe puis code) compte dans les limites de débit, et une suite complète
+// en enchaîne assez pour les dépasser.
+const sessionStateFile = (project: string) => join(STATE_DIR, `session-ministere-${project}.json`);
+
+/** Connexion complète dans un navigateur à part, puis enregistrement de l'état. Pour le globalSetup. */
+export async function saveMinistrySession(baseURL: string, project: string) {
+  const secret = readFileSync(secretFile(project), "utf8").trim();
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ baseURL });
+    const page = await context.newPage();
+    await submitInstitutionForm(page, ministryEmailFor(project));
+    await expect(page).toHaveURL(/\/connexion\/institution\/verification/, { timeout: 20_000 });
+    await answerChallenge(page, project, secret);
+    await context.storageState({ path: sessionStateFile(project) });
+  } finally {
+    await browser.close();
+  }
+}
+
 /**
  * Connecte la page au compte ministère de test du profil courant, double authentification
- * comprise, puis ouvre `path` (par défaut le centre de pilotage).
+ * comprise, puis ouvre `path` (par défaut le centre de pilotage). Reprend la session enregistrée
+ * par le globalSetup ; si elle est refusée, fait une connexion complète.
  */
 export async function signInAsMinistry(page: Page, testInfo: TestInfo, path = "/pilotage") {
   const project = testInfo.project.name;
+  const saved = sessionStateFile(project);
+  if (existsSync(saved)) {
+    const state = JSON.parse(readFileSync(saved, "utf8")) as {
+      cookies: Parameters<ReturnType<Page["context"]>["addCookies"]>[0];
+    };
+    await page.context().addCookies(state.cookies);
+    await page.goto(path);
+    if (!/\/compte\/securite|\/connexion/.test(new URL(page.url()).pathname)) return;
+    await page.context().clearCookies();
+  }
   if (!existsSync(secretFile(project))) {
     throw new Error(
       `Compte ministère de test sans double authentification pour « ${project} » : le globalSetup a échoué (voir sa sortie).`,

@@ -20,6 +20,7 @@ const patchSchema = z
     messageShort: z.string().trim().min(10).max(300).optional(),
     adviceFr: z.string().trim().min(10).max(1000).optional(),
     reason: z.string().trim().max(500).optional(),
+    baseVersion: z.number().int().min(1).optional(),
   })
   .strict();
 

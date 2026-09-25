@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   ClipboardCheck,
   FileClock,
   LandPlot,
@@ -37,6 +38,12 @@ const SECONDARY = [
     title: "Toutes les exploitations",
     description: "Recherche par nom, numéro ou code, filtre par statut.",
     icon: LandPlot,
+  },
+  {
+    href: "/agent/tableau-de-bord",
+    title: "Tableau de bord",
+    description: "Indicateurs de vos communes : cultures, production, vérifications en attente.",
+    icon: BarChart3,
   },
   {
     href: "/agent/assistant",

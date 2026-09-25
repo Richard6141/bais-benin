@@ -1,7 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import type { Metadata, Route } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { StatTile } from "@/components/data-display/stat-tile";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -61,18 +59,6 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
         eyebrow="Centre de pilotage"
         title="Centre d'alertes"
         description="Alertes agro-climatiques actives sur le territoire, calculées chaque matin à partir des données météo des 77 communes."
-        actions={
-          <>
-            <Button asChild variant="outline" className="h-11">
-              <Link href={"/pilotage/regles" as Route}>Règles d&apos;alerte</Link>
-            </Button>
-            {/* Entrée provisoire : à la fusion avec l'étape 7, l'assistant rejoint la
-                navigation du pilotage. */}
-            <Button asChild variant="outline" className="h-11">
-              <Link href={"/pilotage/assistant" as Route}>Assistant d&apos;analyse</Link>
-            </Button>
-          </>
-        }
       />
 
       {freshness.warning ? (
