@@ -40,7 +40,7 @@
   --offline: #5b5f66;
 
   /* Variables lues par shadcn/ui */
-  --background: var(--chalk);
+  --background: var(--paper);
   --foreground: var(--ink);
   --card: var(--paper);
   --card-foreground: var(--ink);
