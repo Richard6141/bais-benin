@@ -253,30 +253,27 @@ export function MapCanvas({
   }, []);
 
   // Peinture : classes calculées sur la métrique courante, appliquées par feature-state.
+  // MapLibre n'efface une propriété d'état qu'avec l'identifiant de la commune : on retient les
+  // communes peintes au tour précédent pour effacer celles qui sortent du résultat (filtre sans
+  // exploitation), qui repassent ainsi hors échelle.
+  const paintedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const values = [...statsByCode.values()].map((item) => item[metric]);
     const breaks = quantileBreaks(values);
-    const applied = new Set<string>();
+    for (const code of paintedRef.current) {
+      if (!statsByCode.has(code)) {
+        map.removeFeatureState({ source: SOURCE_IDS.communes, sourceLayer: "communes", id: code });
+      }
+    }
     for (const [code, item] of statsByCode) {
       map.setFeatureState(
         { source: SOURCE_IDS.communes, sourceLayer: "communes", id: code },
         { classIndex: classIndex(item[metric], breaks), value: item[metric] },
       );
-      applied.add(code);
     }
-    // Communes absentes du résultat (filtre sans exploitation) : classe hors échelle.
-    map.removeFeatureState({ source: SOURCE_IDS.communes, sourceLayer: "communes" }, "classIndex");
-    for (const code of applied) {
-      const item = statsByCode.get(code);
-      if (item) {
-        map.setFeatureState(
-          { source: SOURCE_IDS.communes, sourceLayer: "communes", id: code },
-          { classIndex: classIndex(item[metric], breaks) },
-        );
-      }
-    }
+    paintedRef.current = new Set(statsByCode.keys());
   }, [statsByCode, metric, ready]);
 
   useEffect(() => {
@@ -285,16 +282,24 @@ export function MapCanvas({
     map.setLayoutProperty(LAYER_IDS.farmPoints, "visibility", showFarms ? "visible" : "none");
   }, [showFarms, ready]);
 
+  const selectedRef = useRef<string | null>(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    map.removeFeatureState({ source: SOURCE_IDS.communes, sourceLayer: "communes" }, "selected");
+    const previous = selectedRef.current;
+    if (previous && previous !== selectedCommuneCode) {
+      map.setFeatureState(
+        { source: SOURCE_IDS.communes, sourceLayer: "communes", id: previous },
+        { selected: false },
+      );
+    }
     if (selectedCommuneCode) {
       map.setFeatureState(
         { source: SOURCE_IDS.communes, sourceLayer: "communes", id: selectedCommuneCode },
         { selected: true },
       );
     }
+    selectedRef.current = selectedCommuneCode;
   }, [selectedCommuneCode, ready]);
 
   return (
