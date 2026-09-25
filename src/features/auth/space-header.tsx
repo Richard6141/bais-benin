@@ -23,7 +23,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
   return (
     <header className="sticky top-0 z-40 print:hidden">
       <div className="border-b bg-background">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
+        <div className="flex h-16 w-full items-center justify-between gap-3 sm:h-20">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
