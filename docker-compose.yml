@@ -38,8 +38,25 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-bais}:${POSTGRES_PASSWORD:-bais}@db:5432/${POSTGRES_DB:-bais}?schema=public
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Secret partagé avec le planificateur : sans lui, les routes planifiées restent fermées.
+      CRON_SECRET: ${CRON_SECRET:-}
     ports:
       - "3000:3000"
+
+  # Tâches planifiées du monitoring : ingestion quotidienne (5 h, heure de Porto-Novo) et envoi
+  # des messages toutes les 10 minutes. Appelle l'application par le réseau interne du compose.
+  scheduler:
+    build:
+      context: ./docker/scheduler
+    container_name: bais-scheduler
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+      APP_INTERNAL_URL: http://app:3000
+      SCHEDULER_TIMEOUT_SECONDS: ${SCHEDULER_TIMEOUT_SECONDS:-900}
 
 volumes:
   db-data:
