@@ -44,8 +44,16 @@ export async function acknowledgeAlert(
     OR: [{ userId: actor.userId }, { farm: { farmer: { userId: actor.userId } } }],
   };
   const rows = await db.alertRecipient.count({ where: mine });
-  if (rows === 0)
+  if (rows === 0) {
+    // D : seul un acteur qui peut lire l'alerte (agent de la commune, ministère) apprend qu'il
+    // n'en est pas destinataire ; pour les autres, elle n'existe pas.
+    const canRead = authorize(actor, "alert.read", {
+      communeId: alert.communeId,
+      departementId: alert.commune.departementId,
+    }).allowed;
+    if (!canRead) throw new AlertAccessError("NOT_FOUND", "Alerte introuvable");
     throw new AlertAccessError("NOT_RECIPIENT", "Vous n'êtes pas destinataire de cette alerte");
+  }
 
   const decision = authorize(actor, "alert.acknowledge", {
     communeId: alert.communeId,

@@ -136,7 +136,8 @@ export interface CropProduction {
    * Totaux additifs entre cultures : superficie déclarée des cultures et production. Ni effectif
    * d'exploitations ni superficie relevée, qui compteraient deux fois les associations.
    */
-  total: { areaHa: number; productionT: number | null };
+  /** Nul quand le total résume moins de k exploitations (secret statistique). */
+  total: { areaHa: number | null; productionT: number | null };
   provenance: AnalyticsProvenance;
 }
 
