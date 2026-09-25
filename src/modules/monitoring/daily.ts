@@ -8,6 +8,7 @@ import {
 } from "./delivery";
 import { evaluateCommunes, type EvaluationSummary } from "./evaluation";
 import { runWeatherIngestion, type IngestionResult } from "./ingestion";
+import { withMonitoringLock } from "./lock";
 
 // Orchestration des tâches planifiées du monitoring (§2.E) :
 // - quotidienne (5 h) : ingestion météo, évaluation, destinataires des nouvelles alertes, envoi ;
@@ -30,10 +31,19 @@ export async function runDailyMonitoring(deps: {
   messaging: DeliveryChannels;
   now?: Date;
 }): Promise<DailyRunResult> {
-  const ingestion = await runWeatherIngestion({ primary: deps.primary, fallback: deps.fallback });
-  const evaluation = await evaluateCommunes({}, { planRecipients: planRecipientsFor });
-  const dispatch = await dispatchPendingDeliveries({ messaging: deps.messaging, now: deps.now });
-  return { ingestion, evaluation, dispatch };
+  // Deux exécutions simultanées (cron et relance manuelle) lèveraient deux fois les mêmes alertes :
+  // la seconde reçoit MonitoringBusyError.
+  return withMonitoringLock("daily", async () => {
+    const ingestion = await runWeatherIngestion({ primary: deps.primary, fallback: deps.fallback });
+    const evaluation = await evaluateCommunes({}, { planRecipients: planRecipientsFor });
+    const dispatch = await runDispatch(deps.messaging, deps.now);
+    return { ingestion, evaluation, dispatch };
+  });
+}
+
+/** Envoi des messages en attente, jamais deux à la fois (un même message partirait deux fois). */
+export function runDispatch(messaging: DeliveryChannels, now?: Date): Promise<DispatchSummary> {
+  return withMonitoringLock("dispatch", () => dispatchPendingDeliveries({ messaging, now }));
 }
 
 /** Destinataires des alertes actives qui n'en ont pas encore (reprise, démonstration). */

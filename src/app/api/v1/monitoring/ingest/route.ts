@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerEnv } from "@/lib/env";
-import { runDailyMonitoring } from "@/modules/monitoring";
+import { MonitoringBusyError, runDailyMonitoring } from "@/modules/monitoring";
 import { getMessagingChannel } from "@/services/messaging";
 import { createWeatherProviders } from "@/services/weather";
 import { isCronRequest } from "../cron-auth";
@@ -19,11 +19,19 @@ export async function POST(request: NextRequest) {
     provider: env.WEATHER_PROVIDER,
     openMeteoBaseUrl: env.OPEN_METEO_BASE_URL,
   });
-  const result = await runDailyMonitoring({
-    ...providers,
-    // Pas encore d'adaptateur SMS : les producteurs sans WhatsApp sont relayés par l'agent.
-    messaging: { WHATSAPP: getMessagingChannel(), SMS: null },
-  });
+  let result: Awaited<ReturnType<typeof runDailyMonitoring>>;
+  try {
+    result = await runDailyMonitoring({
+      ...providers,
+      // Pas encore d'adaptateur SMS : les producteurs sans WhatsApp sont relayés par l'agent.
+      messaging: { WHATSAPP: getMessagingChannel(), SMS: null },
+    });
+  } catch (error) {
+    if (error instanceof MonitoringBusyError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
   return NextResponse.json({
     ingestion: result.ingestion,
     evaluation: {

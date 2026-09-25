@@ -16,6 +16,7 @@ export {
   planMissingRecipients,
   planRecipientsFor,
   runDailyMonitoring,
+  runDispatch,
   type DailyRunResult,
 } from "./daily";
 export { addDays, beninToday } from "./dates";
@@ -27,6 +28,7 @@ export {
   type EvaluationSummary,
 } from "./evaluation";
 export { runWeatherIngestion, type IngestionOptions, type IngestionResult } from "./ingestion";
+export { MonitoringBusyError, withMonitoringLock } from "./lock";
 export { resolveAlert, type ResolveResult } from "./resolve";
 export { seedDefaultRules } from "./rule-catalog";
 export { getCommuneWeather, type CommuneWeather, type CommuneWeatherDay } from "./weather";

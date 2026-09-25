@@ -38,14 +38,21 @@ async function actorFor(where: { phoneNumber?: string; email?: string }) {
   return loadActor(user.id);
 }
 
+// Une seule alerte active par commune et par catégorie (index alert_one_active_per_category) :
+// chaque alerte de test prend une catégorie distincte, jamais celle de l'épisode de démonstration
+// de Djougou (stress hydrique).
+const TEST_CATEGORIES = ["MARKET", "ADMIN", "PEST", "HEAT", "FLOOD"] as const;
+let categoryIndex = 0;
+
 async function createAlert(reliability: "ESTIMATED" | "SYNTHETIC") {
+  const category = TEST_CATEGORIES[categoryIndex++ % TEST_CATEGORIES.length];
   const commune = await prisma.commune.findUniqueOrThrow({ where: { code: DJOUGOU } });
   const alert = await prisma.alert.create({
     data: {
       ruleId: created.ruleId,
       ruleVersion: 1,
       severity: "WARNING",
-      category: "WATER_STRESS",
+      category,
       title: "Poche de sécheresse (test)",
       messageFr: "Djougou : 12 jours sans pluie utile.",
       messageShort: "BAIS Djougou : 12 jours sans pluie. Paillez vos semis.",

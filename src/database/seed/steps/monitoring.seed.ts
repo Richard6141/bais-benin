@@ -5,6 +5,7 @@ import {
   planRecipientsFor,
   runWeatherIngestion,
   seedDemoEpisodes,
+  withMonitoringLock,
   type DemoEpisodeResult,
   seedDefaultRules,
   type EvaluationSummary,
@@ -26,7 +27,13 @@ export interface MonitoringSeedSummary {
 // Règles par défaut, puis une première ingestion météo (Open-Meteo, ou la fixture si le réseau
 // manque) et une évaluation, pour que la démonstration montre des alertes dès l'installation.
 // SEED_WEATHER=0 saute l'ingestion (tests, postes sans réseau pressés).
-export async function seedMonitoring(): Promise<MonitoringSeedSummary> {
+export function seedMonitoring(): Promise<MonitoringSeedSummary> {
+  // Même verrou que la tâche quotidienne : un seed lancé pendant l'ingestion planifiée échoue
+  // aussitôt au lieu de lever les mêmes alertes une seconde fois.
+  return withMonitoringLock("daily", seedMonitoringUnlocked);
+}
+
+async function seedMonitoringUnlocked(): Promise<MonitoringSeedSummary> {
   const rulesCreated = await seedDefaultRules();
   if (process.env.SEED_WEATHER === "0") {
     return { rulesCreated, ingestion: null, evaluation: null, demoEpisodes: [] };

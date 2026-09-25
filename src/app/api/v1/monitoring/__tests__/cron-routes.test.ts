@@ -21,15 +21,16 @@ const calls = vi.hoisted(() => ({
     },
     dispatch: { sent: 0 },
   })),
-  dispatchPendingDeliveries: vi.fn(async () => ({ considered: 0, sent: 0 })),
+  runDispatch: vi.fn(async () => ({ considered: 0, sent: 0 })),
 }));
 
 vi.mock("@/lib/env", () => ({
   getServerEnv: () => ({ ...env.current, WEATHER_PROVIDER: "fixture", OPEN_METEO_BASE_URL: "" }),
 }));
-vi.mock("@/modules/monitoring", () => ({ runDailyMonitoring: calls.runDailyMonitoring }));
-vi.mock("@/modules/monitoring/delivery", () => ({
-  dispatchPendingDeliveries: calls.dispatchPendingDeliveries,
+vi.mock("@/modules/monitoring", () => ({
+  runDailyMonitoring: calls.runDailyMonitoring,
+  runDispatch: calls.runDispatch,
+  MonitoringBusyError: class MonitoringBusyError extends Error {},
 }));
 vi.mock("@/services/messaging", () => ({ getMessagingChannel: () => ({ id: "fixture" }) }));
 vi.mock("@/services/weather", () => ({ createWeatherProviders: () => ({ primary: {} }) }));
@@ -55,7 +56,7 @@ const ROUTES = [
     name: "dispatch",
     path: "/api/v1/monitoring/dispatch",
     module: dispatch,
-    spy: calls.dispatchPendingDeliveries,
+    spy: calls.runDispatch,
   },
 ] as const;
 

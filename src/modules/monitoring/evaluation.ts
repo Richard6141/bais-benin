@@ -162,6 +162,16 @@ export async function evaluateCommunes(
     definition: parseRuleDefinition(rule.definition),
   }));
 
+  // Toutes les évaluations sont calculées en mémoire puis écrites en une fois ; seules celles qui
+  // se déclenchent passent ensuite par la création ou la prolongation d'alerte.
+  const referenceDay = new Date(`${referenceDate}T00:00:00Z`);
+  const rows: Prisma.RuleEvaluationCreateManyInput[] = [];
+  const triggered: Array<{
+    rule: RuleRow;
+    context: CommuneContext;
+    evaluationId: string;
+    trace: unknown;
+  }> = [];
   for (const commune of communes) {
     const context = buildContext(
       commune,
@@ -172,34 +182,42 @@ export async function evaluateCommunes(
       referenceDate,
     );
     if (context.stale) summary.staleCommunes += 1;
-
     for (const { rule, definition } of parsedRules) {
       const result = evaluateRule(definition, context.indicators);
       const matched = result.matched && !context.stale;
-      const evaluation = await prisma.ruleEvaluation.create({
-        data: {
-          ruleId: rule.id,
-          communeId: commune.id,
-          referenceDate: new Date(`${referenceDate}T00:00:00Z`),
-          matched,
-          indicatorsSnapshot: context.indicators as Prisma.InputJsonValue,
-          trace: result.trace as unknown as Prisma.InputJsonValue,
-          missing: result.missing,
-          dataStale: context.stale,
-        },
+      const id = crypto.randomUUID();
+      rows.push({
+        id,
+        ruleId: rule.id,
+        communeId: commune.id,
+        referenceDate: referenceDay,
+        matched,
+        indicatorsSnapshot: context.indicators as Prisma.InputJsonValue,
+        trace: result.trace as unknown as Prisma.InputJsonValue,
+        missing: result.missing,
+        dataStale: context.stale,
       });
-      summary.evaluations += 1;
-      if (!matched) continue;
-      summary.matched += 1;
+      if (matched) triggered.push({ rule, context, evaluationId: id, trace: result.trace });
+    }
+  }
+  await prisma.ruleEvaluation.createMany({ data: rows });
+  summary.evaluations = rows.length;
+  summary.matched = triggered.length;
 
-      const outcome = await raiseOrExtend(rule, context, evaluation.id, result.trace, now);
-      if (outcome.kind === "raised") {
-        summary.raised.push(outcome.alertId);
-        if (outcome.superseded) summary.superseded += 1;
-        if (deps.planRecipients) await deps.planRecipients(outcome.alertId);
-      } else if (outcome.kind === "extended") {
-        summary.extended += 1;
-      }
+  for (const item of triggered) {
+    const outcome = await raiseOrExtend(
+      item.rule,
+      item.context,
+      item.evaluationId,
+      item.trace,
+      now,
+    );
+    if (outcome.kind === "raised") {
+      summary.raised.push(outcome.alertId);
+      if (outcome.superseded) summary.superseded += 1;
+      if (deps.planRecipients) await deps.planRecipients(outcome.alertId);
+    } else if (outcome.kind === "extended") {
+      summary.extended += 1;
     }
   }
 
@@ -268,39 +286,53 @@ export async function raiseOrExtend(
     commune: context.commune.name,
     departement: context.commune.departement_name,
   };
-  const alert = await prisma.$transaction(async (tx) => {
-    const created = await tx.alert.create({
-      data: {
-        ruleId: rule.id,
-        ruleVersion: rule.version,
-        severity: rule.severity,
-        category: rule.category,
-        title: rule.name,
-        messageFr: renderMessage(rule.messageFr, context.indicators, messageContext),
-        messageShort: truncateShort(
-          renderMessage(rule.messageShort, context.indicators, messageContext),
-        ),
-        adviceFr: renderMessage(rule.adviceFr, context.indicators, messageContext),
-        communeId: context.commune.id,
-        indicators: context.indicators as Prisma.InputJsonValue,
-        trace: trace as Prisma.InputJsonValue,
-        startsAt: now,
-        endsAt: cooldownEnd,
-        raisedByEvaluationId: evaluationId,
-        sourceId: context.sourceId,
-        sourceDate: context.sourceDate,
-        reliability: context.reliability,
-      },
-    });
-    await tx.ruleEvaluation.update({ where: { id: evaluationId }, data: { alertId: created.id } });
-    if (strongest) {
-      await tx.alert.update({
-        where: { id: strongest.id },
-        data: { status: "SUPERSEDED", supersededById: created.id, endsAt: now },
+  // L'alerte remplacée sort de l'état actif avant la création de la nouvelle : l'index unique
+  // partiel (une alerte active par commune et par catégorie) le vérifie à chaque instruction.
+  const alertId = crypto.randomUUID();
+  let alert;
+  try {
+    alert = await prisma.$transaction(async (tx) => {
+      if (strongest) {
+        await tx.alert.update({
+          where: { id: strongest.id },
+          data: { status: "SUPERSEDED", supersededById: alertId, endsAt: now },
+        });
+      }
+      const created = await tx.alert.create({
+        data: {
+          id: alertId,
+          ruleId: rule.id,
+          ruleVersion: rule.version,
+          severity: rule.severity,
+          category: rule.category,
+          title: rule.name,
+          messageFr: renderMessage(rule.messageFr, context.indicators, messageContext),
+          messageShort: truncateShort(
+            renderMessage(rule.messageShort, context.indicators, messageContext),
+          ),
+          adviceFr: renderMessage(rule.adviceFr, context.indicators, messageContext),
+          communeId: context.commune.id,
+          indicators: context.indicators as Prisma.InputJsonValue,
+          trace: trace as Prisma.InputJsonValue,
+          startsAt: now,
+          endsAt: cooldownEnd,
+          raisedByEvaluationId: evaluationId,
+          sourceId: context.sourceId,
+          sourceDate: context.sourceDate,
+          reliability: context.reliability,
+        },
       });
-    }
-    return created;
-  });
+      await tx.ruleEvaluation.update({
+        where: { id: evaluationId },
+        data: { alertId: created.id },
+      });
+      return created;
+    });
+  } catch (error) {
+    // Une exécution concurrente a levé l'alerte entre la lecture et l'écriture : rien à refaire.
+    if ((error as { code?: string }).code === "P2002") return { kind: "skipped" };
+    throw error;
+  }
 
   await recordAudit({
     action: "alert.raised",

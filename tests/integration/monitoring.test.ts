@@ -8,9 +8,11 @@ import {
   getAlertDetail,
   getCommuneWeather,
   listAlertsForActor,
+  MonitoringBusyError,
   resolveAlert,
   runWeatherIngestion,
   seedDefaultRules,
+  withMonitoringLock,
 } from "@/modules/monitoring";
 import { WeatherProviderError, type WeatherProvider } from "@/services/ports/weather-provider";
 import { createFixtureWeatherProvider } from "@/services/weather";
@@ -46,7 +48,9 @@ async function communeId(code: string): Promise<string> {
 
 // Crée une alerte de test directement, pour vérifier la lecture et la levée sans dépendre de
 // la météo du jour.
-async function createTestAlert(code: string): Promise<string> {
+// Catégories absentes des épisodes de démonstration : l'index « une alerte active par commune et
+// par catégorie » ne doit pas entrer en conflit avec les alertes de démonstration.
+async function createTestAlert(code: string, category: "MARKET" | "ADMIN"): Promise<string> {
   const rule = await prisma.rule.findFirstOrThrow({
     where: { code: "FLOOD_RISK" },
     orderBy: { version: "desc" },
@@ -56,7 +60,7 @@ async function createTestAlert(code: string): Promise<string> {
       ruleId: rule.id,
       ruleVersion: rule.version,
       severity: "WARNING",
-      category: "FLOOD",
+      category,
       title: "Alerte de test",
       messageFr: "Message de test pour la suite d'intégration.",
       messageShort: "Test",
@@ -203,8 +207,8 @@ describe("monitoring agricole", () => {
   });
 
   it("limite la lecture des alertes au périmètre de chaque rôle", async () => {
-    const djougouAlert = await createTestAlert(DJOUGOU);
-    const adjohounAlert = await createTestAlert(ADJOHOUN);
+    const djougouAlert = await createTestAlert(DJOUGOU, "MARKET");
+    const adjohounAlert = await createTestAlert(ADJOHOUN, "MARKET");
     const agent = await actorForPhone("+2290190000001");
     const farmer = await actorForPhone("+2290190000002");
     const ministry = await actorForEmail("ministere@bais.demo");
@@ -226,7 +230,7 @@ describe("monitoring agricole", () => {
   });
 
   it("réserve la levée d'une alerte au ministère, avec un motif", async () => {
-    const alertId = await createTestAlert(DJOUGOU);
+    const alertId = await createTestAlert(DJOUGOU, "ADMIN");
     const agent = await actorForPhone("+2290190000001");
     const ministry = await actorForEmail("ministere@bais.demo");
     expect(await resolveAlert(agent, alertId, "Fin de l'épisode")).toEqual({
@@ -246,6 +250,23 @@ describe("monitoring agricole", () => {
       ok: false,
       code: "NOT_ACTIVE",
     });
+  });
+
+  it("refuse une seconde exécution planifiée tant que la première tourne", async () => {
+    let release: () => void = () => undefined;
+    const first = withMonitoringLock(
+      "daily",
+      () => new Promise<string>((resolve) => (release = () => resolve("première"))),
+    );
+    await new Promise((r) => setTimeout(r, 200));
+    await expect(withMonitoringLock("daily", async () => "seconde")).rejects.toBeInstanceOf(
+      MonitoringBusyError,
+    );
+    // Un autre verrou (envoi des messages) reste disponible pendant ce temps.
+    await expect(withMonitoringLock("dispatch", async () => "envoi")).resolves.toBe("envoi");
+    release();
+    await expect(first).resolves.toBe("première");
+    await expect(withMonitoringLock("daily", async () => "après")).resolves.toBe("après");
   });
 
   it("expose la météo d'une commune avec sa source", async () => {

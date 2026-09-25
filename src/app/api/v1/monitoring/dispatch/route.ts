@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { dispatchPendingDeliveries } from "@/modules/monitoring/delivery";
+import { MonitoringBusyError, runDispatch } from "@/modules/monitoring";
 import { getMessagingChannel } from "@/services/messaging";
 import { isCronRequest } from "../cron-auth";
 
@@ -11,10 +11,15 @@ export async function POST(request: NextRequest) {
   if (!isCronRequest(request.headers)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
-  const summary = await dispatchPendingDeliveries({
-    messaging: { WHATSAPP: getMessagingChannel(), SMS: null },
-  });
-  return NextResponse.json(summary);
+  try {
+    const summary = await runDispatch({ WHATSAPP: getMessagingChannel(), SMS: null });
+    return NextResponse.json(summary);
+  } catch (error) {
+    if (error instanceof MonitoringBusyError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 // Vercel Cron appelle les tâches planifiées en GET, avec le même en-tête
