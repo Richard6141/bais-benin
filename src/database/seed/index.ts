@@ -10,6 +10,8 @@ import {
 import { seedDemoAccounts } from "./steps/accounts.seed";
 import { seedAssistantCorpus } from "./steps/assistant.seed";
 import { seedSyntheticFarms, type FarmSeedSummary } from "./steps/farms.seed";
+import { seedSyntheticHarvests, type HarvestSeedSummary } from "./steps/harvests.seed";
+import { refreshAnalyticsIfStale } from "@/modules/analytics/refresh";
 import { seedMonitoring, type MonitoringSeedSummary } from "./steps/monitoring.seed";
 import { seedTerritory } from "./steps/territory.seed";
 
@@ -22,6 +24,7 @@ export interface SeedSummary {
   campaigns: number;
   demoAccounts: number;
   registry: FarmSeedSummary;
+  harvests: HarvestSeedSummary;
   monitoring: MonitoringSeedSummary;
   assistant: Awaited<ReturnType<typeof seedAssistantCorpus>>;
 }
@@ -36,6 +39,12 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   const campaigns = await seedCampaigns(prisma);
   const demoAccounts = await seedDemoAccounts(prisma);
   const registry = await seedSyntheticFarms(prisma);
+  const harvests = await seedSyntheticHarvests(prisma);
+  // Les chiffres de production du pilotage lisent des vues matérialisées : elles doivent voir
+  // les récoltes qui viennent d'être ajoutées.
+  if (harvests.declarations > 0 || harvests.historyParcelCrops > 0) {
+    await refreshAnalyticsIfStale({ force: true });
+  }
   const monitoring = await seedMonitoring();
   const assistant = await seedAssistantCorpus();
   return {
@@ -46,6 +55,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
     campaigns,
     demoAccounts,
     registry,
+    harvests,
     monitoring,
     assistant,
   };
