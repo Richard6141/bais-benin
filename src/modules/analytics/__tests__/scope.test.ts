@@ -22,12 +22,15 @@ const agent = actor("AGENT_AGRICULTURE", "COMMUNE", "djougou");
 const buyer = actor("BUYER", "SELF");
 
 describe("périmètre des agrégats (revue de sécurité, C1)", () => {
-  it("fait confiance au ministère et à l'agent, pas à l'acheteur de portée nationale", async () => {
+  it("fait confiance au ministère, pas à l'agent ni à l'acheteur de portée nationale", async () => {
+    // ADR-0014 : un agent ne lit plus toutes les exploitations de sa commune (farm.read = OWN),
+    // seulement celles qu'il a enregistrées. Il n'est donc plus « de confiance » pour les
+    // agrégats de toute sa commune : le masquage des petits effectifs s'applique aussi à lui.
     expect(await analyticsScope(ministry)).toMatchObject({ national: true, trusted: true });
     expect(await analyticsScope(agent)).toMatchObject({
       national: false,
       communeIds: ["djougou"],
-      trusted: true,
+      trusted: false,
     });
     expect(await analyticsScope(buyer)).toMatchObject({ national: true, trusted: false });
   });

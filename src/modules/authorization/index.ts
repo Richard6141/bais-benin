@@ -1,4 +1,5 @@
 export {
+  actorTerritory,
   authorize,
   can,
   scopeFilter,

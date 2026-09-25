@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authorize, scopeFilter, type Actor, type RoleGrant } from "../authorize";
+import { actorTerritory, authorize, scopeFilter, type Actor, type RoleGrant } from "../authorize";
 import { ACTIONS, POLICY_MATRIX, ROLES, type RoleCode } from "../policies.matrix";
 
 const COMMUNE_A = "commune-a";
@@ -27,12 +27,14 @@ function grantFor(role: RoleCode): RoleGrant {
 
 const inScope = {
   ownerUserId: ME,
+  registeredByUserId: ME,
   communeId: COMMUNE_A,
   departementId: DEPARTEMENT_X,
   organizationIds: [ORGANIZATION_1],
 };
 const outOfScope = {
   ownerUserId: OTHER,
+  registeredByUserId: OTHER,
   communeId: COMMUNE_B,
   departementId: "departement-y",
   organizationIds: ["organisation-2"],
@@ -53,6 +55,7 @@ describe("matrice rôle × action × portée", () => {
             break;
           case "SCOPE":
           case "SELF":
+          case "OWN":
             expect(inside).toBe(true);
             expect(outside).toBe(false);
             break;
@@ -67,14 +70,16 @@ describe("matrice rôle × action × portée", () => {
 });
 
 describe("cas particuliers", () => {
-  it("un agent départemental couvre les communes de son département", () => {
+  it("un agent départemental couvre les communes de son département (farm.create)", () => {
+    // farm.create reste SCOPE pour l'agent (là où il a le droit d'enregistrer une exploitation) ;
+    // farm.read est désormais OWN, indépendant de la commune (voir « ADR-0014 »).
     const actor: Actor = {
       userId: ME,
       grants: [{ role: "AGENT_AGRICULTURE", scopeType: "DEPARTEMENT", scopeId: DEPARTEMENT_X }],
       communeIdsByDepartement: new Map([[DEPARTEMENT_X, [COMMUNE_A]]]),
     };
-    expect(authorize(actor, "farm.read", { communeId: COMMUNE_A }).allowed).toBe(true);
-    expect(authorize(actor, "farm.read", { communeId: COMMUNE_B }).allowed).toBe(false);
+    expect(authorize(actor, "farm.create", { communeId: COMMUNE_A }).allowed).toBe(true);
+    expect(authorize(actor, "farm.create", { communeId: COMMUNE_B }).allowed).toBe(false);
   });
 
   it("cumule les affectations : la première qui autorise suffit", () => {
@@ -85,7 +90,14 @@ describe("cas particuliers", () => {
         { role: "AGENT_AGRICULTURE", scopeType: "COMMUNE", scopeId: COMMUNE_B },
       ],
     };
-    expect(authorize(actor, "farm.verify", { communeId: COMMUNE_B }).allowed).toBe(true);
+    // farm.verify (OWN pour l'agent) : seule l'exploitation qu'il a enregistrée compte, la
+    // commune ne suffit plus.
+    expect(
+      authorize(actor, "farm.verify", { registeredByUserId: ME, communeId: COMMUNE_B }).allowed,
+    ).toBe(true);
+    expect(
+      authorize(actor, "farm.verify", { registeredByUserId: OTHER, communeId: COMMUNE_B }).allowed,
+    ).toBe(false);
     expect(authorize(actor, "farm.read", { ownerUserId: ME, communeId: COMMUNE_A }).allowed).toBe(
       true,
     );
@@ -96,6 +108,24 @@ describe("cas particuliers", () => {
     expect(authorize(actor, "listing.read").allowed).toBe(false);
     expect(scopeFilter(actor, "farm.read")).toEqual({ kind: "none" });
   });
+
+  it("ADR-0014 : un agent ne lit que ce qu'il a lui-même enregistré, jamais toute sa commune", () => {
+    const actor: Actor = { userId: ME, grants: [grantFor("AGENT_AGRICULTURE")] };
+    // Dans sa commune, mais enregistrée par quelqu'un d'autre : refusé.
+    expect(
+      authorize(actor, "farm.read", { communeId: COMMUNE_A, registeredByUserId: OTHER }).allowed,
+    ).toBe(false);
+    // Enregistrée par lui, même si (par hypothèse) hors de sa commune assignée : autorisé.
+    expect(
+      authorize(actor, "farm.read", { communeId: COMMUNE_B, registeredByUserId: ME }).allowed,
+    ).toBe(true);
+  });
+
+  it("farmer.contact.read reste territorial pour l'agent (relais d'alerte, pas le registre)", () => {
+    const actor: Actor = { userId: ME, grants: [grantFor("AGENT_AGRICULTURE")] };
+    expect(authorize(actor, "farmer.contact.read", { communeId: COMMUNE_A }).allowed).toBe(true);
+    expect(authorize(actor, "farmer.contact.read", { communeId: COMMUNE_B }).allowed).toBe(false);
+  });
 });
 
 describe("filtre de périmètre pour les listes", () => {
@@ -105,7 +135,7 @@ describe("filtre de périmètre pour les listes", () => {
     });
   });
 
-  it("renvoie l'union des communes et organisations pour un agent multi-affecté", () => {
+  it("renvoie l'union des communes pour un agent multi-affecté (farm.create)", () => {
     const actor: Actor = {
       userId: ME,
       grants: [
@@ -114,7 +144,7 @@ describe("filtre de périmètre pour les listes", () => {
         { role: "FARMER", scopeType: "SELF", scopeId: null },
       ],
     };
-    expect(scopeFilter(actor, "farm.read")).toEqual({
+    expect(scopeFilter(actor, "farm.create")).toEqual({
       kind: "territory",
       communeIds: [COMMUNE_A, COMMUNE_B],
       departementIds: [],
@@ -128,5 +158,34 @@ describe("filtre de périmètre pour les listes", () => {
       kind: "self",
       userId: ME,
     });
+  });
+
+  it("renvoie « registered » pour un agent sur farm.read (ADR-0014)", () => {
+    expect(
+      scopeFilter({ userId: ME, grants: [grantFor("AGENT_AGRICULTURE")] }, "farm.read"),
+    ).toEqual({ kind: "registered", userId: ME });
+  });
+});
+
+describe("actorTerritory : périmètre territorial indépendant de la portée d'une action", () => {
+  it("couvre toujours la commune assignée, même si farm.read est restreint à OWN", () => {
+    const actor: Actor = { userId: ME, grants: [grantFor("AGENT_AGRICULTURE")] };
+    expect(actorTerritory(actor)).toEqual({
+      kind: "territory",
+      communeIds: [COMMUNE_A],
+      departementIds: [],
+      organizationIds: [],
+      includeSelf: false,
+    });
+  });
+
+  it("renvoie tout pour une affectation nationale", () => {
+    expect(actorTerritory({ userId: ME, grants: [grantFor("ADMIN_STATE")] })).toEqual({
+      kind: "all",
+    });
+  });
+
+  it("renvoie « none » pour un rôle sans affectation territoriale", () => {
+    expect(actorTerritory({ userId: ME, grants: [grantFor("FARMER")] })).toEqual({ kind: "none" });
   });
 });

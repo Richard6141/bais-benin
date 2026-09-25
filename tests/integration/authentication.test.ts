@@ -143,13 +143,22 @@ describe("authentification par NPI et code", () => {
     ).rejects.toThrow();
   });
 
-  it("limite l'agent de démonstration à sa commune", async () => {
+  it("limite l'agent de démonstration à ce qu'il a enregistré (ADR-0014), pas à toute sa commune", async () => {
     const agent = await prisma.user.findUniqueOrThrow({ where: { phoneNumber: "+2290190000001" } });
     const djougou = await prisma.commune.findUniqueOrThrow({ where: { code: "BJ-DON-003" } });
-    const parakou = await prisma.commune.findUniqueOrThrow({ where: { code: "BJ-BOR-005" } });
     const actor = await loadActor(agent.id);
-    expect(authorize(actor, "farm.verify", { communeId: djougou.id }).allowed).toBe(true);
-    expect(authorize(actor, "farm.verify", { communeId: parakou.id }).allowed).toBe(false);
+    // Enregistrée par lui : autorisé, même identifiant de commune que ci-dessous.
+    expect(
+      authorize(actor, "farm.verify", { communeId: djougou.id, registeredByUserId: agent.id })
+        .allowed,
+    ).toBe(true);
+    // Même commune, mais enregistrée par quelqu'un d'autre : refusé.
+    expect(
+      authorize(actor, "farm.verify", { communeId: djougou.id, registeredByUserId: "someone-else" })
+        .allowed,
+    ).toBe(false);
+    // farm.create reste territorial : c'est là où il a le droit d'enregistrer, pas ce qu'il revoit.
+    expect(authorize(actor, "farm.create", { communeId: djougou.id }).allowed).toBe(true);
     expect(authorize(actor, "user.npi.reveal", { ownerUserId: agent.id }).allowed).toBe(false);
   });
 

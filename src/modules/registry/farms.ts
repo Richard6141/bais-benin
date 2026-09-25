@@ -40,6 +40,8 @@ function scopeWhere(actor: Actor): Prisma.FarmWhereInput | null {
       return null;
     case "self":
       return { farmer: { userId: filter.userId } };
+    case "registered":
+      return { registeredById: filter.userId };
     case "territory": {
       const clauses: Prisma.FarmWhereInput[] = [];
       if (filter.communeIds.length > 0) clauses.push({ communeId: { in: filter.communeIds } });
@@ -194,6 +196,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
       sourceDate: true,
       reliability: true,
       communeId: true,
+      registeredById: true,
       farmer: {
         select: {
           id: true,
@@ -253,6 +256,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
   if (!row) return null;
   const decision = authorize(actor, "farm.read", {
     ownerUserId: row.farmer.userId,
+    registeredByUserId: row.registeredById,
     communeId: row.communeId,
   });
   if (!decision.allowed) return null;

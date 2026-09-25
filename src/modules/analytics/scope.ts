@@ -31,7 +31,9 @@ export async function analyticsScope(actor: Actor): Promise<AnalyticsScope> {
   if (filter.kind === "none") {
     throw new AnalyticsError("FORBIDDEN", "Lecture des agrégats non autorisée");
   }
-  if (filter.kind === "self") return { national: false, communeIds: [], trusted };
+  if (filter.kind === "self" || filter.kind === "registered") {
+    return { national: false, communeIds: [], trusted };
+  }
   const or: Array<{ id?: { in: string[] }; departementId?: { in: string[] } }> = [];
   if (filter.communeIds.length > 0) or.push({ id: { in: filter.communeIds } });
   if (filter.departementIds.length > 0) or.push({ departementId: { in: filter.departementIds } });

@@ -136,13 +136,20 @@ export async function buildContext(actor: Actor, farmCode?: string): Promise<Ass
   }
   const farm = await prisma.farm.findFirst({
     where: { code: farmCode, archivedAt: null },
-    select: { id: true, code: true, communeId: true, commune: { select: { departementId: true } } },
+    select: {
+      id: true,
+      code: true,
+      communeId: true,
+      registeredById: true,
+      commune: { select: { departementId: true } },
+    },
   });
   const allowed =
     farm &&
     authorize(actor, "farm.read", {
       communeId: farm.communeId,
       departementId: farm.commune.departementId,
+      registeredByUserId: farm.registeredById,
     }).allowed;
   // Hors périmètre : même réponse qu'une exploitation inconnue.
   if (!farm || !allowed) throw new AssistantError("NOT_FOUND", "Exploitation introuvable");

@@ -4,7 +4,8 @@
 // Portées :
 // - ALL   : toute ressource ;
 // - SCOPE : ressources situées dans le périmètre territorial ou organisationnel du rôle ;
-// - SELF  : ressources appartenant à l'acteur ;
+// - SELF  : ressources appartenant à l'acteur (compte du producteur) ;
+// - OWN   : ressources enregistrées par l'acteur (agent : farm.registeredById) ;
 // - NONE  : jamais.
 
 export const ROLES = [
@@ -47,7 +48,7 @@ export const ACTIONS = [
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
-export type Reach = "ALL" | "SCOPE" | "SELF" | "NONE";
+export type Reach = "ALL" | "SCOPE" | "SELF" | "OWN" | "NONE";
 
 export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
   ADMIN_STATE: {
@@ -78,14 +79,20 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistant.corpus.manage": "ALL",
   },
   AGENT_AGRICULTURE: {
-    "farm.read": "SCOPE",
+    // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
+    // celles d'un collègue ni celles auto-enregistrées par un producteur — y compris à la fiche,
+    // à l'historique et à la vérification. `farm.create` reste SCOPE : c'est le périmètre où il
+    // a le droit d'enregistrer une nouvelle exploitation, pas ce qu'il peut ensuite en revoir.
+    // `farmer.contact.read` reste SCOPE : c'est un droit distinct, pour le relais d'alerte
+    // climatique à tout producteur de la commune, jamais limité à ses propres enregistrements.
+    "farm.read": "OWN",
     "farm.create": "SCOPE",
-    "farm.update": "SCOPE",
-    "farm.verify": "SCOPE",
+    "farm.update": "OWN",
+    "farm.verify": "OWN",
     "farm.archive": "NONE",
-    "farmer.read": "SCOPE",
+    "farmer.read": "OWN",
     "farmer.contact.read": "SCOPE",
-    "parcel.geometry.read": "SCOPE",
+    "parcel.geometry.read": "OWN",
     "analytics.read": "SCOPE",
     "alert.read": "SCOPE",
     "alert.create": "SCOPE",

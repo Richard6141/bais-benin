@@ -32,6 +32,7 @@ export interface FarmRef {
   communeId: string;
   departementId: string;
   ownerUserId: string | null;
+  registeredByUserId: string | null;
   declaredAreaHa: number;
 }
 
@@ -44,6 +45,7 @@ export async function findFarm(db: Db, farmId: string): Promise<FarmRef | null> 
       version: true,
       communeId: true,
       declaredAreaHa: true,
+      registeredById: true,
       commune: { select: { departementId: true } },
       farmer: { select: { userId: true } },
     },
@@ -56,6 +58,7 @@ export async function findFarm(db: Db, farmId: string): Promise<FarmRef | null> 
     communeId: farm.communeId,
     departementId: farm.commune.departementId,
     ownerUserId: farm.farmer.userId,
+    registeredByUserId: farm.registeredById,
     declaredAreaHa: Number(farm.declaredAreaHa),
   };
 }
@@ -75,6 +78,7 @@ export function farmTarget(farm: FarmRef, action: CommandTarget["action"]): Comm
       communeId: farm.communeId,
       departementId: farm.departementId,
       ownerUserId: farm.ownerUserId,
+      registeredByUserId: farm.registeredByUserId,
     },
   };
 }
