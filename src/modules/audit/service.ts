@@ -18,7 +18,14 @@ export type AuditAction =
   | "user.role.revoked"
   | "user.npi.attached"
   | "user.npi.revealed"
-  | "user.npi.verification_requested";
+  | "user.npi.verification_requested"
+  | "registry.farmer.created"
+  | "registry.farm.created"
+  | "registry.parcel.created"
+  | "registry.crop.declared"
+  | "registry.harvest.declared"
+  | "registry.farm.verified"
+  | "sync.batch.received";
 
 export interface AuditEntry {
   action: AuditAction;

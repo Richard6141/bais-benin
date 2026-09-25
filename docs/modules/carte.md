@@ -30,7 +30,7 @@ Le seed charge un registre synthétique déterministe (`src/database/seed/steps/
 ## Sécurité et confidentialité
 
 - Les agrégats communaux sont publics : aucun identifiant personnel n'y figure.
-- Les points d'exploitations sont proposés aux comptes dont le rôle porte un périmètre (agents, communes, ministère) ; la tuile elle-même ne contient que le code, le statut et la commune. La restriction par périmètre sur la tuile (un agent ne voit que sa commune) est prévue avec le registre (étape 5).
+- Les points d'exploitations ne sont servis qu'à un compte connecté, dans son périmètre : un agent ne reçoit que les points de ses communes, le ministère tout le territoire, un visiteur anonyme une tuile vide (`204`). La tuile elle-même ne contient que le code, le statut et la commune.
 - Le fond de carte est servi par un tiers (OpenFreeMap). Pour un déploiement souverain, `NEXT_PUBLIC_MAP_STYLE_URL` pointe vers un style auto-hébergé (extrait OSM du Bénin, tuiles PMTiles ou serveur Martin).
 
 ## Vérifier

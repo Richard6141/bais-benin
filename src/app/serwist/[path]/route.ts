@@ -8,7 +8,9 @@ const revision = gitRevision && gitRevision.length > 0 ? gitRevision : crypto.ra
 
 export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } = createSerwistRoute(
   {
-    additionalPrecacheEntries: [{ url: "/~offline", revision }],
+    // La page de repli /hors-ligne est précachée à l'installation avec la révision du commit ;
+    // `fallbacks` (sw.ts) la sert depuis ce précache quand une navigation échoue.
+    additionalPrecacheEntries: [{ url: "/hors-ligne", revision }],
     swSrc: "src/app/sw.ts",
     useNativeEsbuild: true,
   },

@@ -40,7 +40,9 @@ Requêtes disponibles : commune contenant un point GPS, géométries simplifiée
 
 ## Seed
 
-`pnpm db:seed` charge, dans l'ordre : sources, zones, départements et communes (avec géométries, centroïdes, surfaces), cultures, campagnes. Chaque étape est un `upsert` : relancer le seed met à jour sans dupliquer. Le seed ne touche jamais aux tables du registre.
+`pnpm db:seed` charge, dans l'ordre : sources, zones, départements et communes (avec géométries, centroïdes, surfaces), cultures, campagnes, comptes de démonstration, puis le registre synthétique (`SEED_FARM_COUNT`, `SEED_FARM_RESET=1` pour le régénérer). Chaque étape est un `upsert` ou un `createMany` à identifiants déterministes : relancer le seed met à jour sans dupliquer. Le seed ne touche jamais aux données saisies sur le terrain (source `ATDA_TERRAIN`).
+
+**Compte agricultrice ↔ exploitation.** Le compte de démonstration `+229 01 90 00 00 02` est relié, en fin de seed (`attachDemoFarmerAccount` dans `accounts.seed.ts`, appelé par `farms.seed.ts`), à la première exploitation synthétique de Djougou (`BJ-DON-003`, ordre des codes) qui porte au moins une culture de la campagne ouverte : « Déclarer ma récolte » a donc toujours une culture à proposer. Le lien est posé sur `farmer.user_id`, le téléphone du producteur prend celui du compte et le nom du compte prend celui du producteur. Relancer le seed ne change rien si le lien existe déjà dans la commune ; après `SEED_FARM_RESET=1`, le rattachement est refait sur le nouveau registre.
 
 Volumes attendus : 7 sources, 8 zones, 12 départements, 77 communes, 21 cultures, 4 campagnes.
 

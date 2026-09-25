@@ -141,6 +141,40 @@ enum IrrigationType {
   FLOOD
 }
 
+enum HarvestUnit {
+  KG
+  T
+  BAG_100KG
+  BAG_50KG
+  BUNCH
+  HEAP
+  BASIN
+}
+
+enum DeclaredBy {
+  FARMER
+  AGENT
+}
+
+enum FieldVerificationKind {
+  DESK_REVIEW
+  FIELD_VISIT
+  REMOTE_SENSING
+}
+
+enum FieldVerificationOutcome {
+  CONFIRMED
+  CORRECTED
+  REJECTED
+}
+
+enum SyncOutcome {
+  APPLIED
+  DUPLICATE
+  REJECTED
+  CONFLICT
+}
+
 enum CropStage {
   PLANNED
   SOWN
@@ -172,6 +206,8 @@ model DataSource {
   farms          Farm[]
   parcels        Parcel[]
   parcelCrops    ParcelCrop[]
+  declarations   ProductionDeclaration[]
+  verifications  FarmVerification[]
 
   @@map("data_source")
 }
@@ -357,6 +393,7 @@ model User {
   farmer        Farmer?
   registeredFarms Farm[]   @relation("registeredBy")
   verifiedFarms Farm[]     @relation("verifiedBy")
+  fieldVerifications FarmVerification[]
 
   @@map("user")
 }
@@ -546,7 +583,9 @@ model Farm {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  parcels Parcel[]
+  parcels       Parcel[]
+  verifications FarmVerification[]
+  events        FarmEvent[]
 
   @@index([communeId, verificationStatus])
   @@index([farmerId])
@@ -576,7 +615,8 @@ model Parcel {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  crops ParcelCrop[]
+  crops         ParcelCrop[]
+  verifications FarmVerification[]
 
   @@index([farmId])
   @@map("parcel")
@@ -606,7 +646,96 @@ model ParcelCrop {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
+  declarations ProductionDeclaration[]
+
   @@unique([parcelId, cropId, campaignId, subSeason])
   @@index([cropId, campaignId])
   @@map("parcel_crop")
+}
+
+// Déclaration de récolte sur une culture de campagne (docs/04 §6).
+model ProductionDeclaration {
+  id                 String      @id @default(uuid(7)) @db.Uuid
+  parcelCropId       String      @map("parcel_crop_id") @db.Uuid
+  parcelCrop         ParcelCrop  @relation(fields: [parcelCropId], references: [id])
+  declaredQuantity   Decimal     @map("declared_quantity") @db.Decimal(12, 2)
+  unit               HarvestUnit
+  // Quantité normalisée par le facteur de l'unité : c'est elle qu'agrègent les indicateurs.
+  quantityKg         Decimal     @map("quantity_kg") @db.Decimal(14, 2)
+  declaredOn         DateTime    @map("declared_on") @db.Date
+  declaredBy         DeclaredBy  @map("declared_by")
+  declaredByUserId   String?     @map("declared_by_user_id") @db.Uuid
+  lossesPct          Decimal?    @map("losses_pct") @db.Decimal(5, 2)
+  lossCause          String?     @map("loss_cause")
+  priceHintFcfaPerKg Decimal?    @map("price_hint_fcfa_per_kg") @db.Decimal(10, 2)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  archivedAt  DateTime?   @map("archived_at")
+
+  @@index([parcelCropId])
+  @@map("production_declaration")
+}
+
+// Visite ou contrôle qui fait évoluer le statut de vérification d'une exploitation.
+model FarmVerification {
+  id                String                   @id @default(uuid(7)) @db.Uuid
+  farmId            String                   @map("farm_id") @db.Uuid
+  farm              Farm                     @relation(fields: [farmId], references: [id])
+  parcelId          String?                  @map("parcel_id") @db.Uuid
+  parcel            Parcel?                  @relation(fields: [parcelId], references: [id])
+  kind              FieldVerificationKind
+  outcome           FieldVerificationOutcome
+  notes             String?
+  identityConfirmed Boolean                  @default(false) @map("identity_confirmed")
+  visitedAt         DateTime                 @map("visited_at")
+  gpsPoint          Unsupported("geography(Point, 4326)")? @map("gps_point")
+  agentId           String?                  @map("agent_id") @db.Uuid
+  agent             User?                    @relation(fields: [agentId], references: [id])
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  sourceDate  DateTime    @map("source_date")
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([farmId, visitedAt])
+  @@map("farm_verification")
+}
+
+// Fil d'activité lisible d'une exploitation, alimenté par les événements de domaine.
+model FarmEvent {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  farmId     String   @map("farm_id") @db.Uuid
+  farm       Farm     @relation(fields: [farmId], references: [id])
+  kind       String
+  payload    Json?
+  actorId    String?  @map("actor_id") @db.Uuid
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  @@index([farmId, occurredAt])
+  @@map("farm_event")
+}
+
+// Journal des commandes reçues des appareils hors ligne (ADR-0005) : la clé d'idempotence
+// garantit qu'un lot rejoué ne s'applique qu'une fois.
+model SyncCommand {
+  id              String      @id @db.Uuid
+  idempotencyKey  String      @unique @map("idempotency_key")
+  deviceId        String      @map("device_id")
+  userId          String      @map("user_id") @db.Uuid
+  commandType     String      @map("command_type")
+  payload         Json
+  clientCreatedAt DateTime    @map("client_created_at")
+  receivedAt      DateTime    @default(now()) @map("received_at")
+  appliedAt       DateTime?   @map("applied_at")
+  outcome         SyncOutcome
+  result          Json?
+
+  @@index([userId, receivedAt])
+  @@map("sync_command")
 }

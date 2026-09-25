@@ -71,6 +71,12 @@ export default defineConfig([
             allow("database", ["database", "lib", "types", "styles", "generated"]),
             // lib/auth et lib/container câblent les adaptateurs : ils peuvent voir services et database.
             allow("lib", ["lib", "types", "services", "database", "generated"]),
+            // Le socle hors-ligne (lib/offline) partage les contrats du domaine (schémas de
+            // commandes, forme du référentiel) : en types seulement, jamais en valeurs.
+            {
+              from: { element: { type: "lib" } },
+              allow: [{ to: { element: { type: "modules" } }, importKind: "type" }],
+            },
             allow("types", ["types"]),
           ],
         },

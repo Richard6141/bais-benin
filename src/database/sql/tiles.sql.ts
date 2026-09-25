@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/database/client";
+import { Prisma } from "@/generated/prisma/client";
 import { isValidTile, simplifyToleranceMeters } from "@/lib/geo/tile-math";
 
 // Tuiles vectorielles (Mapbox Vector Tiles) produites par PostGIS. Chaque fonction renvoie
@@ -100,8 +101,20 @@ export async function departementTile(z: number, x: number, y: number): Promise<
  * Tuile des exploitations (points) : attributs code, verification_status, commune_id.
  * Prévue pour l'étape 5 ; tant que la table est vide, elle renvoie null.
  */
-export async function farmPointsTile(z: number, x: number, y: number): Promise<Buffer | null> {
+// Périmètre des points : `null` = sans restriction (usage interne, tests) ; une liste
+// d'identifiants de communes restreint la tuile à ces communes (agent) ; vide = rien.
+export type FarmTileScope = string[] | null;
+
+export async function farmPointsTile(
+  z: number,
+  x: number,
+  y: number,
+  scope: FarmTileScope = null,
+): Promise<Buffer | null> {
   assertTile(z, x, y);
+  if (scope !== null && scope.length === 0) return null;
+  const scopeClause =
+    scope === null ? Prisma.empty : Prisma.sql`AND f."commune_id" = ANY(${scope}::uuid[])`;
   const rows = await prisma.$queryRaw<unknown[]>`
     WITH bounds AS (
       SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
@@ -120,6 +133,7 @@ export async function farmPointsTile(z: number, x: number, y: number): Promise<B
       WHERE f."archived_at" IS NULL
         AND f."location" IS NOT NULL
         AND f."location" && ST_Transform(bounds.env, 4326)::geography
+        ${scopeClause}
     )
     SELECT ST_AsMVT(q, 'farms', ${EXTENT}::int, 'geom') AS tile
     FROM q

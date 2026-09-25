@@ -48,8 +48,8 @@ test.describe("PWA", () => {
   });
 
   test("sert la page de repli hors connexion", async ({ page }) => {
-    await page.goto("/~offline");
-    await expect(page.getByRole("heading", { name: "Vous êtes hors connexion" })).toBeVisible();
+    await page.goto("/hors-ligne");
+    await expect(page.getByRole("heading", { name: /pas disponible sans réseau/ })).toBeVisible();
   });
 });
 

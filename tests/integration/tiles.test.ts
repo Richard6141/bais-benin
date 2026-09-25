@@ -80,6 +80,26 @@ describe("tuiles vectorielles", () => {
     await expect(farmPointsTile(6, 0, 0)).resolves.toBeNull();
   });
 
+  it("restreint les points d'exploitations au périmètre de communes demandé", async () => {
+    const djougou = lonLatToTile(1.67, 9.7, 8);
+    const commune = await prisma.commune.findUniqueOrThrow({
+      where: { code: "BJ-DON-003" },
+      select: { id: true },
+    });
+    // Périmètre vide : aucune commune visible, donc aucune tuile, sans requête inutile.
+    await expect(farmPointsTile(8, djougou.x, djougou.y, [])).resolves.toBeNull();
+    const scoped = await farmPointsTile(8, djougou.x, djougou.y, [commune.id]);
+    expect(scoped).not.toBeNull();
+    expect(Buffer.from(scoped as Buffer).includes("farms")).toBe(true);
+    // Une autre commune du même zoom ne doit rien renvoyer sur cette tuile si ses exploitations
+    // sont ailleurs : Cotonou est à plus de 350 km.
+    const cotonou = await prisma.commune.findUniqueOrThrow({
+      where: { code: "BJ-LIT-001" },
+      select: { id: true },
+    });
+    await expect(farmPointsTile(8, djougou.x, djougou.y, [cotonou.id])).resolves.toBeNull();
+  });
+
   it("refuse une tuile hors grille", async () => {
     await expect(communeTile(3, 8, 0)).rejects.toThrow(RangeError);
     await expect(farmPointsTile(-1, 0, 0)).rejects.toThrow(RangeError);
