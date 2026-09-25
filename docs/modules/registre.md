@@ -64,4 +64,21 @@ Ce document décrit le registre livré à l'étape 5 : ce que voient l'agent de 
 pnpm test -- src/lib/offline src/features/registry src/modules/sync src/components/forms   # unitaires
 pnpm test:integration                                                                    # synchronisation, récolte, périmètre, tuiles
 pnpm build && pnpm test:e2e                                                              # parcours agent et producteur, hors ligne compris
+pnpm build && pnpm test:e2e tests/e2e/offline.spec.ts                                    # service worker seul
 ```
+
+**Service worker et développement.** Le service worker n'est actif qu'en build de production (`pnpm build` puis `pnpm start`) : en `next dev`, `PwaProvider` désactive Serwist pour ne pas servir de pages périmées pendant qu'on itère. Pour tester le hors ligne à la main, lancer le build, se connecter, ouvrir les pages de l'espace agent une première fois, puis couper le réseau dans les outils du navigateur (onglet Application, case « Offline »).
+
+Stratégies de cache (`src/app/sw.ts`) :
+
+| Requêtes | Stratégie |
+|---|---|
+| `/api/auth`, `/api/v1/sync`, tuiles `farms` | jamais de cache (réseau seul) |
+| `/_next/static`, polices, `/vendor`, icônes | cache d'abord, un an ou six mois |
+| `/api/v1/referentiel`, `/api/v1/registry/farms` | copie en cache servie aussitôt, rafraîchie en arrière-plan |
+| Tuiles des limites administratives | cache d'abord, trente jours |
+| Pages et charges RSC de `/agent` et `/agriculteur` | réseau d'abord (8 s), cache en secours, trente jours |
+| Autres pages | réseau d'abord, cache court |
+| Page jamais visitée, sans réseau | page de repli `/hors-ligne`, précachée à l'installation |
+
+La coque de l'espace agent est donc disponible hors ligne après une première visite en ligne : chaque page ouverte est mise en cache à la navigation, sans précache de toutes les routes.
