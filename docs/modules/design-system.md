@@ -107,7 +107,9 @@ La valeur claire de `--watch` est plus sombre que la couleur de série `--chart-
 | Jeton | Où | Contenu | Usage |
 |---|---|---|---|
 | `--chart-1` à `--chart-5` | CSS et Tailwind (`bg-chart-1`) | Cinq couleurs de séries, adaptées au thème sombre | Graphiques à peu de séries, badges de fiabilité |
-| `sequentialScale` | `tokens.ts` | 7 paliers du plus clair au golfe profond | Densité, hectares, production sur les cartes choroplèthes |
+| `choroplethScale` | `tokens.ts` | 7 classes de teintes distinctes (jaune, vert clair, émeraude, céruléen, bleu roi, violet, lie-de-vin), de clarté décroissante ; ni rouge ni orange, réservés aux alertes | Classes par quantiles de la carte agricole (`/carte`, pilotage) |
+| `choroplethNoData` | `tokens.ts` | Gris neutre hors échelle | Communes sans donnée ou masquées par le secret statistique |
+| `sequentialScale` | `tokens.ts` | 7 paliers du plus clair au golfe profond | Densité ou intensité sur un fond monochrome (graphiques, aplats) |
 | `divergingScale` | `tokens.ts` | 7 paliers, latérite pour le déficit, craie au centre, golfe pour l'excédent | Écart à la normale (pluie, rendement) |
 | `cropColors` | `tokens.ts` | Couleur fixe par culture majeure (12 codes), distinctes en deutéranopie et protanopie | Même couleur pour une culture dans tout le produit |
 | `reliabilityColors` | `tokens.ts` | Une couleur par niveau de fiabilité | Cartes et graphiques, en cohérence avec `ReliabilityBadge` |
@@ -129,7 +131,7 @@ La valeur claire de `--watch` est plus sombre que la couleur de série `--chart-
 ### 2.7 Comment consommer les jetons
 
 - **Dans un composant React rendu par le navigateur** : uniquement des classes Tailwind sémantiques (`bg-primary`, `text-muted-foreground`, `border-border`, `bg-watch/15`). Jamais de valeur hexadécimale en dur, jamais de `style={{ color: … }}` pour une couleur de la palette.
-- **Dans MapLibre, un graphique ou un export image** : importer `brandColors`, `semanticColors`, `sequentialScale`, `divergingScale`, `cropColors` ou `reliabilityColors` depuis `@/styles/tokens`. Les bibliothèques de cartographie et de graphiques reçoivent des chaînes, pas des variables CSS.
+- **Dans MapLibre, un graphique ou un export image** : importer `brandColors`, `semanticColors`, `choroplethScale`, `sequentialScale`, `divergingScale`, `cropColors` ou `reliabilityColors` depuis `@/styles/tokens`. Les bibliothèques de cartographie et de graphiques reçoivent des chaînes, pas des variables CSS.
 - **Une couleur qui n'existe pas dans les jetons** est un signal : soit le besoin se ramène à un jeton existant, soit il faut ajouter le jeton dans les deux fichiers et l'exposer dans `globals.css`, avec une justification dans la section « Jetons » de `/design-system`.
 - **Thème sombre** : les composants doivent rester lisibles dans les deux thèmes. Les variables sémantiques shadcn et les couleurs produit sont toutes redéfinies dans `.dark` ; un composant qui utilise `text-watch` ou `border-l-critical` est donc lisible dans les deux thèmes sans variante. Une variante `dark:` ne reste nécessaire que pour un fond teinté (`bg-laterite-soft` devient `dark:bg-laterite/30` dans `Badge`), car les couleurs de marque, elles, ne changent pas avec le thème.
 

@@ -19,11 +19,11 @@ export function MinistryLockup({
 }: MinistryLockupProps) {
   return (
     <span className={cn("flex items-center gap-3", className)}>
-      <GovernmentEmblem height={compact ? 40 : 48} />
+      <GovernmentEmblem size={compact ? 44 : 56} />
       <span className="flex flex-col gap-1 leading-tight">
         <span
           className={cn(
-            "text-[11px] font-bold tracking-wide uppercase sm:text-xs",
+            "text-xs font-bold tracking-wide uppercase sm:text-sm",
             inverted ? "text-white" : "text-heading",
           )}
         >
@@ -31,14 +31,14 @@ export function MinistryLockup({
           <br />
           de l&apos;Élevage et de la Pêche
         </span>
-        <span aria-hidden className="flex h-[3px] w-full max-w-40">
+        <span aria-hidden className="flex h-1 w-full max-w-48">
           <span className="flex-1 bg-[var(--flag-green)]" />
           <span className="flex-1 bg-[var(--flag-yellow)]" />
           <span className="flex-1 bg-[var(--flag-red)]" />
         </span>
         <span
           className={cn(
-            "text-[10px] font-medium tracking-wide uppercase sm:text-[11px]",
+            "text-[11px] font-medium tracking-wide uppercase sm:text-xs",
             inverted ? "text-white/80" : "text-muted-foreground",
           )}
         >

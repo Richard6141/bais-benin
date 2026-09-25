@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { MinistryLockup } from "@/components/brand/ministry-lockup";
+import { MinistryLogo } from "@/components/brand/ministry-logo";
 import { SiteFooter } from "@/components/layout/site-footer";
 
 // Écrans d'identification : une colonne étroite, pas de navigation secondaire,
@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <header className="border-b-4 border-band">
         <div className="mx-auto flex h-20 w-full max-w-6xl items-center px-4 sm:px-6">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
-            <MinistryLockup />
+            <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
           </Link>
         </div>

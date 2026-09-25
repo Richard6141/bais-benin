@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MinistryLockup } from "@/components/brand/ministry-lockup";
+import { MinistryLogo } from "@/components/brand/ministry-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 
@@ -19,7 +19,7 @@ export function SiteHeader() {
       <div className="border-b bg-background">
         <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
-            <MinistryLockup />
+            <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
           </Link>
           <div className="flex items-center gap-2">
