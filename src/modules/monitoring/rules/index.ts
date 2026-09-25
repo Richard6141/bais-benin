@@ -12,6 +12,7 @@ export {
   type IndicatorCode,
   type IndicatorValue,
   type IndicatorValues,
+  type NumericIndicator,
   type Operator,
   type Rule,
   type RuleCategory,
