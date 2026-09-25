@@ -1,25 +1,18 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { signInAsMinistry } from "./helpers/ministry";
+import { openAs } from "./helpers/sessions";
 
 // Parcours du monitoring (étape 6) contre les alertes de démonstration du seed : Djougou (stress
 // hydrique), Adjohoun (inondation), Malanville (chaleur), Savalou (fortes pluies), Bohicon
 // (chenille). Le compte ministère n'a pas de double authentification enregistrée dans le seed :
 // on vérifie que le centre d'alertes reste protégé, pas son contenu.
-const DEMO_CODE = process.env.OTP_DEMO_CODE ?? "246810";
 const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
 
-async function signInByPhone(page: Page, nationalDigits: string) {
-  await page.goto("/connexion");
-  await page.getByLabel("Votre numéro de téléphone").fill(nationalDigits);
-  await page.getByRole("button", { name: "Recevoir mon code" }).click();
-  await expect(page.getByText(/Code reçu au \+229/)).toBeVisible();
-  await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
-  await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-}
-
 test.describe("monitoring, espace agricultrice", () => {
-  test("voit l'alerte de Djougou, ouvre la fiche, lit le conseil et confirme", async ({ page }) => {
-    await signInByPhone(page, "0190000002");
+  test("voit l'alerte de Djougou, ouvre la fiche, lit le conseil et confirme", async ({
+    page,
+  }, testInfo) => {
+    await openAs(page, testInfo, "farmer");
     await expect(page.getByRole("link", { name: /^Alertes :/ })).toBeVisible();
 
     await page.goto("/agriculteur/alertes");
@@ -41,8 +34,8 @@ test.describe("monitoring, espace agricultrice", () => {
     expect(noHorizontalScroll).toBe(true);
   });
 
-  test("consulte la météo de sa commune", async ({ page }) => {
-    await signInByPhone(page, "0190000002");
+  test("consulte la météo de sa commune", async ({ page }, testInfo) => {
+    await openAs(page, testInfo, "farmer");
     await page.goto("/agriculteur/meteo");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Djougou");
     await expect(page.getByText("Pluie des 10 derniers jours")).toBeVisible();
@@ -53,8 +46,8 @@ test.describe("monitoring, espace agricultrice", () => {
 test.describe("monitoring, espace agent", () => {
   test("liste les alertes de sa commune et ouvre la fiche avec les exploitations", async ({
     page,
-  }) => {
-    await signInByPhone(page, "0190000001");
+  }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await page.goto("/agent/alertes");
     await expect(page.getByRole("tab", { name: /Actives/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: /Récentes/ })).toBeVisible();
@@ -83,8 +76,8 @@ test.describe("monitoring, espace agent", () => {
     expect(noHorizontalScroll).toBe(true);
   });
 
-  test("la navigation de l'espace agent mène aux alertes", async ({ page }) => {
-    await signInByPhone(page, "0190000001");
+  test("la navigation de l'espace agent mène aux alertes", async ({ page }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await page
       .getByRole("navigation", { name: "Espace agent" })
       .getByRole("link", { name: "Alertes" })

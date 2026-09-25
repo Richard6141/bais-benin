@@ -1,25 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openAs } from "./helpers/sessions";
 
 // Parcours du registre (étape 5) contre le seed de démonstration : agent de Djougou
 // (0190000001) et agricultrice rattachée à une exploitation de Djougou (0190000002),
-// code OTP_DEMO_CODE (246810). Les saisies hors ligne passent par la base locale (Dexie)
+// sessions ouvertes une fois par le globalSetup (helpers/sessions.ts). Les saisies hors ligne passent par la base locale (Dexie)
 // puis par la file de synchronisation : chaque test travaille dans son propre contexte
 // de navigateur, donc avec une base locale vide.
-const DEMO_CODE = process.env.OTP_DEMO_CODE ?? "246810";
-const AGENT = "0190000001";
-const FARMER = "0190000002";
 const DJOUGOU_CODE = "BJ-DON-003";
 // Tuile de zoom 8 couvrant Djougou (1,667 E ; 9,708 N).
 const DJOUGOU_TILE = "/api/tiles/farms/8/129/121.pbf";
-
-async function signInByPhone(page: Page, nationalDigits: string) {
-  await page.goto("/connexion");
-  await page.getByLabel("Votre numéro de téléphone").fill(nationalDigits);
-  await page.getByRole("button", { name: "Recevoir mon code" }).click();
-  await expect(page.getByText(/Code reçu au \+229/)).toBeVisible();
-  await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
-  await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-}
 
 const syncChip = (page: Page) => page.locator("[data-sync-state]").first();
 
@@ -53,8 +42,8 @@ async function waitForSync(page: Page) {
 }
 
 test.describe("espace agent", () => {
-  test("accueil, liste des exploitations, recherche et fiche", async ({ page }) => {
-    await signInByPhone(page, AGENT);
+  test("accueil, liste des exploitations, recherche et fiche", async ({ page }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await expect(page).toHaveURL(/\/agent$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Bonjour");
     const figures = page.getByRole("region", { name: "Chiffres de votre périmètre" });
@@ -89,16 +78,18 @@ test.describe("espace agent", () => {
     await expect(page.getByRole("tabpanel")).toBeVisible();
   });
 
-  test("premier lancement : le périmètre est téléchargé pour le hors-ligne", async ({ page }) => {
-    await signInByPhone(page, AGENT);
+  test("premier lancement : le périmètre est téléchargé pour le hors-ligne", async ({
+    page,
+  }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     await downloadOfflineData(page);
     await expect(page.getByRole("button", { name: "Mettre à jour" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Commencer" })).toBeVisible();
   });
 
-  test("enregistrement hors ligne puis synchronisation", async ({ page, context }) => {
+  test("enregistrement hors ligne puis synchronisation", async ({ page, context }, testInfo) => {
     test.slow();
-    await signInByPhone(page, AGENT);
+    await openAs(page, testInfo, "agent");
     await downloadOfflineData(page);
 
     // La page est ouverte en ligne (le service worker n'est pas encore garanti en test), puis
@@ -175,7 +166,7 @@ test.describe("espace agent", () => {
     // Une seule visite par exécution : deux profils en parallèle se disputeraient la même fiche.
     test.skip(testInfo.project.name !== "desktop", "profil desktop uniquement");
     test.slow();
-    await signInByPhone(page, AGENT);
+    await openAs(page, testInfo, "agent");
     await page.goto("/agent/verification");
     const first = page.locator('a[href^="/agent/verification/"]').first();
     await expect(first).toBeVisible();
@@ -205,8 +196,8 @@ test.describe("espace agent", () => {
 test.describe("espace agricultrice", () => {
   test("déclare une récolte en trois questions et la retrouve dans l'historique", async ({
     page,
-  }) => {
-    await signInByPhone(page, FARMER);
+  }, testInfo) => {
+    await openAs(page, testInfo, "farmer");
     await expect(page).toHaveURL(/\/agriculteur$/);
     // Le seed rattache l'agricultrice de démonstration à une exploitation de Djougou.
     await expect(page.getByText("Mon exploitation", { exact: true })).toBeVisible();
@@ -243,8 +234,8 @@ test.describe("périmètre des données", () => {
     expect(anonymousList.status()).toBe(401);
   });
 
-  test("un agent ne voit que les exploitations de sa commune", async ({ page }) => {
-    await signInByPhone(page, AGENT);
+  test("un agent ne voit que les exploitations de sa commune", async ({ page }, testInfo) => {
+    await openAs(page, testInfo, "agent");
     const response = await page.request.get("/api/v1/registry/farms?limit=200");
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { items: Array<{ commune: { code: string } }> };

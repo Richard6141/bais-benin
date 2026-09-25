@@ -15,6 +15,7 @@ import {
   activateMinistryTwoFactor,
   ministryEmailFor,
 } from "./helpers/ministry";
+import { PHONE_ACCOUNTS, savePhoneSession, type PhonePersona } from "./helpers/sessions";
 
 // Avant la suite : horodatage de début et instantané de l'état de vérification des exploitations,
 // pour que le nettoyage final restaure exactement les exploitations visitées par les tests ; puis
@@ -23,7 +24,8 @@ export default async function globalSetup(config: FullConfig) {
   await mkdir(STATE_DIR, { recursive: true });
   // Les clés TOTP d'une exécution précédente ne valent plus : les comptes sont recréés.
   for (const file of await readdir(STATE_DIR)) {
-    if (file.startsWith("totp-")) await rm(join(STATE_DIR, file), { force: true });
+    if (file.startsWith("totp-") || file.startsWith("session-"))
+      await rm(join(STATE_DIR, file), { force: true });
   }
 
   // Les limites de débit d'abord : l'activation de la double authentification ci-dessous se connecte.
@@ -34,6 +36,20 @@ export default async function globalSetup(config: FullConfig) {
       console.warn(
         "Limites de débit non remises à zéro : des connexions pourraient être refusées.",
       );
+    }
+  }
+
+  // Une connexion par OTP par profil et par persona, au lieu d'une par test (limite d'envoi).
+  for (const project of config.projects) {
+    const baseURL = project.use.baseURL ?? config.webServer?.url ?? "http://localhost:3000";
+    for (const persona of Object.keys(PHONE_ACCOUNTS) as PhonePersona[]) {
+      try {
+        await savePhoneSession(baseURL, project.name, persona);
+      } catch (error) {
+        console.warn(
+          `Session ${persona} non enregistrée pour ${project.name} : ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
   }
 
