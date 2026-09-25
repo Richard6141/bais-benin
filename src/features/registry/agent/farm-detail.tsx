@@ -52,7 +52,9 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-primary">Exploitation</p>
+          <nav aria-label="Fil d'Ariane" className="mb-2 text-sm text-muted-foreground">
+            Accueil › Exploitations
+          </nav>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {farm.farmer.displayName}
           </h1>

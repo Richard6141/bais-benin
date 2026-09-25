@@ -128,7 +128,7 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
                     aria-current={active ? "page" : undefined}
                     scroll={false}
                     className={cn(
-                      "inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap",
+                      "inline-flex h-11 items-center gap-1.5 rounded-sm border px-4 text-sm font-medium whitespace-nowrap",
                       active
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border hover:bg-accent",

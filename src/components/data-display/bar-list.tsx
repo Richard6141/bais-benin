@@ -72,8 +72,8 @@ export function BarList({ items, label, max, className }: BarListProps) {
                 )}
               </span>
             </div>
-            <div aria-hidden className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${width}%` }} />
+            <div aria-hidden className="h-2 overflow-hidden bg-muted">
+              <div className="h-full bg-primary" style={{ width: `${width}%` }} />
             </div>
             {item.detail ? <p className="text-xs text-muted-foreground">{item.detail}</p> : null}
           </li>

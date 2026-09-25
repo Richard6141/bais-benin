@@ -125,7 +125,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
         <AlertsSummary overview={alerts} />
       </DashboardSection>
 
-      <DashboardSection id="qualite" title="Qualité des données en un coup d'œil">
+      <DashboardSection id="qualite" title="Qualité des données">
         <QualityGlance quality={quality} />
       </DashboardSection>
     </div>

@@ -103,7 +103,7 @@ export function MapSidePanel({ stats, selected, cropNames, onClearSelection }: M
               <p className="text-xs text-muted-foreground">Cultures présentes</p>
               <ul className="mt-1 flex flex-wrap gap-1.5">
                 {selected.cropCodes.map((code) => (
-                  <li key={code} className="rounded-full border px-2 py-0.5 text-xs">
+                  <li key={code} className="rounded-sm border px-2 py-0.5 text-xs">
                     {cropNames.get(code) ?? code}
                   </li>
                 ))}
