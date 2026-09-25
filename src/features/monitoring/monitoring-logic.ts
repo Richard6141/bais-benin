@@ -182,14 +182,16 @@ export interface AffectedFarmLike {
   hasPhone: boolean;
   read: boolean;
   relay: unknown;
-  attention: "NO_PHONE" | "DELIVERY_FAILED" | "UNREAD" | null;
+  attention: "NO_PHONE" | "TO_CALL" | "DELIVERY_FAILED" | "NOT_SENT" | "UNREAD" | null;
 }
 
 export interface AffectedSummary {
   total: number;
-  /** Sans téléphone : à prévenir de vive voix. */
+  /** Sans téléphone, ou aucun canal abouti et aucun relais prévu : à prévenir de vive voix. */
   toTellInPerson: number;
   deliveryFailed: number;
+  /** Message non envoyé (canal écarté), relais par l'agent prévu. Jamais compté en échec. */
+  notSent: number;
   unread: number;
   relayed: number;
   read: number;
@@ -198,8 +200,10 @@ export interface AffectedSummary {
 export function summarizeAffected(farms: readonly AffectedFarmLike[]): AffectedSummary {
   return {
     total: farms.length,
-    toTellInPerson: farms.filter((f) => f.attention === "NO_PHONE").length,
+    toTellInPerson: farms.filter((f) => f.attention === "NO_PHONE" || f.attention === "TO_CALL")
+      .length,
     deliveryFailed: farms.filter((f) => f.attention === "DELIVERY_FAILED").length,
+    notSent: farms.filter((f) => f.attention === "NOT_SENT").length,
     unread: farms.filter((f) => f.attention === "UNREAD").length,
     relayed: farms.filter((f) => f.relay !== null && f.relay !== undefined).length,
     read: farms.filter((f) => f.read).length,

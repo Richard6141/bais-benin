@@ -119,7 +119,7 @@ describe("filtres du centre d'alertes", () => {
 describe("exploitations concernées", () => {
   const farm = (
     village: string | null,
-    attention: "NO_PHONE" | "DELIVERY_FAILED" | "UNREAD" | null,
+    attention: "NO_PHONE" | "TO_CALL" | "DELIVERY_FAILED" | "NOT_SENT" | "UNREAD" | null,
     extra: { read?: boolean; relay?: unknown } = {},
   ) => ({
     village,
@@ -141,10 +141,20 @@ describe("exploitations concernées", () => {
       total: 38,
       toTellInPerson: 25,
       deliveryFailed: 1,
+      notSent: 0,
       unread: 10,
       relayed: 1,
       read: 1,
     });
+  });
+
+  it("compte « à prévenir de vive voix » et « non envoyé » sans les confondre avec un échec", () => {
+    const summary = summarizeAffected([
+      farm("Bariénou", "TO_CALL"),
+      farm("Bariénou", "NO_PHONE"),
+      ...Array.from({ length: 3 }, () => farm("Bariénou", "NOT_SENT")),
+    ]);
+    expect(summary).toMatchObject({ toTellInPerson: 2, notSent: 3, deliveryFailed: 0 });
   });
 
   it("pagine par 20 en cumulant les pages et en gardant l'ordre", () => {

@@ -27,8 +27,19 @@ const CHANNEL_STATUS: Record<
 
 const ATTENTION_LABELS = {
   NO_PHONE: "Sans téléphone",
+  TO_CALL: "À prévenir de vive voix",
   DELIVERY_FAILED: "Message en échec",
+  NOT_SENT: "Non envoyé",
   UNREAD: "Pas encore lu",
+} as const;
+
+// « Non envoyé » reste neutre : le relais de l'agent est prévu, rien n'a échoué.
+const ATTENTION_VARIANTS = {
+  NO_PHONE: "warning",
+  TO_CALL: "warning",
+  DELIVERY_FAILED: "warning",
+  NOT_SENT: "outline",
+  UNREAD: "watch",
 } as const;
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -65,6 +76,8 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
   const figures = [
     { label: "À prévenir de vive voix", value: summary.toTellInPerson, tone: "text-warning" },
     { label: "Échecs d'envoi", value: summary.deliveryFailed, tone: "text-critical" },
+    // Canal écarté (mode démonstration, silence nocturne) avec relais prévu : jamais un échec.
+    { label: "Non envoyés", value: summary.notSent, tone: "" },
     { label: "Non lus", value: summary.unread, tone: "text-watch" },
     { label: "Relayés", value: summary.relayed, tone: "text-success" },
   ];
@@ -81,9 +94,13 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
           {integer.format(summary.total)}
         </span>
       </h2>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Résumé de la diffusion">
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Résumé de la diffusion">
         {figures.map((figure) => (
-          <div key={figure.label} className="rounded-lg border bg-card p-3">
+          // Cinq chiffres sur deux colonnes : le dernier occupe la ligne entière sur mobile.
+          <div
+            key={figure.label}
+            className="rounded-lg border bg-card p-3 last:col-span-2 sm:last:col-span-1"
+          >
             <dt className="text-xs text-muted-foreground">{figure.label}</dt>
             <dd className={cn("tabular text-2xl font-semibold", figure.value > 0 && figure.tone)}>
               {integer.format(figure.value)}
@@ -94,8 +111,8 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
       {summary.toTellInPerson > 0 ? (
         <p className="text-sm">
           {summary.toTellInPerson === 1
-            ? "1 producteur n'a pas de téléphone"
-            : `${summary.toTellInPerson} producteurs n'ont pas de téléphone`}{" "}
+            ? "1 producteur ne sera joint par aucun message"
+            : `${summary.toTellInPerson} producteurs ne seront joints par aucun message`}{" "}
           : prévenez-les lors de votre tournée. Ils apparaissent en tête de liste.
         </p>
       ) : null}
@@ -142,7 +159,7 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{farm.farmerName}</span>
                   {farm.attention ? (
-                    <Badge variant={farm.attention === "UNREAD" ? "watch" : "warning"}>
+                    <Badge variant={ATTENTION_VARIANTS[farm.attention]}>
                       {ATTENTION_LABELS[farm.attention]}
                     </Badge>
                   ) : null}

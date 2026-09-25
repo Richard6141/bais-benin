@@ -5,13 +5,25 @@ import type { Db } from "./plan";
 
 // Exploitations concernées par une alerte, vues par l'agent (monitoring-parcours-ux §2.B, B2) :
 // qui appeler ou visiter en premier. Le téléphone n'est renvoyé qu'avec le droit
-// `farmer.contact.read` sur la commune ; l'ordre met en tête les producteurs sans téléphone et
-// les envois en échec, puis les messages non lus, et enfin ceux qui ont lu ou été prévenus.
+// `farmer.contact.read` sur la commune ; l'ordre met en tête les producteurs sans téléphone ou à
+// prévenir de vive voix, puis les échecs, les messages non envoyés, les non lus, et enfin ceux
+// qui ont lu ou été prévenus.
 
 export type ChannelStatus =
   "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "RELAYED" | "SKIPPED";
 
-export type AttentionReason = "NO_PHONE" | "DELIVERY_FAILED" | "UNREAD" | null;
+/**
+ * Pourquoi l'agent doit s'occuper d'une exploitation, du plus urgent au moins urgent :
+ * - NO_PHONE : aucun numéro, seul un passage ou un appel à un proche peut prévenir ;
+ * - TO_CALL : « à prévenir de vive voix », aucun canal n'a abouti et aucun relais n'est prévu ;
+ * - DELIVERY_FAILED : un envoi a réellement échoué et aucun autre canal n'a abouti ;
+ * - NOT_SENT : « non envoyé », le message n'est pas parti (canal écarté, alerte de
+ *   démonstration, pas de consentement) mais un relais par l'agent est prévu ;
+ * - UNREAD : un canal a abouti (message ou application) ou est encore en file, pas encore lu.
+ * Un envoi écarté (SKIPPED) n'est jamais compté comme un échec.
+ */
+export type AttentionReason =
+  "NO_PHONE" | "TO_CALL" | "DELIVERY_FAILED" | "NOT_SENT" | "UNREAD" | null;
 
 export interface AffectedFarm {
   farmId: string;
@@ -30,9 +42,11 @@ export interface AffectedFarm {
 const SUCCESS = new Set<ChannelStatus>(["SENT", "DELIVERED", "READ"]);
 const ATTENTION_ORDER: Record<Exclude<AttentionReason, null> | "OK", number> = {
   NO_PHONE: 0,
-  DELIVERY_FAILED: 1,
-  UNREAD: 2,
-  OK: 3,
+  TO_CALL: 1,
+  DELIVERY_FAILED: 2,
+  NOT_SENT: 3,
+  UNREAD: 4,
+  OK: 5,
 };
 
 export function attentionOf(
@@ -40,17 +54,14 @@ export function attentionOf(
 ): AttentionReason {
   if (farm.relay || farm.read) return null;
   if (!farm.hasPhone) return "NO_PHONE";
-  const outbound = (["WHATSAPP", "SMS"] as const)
-    .map((c) => farm.channels[c])
-    .filter(Boolean) as ChannelStatus[];
-  const succeeded = outbound.some((s) => SUCCESS.has(s));
-  if (
-    !succeeded &&
-    (outbound.length === 0 || outbound.some((s) => s === "FAILED" || s === "SKIPPED"))
-  ) {
-    return "DELIVERY_FAILED";
-  }
-  return "UNREAD";
+  const { IN_APP, WHATSAPP, SMS, RELAY } = farm.channels;
+  const outbound = [WHATSAPP, SMS].filter(Boolean) as ChannelStatus[];
+  // Un message parti, ou encore en file (silence nocturne, relance), n'attend que sa lecture.
+  const reaching = [...outbound, IN_APP].filter(Boolean) as ChannelStatus[];
+  if (reaching.some((s) => SUCCESS.has(s) || s === "PENDING")) return "UNREAD";
+  if (outbound.some((s) => s === "FAILED")) return "DELIVERY_FAILED";
+  const relayPlanned = RELAY !== undefined && RELAY !== "SKIPPED" && RELAY !== "FAILED";
+  return relayPlanned ? "NOT_SENT" : "TO_CALL";
 }
 
 export function sortAffectedFarms(farms: AffectedFarm[]): AffectedFarm[] {
