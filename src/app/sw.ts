@@ -91,23 +91,30 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
   {
-    // Charges RSC des espaces (navigation côté client) : même stratégie que les documents.
+    // B2 : charges RSC des espaces authentifiés (navigation côté client). Le repli sur cache
+    // n'existe que pour amortir un réseau lent ou une coupure de quelques minutes en plein
+    // parcours de terrain — pas pour rester valide des semaines. Une rétention courte réduit
+    // la fenêtre pendant laquelle un appareil partagé, jamais explicitement déconnecté
+    // (sign-out-button.tsx vide déjà ce cache normalement), pourrait rendre une page
+    // authentifiée périmée ; session-identity-guard.tsx détecte et corrige le cas résiduel où
+    // la page servie ne correspond plus à la session active.
     matcher: ({ sameOrigin, request, url }) =>
       sameOrigin && request.headers.get("RSC") === "1" && isSpacePath(url.pathname),
     handler: new NetworkFirst({
       cacheName: "bais-spaces-rsc",
       networkTimeoutSeconds: 8,
-      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 30 * DAY })],
+      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: DAY })],
     }),
   },
   {
-    // Documents HTML des espaces agent et agriculteur : réseau d'abord, cache en secours.
+    // Documents HTML des espaces agent et agriculteur : réseau d'abord, cache en secours de
+    // courte durée (même raisonnement que la charge RSC ci-dessus).
     matcher: ({ sameOrigin, request, url }) =>
       sameOrigin && request.mode === "navigate" && isSpacePath(url.pathname),
     handler: new NetworkFirst({
       cacheName: "bais-spaces-pages",
       networkTimeoutSeconds: 8,
-      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 30 * DAY })],
+      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: DAY })],
     }),
   },
   {
