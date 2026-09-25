@@ -4,7 +4,7 @@ import { Monogram } from "@/components/brand/monogram";
 // Pied de page institutionnel : identité, nature de la plateforme, liens utiles.
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border/70 bg-card">
+    <footer className="border-t border-border/70 bg-card print:hidden">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 text-sm sm:px-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="max-w-sm">
           <div className="flex items-center gap-3">

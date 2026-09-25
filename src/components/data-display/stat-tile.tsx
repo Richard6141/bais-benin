@@ -14,7 +14,9 @@ export interface StatTrend {
 
 interface StatTileProps {
   label: string;
-  value: string | number;
+  /** Un nombre est formaté en français ; un nœud (valeur masquée par le secret statistique) est
+   *  rendu tel quel. */
+  value: ReactNode;
   unit?: string;
   trend?: StatTrend;
   source?: string;
