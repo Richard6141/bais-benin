@@ -21,12 +21,14 @@ const MapCanvas = dynamic(() => import("./map-canvas").then((module) => module.M
 interface AgriMapProps {
   options: FilterOptions;
   canShowFarms: boolean;
+  /** Filtre par statut de vérification (adresse) : ministère seulement, refusé par l'API sinon. */
+  canFilterByStatus: boolean;
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
 
-function readFilters(params: URLSearchParams): MapFilters {
-  const status = params.get("verificationStatus");
+function readFilters(params: URLSearchParams, allowStatus: boolean): MapFilters {
+  const status = allowStatus ? params.get("verificationStatus") : null;
   return {
     cropCode: params.get("cropCode") ?? undefined,
     campaignCode: params.get("campaignCode") ?? undefined,
@@ -42,11 +44,14 @@ function readFilters(params: URLSearchParams): MapFilters {
 }
 
 // Les filtres vivent dans l'URL : une vue se partage par lien et survit au rechargement.
-export function AgriMap({ options, canShowFarms }: AgriMapProps) {
+export function AgriMap({ options, canShowFarms, canFilterByStatus }: AgriMapProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const filters = useMemo(() => readFilters(searchParams), [searchParams]);
+  const filters = useMemo(
+    () => readFilters(searchParams, canFilterByStatus),
+    [searchParams, canFilterByStatus],
+  );
   const metricParam = searchParams.get("metric");
   const metric: MetricKey = METRIC_KEYS.includes(metricParam as MetricKey)
     ? (metricParam as MetricKey)

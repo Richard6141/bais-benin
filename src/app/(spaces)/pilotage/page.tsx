@@ -108,7 +108,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
       >
         <div className="h-[720px] overflow-hidden rounded-xl border print:hidden">
           <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
-            <AgriMap options={{ crops, campaigns, departements }} canShowFarms />
+            <AgriMap options={{ crops, campaigns, departements }} canShowFarms canFilterByStatus />
           </Suspense>
         </div>
       </DashboardSection>

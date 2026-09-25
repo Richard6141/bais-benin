@@ -31,7 +31,7 @@ import {
   type PreviousCampaignFigures,
 } from "./dashboard-types";
 import { isSmallCell } from "./k-anonymity";
-import { analyticsScope, type AnalyticsScope } from "./scope";
+import { analyticsScope, assertFiltersAllowed, type AnalyticsScope } from "./scope";
 
 // Services du tableau de bord national (pilotage-parcours-ux §2.A) : tuiles, production par
 // culture, comparaison entre campagnes. Lecture des vues matérialisées, périmètre de l'acteur,
@@ -46,6 +46,7 @@ export function parseDashboardFilters(input: unknown): DashboardFilters {
 }
 
 export function sqlFilters(filters: DashboardFilters, scope: AnalyticsScope): DashboardSqlFilters {
+  assertFiltersAllowed(filters, scope);
   return {
     cropCode: filters.cropCode,
     departementCode: filters.departementCode,
