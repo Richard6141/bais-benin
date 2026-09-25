@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/lib/auth/auth";
-import { loadActor } from "@/modules/identity";
+import { getApiActor } from "@/features/auth/api-actor";
 import { applySyncBatch, syncBatchSchema } from "@/modules/sync";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +10,11 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024;
 // Une session valide est requise ; l'appareil émetteur est identifié par l'en-tête X-Device-Id,
 // conservé avec chaque commande pour l'audit et la révocation d'appareil.
 export async function POST(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
+  // B1 : getApiActor applique en plus les contrôles de session (suspension, limite de 12 h
+  // institutionnelle, 2FA obligatoire pour ADMIN_STATE) qu'une lecture brute de la session
+  // ne fait pas.
+  const apiActor = await getApiActor(request.headers);
+  if (!apiActor) {
     return NextResponse.json({ error: "Authentification requise" }, { status: 401 });
   }
   const deviceId = request.headers.get("x-device-id")?.trim();
@@ -45,7 +47,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const actor = await loadActor(session.user.id);
-  const results = await applySyncBatch(actor, deviceId, parsed.data.commands);
+  const results = await applySyncBatch(apiActor.actor, deviceId, parsed.data.commands);
   return NextResponse.json({ results, receivedAt: new Date().toISOString() });
 }

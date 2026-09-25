@@ -28,9 +28,23 @@ export interface CurrentUser {
 const INSTITUTIONAL_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const INSTITUTIONAL_ROLES: RoleCode[] = ["ADMIN_STATE", "COOPERATIVE", "BUYER"];
 
-// Une lecture par requête : React met le résultat en cache pour tous les composants serveur.
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const result = await auth.api.getSession({ headers: await headers() });
+// B1 : les contrôles de session qui dépendent de la base (suspension, limite institutionnelle
+// de 12 h) sont mis en commun ici entre les pages (getCurrentUser) et l'API (api-actor.ts,
+// getApiActor) — jusqu'ici seules les pages en bénéficiaient, l'API se contentait de la
+// session brute et des rôles. better-auth n'a qu'une durée de session globale ; ces règles
+// sont donc réévaluées applicativement à chaque lecture plutôt que déléguées à sa config.
+export type SessionUser = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>["user"];
+export type SessionRecord = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>["session"];
+
+export interface ResolvedSession {
+  user: SessionUser;
+  session: SessionRecord;
+  actor: Actor;
+  role: RoleCode | null;
+}
+
+export async function resolveSession(headersInput: Headers): Promise<ResolvedSession | null> {
+  const result = await auth.api.getSession({ headers: headersInput });
   if (!result) return null;
   const { user, session } = result;
   if (user.status === "SUSPENDED" || user.status === "DELETED") return null;
@@ -41,6 +55,14 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     const age = Date.now() - new Date(session.createdAt).getTime();
     if (age > INSTITUTIONAL_MAX_AGE_MS) return null;
   }
+  return { user, session, actor, role };
+}
+
+// Une lecture par requête : React met le résultat en cache pour tous les composants serveur.
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const resolved = await resolveSession(await headers());
+  if (!resolved) return null;
+  const { user, session, actor, role } = resolved;
 
   return {
     id: user.id,
