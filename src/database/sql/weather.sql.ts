@@ -94,6 +94,8 @@ export async function readWeatherSeries(
   referenceDate: string,
   pastDays: number,
   forecastDays: number,
+  /** Dernière date d'émission acceptée pour les prévisions (par défaut la date de référence). */
+  issuedBy: string = referenceDate,
 ): Promise<WeatherSeriesRow[]> {
   if (communeIds.length === 0) return [];
   const rows = await prisma.$queryRaw<unknown[]>`
@@ -112,7 +114,7 @@ export async function readWeatherSeries(
           OR (w."kind" = 'FORECAST'
             AND w."observed_on" > ${referenceDate}::date
             AND w."observed_on" <= ${referenceDate}::date + ${forecastDays}::int
-            AND w."issued_on" <= ${referenceDate}::date)
+            AND w."issued_on" <= ${issuedBy}::date)
         )
     )
     SELECT "commune_id", "observed_on", "kind"::text AS kind, "temp_max_c", "temp_min_c",

@@ -43,7 +43,8 @@ export async function getCommuneWeather(
   if (!commune) return null;
   // La journée en cours n'est pas encore observée : les prévisions démarrent aujourd'hui.
   const lastObserved = addDays(referenceDate, -1);
-  const rows = await readWeatherSeries([commune.id], lastObserved, 30, 8);
+  // Les prévisions du jour sont émises le jour même : on les accepte jusqu'à la date de référence.
+  const rows = await readWeatherSeries([commune.id], lastObserved, 30, 8, referenceDate);
   const days: CommuneWeatherDay[] = rows.map((row) => ({
     date: isoDate(row.observed_on),
     tMaxC: row.temp_max_c,

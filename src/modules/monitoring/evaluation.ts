@@ -83,7 +83,7 @@ export interface CommuneContext {
   sourceDate: Date;
 }
 
-function buildContext(
+export function buildContext(
   commune: CommuneLocation,
   rows: WeatherSeriesRow[],
   crops: { cropCode: string; stage: string }[],
@@ -132,7 +132,9 @@ export async function evaluateCommunes(
   deps: EvaluationDeps = {},
 ): Promise<EvaluationSummary> {
   const now = deps.now?.() ?? new Date();
-  const referenceDate = options.referenceDate ?? beninToday(now);
+  // Date de référence = dernier jour entièrement observé (la veille) : le jour en cours n'a que des
+  // prévisions, et un jour manquant interromprait le décompte des jours secs.
+  const referenceDate = options.referenceDate ?? addDays(beninToday(now), -1);
   const rules = await prisma.rule.findMany({ where: { enabled: true }, orderBy: { code: "asc" } });
   const allCommunes = await readCommuneLocations();
   const communes = options.communeIds
@@ -140,7 +142,7 @@ export async function evaluateCommunes(
     : allCommunes;
   const ids = communes.map((c) => c.id);
   const [series, presence] = await Promise.all([
-    readWeatherSeries(ids, referenceDate, PAST_DAYS, FORECAST_DAYS),
+    readWeatherSeries(ids, referenceDate, PAST_DAYS, FORECAST_DAYS, addDays(referenceDate, 1)),
     readCropPresence(ids),
   ]);
 
