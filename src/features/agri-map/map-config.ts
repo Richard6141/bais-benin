@@ -1,4 +1,4 @@
-import { brandColors, reliabilityColors, sequentialScale } from "@/styles/tokens";
+import { brandColors, choroplethNoData, choroplethScale, reliabilityColors } from "@/styles/tokens";
 
 // Réglages partagés de la carte agricole : emprise, fond, couches et couleurs.
 // Le fond de carte est un style MapLibre servi par OpenFreeMap (données OpenStreetMap),
@@ -55,7 +55,8 @@ export const METRICS: Record<
   },
 };
 
-export const CHOROPLETH_SCALE = sequentialScale;
+export const CHOROPLETH_SCALE = choroplethScale;
+export const NO_DATA_COLOR = choroplethNoData;
 export const OUTLINE_COLOR = brandColors.ink;
 export const FARM_COLORS = {
   DECLARED: reliabilityColors.DECLARED,

@@ -22,6 +22,7 @@ import {
   BENIN_BOUNDS,
   BENIN_CENTER,
   CHOROPLETH_SCALE,
+  NO_DATA_COLOR,
   FARM_COLORS,
   INITIAL_ZOOM,
   LAYER_IDS,
@@ -134,7 +135,7 @@ export function MapCanvas({
         "source-layer": "communes",
         paint: {
           "fill-color": fillExpression(),
-          "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.85, 0.65],
+          "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.9, 0.78],
         },
       });
       map.addLayer({
@@ -326,12 +327,12 @@ function fillExpression(): ExpressionSpecification {
   return [
     "case",
     ["==", ["coalesce", ["feature-state", "classIndex"], -1], -1],
-    "#f1ede6",
+    NO_DATA_COLOR,
     [
       "match",
       ["feature-state", "classIndex"],
       ...stops,
-      "#f1ede6",
+      NO_DATA_COLOR,
     ] as unknown as ExpressionSpecification,
   ] as ExpressionSpecification;
 }

@@ -1,6 +1,8 @@
 import { DemoRow, DemoSection } from "@/features/design-system/demo-section";
 import {
   brandColors,
+  choroplethNoData,
+  choroplethScale,
   cropColors,
   divergingScale,
   semanticColors,
@@ -45,6 +47,12 @@ export function TokensSection() {
         {Object.entries(semanticColors).map(([name, hex]) => (
           <Swatch key={name} name={name} hex={hex} />
         ))}
+      </DemoRow>
+      <DemoRow label="Carte agricole (classes par quantiles, puis sans donnée)" className="gap-0">
+        {choroplethScale.map((hex) => (
+          <span key={hex} className="h-8 w-10 first:rounded-l-md" style={{ background: hex }} />
+        ))}
+        <span className="ml-2 h-8 w-10 rounded-md" style={{ background: choroplethNoData }} />
       </DemoRow>
       <DemoRow label="Échelle séquentielle (densité, hectares)" className="gap-0">
         {sequentialScale.map((hex) => (

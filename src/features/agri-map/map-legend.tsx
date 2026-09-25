@@ -1,4 +1,10 @@
-import { CHOROPLETH_SCALE, FARM_COLORS, METRICS, type MetricKey } from "./map-config";
+import {
+  CHOROPLETH_SCALE,
+  FARM_COLORS,
+  METRICS,
+  NO_DATA_COLOR,
+  type MetricKey,
+} from "./map-config";
 
 interface MapLegendProps {
   metric: MetricKey;
@@ -11,7 +17,7 @@ export function MapLegend({ metric, breaks, showFarms }: MapLegendProps) {
   const format = METRICS[metric].format;
   const classes = breaks.length + 1;
   return (
-    <div className="rounded-lg border bg-card/95 p-3 text-xs shadow-card backdrop-blur">
+    <div className="rounded-lg border bg-card p-3 text-xs">
       <p className="font-medium">
         {METRICS[metric].label}
         {METRICS[metric].unit ? ` (${METRICS[metric].unit})` : ""}
@@ -26,7 +32,7 @@ export function MapLegend({ metric, breaks, showFarms }: MapLegendProps) {
             return (
               <li key={index} className="flex items-center gap-2">
                 <span
-                  className="size-3 shrink-0 rounded-sm border border-black/10"
+                  className="size-3.5 shrink-0 rounded-sm border border-black/10"
                   style={{
                     background: CHOROPLETH_SCALE[Math.min(index, CHOROPLETH_SCALE.length - 1)],
                   }}
@@ -39,6 +45,14 @@ export function MapLegend({ metric, breaks, showFarms }: MapLegendProps) {
               </li>
             );
           })}
+          {/* Communes sans exploitation ou masquées (moins de 5 exploitations) : hors échelle. */}
+          <li className="flex items-center gap-2">
+            <span
+              className="size-3.5 shrink-0 rounded-sm border border-black/10"
+              style={{ background: NO_DATA_COLOR }}
+            />
+            <span className="text-muted-foreground">Sans donnée ou moins de 5</span>
+          </li>
         </ol>
       )}
       {showFarms ? (

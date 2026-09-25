@@ -35,6 +35,25 @@ export const sequentialScale = [
   "#0f4c5c",
 ] as const;
 
+// Échelle de la carte agricole : sept classes, chacune d'une teinte franchement différente de sa
+// voisine (jaune, vert clair, émeraude, bleu céruléen, bleu roi, violet, lie-de-vin), pour
+// distinguer chaque zone d'un coup d'œil. La clarté baisse d'une classe à l'autre, du plus faible
+// au plus fort, pour que les seuils de la légende se lisent encore dans l'ordre, y compris pour
+// les daltoniens et en impression en niveaux de gris. Ni rouge ni orange : ils sont réservés aux
+// alertes.
+export const choroplethScale = [
+  "#fde355",
+  "#82df67",
+  "#12b886",
+  "#1596b8",
+  "#2f5fc4",
+  "#7a3fb0",
+  "#8a0a4f",
+] as const;
+
+// Couleur des communes sans donnée ou masquées (secret statistique) : gris neutre, hors échelle.
+export const choroplethNoData = "#e5e9ee";
+
 // Échelle divergente (écart à la normale) : latérite pour le déficit, golfe pour l'excédent.
 export const divergingScale = [
   "#b7410e",
