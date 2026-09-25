@@ -15,7 +15,7 @@ const NAV = [
 // marque du ministère apparaît (consigne : pas de logo propre à la plateforme).
 export function SiteHeader() {
   return (
-    <header className="print:hidden">
+    <header className="sticky top-0 z-40 print:hidden">
       <div className="border-b bg-background">
         <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
