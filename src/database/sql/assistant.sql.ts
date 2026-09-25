@@ -66,6 +66,7 @@ const hitSchema = z.object({
   licence: z.string(),
   demonstration: z.boolean(),
   checked_on: z.string(),
+  crops: z.array(z.string()),
   similarity: z.coerce.number(),
 });
 export type ChunkHit = z.infer<typeof hitSchema>;
@@ -89,7 +90,7 @@ export async function searchChunks(search: ChunkSearch): Promise<ChunkHit[]> {
   const rows = await prisma.$queryRaw<unknown[]>`
     SELECT c."id" AS chunk_id, c."heading", c."content", d."slug", d."title" AS document_title,
            d."organization", d."source_title", d."source_url", d."licence", d."demonstration",
-           to_char(d."checked_on", 'YYYY-MM-DD') AS checked_on,
+           to_char(d."checked_on", 'YYYY-MM-DD') AS checked_on, d."crops",
            1 - (c."embedding" <=> ${query}::vector) AS similarity
     FROM "assistant_chunk" c
     JOIN "assistant_document" d ON d."id" = c."document_id"
