@@ -45,7 +45,7 @@ const TEST_CATEGORIES = ["MARKET", "ADMIN", "PEST", "HEAT", "FLOOD"] as const;
 let categoryIndex = 0;
 
 async function createAlert(reliability: "ESTIMATED" | "SYNTHETIC") {
-  const category = TEST_CATEGORIES[categoryIndex++ % TEST_CATEGORIES.length];
+  const category = TEST_CATEGORIES[categoryIndex++ % TEST_CATEGORIES.length] ?? "MARKET";
   const commune = await prisma.commune.findUniqueOrThrow({ where: { code: DJOUGOU } });
   const alert = await prisma.alert.create({
     data: {
