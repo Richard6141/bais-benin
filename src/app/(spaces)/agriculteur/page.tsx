@@ -1,4 +1,4 @@
-import { CalendarDays, LandPlot } from "lucide-react";
+import { CalendarDays, LandPlot, MessageCircleQuestion } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CropGlyph, type CropCode } from "@/components/data-display/crop-glyph";
@@ -162,6 +162,12 @@ export default async function FarmerSpacePage() {
       <div className="flex flex-col gap-3">
         <Button asChild className="h-14 w-full text-base">
           <Link href="/agriculteur/recolte">Déclarer ma récolte</Link>
+        </Button>
+        <Button asChild variant="outline" className="h-14 w-full text-base">
+          <Link href="/agriculteur/assistant">
+            <MessageCircleQuestion aria-hidden />
+            Poser une question à l&apos;assistant
+          </Link>
         </Button>
         <Button asChild variant="outline" className="h-14 w-full text-base">
           <Link href="/agriculteur/historique">Mon historique</Link>

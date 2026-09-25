@@ -75,6 +75,16 @@ const actions = {
   },
   // Espace ministère, double authentification comprise (compte jetable, voir capture-ministry.mjs).
   ministrySignIn: (page, path) => ministrySignIn(page, baseUrl, path),
+  // Question à l'assistant, puis attente de la carte de réponse (adaptateur de démonstration).
+  async askAssistant(page, question) {
+    await page.getByLabel("Votre question").fill(question);
+    await page.getByRole("button", { name: "Envoyer" }).click();
+    await page
+      .getByRole("article", { name: `Réponse à : ${question}` })
+      .waitFor({ timeout: 60_000 });
+    // Défilement vers la nouvelle réponse puis glissement de l'en-tête collant.
+    await page.waitForTimeout(1200);
+  },
   // Carte peinte : la capture se fait à la taille de la fenêtre (voir la boucle plus bas).
   async waitForMap(page) {
     await page.locator('[data-map-idle="true"]').waitFor({ timeout: 30_000 });
@@ -85,6 +95,90 @@ const actions = {
 // Chaque étape déclare ses écrans ; `dark` bascule le thème, `print` rend la feuille d'impression,
 // `prepare` joue un parcours avant la capture.
 const plans = {
+  // Assistant agricole : adaptateur de démonstration, réponses recopiées des fiches citées.
+  "etape-8": [
+    {
+      name: "agriculteur-assistant-accueil-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/assistant`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agriculteur-assistant-reponse-mobile",
+      context: mobile,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/assistant`, { waitUntil: "networkidle" });
+        await actions.askAssistant(
+          page,
+          "Comment réussir le séchage du maïs pour éviter l'aflatoxine ?",
+        );
+        // Sources dépliées : extraits cités, organisme, licence et date de vérification.
+        await page
+          .getByText(/sources? citées?$/)
+          .first()
+          .click();
+      },
+    },
+    {
+      name: "agriculteur-assistant-refus-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000002");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agriculteur/assistant`, { waitUntil: "networkidle" });
+        await actions.askAssistant(page, "Qui a gagné la dernière coupe du monde de football ?");
+      },
+    },
+    {
+      name: "agent-assistant-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/exploitations`, { waitUntil: "networkidle" });
+        await page.locator('a[href^="/agent/exploitations/"]').first().click();
+        await page.getByRole("link", { name: "Poser une question" }).click();
+        await page.waitForURL(/\/agent\/assistant\?exploitation=/);
+        await actions.askAssistant(
+          page,
+          "Comment lutter contre la chenille légionnaire sur le maïs ?",
+        );
+      },
+    },
+    {
+      name: "agent-assistant-journal-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/assistant/journal`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "pilotage-assistant-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.ministrySignIn(page, "/pilotage/assistant");
+        await actions.askAssistant(page, "Quelles alertes agro-climatiques sont en cours ?");
+        await actions.askAssistant(
+          page,
+          "Combien d'exploitations sont enregistrées dans le registre ?",
+        );
+      },
+    },
+    {
+      name: "pilotage-assistant-journal-desktop",
+      context: desktop,
+      prepare: (page) => actions.ministrySignIn(page, "/pilotage/assistant/journal"),
+    },
+  ],
   // Tableau de bord national : compte ministère jetable, double authentification comprise.
   "etape-7": [
     {

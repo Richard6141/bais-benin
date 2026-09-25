@@ -1,6 +1,13 @@
 "use client";
 
-import { BellRing, ClipboardCheck, Gauge, Landmark, ScrollText } from "lucide-react";
+import {
+  BellRing,
+  ClipboardCheck,
+  Gauge,
+  Landmark,
+  MessageCircleQuestion,
+  ScrollText,
+} from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,6 +41,12 @@ const ENTRIES = [
     label: "Règles d'alerte",
     icon: ScrollText,
     match: ["/pilotage/regles"],
+  },
+  {
+    href: "/pilotage/assistant",
+    label: "Assistant",
+    icon: MessageCircleQuestion,
+    match: ["/pilotage/assistant"],
   },
 ] as const;
 
