@@ -1,8 +1,12 @@
 import { ClipboardCheck, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
-import { CropGlyph, CROP_CODES, type CropCode } from "@/components/data-display/crop-glyph";
-import { ReliabilityBadge, type Reliability } from "@/components/data-display/reliability-badge";
+import {
+  CropGlyph,
+  CROP_CODES,
+  CROP_GLYPH_LABELS,
+  type CropCode,
+} from "@/components/data-display/crop-glyph";
 import { SourceCaption } from "@/components/data-display/source-caption";
 import { StatTile } from "@/components/data-display/stat-tile";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -12,7 +16,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FarmDetail } from "@/modules/registry";
 import { EventTimeline, summarizeEvent } from "./event-timeline";
 import { FarmOutbox } from "./farm-outbox";
-import { CAPTURE_METHOD_LABELS, TENURE_LABELS, formatDate, formatHa } from "./labels";
+import {
+  ACTIVITY_LABELS,
+  CAPTURE_METHOD_LABELS,
+  CROP_STAGE_LABELS,
+  SUB_SEASON_LABELS,
+  TENURE_LABELS,
+  formatDate,
+  formatHa,
+  formatPosition,
+} from "./labels";
 import { VerificationStatusBadge } from "./status-badge";
 
 interface FarmDetailViewProps {
@@ -20,16 +33,8 @@ interface FarmDetailViewProps {
   userId: string;
 }
 
-const RELIABILITY_BY_STATUS: Record<string, Reliability> = {
-  DECLARED: "DECLARED",
-  AGENT_VERIFIED: "AGENT_VERIFIED",
-  FIELD_VERIFIED: "FIELD_VERIFIED",
-  DISPUTED: "DECLARED",
-};
-
 // Fiche exploitation côté agent : résumé, parcelles, historique, activité de synchronisation.
 export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
-  const reliability = RELIABILITY_BY_STATUS[farm.verificationStatus] ?? "DECLARED";
   const cropCodes = farm.cropCodes.filter((code): code is CropCode =>
     (CROP_CODES as readonly string[]).includes(code),
   );
@@ -70,7 +75,6 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <VerificationStatusBadge status={farm.verificationStatus} />
-            <ReliabilityBadge level={reliability} />
           </div>
         </div>
         {farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED" ? (
@@ -118,9 +122,12 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
               ) : (
                 <ul className="flex flex-wrap gap-4">
                   {cropCodes.map((code) => (
-                    <li key={code} className="flex flex-col items-center gap-1 text-xs">
+                    <li
+                      key={code}
+                      className="flex w-20 flex-col items-center gap-1 text-center text-sm"
+                    >
                       <CropGlyph code={code} size={48} />
-                      <span className="sr-only">{code}</span>
+                      <span>{CROP_GLYPH_LABELS[code]}</span>
                     </li>
                   ))}
                 </ul>
@@ -135,19 +142,15 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
             <CardContent>
               <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
                 <Item label="Faire-valoir" value={TENURE_LABELS[farm.tenure] ?? farm.tenure} />
-                <Item label="Activité principale" value={farm.mainActivity} />
+                <Item
+                  label="Activité principale"
+                  value={ACTIVITY_LABELS[farm.mainActivity] ?? farm.mainActivity}
+                />
                 <Item
                   label="Producteur"
                   value={`${farm.farmer.displayName} · ${farm.farmer.code}`}
                 />
-                <Item
-                  label="Position du siège"
-                  value={
-                    farm.location
-                      ? `${farm.location.lat.toFixed(5)}, ${farm.location.lng.toFixed(5)}`
-                      : "—"
-                  }
-                />
+                <Item label="Position du siège" value={formatPosition(farm.location)} />
                 <Item
                   label="Dernière visite"
                   value={farm.verifiedAt ? formatDate(farm.verifiedAt) : "Aucune"}
@@ -190,7 +193,8 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
                       <ul className="flex flex-wrap gap-2 text-sm">
                         {parcel.crops.map((crop) => (
                           <li key={crop.id} className="rounded-md bg-muted px-2 py-1">
-                            {crop.cropName} · {crop.campaignCode}
+                            {crop.cropName} · {SUB_SEASON_LABELS[crop.subSeason] ?? crop.subSeason}{" "}
+                            · {crop.campaignCode} · {CROP_STAGE_LABELS[crop.stage] ?? crop.stage}
                           </li>
                         ))}
                       </ul>

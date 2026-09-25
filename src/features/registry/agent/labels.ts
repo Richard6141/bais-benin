@@ -52,18 +52,38 @@ export const EVENT_LABELS: Record<string, string> = {
 };
 
 export const TENURE_LABELS: Record<string, string> = {
-  OWNER: "Propriétaire",
+  OWNED: "Propriétaire",
   RENTED: "Location",
   FAMILY: "Familial",
-  SHARECROPPING: "Métayage",
-  OTHER: "Autre",
+  SHARED: "Métayage ou partage",
+  UNKNOWN: "Non précisé",
+};
+
+export const ACTIVITY_LABELS: Record<string, string> = {
+  CROPS: "Cultures",
+  MIXED: "Cultures et élevage",
+  LIVESTOCK_DOMINANT: "Élevage surtout",
+};
+
+export const SUB_SEASON_LABELS: Record<string, string> = {
+  MAIN_RAINY: "Grande saison des pluies",
+  SHORT_RAINY: "Petite saison des pluies",
+  DRY: "Contre-saison",
+  ANNUAL: "Toute l'année",
+};
+
+export const CROP_STAGE_LABELS: Record<string, string> = {
+  PLANNED: "Prévue",
+  SOWN: "Semée",
+  GROWING: "En croissance",
+  HARVESTED: "Récoltée",
+  FAILED: "Perdue",
 };
 
 export const CAPTURE_METHOD_LABELS: Record<string, string> = {
   GPS_WALK: "Marche GPS",
   MAP_DRAW: "Dessin sur carte",
-  DECLARED_ONLY: "Déclarée",
-  IMPORTED: "Importée",
+  DECLARED_ONLY: "Superficie déclarée",
 };
 
 const areaFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -86,4 +106,17 @@ export function formatDate(value: Date | string | null | undefined): string {
 export function formatDateTime(value: Date | string | null | undefined): string {
   if (!value) return "—";
   return dateTimeFormatter.format(new Date(value));
+}
+
+const coordinateFormatter = new Intl.NumberFormat("fr-FR", {
+  minimumFractionDigits: 5,
+  maximumFractionDigits: 5,
+});
+
+// Position lisible : « 9,70000° N, 1,67000° E » (le Bénin est entièrement au nord et à l'est).
+export function formatPosition(point: { lat: number; lng: number } | null): string {
+  if (!point) return "—";
+  const lat = `${coordinateFormatter.format(Math.abs(point.lat))}° ${point.lat >= 0 ? "N" : "S"}`;
+  const lng = `${coordinateFormatter.format(Math.abs(point.lng))}° ${point.lng >= 0 ? "E" : "O"}`;
+  return `${lat}, ${lng}`;
 }
