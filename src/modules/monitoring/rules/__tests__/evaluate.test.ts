@@ -122,7 +122,7 @@ describe("explication en français", () => {
     const sentences = explainTrace(evaluateRule(tree, base).trace);
     expect(sentences).toEqual([
       "Cumul de pluie sur 10 jours : 2 mm, seuil < 5 mm (remplie).",
-      "Stades des cultures : GROWING, SOWN, seuil parmi SOWN, GROWING (remplie).",
+      "Stades des cultures : en croissance, semée ; attendu : semée ou en croissance (remplie).",
       "Pluie prévue sur les 3 prochains jours : donnée manquante, seuil ≥ 80 mm (non évaluable).",
     ]);
   });

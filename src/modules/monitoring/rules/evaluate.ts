@@ -1,3 +1,4 @@
+import { labelForCode } from "./code-labels";
 import {
   resolveOperator,
   type IndicatorCode,
@@ -148,8 +149,10 @@ export function formatIndicatorValue(
   unit?: string,
 ): string {
   if (value === null) return "donnée manquante";
-  if (Array.isArray(value)) return value.length === 0 ? "aucune" : value.map(String).join(", ");
-  const text = typeof value === "number" ? numberFormatter.format(value) : value;
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "aucune" : value.map((v) => labelForCode(String(v))).join(", ");
+  }
+  const text = typeof value === "number" ? numberFormatter.format(value) : labelForCode(value);
   return unit ? `${text} ${unit}` : text;
 }
 
@@ -164,6 +167,16 @@ export function explainTrace(trace: readonly TraceEntry[]): string[] {
     const actual = formatIndicatorValue(entry.actual, unit);
     const expected = formatIndicatorValue(entry.expected, unit);
     const status = entry.missing ? "non évaluable" : entry.result ? "remplie" : "non remplie";
+    if (entry.op === "in" && Array.isArray(entry.expected)) {
+      // Condition de liste : « Stades des cultures : en croissance, récoltée ; attendu : semée ou
+      // en croissance (remplie). »
+      const options = entry.expected.map((v) => labelForCode(String(v)));
+      const wanted =
+        options.length > 1
+          ? `${options.slice(0, -1).join(", ")} ou ${options[options.length - 1]}`
+          : (options[0] ?? "");
+      return `${label} : ${actual} ; attendu : ${wanted} (${status}).`;
+    }
     return `${label} : ${actual}, seuil ${OPERATOR_TEXT[entry.op]} ${expected} (${status}).`;
   });
 }
