@@ -50,18 +50,22 @@ Chaque licence a été lue sur la page source le 24 septembre 2026 (champ « Lic
 
 ## Logo du ministère en charge de l'agriculture
 
-`public/images/logos/maep-benin-logo-complet.png` (version couleur, fond clair) et
-`public/images/logos/maep-benin-logo-complet-blanc.png` (version blanche, fond sombre) sont le
-logo complet officiel du ministère en charge de l'agriculture, de l'élevage et de la pêche :
-armoiries, dénomination du ministère et devise tricolore, tel qu'affiché en en-tête de
+`public/images/logos/maep-benin-logo.png` (version couleur, fond clair) et
+`public/images/logos/maep-benin-logo-blanc.png` (version blanche, fond sombre) sont le logo complet
+officiel du ministère en charge de l'agriculture, de l'élevage et de la pêche : armoiries,
+dénomination du ministère et devise tricolore, tel qu'affiché en en-tête de
 `https://agriculture.gouv.bj`. Téléchargés depuis `https://agriculture.gouv.bj/img/logo-MAEP.png`
 et `https://agriculture.gouv.bj/img/logo-MAEP-white.png` le 25 septembre 2026, fond transparent
-d'origine, aucune retouche. Ils ne sont pas soumis à une licence Creative Commons ; ils identifient
-le ministère comme destinataire prévu de la plateforme et n'impliquent aucune approbation
-officielle du produit à ce stade de démonstration. Affichés dans l'en-tête public, l'en-tête des
-espaces connectés et le pied de page (`src/components/brand/government-emblem.tsx`), la version
-couleur ou la version blanche s'affichant selon le thème clair ou sombre.
+d'origine ; seules les marges transparentes ont été retirées (le logo lui-même n'est pas retouché),
+pour qu'il s'affiche à la hauteur voulue. Affichés dans l'en-tête public, l'en-tête des espaces
+connectés, les écrans de connexion et la fiche imprimable (`src/components/brand/ministry-logo.tsx`),
+la version couleur ou blanche selon le thème.
 
-`public/images/logos/maep-benin.png` (armoiries seules, sans dénomination ni devise) est l'ancien
-fichier utilisé avant l'adoption du logo complet ci-dessus ; il n'est plus référencé par le code et
-peut être supprimé.
+`public/images/logos/maep-benin.png` : armoiries seules, sans dénomination, téléchargées depuis
+`https://agriculture.gouv.bj/logo.png` le 25 septembre 2026. Utilisées dans le pied de page, à côté
+de la dénomination du ministère écrite en texte (`src/components/brand/ministry-lockup.tsx`), et
+comme source des icônes de l'application et de l'onglet (`scripts/generate-icons.mjs`).
+
+Ces fichiers ne sont pas soumis à une licence Creative Commons ; ils identifient le ministère comme
+destinataire prévu de la plateforme et n'impliquent aucune approbation officielle du produit à ce
+stade de démonstration.

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { MinistryLockup } from "@/components/brand/ministry-lockup";
+import { MinistryLogo } from "@/components/brand/ministry-logo";
 
 interface PrintLayoutProps {
   title: string;
@@ -37,7 +37,7 @@ export function PrintLayout({
           <p className="text-sm">{scope}</p>
           <p className="text-xs text-muted-foreground">Données au {dataDate}</p>
         </div>
-        <MinistryLockup />
+        <MinistryLogo className="h-14" />
       </header>
       {children}
       <footer className="border-t pt-4 text-xs text-muted-foreground" data-print-block>
