@@ -5,3 +5,7 @@ import "dotenv/config";
 // Le canal de messagerie fixture conserve les codes envoyés : les tests les relisent
 // sans fournisseur externe. Forcé ici, avant que l'application ne lise l'environnement.
 process.env.MESSAGING_PRIMARY_CHANNEL = "fixture";
+
+// Le seed ne rappelle pas Open-Meteo à chaque suite : les tests du monitoring ingèrent
+// eux-mêmes la météo avec l'adaptateur fixture, sur des dates passées isolées.
+process.env.SEED_WEATHER = "0";
