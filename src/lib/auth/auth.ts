@@ -121,7 +121,10 @@ export const auth = betterAuth({
       sendOTP: async ({ phoneNumber: to, code }) => {
         // B4 : limite par numéro, en plus de la limite par IP déjà posée sur ce chemin
         // (rateLimit.customRules ci-dessus) — voir otp-phone-rate-limit.ts pour le raisonnement.
-        if (!(await checkPhoneOtpRateLimit(to))) {
+        // Les numéros de démonstration en sont exemptés : ce ne sont jamais de vrais
+        // destinataires (donc rien à protéger d'un envoi répété), et les scénarios de
+        // démonstration/tests s'y reconnectent délibérément très souvent.
+        if (!isDemoPhone(to) && !(await checkPhoneOtpRateLimit(to))) {
           throw new APIError("FORBIDDEN", { message: "Trop de codes envoyés pour ce numéro" });
         }
         // Envoi sans attente : la latence du fournisseur ne doit pas révéler si le numéro existe.

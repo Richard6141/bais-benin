@@ -26,6 +26,10 @@ describe("authentification", () => {
     await seedReferenceData();
     // Les affectations et les sessions suivent la suppression du compte (onDelete: Cascade).
     await prisma.user.deleteMany({ where: { phoneNumber: PHONE } });
+    // B4 : cette suite envoie plusieurs codes au même numéro de test ; sans repartir d'un
+    // compteur propre, deux exécutions à moins de 15 minutes d'intervalle (une relance locale,
+    // un run de CI qui suit de près) heurteraient la limite par numéro (otp-phone-rate-limit.ts).
+    await prisma.rateLimit.deleteMany({ where: { key: `otp-phone:${PHONE}` } });
   }, 120_000);
 
   afterAll(async () => {
