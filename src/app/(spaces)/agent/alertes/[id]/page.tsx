@@ -13,6 +13,9 @@ export const metadata: Metadata = { title: "Alerte" };
 // Fiche agent : l'alerte, sa diffusion par canal, puis les exploitations à prévenir (B2) avec le relais oral.
 export default async function AgentAlertPage(props: PageProps<"/agent/alertes/[id]">) {
   const { id } = await props.params;
+  const query = await props.searchParams;
+  const pageParam = typeof query.page === "string" ? Number.parseInt(query.page, 10) : 1;
+  const village = typeof query.village === "string" ? query.village.slice(0, 120) : undefined;
   const user = await requireRole("AGENT_AGRICULTURE", { returnTo: `/agent/alertes/${id}` });
   const alert = /^[0-9a-f-]{36}$/i.test(id) ? await getAlertDetail(user.actor, id) : null;
   if (!alert) notFound();
@@ -21,7 +24,15 @@ export default async function AgentAlertPage(props: PageProps<"/agent/alertes/[i
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <AlertDetailView
         alert={alert}
-        farmsSlot={<AffectedFarms farms={farms} alertId={alert.id} userId={user.id} />}
+        farmsSlot={
+          <AffectedFarms
+            farms={farms}
+            alertId={alert.id}
+            userId={user.id}
+            page={Number.isFinite(pageParam) ? pageParam : 1}
+            village={village}
+          />
+        }
       />
       <Button asChild variant="outline" className="h-12 self-start">
         <Link href="/agent/alertes">Toutes les alertes</Link>

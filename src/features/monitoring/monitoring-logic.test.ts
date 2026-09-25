@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   filterByDepartement,
   freshnessOf,
+  pageAffected,
   parseCenterFilters,
+  summarizeAffected,
   summarizeDelivery,
   unreadCount,
+  villagesOf,
 } from "./monitoring-logic";
 
 const NOW = new Date("2026-09-25T12:00:00Z").getTime();
@@ -110,5 +113,52 @@ describe("filtres du centre d'alertes", () => {
     ]);
     expect(filterByDepartement(items, "BJ-OU", table)).toEqual([{ communeCode: "BJ-OUE-002" }]);
     expect(filterByDepartement(items, undefined, table)).toHaveLength(2);
+  });
+});
+
+describe("exploitations concernées", () => {
+  const farm = (
+    village: string | null,
+    attention: "NO_PHONE" | "DELIVERY_FAILED" | "UNREAD" | null,
+    extra: { read?: boolean; relay?: unknown } = {},
+  ) => ({
+    village,
+    hasPhone: attention !== "NO_PHONE",
+    read: extra.read ?? false,
+    relay: extra.relay ?? null,
+    attention,
+  });
+  const farms = [
+    ...Array.from({ length: 25 }, () => farm("Kolokondé", "NO_PHONE")),
+    farm("Bariénou", "DELIVERY_FAILED"),
+    ...Array.from({ length: 10 }, () => farm("Bariénou", "UNREAD")),
+    farm("Kolokondé", null, { read: true }),
+    farm(null, null, { relay: { mode: "CALL" } }),
+  ];
+
+  it("résume les urgences et les suites données", () => {
+    expect(summarizeAffected(farms)).toEqual({
+      total: 38,
+      toTellInPerson: 25,
+      deliveryFailed: 1,
+      unread: 10,
+      relayed: 1,
+      read: 1,
+    });
+  });
+
+  it("pagine par 20 en cumulant les pages et en gardant l'ordre", () => {
+    const first = pageAffected(farms, {});
+    expect(first).toMatchObject({ shown: 20, matching: 38, hasMore: true, page: 1 });
+    expect(pageAffected(farms, { page: 2 })).toMatchObject({ shown: 38, hasMore: false });
+    expect(pageAffected(farms, { page: 0 }).page).toBe(1);
+  });
+
+  it("filtre par village et liste les villages", () => {
+    expect(pageAffected(farms, { village: "Bariénou" })).toMatchObject({ shown: 11, matching: 11 });
+    expect(villagesOf(farms)).toEqual([
+      { name: "Bariénou", count: 11 },
+      { name: "Kolokondé", count: 26 },
+    ]);
   });
 });

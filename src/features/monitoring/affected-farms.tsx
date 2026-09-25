@@ -1,10 +1,13 @@
 import { Phone, PhoneOff } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { AffectedFarm } from "@/modules/monitoring/delivery";
 import { RELAY_MODE_LABELS, RelayAlertButton } from "./relay";
-import { CHANNEL_LABELS } from "./monitoring-logic";
+import { CHANNEL_LABELS, pageAffected, summarizeAffected, villagesOf } from "./monitoring-logic";
 
 // B2 « Exploitations concernées » : qui appeler ou visiter. La liste arrive triée par le service
 // (sans téléphone, échec d'envoi, non lu, puis lu ou relayé) ; l'écran ne fait que l'afficher.
@@ -39,21 +42,89 @@ interface AffectedFarmsProps {
   farms: readonly AffectedFarm[];
   alertId: string;
   userId: string;
+  /** Page cumulée (?page=) et village filtré (?village=), lus par la page serveur. */
+  page?: number;
+  village?: string;
 }
 
-export function AffectedFarms({ farms, alertId, userId }: AffectedFarmsProps) {
-  const noPhone = farms.filter((farm) => !farm.hasPhone).length;
+const integer = new Intl.NumberFormat("fr-FR");
+
+function hrefWith(alertId: string, params: { page?: number; village?: string }): Route {
+  const search = new URLSearchParams();
+  if (params.village) search.set("village", params.village);
+  if (params.page && params.page > 1) search.set("page", String(params.page));
+  const query = search.toString();
+  return `/agent/alertes/${alertId}${query ? `?${query}` : ""}#exploitations` as Route;
+}
+
+export function AffectedFarms({ farms, alertId, userId, page, village }: AffectedFarmsProps) {
+  const summary = summarizeAffected(farms);
+  const villages = villagesOf(farms);
+  const selectedVillage = village && villages.some((v) => v.name === village) ? village : undefined;
+  const view = pageAffected(farms, { page, village: selectedVillage });
+  const figures = [
+    { label: "À prévenir de vive voix", value: summary.toTellInPerson, tone: "text-warning" },
+    { label: "Échecs d'envoi", value: summary.deliveryFailed, tone: "text-critical" },
+    { label: "Non lus", value: summary.unread, tone: "text-watch" },
+    { label: "Relayés", value: summary.relayed, tone: "text-success" },
+  ];
+  const filters = [{ name: undefined as string | undefined, count: summary.total }, ...villages];
   return (
-    <section aria-labelledby="affected-title" className="flex flex-col gap-3">
+    <section
+      id="exploitations"
+      aria-labelledby="affected-title"
+      className="flex scroll-mt-24 flex-col gap-4"
+    >
       <h2 id="affected-title" className="text-lg font-semibold">
         Exploitations concernées{" "}
-        <span className="tabular text-base font-normal text-muted-foreground">{farms.length}</span>
+        <span className="tabular text-base font-normal text-muted-foreground">
+          {integer.format(summary.total)}
+        </span>
       </h2>
-      {noPhone > 0 ? (
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Résumé de la diffusion">
+        {figures.map((figure) => (
+          <div key={figure.label} className="rounded-lg border bg-card p-3">
+            <dt className="text-xs text-muted-foreground">{figure.label}</dt>
+            <dd className={cn("tabular text-2xl font-semibold", figure.value > 0 && figure.tone)}>
+              {integer.format(figure.value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {summary.toTellInPerson > 0 ? (
         <p className="text-sm">
-          {noPhone} producteur{noPhone > 1 ? "s n'ont" : " n'a"} pas de téléphone : prévenez-les
-          lors de votre tournée.
+          {summary.toTellInPerson === 1
+            ? "1 producteur n'a pas de téléphone"
+            : `${summary.toTellInPerson} producteurs n'ont pas de téléphone`}{" "}
+          : prévenez-les lors de votre tournée. Ils apparaissent en tête de liste.
         </p>
+      ) : null}
+      {villages.length > 1 ? (
+        <nav aria-label="Filtrer par village" className="-mx-4 overflow-x-auto px-4">
+          <ul className="flex gap-2">
+            {filters.map((v) => {
+              const active = v.name === selectedVillage;
+              return (
+                <li key={v.name ?? "tous"} className="shrink-0">
+                  <Link
+                    href={hrefWith(alertId, { village: v.name })}
+                    aria-current={active ? "page" : undefined}
+                    scroll={false}
+                    className={cn(
+                      "inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:bg-accent",
+                    )}
+                  >
+                    {v.name ?? "Tous les villages"}
+                    <span className="tabular text-xs opacity-80">{v.count}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       ) : null}
       {farms.length === 0 ? (
         <EmptyState
@@ -61,8 +132,8 @@ export function AffectedFarms({ farms, alertId, userId }: AffectedFarmsProps) {
           description="La règle ne vise aucune exploitation de la commune."
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {farms.map((farm) => (
+        <ul className="flex flex-col gap-2" aria-label="Liste des exploitations concernées">
+          {view.items.map((farm) => (
             <li
               key={farm.farmId}
               className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center"
@@ -130,6 +201,23 @@ export function AffectedFarms({ farms, alertId, userId }: AffectedFarmsProps) {
           ))}
         </ul>
       )}
+      {farms.length > 0 ? (
+        <div className="flex flex-col items-center gap-2">
+          <p className="tabular text-sm text-muted-foreground" aria-live="polite">
+            {integer.format(view.shown)} sur {integer.format(view.matching)} affichées
+          </p>
+          {view.hasMore ? (
+            <Button asChild variant="outline" className="h-11">
+              <Link
+                href={hrefWith(alertId, { village: selectedVillage, page: view.page + 1 })}
+                scroll={false}
+              >
+                Afficher la suite
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

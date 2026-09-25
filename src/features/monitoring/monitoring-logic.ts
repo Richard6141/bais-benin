@@ -174,3 +174,70 @@ export const percentFormatter = new Intl.NumberFormat("fr-FR", {
   style: "percent",
   maximumFractionDigits: 0,
 });
+
+// --- Exploitations concernées par une alerte (fiche agent, B2) ---
+
+export interface AffectedFarmLike {
+  village: string | null;
+  hasPhone: boolean;
+  read: boolean;
+  relay: unknown;
+  attention: "NO_PHONE" | "DELIVERY_FAILED" | "UNREAD" | null;
+}
+
+export interface AffectedSummary {
+  total: number;
+  /** Sans téléphone : à prévenir de vive voix. */
+  toTellInPerson: number;
+  deliveryFailed: number;
+  unread: number;
+  relayed: number;
+  read: number;
+}
+
+export function summarizeAffected(farms: readonly AffectedFarmLike[]): AffectedSummary {
+  return {
+    total: farms.length,
+    toTellInPerson: farms.filter((f) => f.attention === "NO_PHONE").length,
+    deliveryFailed: farms.filter((f) => f.attention === "DELIVERY_FAILED").length,
+    unread: farms.filter((f) => f.attention === "UNREAD").length,
+    relayed: farms.filter((f) => f.relay !== null && f.relay !== undefined).length,
+    read: farms.filter((f) => f.read).length,
+  };
+}
+
+export const AFFECTED_PAGE_SIZE = 20;
+
+/** Villages présents, triés, avec le nombre d'exploitations ; « sans village » à la fin. */
+export function villagesOf(farms: readonly AffectedFarmLike[]): { name: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const farm of farms) {
+    if (!farm.village) continue;
+    counts.set(farm.village, (counts.get(farm.village) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
+/**
+ * Filtre par village puis garde les `page × 20` premières lignes : « Afficher la suite » ajoute une
+ * page sans perdre la position, et l'ordre du service (urgences d'abord) est conservé.
+ */
+export function pageAffected<T extends AffectedFarmLike>(
+  farms: readonly T[],
+  options: { page?: number; village?: string },
+): { items: T[]; shown: number; matching: number; hasMore: boolean; page: number } {
+  const page = Math.max(1, Math.floor(options.page ?? 1));
+  const matching = options.village
+    ? farms.filter((f) => f.village === options.village)
+    : [...farms];
+  const items = matching.slice(0, page * AFFECTED_PAGE_SIZE);
+  return {
+    items,
+    shown: items.length,
+    matching: matching.length,
+    hasMore: items.length < matching.length,
+    page,
+  };
+}
