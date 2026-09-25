@@ -16,8 +16,9 @@ export function decimal(value: number | null, digits = 2): string {
 function cell(value: CsvCell): string {
   if (value === null) return "";
   let text = typeof value === "number" ? decimal(value, 6) : String(value);
-  // Pas de formule interprétée par le tableur : un texte qui commence par = + - @ est préfixé.
-  if (typeof value === "string" && /^[=+\-@\t]/.test(text) && !/^-?\d/.test(text)) {
+  // Pas de formule interprétée par le tableur : un texte qui commence par = + - @, une
+  // tabulation ou un retour chariot est préfixé, sauf s'il est un nombre strict (« -12,5 »).
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text) && !/^-?\d+(?:[.,]\d+)?$/.test(text)) {
     text = `'${text}`;
   }
   return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;

@@ -19,6 +19,11 @@ export async function resolveAlert(
     select: { id: true, status: true, communeId: true },
   });
   if (!alert) return { ok: false, code: "NOT_FOUND" };
+  // D : une alerte que l'acteur ne peut pas lire répond comme absente ; seul celui qui la voit
+  // apprend qu'il n'a pas le droit de la lever.
+  if (!authorize(actor, "alert.read", { communeId: alert.communeId }).allowed) {
+    return { ok: false, code: "NOT_FOUND" };
+  }
   if (!authorize(actor, "alert.resolve", { communeId: alert.communeId }).allowed) {
     return { ok: false, code: "FORBIDDEN" };
   }

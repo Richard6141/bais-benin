@@ -29,6 +29,13 @@ describe("CSV pour Excel en français", () => {
     expect(csv).toContain("'=SOMME(A1)");
     expect(csv).toContain("\r\n-3\r\n");
   });
+
+  it("neutralise une formule déguisée en nombre et un retour chariot initial (D)", () => {
+    const csv = formatCsv(["valeur"], [["-1+cmd|' /C calc'!A0"], ["\r=1+1"], ["-12,5"]]);
+    expect(csv).toContain("'-1+cmd|' /C calc'!A0");
+    expect(csv).toContain(`"'\r=1+1"`);
+    expect(csv).toContain("\r\n-12,5\r\n");
+  });
 });
 
 describe("décision de rafraîchir les agrégats", () => {

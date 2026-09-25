@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/database/client";
+import { logger } from "@/lib/logger";
 
 const versionRow = z.object({
   postgres: z.string(),
@@ -28,7 +29,8 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
       latencyMs: Math.round(performance.now() - startedAt),
     };
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "erreur inconnue";
-    return { status: "down", reason };
+    // D : le message d'origine (hôte, port, utilisateur de la base) reste dans les journaux.
+    logger.error({ err: error }, "Base de données injoignable");
+    return { status: "down", reason: "Base de données injoignable" };
   }
 }

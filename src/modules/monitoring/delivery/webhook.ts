@@ -127,20 +127,25 @@ export async function applyWapyEvent(
     select: { alertId: true, farmId: true },
   });
   if (!latest) return { handled: false, reason: "Aucune alerte récente envoyée à ce numéro" };
+  // D : les lignes de ce numéro, et celles de son exploitation (ligne de l'application
+  // comprise). Sans exploitation, `farmId: null` aurait désigné toutes les lignes sans
+  // exploitation de l'alerte, donc marqué lue l'alerte d'autres destinataires.
   const result = await db.alertRecipient.updateMany({
     where: {
       alertId: latest.alertId,
-      farmId: latest.farmId,
+      OR: [{ phoneE164: event.de }, ...(latest.farmId ? [{ farmId: latest.farmId }] : [])],
       status: { notIn: ["FAILED", "SKIPPED", "RELAYED"] },
       acknowledgedAt: null,
     },
     data: { status: "READ", acknowledgedAt: at },
   });
-  await recordAudit({
-    action: "alert.acknowledged",
-    resourceType: "alert",
-    resourceId: latest.alertId,
-    details: { via: "whatsapp_reply", farmId: latest.farmId, rows: result.count },
-  });
+  if (result.count > 0) {
+    await recordAudit({
+      action: "alert.acknowledged",
+      resourceType: "alert",
+      resourceId: latest.alertId,
+      details: { via: "whatsapp_reply", farmId: latest.farmId, rows: result.count },
+    });
+  }
   return { handled: true, kind: "reponse", updated: result.count };
 }

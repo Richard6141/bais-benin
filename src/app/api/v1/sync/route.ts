@@ -1,18 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getApiActor } from "@/features/auth/api-actor";
+import { readJsonWithLimit } from "@/lib/http/read-json";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { applySyncBatch, syncBatchSchema } from "@/modules/sync";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
+// D : par compte, en plus des 50 commandes au plus par lot. Une file hors ligne pleine se vide
+// en quelques lots ; au-delà, l'appareil garde ses saisies et réessaie plus tard (sync-client).
+const SYNC_RULE = { windowSeconds: 5 * 60, max: 60 };
 
 // Réception des lots de l'outbox hors ligne (docs/modules/registre-parcours-ux.md §5).
 // Une session valide est requise ; l'appareil émetteur est identifié par l'en-tête X-Device-Id,
 // conservé avec chaque commande pour l'audit et la révocation d'appareil.
 export async function POST(request: NextRequest) {
   // B1 : getApiActor applique en plus les contrôles de session (suspension, limite de 12 h
-  // institutionnelle, 2FA obligatoire pour ADMIN_STATE) qu'une lecture brute de la session
-  // ne fait pas.
+  // institutionnelle, compte sans NPI lié) qu'une lecture brute de la session ne fait pas.
   const apiActor = await getApiActor(request.headers);
   if (!apiActor) {
     return NextResponse.json({ error: "Authentification requise" }, { status: 401 });
@@ -24,18 +28,21 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Lot trop volumineux" }, { status: 413 });
+  if (!(await consumeRateLimit(`sync-user:${apiActor.userId}`, SYNC_RULE))) {
+    return NextResponse.json(
+      { error: "Trop de lots envoyés : les saisies restent sur l'appareil et repartiront" },
+      { status: 429, headers: { "Retry-After": String(SYNC_RULE.windowSeconds) } },
+    );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Corps JSON illisible" }, { status: 400 });
+  // D : plafond appliqué au flux lui-même, même sans Content-Length (envoi par morceaux).
+  const body = await readJsonWithLimit(request, MAX_BODY_BYTES);
+  if (!body.ok) {
+    return body.reason === "TOO_LARGE"
+      ? NextResponse.json({ error: "Lot trop volumineux" }, { status: 413 })
+      : NextResponse.json({ error: "Corps JSON illisible" }, { status: 400 });
   }
-  const parsed = syncBatchSchema.safeParse(body);
+  const parsed = syncBatchSchema.safeParse(body.value);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return NextResponse.json(

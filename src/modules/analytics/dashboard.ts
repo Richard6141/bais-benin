@@ -131,10 +131,13 @@ export async function getCropProduction(
     filters: { ...filters, campaignCode: current.code },
     campaign: toCampaignRef(current),
     rows: buildCropRows(rows),
-    total: {
-      areaHa: totals.areaHa,
-      productionT: tonnes(totals.productionKg, totals.declaredHarvestCount),
-    },
+    // D : le total est masqué comme une case quand il résume moins de k exploitations.
+    total: isSmallCell(totals.farmCount)
+      ? { areaHa: null, productionT: null }
+      : {
+          areaHa: totals.areaHa,
+          productionT: tonnes(totals.productionKg, totals.declaredHarvestCount),
+        },
     provenance: provenanceOf({
       verifiedShare: null,
       farmCount: null,
