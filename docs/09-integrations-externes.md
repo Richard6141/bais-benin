@@ -31,7 +31,18 @@ interface MessagingChannel {
 
 - Adaptateur `services/messaging/wapy/` : client HTTP minimal, authentification par clé API en variable d'environnement, réessais avec repli exponentiel, respect des limitations de débit, journalisation des reçus (`Notification.provider_message_id`).
 - Le module `notifications` choisit le canal selon les préférences de l'utilisateur et la disponibilité : WhatsApp d'abord, SMS ensuite, in-app toujours.
-- Un webhook entrant (`/api/v1/webhooks/wapy`) est prévu pour les accusés de réception et, plus tard, pour des réponses simples (« OK » pour accuser réception d'une alerte). Il est vérifié par signature ou secret partagé.
+- Un webhook entrant (`POST /api/v1/webhooks/wapy`) reçoit les accusés de remise et les réponses des destinataires ; contrat ci-dessous.
+
+### Webhook entrant (contrat)
+
+L'adresse du webhook est enregistrée chez wapy.pro par `POST /pont/v1/webhook` avec `{ "url": "https://<domaine>/api/v1/webhooks/wapy" }` ; le `secret` renvoyé est stocké dans `WAPY_WEBHOOK_SECRET`. Chaque appel porte l'en-tête `X-Wapy-Signature: sha256=<HMAC-SHA256 hexadécimal du corps brut>`, vérifié en temps constant (`src/services/messaging/wapy/webhook-signature.ts`). Réponses : 401 signature invalide, 400 corps illisible ou événement inconnu, 503 secret non configuré, 200 sinon (y compris pour un message inconnu, afin que wapy.pro ne le renvoie pas en boucle).
+
+| Événement | Corps | Effet dans BAIS |
+|---|---|---|
+| `remise` (documenté par wapy.pro) | `{ "evenement": "remise", "message_id", "remise": "acceptee" \| "serveur" \| "appareil" \| "lu" \| "echec", "remise_le", "motif" }` | Destinataire retrouvé par `alert_recipient.provider_message_id` : `appareil` → `DELIVERED`, `lu` → `READ` (vaut accusé de lecture), `echec` → `FAILED` ; un statut ne régresse jamais |
+| `reponse` (contrat BAIS, **non documenté par wapy.pro à ce jour**, à confirmer avec le fournisseur) | `{ "evenement": "reponse", "de": "+22901…", "texte": "OK", "message_id"?, "recu_le"? }` | « OK », « oui », « d'accord », « compris », « merci » (accents et casse ignorés) valent accusé de lecture de l'alerte active la plus récente envoyée à ce numéro dans les 72 heures ; journal d'audit `alert.acknowledged` |
+
+Traitement : `src/modules/monitoring/delivery/webhook.ts` (`applyWapyEvent`).
 - **Indépendance** : le remplacement de wapy.pro par l'API WhatsApp Business officielle ou par un autre agrégateur se fait en ajoutant un adaptateur, sans toucher au domaine.
 
 ### Piste future
