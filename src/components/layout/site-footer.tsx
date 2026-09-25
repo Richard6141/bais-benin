@@ -53,12 +53,6 @@ export function SiteFooter() {
                 Crédits photographiques
               </Link>
             </li>
-            <li>
-              {/* Point de contrôle JSON, pas une page : lien simple, sans préchargement. */}
-              <a href="/api/health" className="underline-offset-4 hover:text-white hover:underline">
-                État du service
-              </a>
-            </li>
           </ul>
         </div>
       </div>
