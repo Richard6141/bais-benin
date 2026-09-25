@@ -31,7 +31,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
           <ThemeToggle />
         </div>
       </div>
-      <div className="bg-primary text-primary-foreground">
+      <div className="bg-band text-band-foreground">
         <div className="mx-auto flex h-11 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <p className="truncate text-xs font-semibold tracking-wide uppercase">
             {user.primaryRole ? SPACE_LABELS[user.primaryRole] : "Mon compte"}
@@ -45,7 +45,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
               <span className="hidden max-w-48 truncate sm:inline">{user.name}</span>
               <span className="sm:hidden">Compte</span>
             </Link>
-            <SignOutButton className="hidden text-primary-foreground hover:bg-white/10 hover:text-primary-foreground sm:inline-flex" />
+            <SignOutButton className="hidden text-band-foreground hover:bg-white/10 hover:text-band-foreground sm:inline-flex" />
           </div>
         </div>
       </div>

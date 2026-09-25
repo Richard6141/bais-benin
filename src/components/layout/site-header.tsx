@@ -30,7 +30,7 @@ export function SiteHeader() {
           </div>
         </div>
       </div>
-      <nav aria-label="Navigation principale" className="bg-primary text-primary-foreground">
+      <nav aria-label="Navigation principale" className="bg-band text-band-foreground">
         <ul className="mx-auto flex w-full max-w-6xl items-stretch overflow-x-auto px-2 sm:px-4">
           {NAV.map((item) => (
             <li key={item.href} className={"desktopOnly" in item ? "hidden sm:block" : undefined}>

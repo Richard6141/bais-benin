@@ -52,6 +52,9 @@
   --foreground: var(--ink);
   /* Titres : bleu marine foncé des portails (service-public.bj) */
   --heading: #0a2a4a;
+  /* Bandeaux institutionnels (barres d'en-tête, encadré d'accueil) : marine dans les deux thèmes */
+  --band: var(--marine);
+  --band-foreground: #ffffff;
   --card: var(--paper);
   --card-foreground: var(--ink);
   --popover: var(--paper);
@@ -103,6 +106,8 @@
   --background: #0b1624;
   --foreground: var(--chalk);
   --heading: #e4ecf6;
+  --band: #0f2742;
+  --band-foreground: #ffffff;
   --card: #122036;
   --card-foreground: var(--chalk);
   --popover: #122036;

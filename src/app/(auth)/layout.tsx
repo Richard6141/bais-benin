@@ -9,7 +9,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <header className="border-b-4 border-primary">
+      <header className="border-b-4 border-band">
         <div className="mx-auto flex h-20 w-full max-w-6xl items-center px-4 sm:px-6">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLockup />

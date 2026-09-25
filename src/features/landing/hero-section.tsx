@@ -22,7 +22,7 @@ export function HeroSection() {
           />
         </div>
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <div className="relative -mt-16 max-w-2xl bg-primary p-6 text-primary-foreground sm:-mt-24 sm:p-8">
+          <div className="relative -mt-16 max-w-2xl bg-band p-6 text-band-foreground sm:-mt-24 sm:p-8">
             <h1
               id="accueil-titre"
               className="text-2xl leading-tight font-bold text-white sm:text-3xl"
