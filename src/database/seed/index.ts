@@ -9,6 +9,7 @@ import {
 } from "./steps/reference.seed";
 import { seedDemoAccounts } from "./steps/accounts.seed";
 import { seedSyntheticFarms, type FarmSeedSummary } from "./steps/farms.seed";
+import { seedMonitoring, type MonitoringSeedSummary } from "./steps/monitoring.seed";
 import { seedTerritory } from "./steps/territory.seed";
 
 export interface SeedSummary {
@@ -20,6 +21,7 @@ export interface SeedSummary {
   campaigns: number;
   demoAccounts: number;
   registry: FarmSeedSummary;
+  monitoring: MonitoringSeedSummary;
 }
 
 // Chargement des référentiels. Chaque étape est idempotente (upsert) : relancer le seed
@@ -32,7 +34,8 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   const campaigns = await seedCampaigns(prisma);
   const demoAccounts = await seedDemoAccounts(prisma);
   const registry = await seedSyntheticFarms(prisma);
-  return { dataSources, zones, ...territory, crops, campaigns, demoAccounts, registry };
+  const monitoring = await seedMonitoring();
+  return { dataSources, zones, ...territory, crops, campaigns, demoAccounts, registry, monitoring };
 }
 
 const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("src/database/seed/index.ts");

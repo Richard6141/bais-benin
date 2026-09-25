@@ -46,6 +46,12 @@ const serverSchema = z
     WAPY_API_KEY: z.string().optional(),
     WAPY_WEBHOOK_SECRET: z.string().optional(),
 
+    // Monitoring : fournisseur météo (Open-Meteo par défaut, fixture hors réseau) et secret
+    // du déclenchement planifié de l'ingestion.
+    WEATHER_PROVIDER: z.enum(["open-meteo", "fixture"]).default("open-meteo"),
+    OPEN_METEO_BASE_URL: z.url().default("https://api.open-meteo.com"),
+    CRON_SECRET: z.string().min(32, "CRON_SECRET doit faire au moins 32 caractères").optional(),
+
     // NPI : chiffrement AES-256-GCM et index HMAC, deux clés distinctes de 32 octets.
     NPI_ENCRYPTION_KEY: base64Key(32, "NPI_ENCRYPTION_KEY"),
     NPI_HASH_KEY: base64Key(32, "NPI_HASH_KEY"),
@@ -59,6 +65,13 @@ const serverSchema = z
           code: "custom",
           path: ["AUTH_SECRET"],
           message: "obligatoire en production",
+        });
+      }
+      if (!env.CRON_SECRET) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["CRON_SECRET"],
+          message: "obligatoire en production (déclenchement de l'ingestion météo)",
         });
       }
       if (env.OTP_DEMO_CODE) {

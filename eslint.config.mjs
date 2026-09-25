@@ -9,7 +9,18 @@ import boundaries from "eslint-plugin-boundaries";
 // c'est ce qui garantit qu'il pourra être extrait vers un service séparé.
 const layers = [
   // Points de câblage : ils assemblent bibliothèques, adaptateurs et modules (auth, conteneur).
-  { type: "wiring", pattern: ["src/lib/auth/auth.ts", "src/lib/container.ts"], mode: "file" },
+  // Fichiers de câblage : ils assemblent le domaine, les adaptateurs et la base. Le seed en fait
+  // partie quand il déclenche des services du domaine (règles, ingestion météo).
+  {
+    type: "wiring",
+    pattern: [
+      "src/lib/auth/auth.ts",
+      "src/lib/container.ts",
+      "src/database/seed/index.ts",
+      "src/database/seed/steps/monitoring.seed.ts",
+    ],
+    mode: "file",
+  },
   { type: "app", pattern: "src/app/**" },
   { type: "features", pattern: "src/features/*", capture: ["feature"] },
   { type: "components", pattern: "src/components/**" },
@@ -44,7 +55,15 @@ export default defineConfig([
         {
           default: "disallow",
           policies: [
-            allow("wiring", ["modules", "services", "database", "lib", "types", "generated"]),
+            allow("wiring", [
+              "wiring",
+              "modules",
+              "services",
+              "database",
+              "lib",
+              "types",
+              "generated",
+            ]),
             allow("app", [
               "wiring",
               "features",
