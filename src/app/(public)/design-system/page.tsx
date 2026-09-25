@@ -7,6 +7,7 @@ import { DataSection } from "@/features/design-system/data-section";
 import { FeedbackSection } from "@/features/design-system/feedback-section";
 import { FormsSection } from "@/features/design-system/forms-section";
 import { GlyphsSection } from "@/features/design-system/glyphs-section";
+import { MonitoringSection } from "@/features/design-system/monitoring-section";
 import { OverlaysSection } from "@/features/design-system/overlays-section";
 import { TokensSection } from "@/features/design-system/tokens-section";
 
@@ -23,6 +24,7 @@ const sections = [
   { id: "superpositions", label: "Fenêtres et menus" },
   { id: "retours", label: "Alertes et états" },
   { id: "donnees", label: "Données" },
+  { id: "monitoring", label: "Monitoring" },
 ];
 
 export default function DesignSystemPage() {
@@ -60,6 +62,7 @@ export default function DesignSystemPage() {
           <OverlaysSection />
           <FeedbackSection />
           <DataSection />
+          <MonitoringSection />
         </div>
       </main>
       <SiteFooter />
