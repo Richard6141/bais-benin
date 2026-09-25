@@ -241,7 +241,9 @@ await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch();
 
 for (const target of targets) {
-  const context = await browser.newContext(target.context);
+  // Le service worker précache en arrière-plan et empêche l'état « réseau au repos » :
+  // inutile pour une capture, il est bloqué.
+  const context = await browser.newContext({ ...target.context, serviceWorkers: "block" });
   const page = await context.newPage();
   if (target.prepare) {
     await target.prepare(page);

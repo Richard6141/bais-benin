@@ -46,9 +46,10 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link href="/api/health" className="hover:text-foreground">
+              {/* Point de contrôle JSON, pas une page : lien simple, sans préchargement. */}
+              <a href="/api/health" className="hover:text-foreground">
                 État du service
-              </Link>
+              </a>
             </li>
           </ul>
         </div>
