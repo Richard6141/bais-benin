@@ -120,9 +120,11 @@ export function AgriMap({ options, canShowFarms }: AgriMapProps) {
             >
               <p className="font-medium">{hovered.name}</p>
               <p className="tabular text-muted-foreground">
-                {hoveredStats
+                {hoveredStats && !hoveredStats.masked && hoveredStats[metric] !== null
                   ? `${METRICS[metric].format(hoveredStats[metric])}${METRICS[metric].unit ? ` ${METRICS[metric].unit}` : ""}`
-                  : "Aucune exploitation"}
+                  : hoveredStats?.masked
+                    ? "Secret statistique (< 5 exploitations)"
+                    : "Aucune exploitation"}
               </p>
             </div>
           ) : null}

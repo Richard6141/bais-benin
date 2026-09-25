@@ -9,6 +9,7 @@ import {
   type NationalStatsRow,
   type TerritoryStatsFilters,
 } from "@/database/sql/territory-stats.sql";
+import { maskSingle, maskSmallCells, type MaskedRow } from "./k-anonymity";
 
 // Agrégats territoriaux exposés à la carte et au pilotage. Chaque réponse porte sa provenance
 // (docs/01, principe 2) : la fiabilité d'un agrégat dépend de la part d'exploitations vérifiées
@@ -47,7 +48,24 @@ export interface StatsProvenance {
   farmCount: number;
 }
 
-export interface CommuneStats {
+// B3 : cette API est publique (aucune session requise, cf. route.ts). Les champs listés dans
+// MASKED_STATS_FIELDS sont donc masqués par k-anonymat (maskSmallCells, k=5) dès qu'une ligne
+// résume moins de 5 exploitations — jusqu'ici seuls les tableaux de pilotage internes
+// (aggregate.ts, ranking.ts) en bénéficiaient. communeCode/communeName restent visibles : on
+// révèle qu'une commune existe, jamais ses effectifs quand ils sont trop petits pour être
+// anonymes. Risque résiduel documenté dans docs/architecture.md : croiser plusieurs appels
+// avec des `verificationStatus` complémentaires peut reconstituer par différence un effectif
+// masqué (attaque par différenciation), un k-anonymat par requête ne s'en protège pas.
+const MASKED_STATS_FIELDS = [
+  "farmCount",
+  "farmerCount",
+  "declaredAreaHa",
+  "verifiedShare",
+  "cropCodes",
+  "reliability",
+] as const;
+
+type RawCommuneStats = {
   communeCode: string;
   communeName: string;
   departementCode: string;
@@ -57,9 +75,9 @@ export interface CommuneStats {
   verifiedShare: number;
   cropCodes: string[];
   reliability: StatsReliability;
-}
+};
 
-export interface DepartementStats {
+type RawDepartementStats = {
   departementCode: string;
   departementName: string;
   communeCount: number;
@@ -69,15 +87,22 @@ export interface DepartementStats {
   verifiedShare: number;
   cropCodes: string[];
   reliability: StatsReliability;
-}
+};
 
-export interface NationalStats {
+type RawNationalStats = {
   farmCount: number;
   farmerCount: number;
   declaredAreaHa: number;
   verifiedShare: number;
   communeCountWithFarms: number;
-}
+};
+
+export type CommuneStats = MaskedRow<RawCommuneStats, (typeof MASKED_STATS_FIELDS)[number]>;
+export type DepartementStats = MaskedRow<RawDepartementStats, (typeof MASKED_STATS_FIELDS)[number]>;
+export type NationalStats = MaskedRow<
+  RawNationalStats,
+  Exclude<(typeof MASKED_STATS_FIELDS)[number], "cropCodes" | "reliability">
+>;
 
 export interface StatsResponse<T> {
   items: T[];
@@ -111,7 +136,7 @@ function provenanceFor(verifiedShare: number, farmCount: number, now: Date): Sta
   };
 }
 
-export function mapCommuneRow(row: CommuneStatsRow): CommuneStats {
+export function mapCommuneRow(row: CommuneStatsRow): RawCommuneStats {
   return {
     communeCode: row.commune_code,
     communeName: row.commune_name,
@@ -125,7 +150,7 @@ export function mapCommuneRow(row: CommuneStatsRow): CommuneStats {
   };
 }
 
-export function mapDepartementRow(row: DepartementStatsRow): DepartementStats {
+export function mapDepartementRow(row: DepartementStatsRow): RawDepartementStats {
   return {
     departementCode: row.departement_code,
     departementName: row.departement_name,
@@ -139,7 +164,7 @@ export function mapDepartementRow(row: DepartementStatsRow): DepartementStats {
   };
 }
 
-export function mapNationalRow(row: NationalStatsRow): NationalStats {
+export function mapNationalRow(row: NationalStatsRow): RawNationalStats {
   return {
     farmCount: row.farm_count,
     farmerCount: row.farmer_count,
@@ -163,13 +188,20 @@ export async function getCommuneStats(
   now = new Date(),
 ): Promise<StatsResponse<CommuneStats>> {
   const filters = statsFiltersSchema.parse(input);
-  const items = (await communeStats(toSqlFilters(filters))).map(mapCommuneRow);
-  const farmCount = items.reduce((sum, item) => sum + item.farmCount, 0);
-  return {
-    items,
-    filters,
-    provenance: provenanceFor(weightedVerifiedShare(items), farmCount, now),
-  };
+  const raw = (await communeStats(toSqlFilters(filters))).map(mapCommuneRow);
+  // B3 : la provenance (part vérifiée, effectif total) reste calculée sur les données brutes —
+  // c'est un total agrégé sur l'ensemble de la réponse, pas l'effectif d'une commune isolée —
+  // tandis que chaque ligne exposée est masquée individuellement dès qu'elle résume moins de
+  // K_ANONYMITY exploitations. groupTotal:true masque en plus la plus petite ligne visible
+  // quand une seule est déjà masquée, pour qu'on ne puisse pas la retrouver par soustraction.
+  const farmCount = raw.reduce((sum, item) => sum + item.farmCount, 0);
+  const provenance = provenanceFor(weightedVerifiedShare(raw), farmCount, now);
+  const items = maskSmallCells(raw, {
+    count: (row) => row.farmCount,
+    fields: MASKED_STATS_FIELDS,
+    groupTotal: true,
+  });
+  return { items, filters, provenance };
 }
 
 export async function getDepartementStats(
@@ -177,13 +209,15 @@ export async function getDepartementStats(
   now = new Date(),
 ): Promise<StatsResponse<DepartementStats>> {
   const filters = statsFiltersSchema.parse(input);
-  const items = (await departementStats(toSqlFilters(filters))).map(mapDepartementRow);
-  const farmCount = items.reduce((sum, item) => sum + item.farmCount, 0);
-  return {
-    items,
-    filters,
-    provenance: provenanceFor(weightedVerifiedShare(items), farmCount, now),
-  };
+  const raw = (await departementStats(toSqlFilters(filters))).map(mapDepartementRow);
+  const farmCount = raw.reduce((sum, item) => sum + item.farmCount, 0);
+  const provenance = provenanceFor(weightedVerifiedShare(raw), farmCount, now);
+  const items = maskSmallCells(raw, {
+    count: (row) => row.farmCount,
+    fields: MASKED_STATS_FIELDS,
+    groupTotal: true,
+  });
+  return { items, filters, provenance };
 }
 
 export async function getNationalStats(
@@ -191,10 +225,15 @@ export async function getNationalStats(
   now = new Date(),
 ): Promise<NationalStats & { filters: StatsFilters; provenance: StatsProvenance }> {
   const filters = statsFiltersSchema.parse(input);
-  const stats = mapNationalRow(await nationalStats(toSqlFilters(filters)));
-  return {
-    ...stats,
-    filters,
-    provenance: provenanceFor(stats.verifiedShare, stats.farmCount, now),
-  };
+  const raw = mapNationalRow(await nationalStats(toSqlFilters(filters)));
+  const provenance = provenanceFor(raw.verifiedShare, raw.farmCount, now);
+  // B3 : un filtre suffisamment étroit (culture + campagne + commune + statut de vérification)
+  // peut réduire même le total national à un petit nombre d'exploitations identifiable ; on
+  // applique donc le même masquage qu'aux niveaux commune/département, sans total de groupe
+  // (cette ligne EST le total).
+  const stats = maskSingle(raw, {
+    count: (row) => row.farmCount,
+    fields: ["farmCount", "farmerCount", "declaredAreaHa", "verifiedShare"],
+  });
+  return { ...stats, filters, provenance };
 }
