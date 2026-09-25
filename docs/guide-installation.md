@@ -91,7 +91,14 @@ pnpm typecheck          # next typegen && tsc --noEmit
 pnpm check              # lint + typecheck + test
 pnpm db:studio          # explorateur de données Prisma
 pnpm db:purge           # purge/anonymisation des données personnelles au-delà de leur délai (voir docs/architecture.md §7)
+pnpm admin:compte --npi <NPI> --telephone <01XXXXXXXX> --role <rôle> [--commune <code> | --departement <code>] [--nom "<nom>"]
+                        # ouvre un compte d'agent, du ministère, d'une coopérative ou d'un acheteur (ADR-0013)
 ```
+
+La connexion ne crée que des comptes d'agriculteur. Pour essayer un autre rôle avec votre propre
+NPI et votre WhatsApp, ouvrez d'abord le compte, par exemple
+`pnpm admin:compte --npi <votre NPI> --telephone <votre numéro> --role ADMIN_STATE --nom "Votre nom"`,
+puis connectez-vous sur `/connexion`. Un agent a besoin d'une portée : `--commune BJ-DON-003`.
 
 ## 3. Variables d'environnement, une par une
 

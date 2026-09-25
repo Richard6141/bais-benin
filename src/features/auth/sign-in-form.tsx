@@ -25,8 +25,8 @@ interface SignInFormProps {
 }
 
 // Connexion unique pour tous les rôles (ADR-0012), en deux écrans : le NPI et le numéro relié,
-// puis le code reçu sur WhatsApp. Un compte est créé à la première connexion ; les rôles
-// institutionnels (ministère, coopérative, acheteur) sont attribués à un compte existant.
+// puis le code reçu sur WhatsApp. Une première connexion ne crée qu'un compte d'agriculteur
+// (ADR-0013) ; les agents et les institutions reçoivent le leur de l'administration.
 export function SignInForm({ nextPath, demo }: SignInFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<0 | 1>(0);

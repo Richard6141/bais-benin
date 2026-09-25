@@ -43,8 +43,13 @@ export async function isNpiTaken(npi: string, exceptUserId?: string): Promise<bo
 
 // Connexion par NPI et code (ADR-0012) : appelé une fois le code vérifié, donc la possession du
 // numéro prouvée. Un compte déjà lié doit présenter le même NPI ; un compte sans NPI reçoit
-// celui-ci, s'il n'appartient à personne d'autre, en attente de vérification par l'ANIP.
-export async function bindNpiOnSignIn(userId: string, npi: string): Promise<NpiBinding> {
+// celui-ci, s'il n'appartient à personne d'autre, en attente de vérification par l'ANIP. Sert
+// aussi à l'ouverture d'un compte par l'administration (provisioning.ts, ADR-0013).
+export async function bindNpiOnSignIn(
+  userId: string,
+  npi: string,
+  via: "sign-in" | "admin" = "sign-in",
+): Promise<NpiBinding> {
   const provider = getIdentityVerificationProvider();
   if (!provider.validateFormat(npi).valid) return { ok: false, reason: "MISMATCH" };
   const keyring = requireKeyring();
@@ -82,7 +87,7 @@ export async function bindNpiOnSignIn(userId: string, npi: string): Promise<NpiB
     actorId: userId,
     resourceType: "user",
     resourceId: userId,
-    details: { status: "PENDING", provider: provider.id, via: "sign-in" },
+    details: { status: "PENDING", provider: provider.id, via },
   });
   return { ok: true, attached: true };
 }
