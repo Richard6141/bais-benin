@@ -10,6 +10,9 @@ const validEnv = {
   APP_ENV: "development",
 };
 
+// Clé de 32 octets valide en base64 (openssl rand -base64 32), pour AUDIT_IP_HASH_KEY.
+const VALID_BASE64_KEY = "kCt+SqGC5z2ELW/WHhNvkKA/K0laNNmouh6h7o9jnqI=";
+
 describe("parseServerEnv", () => {
   it("accepte une configuration minimale et applique les valeurs par défaut", () => {
     const env = parseServerEnv(validEnv);
@@ -28,6 +31,7 @@ describe("parseServerEnv", () => {
         CRON_SECRET: "x".repeat(32),
         MESSAGING_PRIMARY_CHANNEL: "wapy",
         WAPY_API_KEY: "x".repeat(20),
+        AUDIT_IP_HASH_KEY: VALID_BASE64_KEY,
       }).APP_ENV,
     ).toBe("production");
   });
@@ -38,6 +42,7 @@ describe("parseServerEnv", () => {
       APP_ENV: "production",
       CRON_SECRET: "x".repeat(32),
       AUTH_SECRET: "x".repeat(32),
+      AUDIT_IP_HASH_KEY: VALID_BASE64_KEY,
     };
     expect(() => parseServerEnv(prodBase)).toThrow(/MESSAGING_PRIMARY_CHANNEL/);
     expect(() => parseServerEnv({ ...prodBase, MESSAGING_PRIMARY_CHANNEL: "fixture" })).toThrow(
@@ -88,6 +93,30 @@ describe("parseServerEnv", () => {
         AUTH_SECRET: "x".repeat(32),
       }).AUTH_SECRET,
     ).toBe("x".repeat(32));
+  });
+
+  it("exige AUDIT_IP_HASH_KEY en production (C4)", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validEnv,
+        APP_ENV: "production",
+        CRON_SECRET: "x".repeat(32),
+        AUTH_SECRET: "x".repeat(32),
+        MESSAGING_PRIMARY_CHANNEL: "wapy",
+        WAPY_API_KEY: "x".repeat(20),
+      }),
+    ).toThrow(/AUDIT_IP_HASH_KEY/);
+    expect(
+      parseServerEnv({
+        ...validEnv,
+        APP_ENV: "production",
+        CRON_SECRET: "x".repeat(32),
+        AUTH_SECRET: "x".repeat(32),
+        MESSAGING_PRIMARY_CHANNEL: "wapy",
+        WAPY_API_KEY: "x".repeat(20),
+        AUDIT_IP_HASH_KEY: VALID_BASE64_KEY,
+      }).AUDIT_IP_HASH_KEY,
+    ).toBe(VALID_BASE64_KEY);
   });
 
   it("refuse une DATABASE_URL qui n'est pas PostgreSQL", () => {

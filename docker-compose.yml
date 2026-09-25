@@ -45,6 +45,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Secret partagé avec le planificateur : sans lui, les routes planifiées restent fermées.
       CRON_SECRET: ${CRON_SECRET:-}
+      # C4 : clé HMAC de l'adresse IP journalisée (lib/env.ts l'exige en APP_ENV=production).
+      AUDIT_IP_HASH_KEY: ${AUDIT_IP_HASH_KEY:?AUDIT_IP_HASH_KEY est obligatoire}
       # C7 : messagerie et relais de confiance ont aussi leur mot à dire en production
       # (lib/env.ts refuse "console"/"fixture" et un AUTH_SECRET absent) ; laissés à la charge
       # de l'opérateur du déploiement plutôt que fixés ici.

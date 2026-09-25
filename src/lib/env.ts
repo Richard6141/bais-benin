@@ -68,6 +68,11 @@ const serverSchema = z
     NPI_HASH_KEY: base64Key(32, "NPI_HASH_KEY"),
     NPI_LENGTH: z.coerce.number().int().min(10).max(13).default(13),
     IDENTITY_VERIFICATION_PROVIDER: z.enum(["anip-local", "anip-xroad"]).default("anip-local"),
+
+    // C4 : clé du HMAC qui remplace le hachage simple de l'adresse IP dans le journal d'audit
+    // (modules/audit/service.ts) — une IPv4 tient sur 32 bits, un sha256 non salé se retourne
+    // par table arc-en-ciel ; un HMAC à clé secrète ne peut pas se précalculer sans elle.
+    AUDIT_IP_HASH_KEY: base64Key(32, "AUDIT_IP_HASH_KEY"),
   })
   .superRefine((env, ctx) => {
     // A1 : pendant la phase de build Next.js (NEXT_PHASE=phase-production-build), aucune
@@ -93,6 +98,13 @@ const serverSchema = z
           code: "custom",
           path: ["CRON_SECRET"],
           message: "obligatoire en production (déclenchement de l'ingestion météo)",
+        });
+      }
+      if (!env.AUDIT_IP_HASH_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["AUDIT_IP_HASH_KEY"],
+          message: "obligatoire en production (HMAC du journal d'audit)",
         });
       }
       if (env.OTP_DEMO_CODE) {
