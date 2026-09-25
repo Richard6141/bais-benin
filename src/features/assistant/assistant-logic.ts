@@ -133,17 +133,38 @@ export function shortForProducer(answer: string | null, advice: string | null): 
   return truncateAtWord(firstSentence(answer ?? advice ?? ""), SMS_MAX);
 }
 
-/** Texte lu par « Écouter » : la réponse et le conseil, jamais les sources. */
-export function speechText(reply: {
+interface ReplyLike {
+  outcome: string;
   answer: string | null;
   advice: string | null;
   notice: string | null;
-}) {
-  if (reply.answer) {
+  indicator?: { available: boolean } | null;
+}
+
+/**
+ * Message du serveur à afficher à la place d'une réponse. Quand un indicateur du ministère est
+ * disponible, c'est lui la réponse : l'orientation « posez la question à votre agent » d'une
+ * réponse rédigée sous le seuil n'a pas de sens au-dessus de chiffres sourcés.
+ */
+export function visibleNotice(reply: ReplyLike): string | null {
+  if (reply.outcome === "ANSWERED") return null;
+  if (reply.outcome === "LOW_CONFIDENCE" && reply.indicator?.available) return null;
+  return reply.notice;
+}
+
+/** Texte lu par « Écouter » : la réponse et le conseil, jamais les sources. */
+export function speechText(reply: ReplyLike) {
+  if (reply.answer && reply.outcome === "ANSWERED") {
     return reply.advice ? `${reply.answer} Conseil : ${reply.advice}` : reply.answer;
   }
-  return reply.notice ?? "";
+  return visibleNotice(reply) ?? "";
 }
+
+export const QUESTION_PLACEHOLDERS: Record<Audience, string> = {
+  farmer: "Par exemple : quand semer le maïs ?",
+  agent: "Posez une question agricole",
+  ministry: "Par exemple : combien d'exploitations sont enregistrées ?",
+};
 
 // --- Erreurs de l'API.
 

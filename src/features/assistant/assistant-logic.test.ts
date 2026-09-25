@@ -10,6 +10,7 @@ import {
   questionState,
   shortForProducer,
   speechText,
+  visibleNotice,
 } from "./assistant-logic";
 
 describe("champ de question", () => {
@@ -76,10 +77,25 @@ describe("texte pour le producteur", () => {
   });
 
   it("lit la réponse et le conseil, ou le message de refus", () => {
-    expect(speechText({ answer: "A.", advice: "B.", notice: null })).toBe("A. Conseil : B.");
-    expect(speechText({ answer: null, advice: null, notice: "Je ne sais pas." })).toBe(
-      "Je ne sais pas.",
+    expect(speechText({ outcome: "ANSWERED", answer: "A.", advice: "B.", notice: null })).toBe(
+      "A. Conseil : B.",
     );
+    expect(
+      speechText({ outcome: "OFF_TOPIC", answer: null, advice: null, notice: "Hors sujet." }),
+    ).toBe("Hors sujet.");
+  });
+
+  it("n'oriente pas vers l'agent quand un indicateur sourcé répond", () => {
+    const reply = {
+      outcome: "LOW_CONFIDENCE",
+      answer: null,
+      advice: null,
+      notice: "Je ne dispose pas d'une information fiable.",
+    };
+    expect(visibleNotice({ ...reply, indicator: { available: true } })).toBeNull();
+    expect(visibleNotice({ ...reply, indicator: { available: false } })).toBe(reply.notice);
+    expect(visibleNotice(reply)).toBe(reply.notice);
+    expect(speechText({ ...reply, indicator: { available: true } })).toBe("");
   });
 });
 

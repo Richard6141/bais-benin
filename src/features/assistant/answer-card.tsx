@@ -11,6 +11,7 @@ import { StatTile } from "@/components/data-display/stat-tile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { AssistantReply } from "@/modules/assistant";
+import { visibleNotice } from "./assistant-logic";
 
 interface AnswerCardProps {
   question: string;
@@ -64,6 +65,7 @@ function IndicatorBlock({ indicator }: { indicator: NonNullable<AssistantReply["
 // repliées. Sous le seuil, hors sujet ou sans source : le message du serveur, sans sources.
 export function AnswerCard({ question, reply, actions }: AnswerCardProps) {
   const answered = reply.outcome === "ANSWERED";
+  const notice = visibleNotice(reply);
   return (
     <article
       aria-label={`Réponse à : ${question}`}
@@ -122,10 +124,10 @@ export function AnswerCard({ question, reply, actions }: AnswerCardProps) {
             <ConfidenceGauge level={reply.confidenceLabel} words={reply.confidenceWords} />
           ) : null}
         </>
-      ) : reply.notice ? (
+      ) : notice ? (
         <Alert variant={reply.outcome === "PROVIDER_ERROR" ? "warning" : "watch"}>
           <AlertDescription>
-            <p className="text-base">{reply.notice}</p>
+            <p className="text-base">{notice}</p>
           </AlertDescription>
         </Alert>
       ) : null}

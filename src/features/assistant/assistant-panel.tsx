@@ -10,7 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import type { AssistantReply } from "@/modules/assistant";
 import { AnswerCard } from "./answer-card";
 import { askAssistant } from "./api-client";
-import { QUESTION_MAX, questionState, speechText, type Audience } from "./assistant-logic";
+import {
+  QUESTION_MAX,
+  QUESTION_PLACEHOLDERS,
+  questionState,
+  speechText,
+  type Audience,
+} from "./assistant-logic";
 import { FarmPicker, type FarmOption } from "./farm-picker";
 import { AskAgentButton, CopyForProducerButton, FeedbackControl } from "./reply-actions";
 
@@ -102,9 +108,7 @@ export function AssistantPanel({
           }}
           rows={2}
           aria-describedby="question-compteur"
-          placeholder={
-            farmer ? "Par exemple : quand semer le maïs ?" : "Posez une question agricole"
-          }
+          placeholder={QUESTION_PLACEHOLDERS[audience]}
           className={farmer ? "min-h-20 text-base" : undefined}
         />
         <div className="flex flex-wrap items-center justify-between gap-3">
