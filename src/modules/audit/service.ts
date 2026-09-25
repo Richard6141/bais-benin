@@ -51,6 +51,8 @@ export type AuditAction =
   | "alert.acknowledged"
   | "alert.relayed"
   | "alert.resolved"
+  | "report.created"
+  | "report.reviewed"
   | "rule.created"
   | "rule.updated"
   | "rule.toggled"

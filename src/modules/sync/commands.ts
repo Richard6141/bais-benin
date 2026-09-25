@@ -111,6 +111,41 @@ export const alertRelayPayload = z.object({
   relayedAt: isoDate,
 });
 
+// Signalement de terrain (phase 0, docs/modules/signalements.md). La position vient du GPS de
+// l'appareil s'il a été relevé, sinon de la parcelle ou de l'exploitation (côté serveur). La
+// photo, facultative, arrive déjà réduite par l'appareil ; le serveur la réencode sans
+// métadonnées avant de la stocker (modules/reports/photo.ts).
+export const FIELD_REPORT_TYPES = ["PEST", "CROP_DISEASE", "ANIMAL_DISEASE", "OTHER"] as const;
+// Environ 300 Ko d'image une fois décodée : quatre photos tiennent dans un lot de 2 Mo.
+export const FIELD_REPORT_PHOTO_MAX_BASE64 = 400_000;
+
+export const fieldReportCreatePayload = z.object({
+  id: uuid,
+  farmId: uuid,
+  parcelId: uuid.optional(),
+  type: z.enum(FIELD_REPORT_TYPES),
+  cropCode: z
+    .string()
+    .regex(/^[A-Z_]{2,40}$/)
+    .optional(),
+  description: z
+    .string()
+    .trim()
+    .min(5, "Décrivez le problème en quelques mots")
+    .max(1000, "1 000 caractères au plus"),
+  gps: z.object({ point: lngLat, accuracyM: z.number().min(0).max(5000).optional() }).optional(),
+  observedAt: isoDate,
+  photo: z
+    .object({
+      contentType: z.enum(["image/webp", "image/jpeg"]),
+      dataBase64: z
+        .string()
+        .max(FIELD_REPORT_PHOTO_MAX_BASE64, "Photo trop lourde")
+        .regex(/^[A-Za-z0-9+/]+={0,2}$/, "Photo mal encodée"),
+    })
+    .optional(),
+});
+
 export const syncPayloadSchemas = {
   "farmer.create": farmerCreatePayload,
   "farm.create": farmCreatePayload,
@@ -120,6 +155,7 @@ export const syncPayloadSchemas = {
   "harvest.declare": harvestDeclarePayload,
   "verification.record": verificationRecordPayload,
   "alert.relay": alertRelayPayload,
+  "fieldReport.create": fieldReportCreatePayload,
 } as const;
 
 export type SyncCommandType = keyof typeof syncPayloadSchemas;

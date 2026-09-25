@@ -31,6 +31,7 @@ export const COMMAND_LABELS: Record<SyncCommandType, string> = {
   "harvest.declare": "Récolte déclarée",
   "verification.record": "Visite de vérification",
   "alert.relay": "Alerte relayée",
+  "fieldReport.create": "Signalement de terrain",
 };
 
 export const OUTBOX_STATUS_LABELS = {

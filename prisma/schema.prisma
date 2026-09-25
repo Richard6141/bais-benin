@@ -303,6 +303,7 @@ model Commune {
 
   assistantConversations AssistantConversation[]
   assistantAgentRequests AssistantAgentRequest[]
+  fieldReports           FieldReport[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -409,6 +410,9 @@ model User {
   assistantConversations AssistantConversation[]
   assistantFeedback      AssistantFeedback[]
   handledAgentRequests   AssistantAgentRequest[]
+
+  fieldReports         FieldReport[] @relation("fieldReportAuthor")
+  reviewedFieldReports FieldReport[] @relation("fieldReportReviewer")
 
   @@map("user")
 }
@@ -605,6 +609,7 @@ model Farm {
   events        FarmEvent[]
 
   alertRecipients AlertRecipient[]
+  fieldReports    FieldReport[]
 
   assistantConversations AssistantConversation[]
 
@@ -640,6 +645,7 @@ model Parcel {
 
   crops         ParcelCrop[]
   verifications FarmVerification[]
+  fieldReports  FieldReport[]
 
   @@index([farmId])
   @@map("parcel")
@@ -1206,4 +1212,76 @@ model AnalyticsRefresh {
   rowCount    Int      @map("row_count")
 
   @@map("analytics_refresh")
+}
+
+// ---------------------------------------------------------------------------
+// Signalements de terrain (phase 0, docs/modules/signalements.md)
+// ---------------------------------------------------------------------------
+
+enum FieldReportType {
+  PEST
+  CROP_DISEASE
+  ANIMAL_DISEASE
+  OTHER
+}
+
+enum FieldReportStatus {
+  SUBMITTED
+  CONFIRMED
+  DISMISSED
+}
+
+// Problème signalé sur une parcelle ou une exploitation par le producteur (ou l'agent qui l'a
+// enregistrée) : ravageur, maladie des cultures, maladie animale. Déclaratif tant qu'un agent ne
+// l'a pas confirmé sur place. Un signalement isolé n'est jamais une alerte : seul un regroupement
+// de signalements du même type, dans la même zone et sur une période courte, en lève une
+// (ADR-0015). L'identifiant vient de l'appareil (UUID v7), pour la saisie hors ligne.
+model FieldReport {
+  id             String                                 @id @db.Uuid
+  farmId         String                                 @map("farm_id") @db.Uuid
+  farm           Farm                                   @relation(fields: [farmId], references: [id])
+  parcelId       String?                                @map("parcel_id") @db.Uuid
+  parcel         Parcel?                                @relation(fields: [parcelId], references: [id])
+  // Commune de l'exploitation, recopiée pour les filtres territoriaux et la détection.
+  communeId      String                                 @map("commune_id") @db.Uuid
+  commune        Commune                                @relation(fields: [communeId], references: [id])
+  type           FieldReportType
+  cropCode       String?                                @map("crop_code")
+  description    String
+  // Point retenu pour la détection : GPS de l'appareil s'il a été relevé, sinon centre de la
+  // parcelle, sinon position de l'exploitation (location_source). Écrit par PostGIS.
+  location       Unsupported("geography(Point, 4326)")?
+  locationSource String                                 @map("location_source")
+  gpsAccuracyM   Decimal?                               @map("gps_accuracy_m") @db.Decimal(8, 1)
+  observedAt     DateTime                               @map("observed_at")
+  reportedById   String                                 @map("reported_by_id") @db.Uuid
+  reportedBy     User                                   @relation("fieldReportAuthor", fields: [reportedById], references: [id])
+  status         FieldReportStatus                      @default(SUBMITTED)
+  reviewedById   String?                                @map("reviewed_by_id") @db.Uuid
+  reviewedBy     User?                                  @relation("fieldReportReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?                              @map("reviewed_at")
+  reviewNote     String?                                @map("review_note")
+  photo          FieldReportPhoto?
+  createdAt      DateTime                               @default(now()) @map("created_at")
+  updatedAt      DateTime                               @updatedAt @map("updated_at")
+
+  @@index([communeId, type, observedAt])
+  @@index([farmId, createdAt])
+  @@index([status, createdAt])
+  @@map("field_report")
+}
+
+// Photo facultative d'un signalement, réencodée en WebP sans métadonnées (EXIF, position de
+// l'appareil) avant stockage. En base faute de stockage objet dans le projet : à déplacer vers un
+// stockage objet avant un déploiement à grande échelle (ADR-0015).
+model FieldReportPhoto {
+  reportId    String      @id @map("report_id") @db.Uuid
+  report      FieldReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  contentType String      @map("content_type")
+  width       Int
+  height      Int
+  bytes       Bytes
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@map("field_report_photo")
 }
