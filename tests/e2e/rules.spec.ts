@@ -1,8 +1,8 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 import { signInAsMinistry } from "./helpers/ministry";
 
-// Gouvernance des règles d'alerte (monitoring-parcours-ux §2.C4-C6) avec le compte ministère
-// jetable du profil (double authentification activée par l'interface, voir helpers/ministry.ts).
+// Gouvernance des règles d'alerte (monitoring-parcours-ux §2.C4-C6) avec le compte ministère de
+// démonstration, partagé par les deux profils (session du globalSetup, voir helpers/ministry.ts).
 // Chaque exécution travaille sur sa propre règle pour ne jamais créer de versions concurrentes :
 // les deux profils tournent en parallèle, et avec --repeat-each les répétitions d'un même profil
 // aussi (deux workers). Le couple (profil, répétition) choisit une règle distincte parmi les six

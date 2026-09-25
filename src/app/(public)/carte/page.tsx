@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AgriMap } from "@/features/agri-map/agri-map";
 import { getCurrentUser } from "@/features/auth/session";
+import { canFilterByStatus } from "@/modules/analytics";
 import { can } from "@/modules/authorization";
 import { listCampaigns, listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
@@ -41,6 +42,7 @@ export default async function MapPage() {
               departements: departements.map((d) => ({ code: d.code, name: d.name })),
             }}
             canShowFarms={canShowFarms}
+            canFilterByStatus={canFilterByStatus(user?.actor ?? null)}
           />
         </Suspense>
       </main>

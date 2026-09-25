@@ -1,10 +1,30 @@
-import { createHash } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { prisma } from "@/database/client";
 import type { Prisma } from "@/generated/prisma/client";
+import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 // Journal d'audit en ajout seul (docs/06 §6). L'adresse IP est hachée : on veut
 // corréler des tentatives, pas conserver une donnée personnelle en clair.
+
+// C4 : HMAC à clé plutôt qu'un sha256 nu — une IPv4 tient sur 32 bits (moins de 4,3 milliards
+// de valeurs), un hachage non salé se reconstruit entièrement par table précalculée ; sans la
+// clé, un hachage seul ne permet plus de retrouver l'adresse d'origine. AUDIT_IP_HASH_KEY est
+// obligatoire en production (lib/env.ts) ; en développement, une clé éphémère est générée pour
+// ce process si elle manque (les hachages ne sont alors plus comparables d'un redémarrage à
+// l'autre, sans conséquence hors production).
+let devHashKey: Buffer | undefined;
+function ipHashKey(): Buffer {
+  const configured = getServerEnv().AUDIT_IP_HASH_KEY;
+  if (configured) return Buffer.from(configured, "base64");
+  devHashKey ??= (() => {
+    logger.warn(
+      "AUDIT_IP_HASH_KEY absent : clé de hachage éphémère générée pour ce process de développement",
+    );
+    return randomBytes(32);
+  })();
+  return devHashKey;
+}
 
 export type AuditAction =
   | "auth.sign_in"
@@ -52,7 +72,7 @@ export interface AuditEntry {
 }
 
 export function hashIp(ip: string): string {
-  return createHash("sha256").update(ip).digest("hex").slice(0, 32);
+  return createHmac("sha256", ipHashKey()).update(ip).digest("hex").slice(0, 32);
 }
 
 export async function recordAudit(entry: AuditEntry): Promise<void> {

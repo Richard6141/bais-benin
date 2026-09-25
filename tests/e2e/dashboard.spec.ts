@@ -3,10 +3,9 @@ import { signInAsMinistry } from "./helpers/ministry";
 import { openAs } from "./helpers/sessions";
 
 // Tableau de bord national (étape 7) : vue nationale, territoires, fiche commune, qualité,
-// fiche imprimable et exports. Lecture seule : ces parcours n'écrivent rien en base. Le compte
-// ministère jetable (helpers/ministry.ts) répond au défi TOTP : describe en série.
-
-const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
+// fiche imprimable et exports. Lecture seule : ces parcours n'écrivent rien en base. Le ministère,
+// la coopérative, l'agent et l'agricultrice reprennent leur session enregistrée par le globalSetup
+// (helpers/sessions.ts) : aucun code n'est demandé ici.
 
 async function expectNoHorizontalScroll(page: Page) {
   const fits = await page.evaluate(
@@ -16,7 +15,6 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 test.describe("tableau de bord national", () => {
-  test.describe.configure({ mode: "serial" });
   test.setTimeout(90_000);
 
   test("vue nationale : indicateurs, production, filtres dans l'adresse", async ({
@@ -149,13 +147,8 @@ test.describe("tableau de bord réduit, agent et coopérative", () => {
     await expect(page).toHaveURL(/\/acces-refuse/);
   });
 
-  test("la coopérative voit un état vide explicite", async ({ page }) => {
-    await page.goto("/connexion/institution");
-    await page.getByLabel("Adresse e-mail professionnelle").fill("cooperative@bais.demo");
-    await page.getByLabel("Mot de passe").fill(DEMO_PASSWORD);
-    await page.getByRole("button", { name: "Se connecter" }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 20_000 });
-    await page.goto("/cooperative");
+  test("la coopérative voit un état vide explicite", async ({ page }, testInfo) => {
+    await openAs(page, testInfo, "cooperative");
     await expect(
       page.getByRole("heading", {
         name: "Votre organisation n'est pas encore rattachée à des exploitations",

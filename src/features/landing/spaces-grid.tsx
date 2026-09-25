@@ -32,28 +32,28 @@ const spaces: Space[] = [
     audience: "Gestionnaires de coopératives et d'unions",
     description: "Suivre ses membres, agréger les volumes, répondre aux demandes d'achat.",
     photo: "gari",
-    href: "/connexion/institution",
+    href: "/connexion",
   },
   {
     title: "Acheteur",
     audience: "Transformateurs, grossistes, programmes publics",
     description: "Trouver des récoltes vérifiées par produit, zone et volume.",
     photo: "market",
-    href: "/connexion/institution",
+    href: "/connexion",
   },
   {
     title: "Commune",
     audience: "Mairies et services agricoles communaux",
     description: "Une vue de l'agriculture communale : exploitations, cultures, alertes.",
     photo: "irrigation",
-    href: "/connexion/institution",
+    href: "/connexion",
   },
   {
     title: "Ministère",
     audience: "Analystes et directions du MAEP",
     description: "Le centre de pilotage national : indicateurs, risques, qualité des données.",
     photo: "aerial",
-    href: "/connexion/institution",
+    href: "/connexion",
   },
 ];
 

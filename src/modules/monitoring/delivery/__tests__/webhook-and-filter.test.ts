@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { parseRuleDefinition } from "@/modules/monitoring/rules";
 import { signWapyPayload, verifyWapySignature } from "@/services/messaging/wapy/webhook-signature";
 import { cropFilterFromDefinition } from "../crop-filter";
-import { isAcknowledgementReply, wapyEventSchema } from "../webhook";
+import { applyWapyEvent, isAcknowledgementReply, wapyEventSchema } from "../webhook";
+import type { Db } from "../plan";
 
 // Fonctions pures uniquement : la base n'est jamais ouverte.
 vi.mock("@/database/client", () => ({ prisma: {} }));
@@ -41,6 +42,51 @@ describe("signature du webhook wapy.pro", () => {
     expect(verifyWapySignature(body, header, "autre-secret")).toBe(false);
     expect(verifyWapySignature(body, null, "secret-test")).toBe(false);
     expect(verifyWapySignature(body, "sha256=abc", "secret-test")).toBe(false);
+  });
+});
+
+describe("fenêtre de fraîcheur des événements wapy.pro (C4/rejeu)", () => {
+  const now = new Date("2026-09-25T12:00:00Z");
+  const unusedDb = {} as Db;
+
+  it("refuse un événement de remise dont l'horodatage signé est trop ancien", async () => {
+    const result = await applyWapyEvent(
+      {
+        evenement: "remise",
+        message_id: "3EB0",
+        remise: "lu",
+        remise_le: "2026-09-25T11:00:00Z", // une heure avant `now` : hors fenêtre de 15 minutes.
+      },
+      now,
+      unusedDb,
+    );
+    expect(result).toEqual({
+      handled: false,
+      reason: "Horodatage hors fenêtre de fraîcheur (rejeu potentiel)",
+    });
+  });
+
+  it("refuse un événement de réponse dont l'horodatage signé est dans le futur", async () => {
+    const result = await applyWapyEvent(
+      { evenement: "reponse", de: "+22901000000", texte: "OK", recu_le: "2026-09-25T12:30:00Z" },
+      now,
+      unusedDb,
+    );
+    expect(result.handled).toBe(false);
+  });
+
+  it("n'est pas soumis à la fenêtre quand aucun horodatage n'est fourni", async () => {
+    // Compatibilité : le champ est optionnel dans le contrat. applyWapyEvent poursuit alors son
+    // traitement normal (ici : aucun message connu, refusé pour une autre raison que le rejeu).
+    const result = await applyWapyEvent(
+      { evenement: "remise", message_id: "inconnu", remise: "lu" },
+      now,
+      { alertRecipient: { updateMany: async () => ({ count: 0 }) } } as unknown as Db,
+    );
+    expect(result).toEqual({
+      handled: false,
+      reason: "Message inconnu ou statut déjà plus avancé",
+    });
   });
 });
 

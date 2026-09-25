@@ -66,8 +66,17 @@ export const FARM_COLORS = {
 
 // Seuils de classes calculés sur les valeurs présentes : les quantiles évitent qu'une
 // commune très peuplée écrase toutes les autres dans la première classe.
-export function quantileBreaks(values: number[], classes = CHOROPLETH_SCALE.length): number[] {
-  const sorted = values.filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+// B3 : les communes masquées (secret statistique, k=5) portent une valeur nulle pour la
+// métrique — elles sont ignorées ici (Number.isFinite(null) est faux) et retombent, dans
+// classIndex, sur la classe « sans donnée » de la carte, au même titre qu'une commune sans
+// exploitation. On ne peut pas déduire leur rang depuis la couleur affichée.
+export function quantileBreaks(
+  values: (number | null)[],
+  classes = CHOROPLETH_SCALE.length,
+): number[] {
+  const sorted = values
+    .filter((v): v is number => Number.isFinite(v) && (v as number) > 0)
+    .sort((a, b) => a - b);
   if (sorted.length === 0) return [];
   const breaks: number[] = [];
   for (let index = 1; index < classes; index += 1) {
@@ -78,8 +87,8 @@ export function quantileBreaks(values: number[], classes = CHOROPLETH_SCALE.leng
   return breaks;
 }
 
-export function classIndex(value: number, breaks: number[]): number {
-  if (!(value > 0)) return -1;
+export function classIndex(value: number | null, breaks: number[]): number {
+  if (value === null || !(value > 0)) return -1;
   let index = 0;
   for (const limit of breaks) {
     if (value > limit) index += 1;

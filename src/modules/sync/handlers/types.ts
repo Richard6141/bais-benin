@@ -1,14 +1,26 @@
 import type { Prisma } from "@/generated/prisma/client";
-import type { ActionCode, Actor, ResourceRef } from "@/modules/authorization";
+import type { ActionCode, Actor, ResourceRef, RoleCode } from "@/modules/authorization";
 import type { SyncCommand, SyncCommandType, SyncResult } from "../commands";
 
 /** Client Prisma transactionnel : chaque commande s'applique dans sa propre transaction. */
 export type Db = Prisma.TransactionClient;
 
-export interface SyncContext {
+/** Ce qui est stable pour tout un lot : connu avant même de savoir quelle commande on traite. */
+export interface BatchContext {
   actor: Actor;
   deviceId: string;
   now: Date;
+}
+
+export interface SyncContext extends BatchContext {
+  /**
+   * C2 : rôle du grant qui a autorisé CETTE commande précise (apply.ts appelle authorize() par
+   * commande et en garde le résultat) — jamais l'ensemble des rôles de l'acteur. Un handler ne
+   * doit déduire une fiabilité de terrain (FIELD_VERIFIED, AGENT_VERIFIED) que de cette valeur,
+   * jamais d'un champ envoyé par le client (captureMethod, declaredBy) : sinon un agriculteur
+   * pourrait s'auto-attribuer le statut réservé à la visite d'un agent.
+   */
+  grantRole: RoleCode;
 }
 
 /** Résultat d'une commande, enrichi des avertissements non bloquants (écarts de surface, unités). */

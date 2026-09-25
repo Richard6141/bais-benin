@@ -12,7 +12,7 @@ export const parcelGeometrySet: SyncHandler<"parcel.geometry.set"> = {
     return farm ? farmTarget(farm, "farm.update") : null;
   },
 
-  async apply(command, db) {
+  async apply(command, db, context) {
     const { payload } = command;
     const parcel = await db.parcel.findFirst({
       where: { id: payload.parcelId, archivedAt: null },
@@ -54,7 +54,11 @@ export const parcelGeometrySet: SyncHandler<"parcel.geometry.set"> = {
       data: {
         captureMethod: payload.captureMethod,
         gpsAccuracyM: payload.gpsAccuracyM ?? null,
-        reliability: payload.captureMethod === "GPS_WALK" ? "FIELD_VERIFIED" : "DECLARED",
+        // C2 : même plafond que parcel-create.ts — voir son commentaire.
+        reliability:
+          payload.captureMethod === "GPS_WALK" && context.grantRole === "AGENT_AGRICULTURE"
+            ? "FIELD_VERIFIED"
+            : "DECLARED",
         version: { increment: 1 },
       },
       select: { id: true, code: true, version: true },

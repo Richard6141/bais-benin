@@ -8,6 +8,7 @@ import {
   listHarvestHistory,
   listOwnFarms,
 } from "@/modules/registry";
+import { applySyncBatch } from "@/modules/sync";
 
 // Déclaration de récolte en ligne par l'agricultrice de démonstration, sur l'exploitation
 // synthétique de Djougou que le seed relie à son compte. Une seconde exploitation créée pour le
@@ -157,6 +158,39 @@ describe("déclaration de récolte en ligne", () => {
       true,
     );
     expect(history?.events.some((e) => e.kind === "HARVEST_DECLARED")).toBe(true);
+  });
+
+  it("ignore un declaredBy=AGENT falsifié dans la commande hors ligne d'une agricultrice (C2)", async () => {
+    // La fiabilité ne doit jamais dépendre d'un champ envoyé par le client : une agricultrice
+    // qui construit elle-même la commande harvest.declare (comme le ferait l'outbox hors ligne)
+    // et y met declaredBy="AGENT" ne doit pas obtenir AGENT_VERIFIED pour autant.
+    const actor = await loadActor(userId);
+    const [season] = await listDeclarableCropSeasons(actor, ownFarmId);
+    if (!season) throw new Error("Aucune culture déclarable");
+    const id = crypto.randomUUID();
+    const [result] = await applySyncBatch(actor, "test-device", [
+      {
+        id,
+        type: "harvest.declare",
+        idempotencyKey: `spoof-${id}`,
+        clientCreatedAt: new Date().toISOString(),
+        deviceId: "test-device",
+        payload: {
+          id,
+          parcelCropId: season.parcelCropId,
+          declaredQuantity: 5,
+          unit: "BAG_100KG",
+          declaredOn: new Date().toISOString().slice(0, 10),
+          declaredBy: "AGENT",
+        },
+      },
+    ]);
+    applied.push(id);
+    expect(result?.outcome).toBe("APPLIED");
+
+    const declaration = await prisma.productionDeclaration.findUniqueOrThrow({ where: { id } });
+    expect(declaration.declaredBy).toBe("FARMER");
+    expect(declaration.reliability).toBe("DECLARED");
   });
 
   it("refuse la déclaration sur l'exploitation d'un autre producteur", async () => {

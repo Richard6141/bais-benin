@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { getApiActor } from "@/features/auth/api-actor";
 import {
+  canFilterByStatus,
   getCommuneStats,
   getDepartementStats,
   getNationalStats,
@@ -15,6 +17,9 @@ const querySchema = statsFiltersSchema.extend({
 
 // Agrégats territoriaux publics : des comptes par commune ou département, jamais de donnée
 // individuelle. Chaque réponse porte sa provenance (source, date, part vérifiée).
+// Le filtre par statut de vérification est réservé aux comptes qui lisent tout le registre :
+// en public, des statuts complémentaires permettraient de reconstituer par différence une
+// cellule masquée (revue de sécurité, C1). Réponse alors privée, jamais mise en cache partagé.
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
   if (!parsed.success) {
@@ -24,6 +29,13 @@ export async function GET(request: NextRequest) {
     );
   }
   const { level, ...filters } = parsed.data;
+  const restricted = filters.verificationStatus !== undefined;
+  if (restricted && !canFilterByStatus((await getApiActor(request.headers))?.actor ?? null)) {
+    return NextResponse.json(
+      { error: "Le filtre par statut de vérification est réservé au ministère" },
+      { status: 403 },
+    );
+  }
   const payload =
     level === "national"
       ? await getNationalStats(filters)
@@ -32,6 +44,10 @@ export async function GET(request: NextRequest) {
         : await getCommuneStats(filters);
 
   return NextResponse.json(payload, {
-    headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" },
+    headers: {
+      "Cache-Control": restricted
+        ? "private, no-store"
+        : "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+    },
   });
 }

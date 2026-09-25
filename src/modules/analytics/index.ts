@@ -41,3 +41,4 @@ export {
   type AnalyticsRefreshResult,
   type RefreshReason,
 } from "./refresh";
+export { canFilterByStatus } from "./scope";

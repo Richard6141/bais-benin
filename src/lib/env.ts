@@ -19,12 +19,17 @@ const optionalText = (schema: z.ZodType<string>) =>
 const serverSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Next.js positionne NEXT_PHASE=phase-production-build pendant `next build`, avant que
+    // les variables de déploiement ne soient forcément disponibles (cf. next.config.ts,
+    // qui importe ce module). On ne doit pas faire échouer le build pour ça (A1).
+    NEXT_PHASE: z.string().optional(),
     // NODE_ENV vaut "production" dès `next build` ou `next start`, y compris pour une
     // démonstration locale. APP_ENV distingue le déploiement réel (production) des
     // environnements de démonstration et de recette, où les comptes de démo sont admis.
-    APP_ENV: z
-      .enum(["development", "test", "demo", "staging", "production"])
-      .default("development"),
+    // Défaut fail-closed (A1) : une variable oubliée en déploiement doit se comporter
+    // comme de la production (comptes de démo bloqués, secrets obligatoires), jamais
+    // l'inverse. En local, .env.example fixe APP_ENV=development explicitement.
+    APP_ENV: z.enum(["development", "test", "demo", "staging", "production"]).default("production"),
     APP_URL: z.url().default("http://localhost:3000"),
     // Vide au moment du build (image Docker sans base) : la connexion est vérifiée au premier usage.
     DATABASE_URL: z
@@ -43,6 +48,12 @@ const serverSchema = z
       .string()
       .regex(/^\d{6}$/, "OTP_DEMO_CODE doit être un code à 6 chiffres")
       .optional(),
+    // B4 : adresses IP ou plages CIDR du ou des relais inverses de confiance placés devant
+    // l'application (nginx du docker-compose fourni, load balancer managé…), séparées par des
+    // virgules. Sans ceci, better-auth ignore X-Forwarded-For par défaut — un client pourrait
+    // sinon usurper son adresse en la falsifiant lui-même dans cet en-tête, faussant la limite
+    // de débit et le journal d'audit. Vide en développement (accès direct sans relais).
+    TRUSTED_PROXIES: z.string().optional(),
 
     // Messagerie
     MESSAGING_PRIMARY_CHANNEL: z.enum(["console", "wapy", "fixture"]).default("console"),
@@ -61,6 +72,11 @@ const serverSchema = z
     NPI_HASH_KEY: base64Key(32, "NPI_HASH_KEY"),
     NPI_LENGTH: z.coerce.number().int().min(10).max(13).default(13),
     IDENTITY_VERIFICATION_PROVIDER: z.enum(["anip-local", "anip-xroad"]).default("anip-local"),
+
+    // C4 : clé du HMAC qui remplace le hachage simple de l'adresse IP dans le journal d'audit
+    // (modules/audit/service.ts) — une IPv4 tient sur 32 bits, un sha256 non salé se retourne
+    // par table arc-en-ciel ; un HMAC à clé secrète ne peut pas se précalculer sans elle.
+    AUDIT_IP_HASH_KEY: base64Key(32, "AUDIT_IP_HASH_KEY"),
 
     // Assistant agricole : aucun fournisseur par défaut. Sans ASSISTANT_LLM_MODEL, l'assistant
     // fonctionne avec l'adaptateur de démonstration (extractif, sans réseau). Les identifiants
@@ -95,14 +111,24 @@ const serverSchema = z
     ASSISTANT_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
   })
   .superRefine((env, ctx) => {
+    // A1 : pendant la phase de build Next.js (NEXT_PHASE=phase-production-build), aucune
+    // requête n'est encore servie et les secrets de déploiement peuvent ne pas être présents
+    // dans l'environnement de build (image Docker construite avant injection des variables
+    // d'exécution, par exemple) : on n'exige rien de production ici, seulement au démarrage
+    // réel du serveur (nouveau process, donc nouvel appel à parseServerEnv).
+    const isBuildPhase = env.NEXT_PHASE === "phase-production-build";
+    if (isBuildPhase) return;
+
+    // AUTH_SECRET est obligatoire dès que NODE_ENV=production (déploiement réel ou
+    // démonstration lancée avec `next start`), pas seulement quand APP_ENV=production.
+    if (env.NODE_ENV === "production" && !env.AUTH_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SECRET"],
+        message: "obligatoire dès que NODE_ENV=production",
+      });
+    }
     if (env.APP_ENV === "production") {
-      if (!env.AUTH_SECRET) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["AUTH_SECRET"],
-          message: "obligatoire en production",
-        });
-      }
       if (!env.CRON_SECRET) {
         ctx.addIssue({
           code: "custom",
@@ -110,11 +136,35 @@ const serverSchema = z
           message: "obligatoire en production (déclenchement de l'ingestion météo)",
         });
       }
+      if (!env.AUDIT_IP_HASH_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["AUDIT_IP_HASH_KEY"],
+          message: "obligatoire en production (HMAC du journal d'audit)",
+        });
+      }
       if (env.OTP_DEMO_CODE) {
         ctx.addIssue({
           code: "custom",
           path: ["OTP_DEMO_CODE"],
           message: "le code de démonstration est interdit en production",
+        });
+      }
+      // B5 : le canal "console" journalise le code en clair (services/messaging/console/
+      // console-channel.ts) et "fixture" ne fait qu'accumuler les messages en mémoire pour les
+      // tests — ni l'un ni l'autre n'envoie quoi que ce soit à un vrai téléphone. En
+      // production, seul "wapy" (avec sa clé) est un canal d'envoi réel.
+      if (env.MESSAGING_PRIMARY_CHANNEL !== "wapy") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["MESSAGING_PRIMARY_CHANNEL"],
+          message: 'seul "wapy" est autorisé en production (jamais console ni fixture)',
+        });
+      } else if (!env.WAPY_API_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["WAPY_API_KEY"],
+          message: "obligatoire en production quand MESSAGING_PRIMARY_CHANNEL=wapy",
         });
       }
     }

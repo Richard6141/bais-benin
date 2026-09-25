@@ -10,7 +10,7 @@
 | Données personnelles des agriculteurs (nom, téléphone, localisation) | Accès hors périmètre, fuite, scraping | Atteinte à la vie privée, usage frauduleux (démarchage, pression foncière) | RBAC + périmètre territorial, limitation de débit, audit, RLS |
 | NPI | Vol d'identifiant national | Usurpation d'identité | Jamais en clair, haché + chiffré, accès journalisé et réservé |
 | Emprises de parcelles | Exposition foncière | Conflits de terres | Précision dégradée hors des rôles habilités, pas de téléchargement massif |
-| Comptes institutionnels (ministère) | Compromission, élévation de privilèges | Manipulation des indicateurs nationaux | MFA, sessions courtes, séparation des rôles, audit |
+| Comptes institutionnels (ministère) | Compromission (dont celle du compte WhatsApp relié), élévation de privilèges | Manipulation des indicateurs nationaux | NPI et code WhatsApp à chaque connexion, rôle attribué après vérification du NPI, sessions courtes, séparation des rôles, audit |
 | Synchronisation hors-ligne | Rejeu, injection de lots falsifiés | Corruption du registre | Idempotence, signature du lot par la session, validation Zod, politique d'accès par commande |
 | Moteur d'alertes | Fausse alerte massive | Panique, perte de confiance | Règles versionnées, validation humaine pour CRITICAL, cooldown |
 | Assistant IA | Injection de prompt, fuite de contexte | Mauvais conseils, exfiltration | Contexte limité au périmètre de l'utilisateur, citations obligatoires, pas d'outil d'écriture |
@@ -18,11 +18,12 @@
 
 ## 2. Authentification
 
-- **Agriculteurs et agents** : numéro de téléphone + code à usage unique (6 chiffres, 5 minutes, 5 tentatives, verrouillage progressif). Canal WhatsApp via wapy.pro par défaut, SMS en repli, console en développement. Le code n'est stocké que haché.
-- **Institutions** (commune, ministère, acheteurs professionnels) : e-mail + mot de passe Argon2id, politique de longueur minimale 12 caractères, vérification contre les listes de mots de passe compromis, **MFA TOTP obligatoire** pour `MINISTRY_ADMIN`, `PLATFORM_ADMIN` et `COMMUNE_ADMIN`.
-- **Sessions** : JWT signés (Auth.js), durée 12 h pour les institutions, 30 jours glissants pour agriculteurs et agents (contrainte de terrain), rotation à chaque renouvellement, révocation par liste de sessions côté serveur.
+- **Tous les rôles** (ADR-0012, qui remplace en partie l'ADR-0010) : un seul parcours sur `/connexion`. Premier écran : le NPI et le numéro de téléphone qui y est relié ; second écran : un code à usage unique (6 chiffres, 5 minutes, 5 tentatives) envoyé sur WhatsApp par wapy.pro, console en développement. Aucun mot de passe, aucune application TOTP : le NPI identifie la personne, le code prouve la possession du téléphone relié, à chaque connexion. Le NPI est lié au compte à la première connexion, en attente de vérification par l'ANIP (`PENDING`) ; un numéro connu doit présenter le NPI qui lui est lié, et un NPI déjà lié à un compte ne peut pas en créer un autre. Ces refus n'interviennent qu'après un code valide.
+- **Rôles institutionnels** (ministère, coopérative, acheteur) : attribués par un administrateur à un compte identifié par son NPI, après vérification du NPI et du numéro de la personne. La gouvernance des règles d'alerte exige un compte dont le NPI est lié.
+- **Risques acceptés** (ADR-0012) : tant que l'ANIP ne vérifie pas le couple NPI et numéro, une personne qui connaît le NPI d'une autre et se connecte la première avec son propre numéro l'occupe ; le statut `PENDING` reste visible et l'adaptateur X-Road tranchera les conflits. Un compte WhatsApp compromis compromet le compte BAIS, ministère compris.
+- **Sessions** : sessions better-auth en base, révocables ; durée 12 h pour les institutions, 30 jours glissants pour agriculteurs et agents (contrainte de terrain). Une session n'est reconnue que pour un compte dont le NPI est lié.
 - **Appareils agents** : identifiant d'appareil lié au compte pour la synchronisation ; un superviseur peut révoquer un appareil perdu.
-- **Fournisseurs externes** : Auth.js prêt pour un fournisseur OIDC générique. Le jour où l'ANIP (ou un autre fournisseur d'identité national) expose un OIDC, il s'ajoute par configuration.
+- **Fournisseurs externes** : better-auth accepte un fournisseur OIDC générique (greffon `genericOAuth`). Le jour où l'ANIP (ou un autre fournisseur d'identité national) expose un OIDC, il s'ajoute par configuration.
 
 ## 3. Autorisation : RBAC + périmètre territorial
 
@@ -42,7 +43,7 @@ actor = { userId, roles: [{ role, scopeType, scopeId }], organizationIds }
 | Farm.verify | non | communes affectées | non | non | non | non | non |
 | Parcel.geom précise | la sienne | communes affectées | non | non | centroïde seulement | centroïde et agrégats | complet |
 | Farmer.phone | le sien | communes affectées | membres (si consentement) | non (relais via Match) | non | non | oui, journalisé |
-| NPI.reveal | non | non | non | non | non | non | oui, MFA + justification, journalisé |
+| NPI.reveal | non | non | non | non | non | non | oui, justification, journalisé (confirmation par code WhatsApp à la volée prévue, ADR-0012) |
 | Analytics agrégés | sa commune (publics) | ses communes | son organisation | zones publiques | sa commune | national | national |
 | Alert.create manuelle | non | sa zone (WATCH max) | non | non | sa commune | non | national |
 | Rule.manage | non | non | non | non | non | non | oui |

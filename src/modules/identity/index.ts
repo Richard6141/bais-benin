@@ -1,4 +1,11 @@
-export { attachNpi, npiSummary, revealNpi, type AttachNpiResult } from "./npi";
+export {
+  bindNpiOnSignIn,
+  isNpiTaken,
+  npiSummary,
+  revealNpi,
+  validateNpiFormat,
+  type NpiBinding,
+} from "./npi";
 export {
   SPACE_BY_ROLE,
   grantRole,

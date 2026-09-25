@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth/auth";
-import { loadActor } from "@/modules/identity";
+import { resolveSession } from "@/features/auth/session";
 import type { Actor } from "@/modules/authorization";
 
 export interface ApiActor {
@@ -7,11 +6,12 @@ export interface ApiActor {
   actor: Actor;
 }
 
-// Acteur d'une route API : session better-auth lue depuis les en-têtes de la requête,
-// puis rôles et périmètres chargés. Null sans session valide (la route répond 401).
+// B1 : acteur d'une route API. Réutilise resolveSession (session.ts) pour appliquer les mêmes
+// contrôles applicatifs que les pages — suspension de compte et limite de 12 h pour les rôles
+// institutionnels, compte sans NPI lié (ADR-0012) — au lieu de se contenter d'une session valide
+// et des rôles bruts.
 export async function getApiActor(headers: Headers): Promise<ApiActor | null> {
-  const session = await auth.api.getSession({ headers });
-  if (!session) return null;
-  const actor = await loadActor(session.user.id);
-  return { userId: session.user.id, actor };
+  const resolved = await resolveSession(headers);
+  if (!resolved) return null;
+  return { userId: resolved.user.id, actor: resolved.actor };
 }

@@ -1,24 +1,7 @@
-import type { Metadata } from "next";
-import { TotpVerification } from "@/features/auth/totp-verification";
-import { safeNextPath } from "@/features/auth/safe-next-path";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Double authentification" };
-
-export default async function TwoFactorPage({
-  searchParams,
-}: PageProps<"/connexion/institution/verification">) {
-  const params = await searchParams;
-  return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Double authentification
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Saisissez le code affiché par votre application d&apos;authentification.
-        </p>
-      </div>
-      <TotpVerification nextPath={safeNextPath(params.suite)} />
-    </div>
-  );
+// Ancien défi de double authentification par application (TOTP) : retiré avec la connexion par
+// NPI et code WhatsApp (ADR-0012), qui prouve la possession du téléphone à chaque connexion.
+export default function TwoFactorPage() {
+  redirect("/connexion");
 }

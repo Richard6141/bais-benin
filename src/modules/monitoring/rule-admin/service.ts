@@ -40,19 +40,19 @@ export class RuleAdminError extends Error {
   }
 }
 
-// Droit du rôle, et double authentification active : la gouvernance des règles agit sur les
-// alertes de tout le pays, elle est protégée même quand elle est appelée par l'API.
+// Droit du rôle, et compte identifié par son NPI (ADR-0012) : la gouvernance des règles agit sur
+// les alertes de tout le pays, elle est protégée même quand elle est appelée par l'API.
 async function requireRight(actor: Actor, action: "rule.manage" | "rule.simulate") {
   const decision = authorize(actor, action, {});
   if (!decision.allowed) throw new RuleAdminError("FORBIDDEN", decision.reason);
   const user = await prisma.user.findUnique({
     where: { id: actor.userId },
-    select: { twoFactorEnabled: true },
+    select: { npiStatus: true },
   });
-  if (!user?.twoFactorEnabled) {
+  if (!user || user.npiStatus === "NONE") {
     throw new RuleAdminError(
       "FORBIDDEN",
-      "La double authentification est requise pour gérer les règles",
+      "Un compte identifié par son NPI est requis pour gérer les règles",
     );
   }
 }

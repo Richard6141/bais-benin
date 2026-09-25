@@ -13,7 +13,7 @@
 | Déclaré et mesuré côte à côte | Superficie déclarée et superficie mesurée (contours relevés) toujours affichées ensemble, avec l'écart ; jamais l'une à la place de l'autre. |
 | Filtres dans l'adresse | Campagne, culture, département, commune, statut de vérification : paramètres d'URL, partageables et imprimables ; la même adresse donne la même vue. |
 | Comparaison explicite | Toute tendance dit contre quoi elle compare (« contre 2024-2025 »), et n'apparaît que si les deux campagnes ont des données. |
-| Accès | `requireRole("ADMIN_STATE")` (double authentification imposée) pour le tableau national. Agent et coopérative voient une version réduite à leur périmètre sur leur propre espace (§2.F), jamais le tableau national. |
+| Accès | `requireRole("ADMIN_STATE")` pour le tableau national, sur un compte identifié par son NPI et connecté par code WhatsApp (ADR-0012). Agent et coopérative voient une version réduite à leur périmètre sur leur propre espace (§2.F), jamais le tableau national. |
 | Lecture seule | Le tableau de bord n'écrit rien ; les actions (lever une alerte, gérer une règle) restent dans leurs écrans. |
 
 ## 1. Personas
@@ -93,7 +93,7 @@ Chaque export est journalisé (`analytics.export`, filtres, nombre de lignes) : 
 | Carte choroplèthe et filtres dans l'adresse | `src/features/agri-map` (étape 4) | A5, avec une métrique de plus |
 | Vue d'ensemble des alertes, niveaux par commune, météo communale | `src/modules/monitoring` (étape 6) | A6, C4, D5 |
 | Composants | `StatTile`, `ReliabilityBadge`, `SourceCaption`, `Table`, `Tabs`, `CropGlyph`, `RainChart`, `WeatherStrip`, `AlertCard`, `EmptyState` | Tous les écrans |
-| Test ministère avec double authentification | `tests/e2e/helpers/ministry.ts` | Tous les parcours de bout en bout du pilotage |
+| Session ministère des tests | `tests/e2e/helpers/ministry.ts`, qui reprend la session du compte ministère de démonstration enregistrée par le globalSetup (`tests/e2e/helpers/sessions.ts`) | Tous les parcours de bout en bout du pilotage |
 
 ## 4. Ce qui manque
 

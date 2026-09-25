@@ -17,7 +17,8 @@ export interface CurrentUser {
   name: string;
   email: string;
   phoneNumber: string | null;
-  twoFactorEnabled: boolean;
+  /** État du NPI lié au compte (ADR-0012) : toujours présent pour une session valide. */
+  npiStatus: string;
   status: string;
   actor: Actor;
   primaryRole: RoleCode | null;
@@ -28,12 +29,29 @@ export interface CurrentUser {
 const INSTITUTIONAL_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const INSTITUTIONAL_ROLES: RoleCode[] = ["ADMIN_STATE", "COOPERATIVE", "BUYER"];
 
-// Une lecture par requête : React met le résultat en cache pour tous les composants serveur.
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const result = await auth.api.getSession({ headers: await headers() });
+// B1 : les contrôles de session qui dépendent de la base (suspension, limite institutionnelle
+// de 12 h) sont mis en commun ici entre les pages (getCurrentUser) et l'API (api-actor.ts,
+// getApiActor) — jusqu'ici seules les pages en bénéficiaient, l'API se contentait de la
+// session brute et des rôles. better-auth n'a qu'une durée de session globale ; ces règles
+// sont donc réévaluées applicativement à chaque lecture plutôt que déléguées à sa config.
+export type SessionUser = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>["user"];
+export type SessionRecord = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>["session"];
+
+export interface ResolvedSession {
+  user: SessionUser;
+  session: SessionRecord;
+  actor: Actor;
+  role: RoleCode | null;
+}
+
+export async function resolveSession(headersInput: Headers): Promise<ResolvedSession | null> {
+  const result = await auth.api.getSession({ headers: headersInput });
   if (!result) return null;
   const { user, session } = result;
   if (user.status === "SUSPENDED" || user.status === "DELETED") return null;
+  // ADR-0012 : toute connexion lie un NPI au compte. Une session sans NPI (ouverte avant la
+  // connexion par NPI) n'est plus reconnue : l'utilisateur se reconnecte avec son NPI.
+  if (!user.npiStatus || user.npiStatus === "NONE") return null;
 
   const actor = await loadActor(user.id);
   const role = primaryRole(actor);
@@ -41,13 +59,21 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     const age = Date.now() - new Date(session.createdAt).getTime();
     if (age > INSTITUTIONAL_MAX_AGE_MS) return null;
   }
+  return { user, session, actor, role };
+}
+
+// Une lecture par requête : React met le résultat en cache pour tous les composants serveur.
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const resolved = await resolveSession(await headers());
+  if (!resolved) return null;
+  const { user, session, actor, role } = resolved;
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     phoneNumber: user.phoneNumber ?? null,
-    twoFactorEnabled: user.twoFactorEnabled ?? false,
+    npiStatus: user.npiStatus ?? "NONE",
     status: user.status ?? "ACTIVE",
     actor,
     primaryRole: role,
@@ -66,8 +92,8 @@ export async function requireUser(options: { returnTo?: string } = {}): Promise<
   return user;
 }
 
-// Garde d'espace : le rôle attendu doit être présent ; les administrateurs de l'État
-// doivent avoir activé la double authentification avant d'accéder au pilotage.
+// Garde d'espace : le rôle attendu doit être présent. L'identité (NPI et code WhatsApp) est
+// déjà exigée à la connexion de tout compte, ministère compris (ADR-0012).
 export async function requireRole(
   role: RoleCode,
   options: { returnTo?: string } = {},
@@ -75,7 +101,6 @@ export async function requireRole(
   const user = await requireUser(options);
   const hasRole = user.actor.grants.some((g) => g.role === role);
   if (!hasRole) redirect("/acces-refuse");
-  if (role === "ADMIN_STATE" && !user.twoFactorEnabled) redirect("/compte/securite?obligatoire=1");
   return user;
 }
 

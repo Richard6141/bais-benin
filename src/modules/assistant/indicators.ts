@@ -35,8 +35,6 @@ export interface IndicatorBlock {
   href: string;
 }
 
-const K = 5;
-const masked = (count: number) => count > 0 && count < K;
 const CROP_CODE = /^[A-Z][A-Z0-9_]{1,31}$/;
 
 export function isMinistryIndicator(value: string): value is MinistryIndicator {
@@ -52,19 +50,19 @@ export async function readIndicator(
   const cropCode =
     filters.cropCode && CROP_CODE.test(filters.cropCode) ? filters.cropCode : undefined;
   if (indicator === "overview") {
+    // Le service masque lui-même les effectifs de moins de 5 exploitations (valeurs nulles).
     const stats = await getNationalStats({ cropCode }, now);
-    const hide = masked(stats.farmCount);
     return {
       indicator,
       title: cropCode ? `Registre national, culture ${cropCode}` : "Registre national",
       available: true,
       figures: [
-        { label: "Exploitations", value: hide ? null : stats.farmCount, unit: null },
-        { label: "Producteurs", value: hide ? null : stats.farmerCount, unit: null },
-        { label: "Superficie déclarée", value: hide ? null : stats.declaredAreaHa, unit: "ha" },
+        { label: "Exploitations", value: stats.farmCount, unit: null },
+        { label: "Producteurs", value: stats.farmerCount, unit: null },
+        { label: "Superficie déclarée", value: stats.declaredAreaHa, unit: "ha" },
         {
           label: "Part vérifiée",
-          value: hide ? null : Math.round(stats.verifiedShare * 1000) / 10,
+          value: stats.verifiedShare === null ? null : Math.round(stats.verifiedShare * 1000) / 10,
           unit: "%",
         },
       ],

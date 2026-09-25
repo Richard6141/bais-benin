@@ -4,7 +4,7 @@ Ce document décrit le tableau de bord livré à l'étape 7 : ce que voit chaque
 
 ## Ce que voit chaque rôle
 
-### Ministère (`/pilotage`, double authentification obligatoire)
+### Ministère (`/pilotage`, connexion par NPI et code WhatsApp)
 
 - **Vue nationale** (`/pilotage`) : campagne affichée (par défaut la campagne ouverte, sinon la dernière close), date des agrégats, bandeau « Données de démonstration » tant que le registre est surtout synthétique ; six tuiles (producteurs, exploitations, superficie déclarée, superficie relevée et part des parcelles relevées, part vérifiée, production déclarée), chacune avec sa tendance contre la campagne précédente quand elle a un sens ; production par culture avec rendement indicatif et écart au rendement de référence ; comparaison des trois dernières campagnes pour les cinq cultures principales ; carte des communes ; résumé des alertes en cours ; trois chiffres de qualité.
 - **Territoires** (`/pilotage/territoires`) : les 12 départements classés (exploitations, superficies déclarée et relevée, part vérifiée, production), ligne « Bénin » en pied ; descente vers les communes d'un département avec leur zone agro-écologique, le département en pied.

@@ -29,7 +29,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 // Gouvernance des règles d'alerte (monitoring-parcours-ux §2.C4) : liste, activation.
-// requireRole impose le rôle ministère et la double authentification.
+// requireRole impose le rôle ministère (compte identifié par NPI, ADR-0012).
 export default async function RulesPage() {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/regles" });
   const rules = await listRules(user.actor);

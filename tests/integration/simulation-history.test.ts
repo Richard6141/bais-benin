@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
+import type { NpiStatus } from "@/generated/prisma/client";
 import { seedReferenceData } from "@/database/seed";
 import type { Actor } from "@/modules/authorization";
 import { loadActor } from "@/modules/identity";
@@ -11,7 +12,7 @@ import { createFixtureWeatherProvider } from "@/services/weather";
 // n'a que les jours de la première ingestion : l'ingestion rattrape donc 65 jours tant que
 // l'historique est incomplet, pour qu'une simulation sur 30 jours trouve 30 jours d'observations
 // avant chacun de ses jours. Période isolée (printemps 2022), retirée à la fin avec les
-// simulations ; la double authentification du compte ministère est rétablie à son état initial.
+// simulations ; l'état du NPI du compte ministère est rétabli à sa valeur initiale.
 
 const FIRST_DAY = "2022-06-01";
 const NEXT_DAY = "2022-06-02";
@@ -19,14 +20,14 @@ const DRAFT = { any: [{ indicator: "rain_sum_3d", op: ">=", value: 1 }] };
 const runIds: string[] = [];
 const simulationIds: string[] = [];
 let ministry: Actor;
-let ministryTwoFactor: boolean | null = null;
+let ministryNpiStatus: NpiStatus | null = null;
 
 describe("historique météo et simulation", () => {
   beforeAll(async () => {
     await seedReferenceData();
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "ministere@bais.demo" } });
-    ministryTwoFactor = user.twoFactorEnabled;
-    await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+    ministryNpiStatus = user.npiStatus;
+    await prisma.user.update({ where: { id: user.id }, data: { npiStatus: "PENDING" } });
     ministry = await loadActor(user.id);
   }, 120_000);
 
@@ -35,10 +36,10 @@ describe("historique météo et simulation", () => {
     await prisma.simulationRun.deleteMany({ where: { id: { in: simulationIds } } });
     await prisma.weatherObservation.deleteMany({ where: { ingestionRunId: { in: runIds } } });
     await prisma.ingestionRun.deleteMany({ where: { id: { in: runIds } } });
-    if (ministryTwoFactor !== null) {
+    if (ministryNpiStatus !== null) {
       await prisma.user.update({
         where: { email: "ministere@bais.demo" },
-        data: { twoFactorEnabled: ministryTwoFactor },
+        data: { npiStatus: ministryNpiStatus },
       });
     }
     await prisma.$disconnect();
