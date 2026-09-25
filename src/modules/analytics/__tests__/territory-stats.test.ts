@@ -6,7 +6,9 @@ import type {
   NationalStatsRow,
 } from "@/database/sql/territory-stats.sql";
 
-// Aucune base ici : la couche SQL est remplacée par des lignes simulées.
+// Aucune base ici : la couche SQL est remplacée par des lignes simulées. Le client est neutralisé
+// aussi, car l'index du module charge les services du tableau de bord.
+vi.mock("@/database/client", () => ({ prisma: {} }));
 const sql = vi.hoisted(() => ({
   communeStats: vi.fn(),
   departementStats: vi.fn(),
