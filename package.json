@@ -29,6 +29,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "db:purge": "tsx src/modules/privacy/run-purge.ts",
     "prepare": "husky",
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "predev": "node scripts/copy-maplibre-worker.mjs",
