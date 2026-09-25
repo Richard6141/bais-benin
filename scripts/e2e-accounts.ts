@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/auth/password";
 //
 //   tsx scripts/e2e-accounts.ts create --email <e> --password <p> --name <n>
 //   tsx scripts/e2e-accounts.ts delete [--email <e>]
+//   tsx scripts/e2e-accounts.ts check-2fa --email <e>   (code de sortie 1 si la 2FA est inactive)
 //
 // Le compte ministère de démonstration (ministere@bais.demo) n'a pas de double authentification
 // et doit rester ainsi : les parcours du pilotage utilisent des comptes ADMIN_STATE jetables,
@@ -67,6 +68,20 @@ async function removeAll(email?: string) {
   console.log(`Comptes de test supprimés : ${users.length}`);
 }
 
+// Contrôle après activation par l'interface : l'écran peut sembler confirmé alors que la requête
+// n'a pas abouti. Seule la base fait foi.
+async function checkTwoFactor(email: string) {
+  assertTestEmail(email);
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { twoFactorEnabled: true },
+  });
+  if (!user?.twoFactorEnabled) {
+    throw new Error(`Double authentification inactive en base pour ${email}`);
+  }
+  console.log(`Double authentification active : ${email}`);
+}
+
 async function main() {
   if (process.env.APP_ENV === "production") {
     throw new Error("Comptes de test refusés en production");
@@ -77,10 +92,14 @@ async function main() {
     const password = argument("password");
     if (!email || !password) throw new Error("--email et --password sont requis");
     await create(email, password, argument("name") ?? "Compte de test (ministère)");
+  } else if (command === "check-2fa") {
+    const email = argument("email");
+    if (!email) throw new Error("--email est requis");
+    await checkTwoFactor(email);
   } else if (command === "delete") {
     await removeAll(argument("email"));
   } else {
-    throw new Error("Commande attendue : create ou delete");
+    throw new Error("Commande attendue : create, check-2fa ou delete");
   }
 }
 

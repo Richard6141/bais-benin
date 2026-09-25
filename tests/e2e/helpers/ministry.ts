@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, expect, type Page, type TestInfo } from "@playwright/test";
-import { STATE_DIR } from "../clean-db";
+import { STATE_DIR, runAccountsScript } from "../clean-db";
 import { msUntilNextStep, totp } from "./totp";
 
 // Connexion à l'espace ministère pour les tests de bout en bout : un compte ADMIN_STATE jetable par
@@ -33,12 +33,14 @@ async function submitInstitutionForm(page: Page, email: string) {
 
 /**
  * Active la double authentification du compte de test d'un profil, par l'interface, et enregistre
- * la clé. Appelé une fois par profil depuis le globalSetup, dans un navigateur à part.
+ * la clé. Appelé une fois par profil depuis le globalSetup, dans un navigateur à part. Échoue
+ * bruyamment (capture de l'écran dans test-results/e2e-db) si l'activation n'est pas confirmée
+ * à l'écran puis en base.
  */
 export async function activateMinistryTwoFactor(baseURL: string, project: string) {
   const browser = await chromium.launch();
+  const page = await (await browser.newContext({ baseURL })).newPage();
   try {
-    const page = await (await browser.newContext({ baseURL })).newPage();
     await submitInstitutionForm(page, ministryEmailFor(project));
     await page.goto("/compte/securite?obligatoire=1");
     await page.getByLabel("Confirmez votre mot de passe").fill(MINISTRY_TEST_PASSWORD);
@@ -47,11 +49,27 @@ export async function activateMinistryTwoFactor(baseURL: string, project: string
     await expect(manual).toBeVisible({ timeout: 20_000 });
     const secret = ((await manual.textContent()) ?? "").trim();
     if (!/^[A-Z2-7]+=*$/.test(secret)) throw new Error(`Clé TOTP illisible : « ${secret} »`);
-    await page.getByLabel("Chiffre 1 sur 6").fill(totp(secret));
-    // Écran 3 : l'activation est confirmée quand le champ de code disparaît.
-    await expect(page.getByRole("button", { name: "Activer" })).toBeHidden({ timeout: 20_000 });
-    writeFileSync(secretFile(project), secret);
+    // Pendant la vérification, le bouton « Activer » devient « Vérification… » : attendre sa
+    // disparition validait l'activation avant la réponse du serveur, puis le navigateur se fermait
+    // en coupant la requête. On attend l'écran 3, et on retente une fois au pas suivant si le code
+    // est refusé (code calculé à la frontière de deux pas).
+    const done = page.getByText("Double authentification activée");
+    const refused = page.getByText(/Code refusé/);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) await page.waitForTimeout(msUntilNextStep() + 300);
+      await page.getByLabel("Chiffre 1 sur 6").fill(totp(secret));
+      await expect(done.or(refused)).toBeVisible({ timeout: 20_000 });
+      if (await done.isVisible()) break;
+    }
+    await expect(done).toBeVisible();
     writeFileSync(lastStepFile(project), String(currentStep()));
+    runAccountsScript(["check-2fa", "--email", ministryEmailFor(project)]);
+    writeFileSync(secretFile(project), secret);
+  } catch (error) {
+    await page
+      .screenshot({ path: join(STATE_DIR, `activation-2fa-${project}.png`), fullPage: true })
+      .catch(() => undefined);
+    throw error;
   } finally {
     await browser.close();
   }

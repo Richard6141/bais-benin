@@ -22,10 +22,13 @@ import { PHONE_ACCOUNTS, savePhoneSession, type PhonePersona } from "./helpers/s
 // un compte ministère jetable par profil, double authentification activée par l'interface.
 export default async function globalSetup(config: FullConfig) {
   await mkdir(STATE_DIR, { recursive: true });
-  // Les clés TOTP d'une exécution précédente ne valent plus : les comptes sont recréés.
+  // Clés TOTP, sessions et captures d'échec d'une exécution précédente : les comptes et les
+  // sessions sont recréés à chaque exécution.
+  const stale = ["totp-", "session-", "activation-2fa-"];
   for (const file of await readdir(STATE_DIR)) {
-    if (file.startsWith("totp-") || file.startsWith("session-"))
+    if (stale.some((prefix) => file.startsWith(prefix))) {
       await rm(join(STATE_DIR, file), { force: true });
+    }
   }
 
   // Les limites de débit d'abord : l'activation de la double authentification ci-dessous se connecte.
@@ -70,8 +73,11 @@ export default async function globalSetup(config: FullConfig) {
         const baseURL = project.use.baseURL ?? config.webServer?.url ?? "http://localhost:3000";
         await activateMinistryTwoFactor(baseURL, project.name);
       } catch (error) {
-        console.warn(
-          `Compte ministère de test incomplet pour ${project.name} : ${error instanceof Error ? error.message : String(error)}`,
+        // Sans double authentification, tous les parcours du pilotage échoueraient plus loin avec
+        // un message trompeur : on arrête la suite ici, capture d'écran dans test-results/e2e-db.
+        throw new Error(
+          `Compte ministère de test inutilisable pour ${project.name} : ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
     }
