@@ -1,18 +1,27 @@
 import { CROP_CODES, CROP_GLYPH_LABELS, CropGlyph } from "@/components/data-display/crop-glyph";
-import { Monogram } from "@/components/brand/monogram";
+import { GovernmentEmblem } from "@/components/brand/government-emblem";
+import { MinistryLockup } from "@/components/brand/ministry-lockup";
 import { DemoRow, DemoSection } from "@/features/design-system/demo-section";
 
 export function GlyphsSection() {
   return (
     <DemoSection
       id="pictogrammes"
-      title="Marque et pictogrammes"
-      description="Le monogramme et les silhouettes de cultures, repères visuels pour les utilisateurs peu lettrés."
+      title="Identité et pictogrammes"
+      description="La seule marque de la plateforme est celle du ministère : bloc armoiries, nom et filet aux couleurs du drapeau dans les en-têtes, le pied de page et la fiche imprimable ; armoiries seules pour les icônes. Les silhouettes de cultures sont des repères visuels pour les utilisateurs peu lettrés."
     >
-      <DemoRow label="Monogramme">
-        <Monogram className="size-9" />
-        <Monogram className="size-14" />
-        <Monogram className="size-20" />
+      <DemoRow label="Bloc du ministère (en-têtes, fiche imprimable)">
+        <MinistryLockup />
+      </DemoRow>
+      <DemoRow label="Bloc du ministère sur fond sombre (pied de page)">
+        <div className="rounded-sm bg-marine-strong p-4">
+          <MinistryLockup inverted />
+        </div>
+      </DemoRow>
+      <DemoRow label="Armoiries seules (icônes de l'application et de l'onglet)">
+        <GovernmentEmblem size={36} />
+        <GovernmentEmblem size={48} />
+        <GovernmentEmblem size={64} />
       </DemoRow>
       <DemoRow
         label="Cultures (24 px et 48 px)"

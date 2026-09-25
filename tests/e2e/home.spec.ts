@@ -5,10 +5,11 @@ test.describe("page d'accueil", () => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Bénin Agricultural Intelligence System/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Connaître chaque exploitation",
+      "Plateforme nationale d'information agricole",
     );
+    // Seule l'identité du ministère apparaît, dans l'en-tête et le pied de page.
     await expect(
-      page.locator("footer").getByText("Bénin Agricultural Intelligence System"),
+      page.locator("footer").getByText("République du Bénin", { exact: true }),
     ).toBeVisible();
 
     const spaces = page.locator("#espaces li");

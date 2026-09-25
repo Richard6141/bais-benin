@@ -1,6 +1,3 @@
-import Image from "next/image";
-import { landingPhotos } from "@/features/landing/photos";
-
 // Les questions que l'État pose aujourd'hui sans réponse rapide (docs/01 §6), et ce que
 // la plateforme mobilise pour y répondre. Pas de numérotation : ce n'est pas une séquence.
 const questions = [
@@ -37,37 +34,23 @@ const questions = [
 
 export function QuestionsSection() {
   return (
-    <section aria-labelledby="questions-titre" className="border-b border-border/70">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:py-24">
-        <div>
-          <h2
-            id="questions-titre"
-            className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
-          >
-            Des réponses en quelques secondes aux questions qui prenaient des semaines
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Chaque chiffre affiché porte sa source, sa date et son niveau de fiabilité. Ce qui
-            n&apos;a pas été vérifié sur le terrain est dit tel quel.
-          </p>
-          <div className="relative mt-8 aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
-            <Image
-              src={landingPhotos.maize.src}
-              alt={landingPhotos.maize.alt}
-              fill
-              sizes="(min-width: 1024px) 40vw, 100vw"
-              className="object-cover"
-            />
-          </div>
-        </div>
-        <dl className="divide-y">
+    <section aria-labelledby="questions-titre">
+      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
+        <h2 id="questions-titre" className="border-b pb-3 text-xl sm:text-2xl">
+          Questions auxquelles la plateforme répond
+        </h2>
+        <p className="mt-3 max-w-3xl text-muted-foreground">
+          Chaque chiffre affiché porte sa source, sa date et son niveau de fiabilité. Ce qui
+          n&apos;a pas été vérifié sur le terrain est dit tel quel.
+        </p>
+        <dl className="mt-6 divide-y border-y">
           {questions.map((item) => (
             <div
               key={item.question}
-              className="grid gap-2 py-5 first:pt-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-6"
+              className="grid gap-2 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-6"
             >
-              <dt className="font-medium text-balance">{item.question}</dt>
-              <dd className="text-sm text-muted-foreground">{item.answer}</dd>
+              <dt className="font-semibold text-heading">{item.question}</dt>
+              <dd className="text-muted-foreground">{item.answer}</dd>
             </div>
           ))}
         </dl>

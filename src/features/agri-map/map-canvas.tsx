@@ -11,6 +11,8 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import { MapUnavailable } from "@/components/feedback/map-unavailable";
+import { hasWebGL2 } from "@/lib/webgl";
 
 // Le worker de MapLibre est servi en fichiers statiques (scripts/copy-maplibre-worker.mjs) :
 // le bundler de Next ne sait pas exposer celui embarqué par la bibliothèque.
@@ -64,12 +66,14 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
+  const [supported] = useState(hasWebGL2);
   const hoveredRef = useRef<string | null>(null);
   // Passe à vrai quand les sources et couches existent : les effets de peinture attendent ce signal.
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!supported || !containerRef.current || mapRef.current) return;
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE_URL,
@@ -301,6 +305,8 @@ export function MapCanvas({
     }
     selectedRef.current = selectedCommuneCode;
   }, [selectedCommuneCode, ready]);
+
+  if (!supported) return <MapUnavailable />;
 
   return (
     <div

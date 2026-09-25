@@ -7,6 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-heading: var(--heading);
+  --color-band: var(--band);
+  --color-band-foreground: var(--band-foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -34,6 +37,9 @@
   --color-forest: var(--forest);
   --color-forest-soft: var(--forest-soft);
   --color-chalk: var(--chalk);
+  --color-marine: var(--marine);
+  --color-marine-strong: var(--marine-strong);
+  --color-marine-soft: var(--marine-soft);
   --color-paper: var(--paper);
   --color-stone-50: var(--stone-50);
   --color-stone-100: var(--stone-100);
@@ -58,14 +64,15 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-montserrat), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* Angles plafonnés à 6 px : 2, 3, 4 et 6 px pour sm, md, lg et xl. */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 2px);
 
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
@@ -83,25 +90,26 @@
     scroll-behavior: smooth;
   }
 
+  /* Montserrat en corps de 16 px, comme service-public.bj et les portails ministériels : la
+     police de fait de l'État béninois, lisible à cette taille sur Android d'entrée de gamme. */
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
   }
 
-  /* Titres en Montserrat, graisse 600 : identité institutionnelle, sans dégrader la lisibilité
-     du corps qui reste en Inter. */
+  /* Titres en graisse 700 et en bleu marine, sans sur-titre coloré : la hiérarchie vient de la
+     taille et de la graisse, comme sur les portails de l'administration. */
   h1,
   h2,
   h3,
   h4 {
     font-family: var(--font-heading);
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--heading);
   }
 
   /* Les chiffres s'alignent dans les tableaux et les tuiles d'indicateurs. */
   .tabular {
     font-variant-numeric: tabular-nums;
-    font-feature-settings: "cv11", "ss01", "tnum";
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -111,28 +119,6 @@
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
-  }
-}
-
-/* Unique animation d'entrée de l'accueil : la fiche de terrain se pose sur la photographie. */
-@keyframes hero-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.hero-card {
-  animation: hero-card-in 480ms var(--motion-ease) 180ms both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-card {
-    animation: none;
   }
 }
 

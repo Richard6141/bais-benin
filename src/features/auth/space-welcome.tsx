@@ -1,6 +1,6 @@
-import type { LucideIcon } from "lucide-react";
+import { Info, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface WelcomeStep {
   title: string;
@@ -15,30 +15,37 @@ interface SpaceWelcomeProps {
   steps: readonly WelcomeStep[];
 }
 
-// Accueil d'un espace tant que ses fonctions ne sont pas livrées : trois repères,
-// pas plus, pour que la première visite explique ce que l'on pourra y faire.
+// Accueil d'un espace tant que ses fonctions ne sont pas livrées : un avis d'ouverture prochaine
+// et la liste des services prévus, sans cartes ni numérotation décorative.
 export function SpaceWelcome({ eyebrow, title, description, steps }: SpaceWelcomeProps) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader eyebrow={eyebrow} title={title} description={description} />
-      <ol className="grid gap-4 sm:grid-cols-3">
-        {steps.map((step, index) => (
-          <li key={step.title}>
-            <Card className="h-full">
-              <CardHeader>
-                <div className="mb-2 flex items-center gap-3">
-                  <span className="tabular flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
-                    {index + 1}
-                  </span>
-                  <step.icon className="size-5 text-primary" aria-hidden />
-                </div>
-                <CardTitle>{step.title}</CardTitle>
-                <CardDescription>{step.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          </li>
-        ))}
-      </ol>
+      <Alert variant="info">
+        <Info aria-hidden />
+        <AlertTitle>Espace en cours d&apos;ouverture</AlertTitle>
+        <AlertDescription>
+          <p>
+            Les services ci-dessous seront disponibles dans une prochaine version de la plateforme.
+          </p>
+        </AlertDescription>
+      </Alert>
+      <section aria-labelledby="services-prevus" className="flex flex-col gap-3">
+        <h2 id="services-prevus" className="border-b pb-2 text-lg">
+          Services prévus
+        </h2>
+        <ul className="divide-y border-b">
+          {steps.map((step) => (
+            <li key={step.title} className="flex items-start gap-3 py-3">
+              <step.icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+              <span>
+                <span className="block font-semibold text-heading">{step.title}</span>
+                <span className="block text-sm text-muted-foreground">{step.description}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

@@ -3,18 +3,21 @@
 // parce que ces bibliothèques ne lisent pas les variables CSS.
 
 export const brandColors = {
-  ink: "#0b1f2a",
+  ink: "#1d2530",
+  marine: "#0a3764",
+  marineStrong: "#082b4f",
+  marineSoft: "#e8eef6",
   gulf: "#0f4c5c",
   gulfStrong: "#0a3642",
   laterite: "#b7410e",
   forest: "#1f5a3c",
-  chalk: "#f6f3ee",
+  chalk: "#f5f7fa",
   paper: "#ffffff",
 } as const;
 
 export const semanticColors = {
   info: "#1e5a8a",
-  success: "#1f5a3c",
+  success: "#287d3c",
   watch: "#b7791f",
   warning: "#b7410e",
   critical: "#8b1e2d",

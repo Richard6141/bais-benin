@@ -37,11 +37,11 @@ export default function DesignSystemPage() {
         <PageHeader
           eyebrow="Fondations visuelles"
           title="Design system"
-          description="Tout ce que voient les utilisateurs part d'ici : les jetons du territoire, les composants shadcn/ui personnalisés et les composants métier propres à la plateforme."
+          description="Jetons, composants de base et composants métier de la plateforme, selon la charte des portails de l'administration."
         />
         <nav
           aria-label="Sections"
-          className="sticky top-16 z-30 -mx-4 border-b bg-background/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6"
+          className="sticky top-0 z-30 -mx-4 border-b bg-background px-4 py-2 sm:-mx-6 sm:px-6"
         >
           <ul className="flex gap-1 overflow-x-auto text-sm">
             {sections.map((section) => (

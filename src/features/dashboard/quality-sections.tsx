@@ -219,7 +219,7 @@ export function CoverageSection({
           <h3 className="text-base font-semibold">Communes sans agent actif</h3>
           <ul className="flex flex-wrap gap-2 text-sm" aria-label="Communes sans agent actif">
             {coverage.communesWithoutAgent.map((c) => (
-              <li key={c.code} className="rounded-full border px-3 py-1">
+              <li key={c.code} className="rounded-sm border px-3 py-1">
                 {c.name}
               </li>
             ))}

@@ -13,8 +13,9 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f6f3ee",
-    theme_color: "#0f4c5c",
+    // Fond blanc et marine de l'en-tête : icônes aux armoiries de l'État (scripts/generate-icons.mjs).
+    background_color: "#ffffff",
+    theme_color: "#0a3764",
     categories: ["government", "productivity"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

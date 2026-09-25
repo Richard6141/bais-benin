@@ -11,6 +11,8 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { MapUnavailable } from "@/components/feedback/map-unavailable";
+import { hasWebGL2 } from "@/lib/webgl";
 import {
   BENIN_BOUNDS,
   BENIN_CENTER,
@@ -52,11 +54,13 @@ interface AlertMapCanvasProps {
 export function AlertMapCanvas({ levels }: AlertMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
+  const [supported] = useState(hasWebGL2);
   const [ready, setReady] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!supported || !containerRef.current || mapRef.current) return;
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE_URL,
@@ -124,6 +128,8 @@ export function AlertMapCanvas({ levels }: AlertMapCanvasProps) {
       );
     }
   }, [levels, ready]);
+
+  if (!supported) return <MapUnavailable />;
 
   return (
     <div

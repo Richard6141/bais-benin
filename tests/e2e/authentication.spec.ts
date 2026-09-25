@@ -37,7 +37,8 @@ test.describe("connexion par NPI et code WhatsApp", () => {
     await expect(page).toHaveURL(/\/agriculteur$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("link", { name: "Déclarer ma récolte" })).toBeVisible();
-    await expect(page.getByText("Agriculteur", { exact: true })).toBeVisible();
+    // La barre marine de l'en-tête dit dans quel espace on se trouve.
+    await expect(page.getByText("Espace agriculteur", { exact: true })).toBeVisible();
   });
 
   test("un agent arrive sur l'espace agent puis se voit refuser le pilotage", async ({ page }) => {

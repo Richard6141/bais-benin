@@ -83,7 +83,7 @@ export function AlertsSummary({ overview }: { overview: MonitoringOverview }) {
   );
 }
 
-// A7 : la qualité en un coup d'œil. Les seuils colorent la source, pas la valeur : un chiffre
+// A7 : résumé de la qualité des données. Les seuils colorent la source, pas la valeur : un chiffre
 // élevé n'est pas une faute du lecteur, c'est un travail à planifier.
 export function QualityGlance({ quality }: { quality: DataQuality }) {
   const gap = quality.gaps.medianGap;

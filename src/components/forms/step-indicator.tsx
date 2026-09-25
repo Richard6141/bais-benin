@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StepIndicatorProps {
@@ -7,46 +6,33 @@ interface StepIndicatorProps {
   className?: string;
 }
 
-// Indicateur d'avancement des formulaires multi-étapes : l'utilisateur voit toujours
-// où il en est et combien il reste. Les étapes passées restent cliquables via le parent.
+// Avancement d'un formulaire en plusieurs étapes, à la manière des démarches en ligne de
+// l'administration : « Étape 2 sur 3 : Adresse » écrit en toutes lettres, puis une barre plate
+// découpée en segments. Pas de pastilles numérotées décoratives.
 export function StepIndicator({ steps, current, className }: StepIndicatorProps) {
+  const index = Math.min(Math.max(current, 0), steps.length - 1);
   return (
-    <ol className={cn("flex items-center gap-2", className)} aria-label="Progression">
-      {steps.map((label, index) => {
-        const state = index < current ? "done" : index === current ? "current" : "todo";
-        return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <p className="text-sm">
+        <span className="font-semibold">
+          Étape {index + 1} sur {steps.length}
+        </span>
+        {steps[index] ? <span className="text-muted-foreground"> : {steps[index]}</span> : null}
+      </p>
+      <ol aria-label="Progression" className="flex gap-1">
+        {steps.map((label, step) => (
           <li
             key={label}
-            className="flex flex-1 items-center gap-2"
-            aria-current={state === "current" ? "step" : undefined}
+            aria-current={step === index ? "step" : undefined}
+            className={cn("h-1.5 flex-1", step <= index ? "bg-primary" : "bg-muted")}
           >
-            <span
-              className={cn(
-                "tabular flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                state === "done" && "border-primary bg-primary text-primary-foreground",
-                state === "current" && "border-primary text-primary",
-                state === "todo" && "border-border text-muted-foreground",
-              )}
-            >
-              {state === "done" ? <Check className="size-4" aria-hidden /> : index + 1}
-            </span>
-            <span
-              className={cn(
-                "hidden text-xs sm:block",
-                state === "current" ? "font-medium text-foreground" : "text-muted-foreground",
-              )}
-            >
+            <span className="sr-only">
               {label}
+              {step < index ? " (terminée)" : step === index ? " (en cours)" : ""}
             </span>
-            {index < steps.length - 1 ? (
-              <span
-                aria-hidden
-                className={cn("h-px flex-1", index < current ? "bg-primary" : "bg-border")}
-              />
-            ) : null}
           </li>
-        );
-      })}
-    </ol>
+        ))}
+      </ol>
+    </div>
   );
 }

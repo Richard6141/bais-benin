@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Montserrat } from "next/font/google";
+import { JetBrains_Mono, Montserrat } from "next/font/google";
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/feedback/offline-banner";
 import { PwaProvider } from "@/components/providers/pwa-provider";
@@ -7,20 +7,13 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-// Inter pour le corps, les formulaires et les chiffres : lisible à 14 px sur Android
-// d'entrée de gamme. Montserrat pour les titres : police de fait des portails officiels
-// béninois (docs/recherche/plateformes-officielles-ui.md).
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
-
+// Montserrat pour tout le texte, titres et corps : police de fait des portails de l'État béninois
+// (service-public.bj, agriculture.gouv.bj, gouv.bj), rendue ici en 16 px au minimum pour le corps.
+// Quatre graisses seulement, auto-hébergées par next/font (docs/modules/charte-officielle.md).
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin", "latin-ext"],
-  weight: ["600", "700"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -59,8 +52,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f3ee" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1f2a" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1624" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -73,7 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="fr"
       dir="ltr"
-      className={`${inter.variable} ${montserrat.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${montserrat.variable} ${jetbrainsMono.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">

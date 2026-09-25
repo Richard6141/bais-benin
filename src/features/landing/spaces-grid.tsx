@@ -1,13 +1,21 @@
+import {
+  BarChart3,
+  ChevronRight,
+  ClipboardList,
+  Handshake,
+  Landmark,
+  ShoppingBasket,
+  Sprout,
+  type LucideIcon,
+} from "lucide-react";
 import type { Route } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { landingPhotos, type LandingPhotoKey } from "@/features/landing/photos";
 
 interface Space {
   title: string;
   audience: string;
   description: string;
-  photo: LandingPhotoKey;
+  icon: LucideIcon;
   href: Route;
 }
 
@@ -16,7 +24,7 @@ const spaces: Space[] = [
     title: "Agriculteur",
     audience: "Producteurs et productrices",
     description: "Voir son exploitation, déclarer une récolte, recevoir les alertes sur WhatsApp.",
-    photo: "cassava",
+    icon: Sprout,
     href: "/connexion",
   },
   {
@@ -24,77 +32,75 @@ const spaces: Space[] = [
     audience: "Conseillers des ATDA et agents communaux",
     description:
       "Enregistrer et vérifier des exploitations hors connexion, synchroniser plus tard.",
-    photo: "yam",
+    icon: ClipboardList,
     href: "/connexion",
   },
   {
     title: "Coopérative",
     audience: "Gestionnaires de coopératives et d'unions",
     description: "Suivre ses membres, agréger les volumes, répondre aux demandes d'achat.",
-    photo: "gari",
+    icon: Handshake,
     href: "/connexion",
   },
   {
     title: "Acheteur",
     audience: "Transformateurs, grossistes, programmes publics",
     description: "Trouver des récoltes vérifiées par produit, zone et volume.",
-    photo: "market",
+    icon: ShoppingBasket,
     href: "/connexion",
   },
   {
     title: "Commune",
     audience: "Mairies et services agricoles communaux",
-    description: "Une vue de l'agriculture communale : exploitations, cultures, alertes.",
-    photo: "irrigation",
+    description: "L'agriculture de la commune : exploitations, cultures, alertes.",
+    icon: Landmark,
     href: "/connexion",
   },
   {
     title: "Ministère",
-    audience: "Analystes et directions du MAEP",
-    description: "Le centre de pilotage national : indicateurs, risques, qualité des données.",
-    photo: "aerial",
+    audience: "Directions du ministère",
+    description: "Le centre de pilotage national : indicateurs, alertes, qualité des données.",
+    icon: BarChart3,
     href: "/connexion",
   },
 ];
 
+// Accès par espace, à la manière des listes de services de service-public.bj : une tuile
+// bordée par public, avec son pictogramme, sa description et un lien « Accéder ».
 export function SpacesGrid() {
   return (
-    <section
-      id="espaces"
-      aria-labelledby="espaces-titre"
-      className="scroll-mt-20 border-b border-border/70"
-    >
-      <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <div className="max-w-2xl">
-          <h2 id="espaces-titre" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Six espaces, un seul registre
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Chaque acteur travaille dans un espace adapté à son rôle et à son périmètre. Toutes les
-            saisies alimentent la même base, et chacun ne voit que ce qui le concerne.
-          </p>
-        </div>
-        <ul className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+    <section id="espaces" aria-labelledby="espaces-titre" className="scroll-mt-20">
+      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
+        <h2 id="espaces-titre" className="border-b pb-3 text-xl sm:text-2xl">
+          Accéder à votre espace
+        </h2>
+        <p className="mt-3 text-muted-foreground">
+          Chaque espace correspond à un rôle et à un périmètre : tous alimentent le même registre,
+          et chacun ne voit que ce qui le concerne.
+        </p>
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {spaces.map((space) => {
-            const photo = landingPhotos[space.photo];
+            const Icon = space.icon;
             return (
               <li key={space.title}>
                 <Link
                   href={space.href}
-                  className="group block rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  className="group flex h-full flex-col gap-3 rounded-lg border bg-card p-5 transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <div className="relative aspect-[3/2] overflow-hidden rounded-xl bg-muted">
-                    <Image
-                      src={photo.src}
-                      alt={photo.alt}
-                      fill
-                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold">{space.title}</h3>
-                  <p className="text-sm text-muted-foreground">{space.audience}</p>
-                  <p className="mt-2 text-sm">{space.description}</p>
+                  <span className="flex items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-marine-soft text-primary dark:bg-accent">
+                      <Icon className="size-5" aria-hidden />
+                    </span>
+                    <span>
+                      <span className="block font-bold text-heading">{space.title}</span>
+                      <span className="block text-sm text-muted-foreground">{space.audience}</span>
+                    </span>
+                  </span>
+                  <span className="text-sm">{space.description}</span>
+                  <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-primary underline-offset-4 group-hover:underline">
+                    Accéder
+                    <ChevronRight className="size-4" aria-hidden />
+                  </span>
                 </Link>
               </li>
             );

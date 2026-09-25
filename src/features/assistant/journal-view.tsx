@@ -55,8 +55,8 @@ export function JournalView({ entries, basePath, outcome }: JournalViewProps) {
                   aria-current={active ? "page" : undefined}
                   className={
                     active
-                      ? "inline-flex h-11 items-center rounded-full border border-primary bg-primary px-4 text-sm font-medium text-primary-foreground"
-                      : "inline-flex h-11 items-center rounded-full border px-4 text-sm font-medium hover:bg-accent"
+                      ? "inline-flex h-11 items-center rounded-sm border border-primary bg-primary px-4 text-sm font-medium text-primary-foreground"
+                      : "inline-flex h-11 items-center rounded-sm border px-4 text-sm font-medium hover:bg-accent"
                   }
                 >
                   {filter.label}

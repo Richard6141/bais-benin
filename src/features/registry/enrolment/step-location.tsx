@@ -68,7 +68,7 @@ export function StepLocation({
   return (
     <StepShell
       title="Où se trouve l'exploitation ?"
-      description="La position de votre téléphone suffit : la commune est déduite sur l'appareil."
+      description="La commune est déduite de la position du téléphone, sur l'appareil."
       primaryLabel="Continuer"
       primaryDisabled={!position || !commune}
       onPrimary={() => {

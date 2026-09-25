@@ -15,7 +15,7 @@ export default async function FirstLaunchPage() {
       <PageHeader
         eyebrow="Premier lancement"
         title="Préparer le travail sans réseau"
-        description="Un seul téléchargement, de préférence en Wi-Fi. Ensuite l'application fonctionne entièrement hors connexion."
+        description="Téléchargement unique, de préférence en Wi-Fi ; l'application fonctionne ensuite sans connexion."
       />
       <FirstLaunch userId={user.id} communes={communes} />
     </div>
