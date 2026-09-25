@@ -26,7 +26,10 @@ cp .env.example .env
 
 Renseigner au minimum dans `.env` (voir le détail de chaque variable en section 3) :
 `DATABASE_URL`, `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`/`POSTGRES_PORT`,
-`APP_ENV=development`, `AUTH_SECRET`, `NPI_ENCRYPTION_KEY`, `NPI_HASH_KEY`, `AUDIT_IP_HASH_KEY`.
+`APP_ENV=development`, `AUTH_SECRET`, `NPI_ENCRYPTION_KEY`, `NPI_HASH_KEY`, `AUDIT_IP_HASH_KEY`,
+et `OTP_DEMO_CODE` pour utiliser les comptes de démonstration. Sans `NPI_ENCRYPTION_KEY` et
+`NPI_HASH_KEY`, aucune connexion n'est possible : le premier écran de connexion chiffre le NPI
+saisi avec ces clés (ADR-0012).
 
 ```bash
 pnpm install                 # installe aussi les hooks husky (script "prepare")
@@ -37,19 +40,45 @@ pnpm db:seed                 # charge référentiels + comptes et registre de d�
 pnpm dev                     # http://localhost:3000
 ```
 
-Comptes de démonstration créés par le seed (jamais en `APP_ENV=production`, voir section 3) :
+Comptes de démonstration créés par le seed (jamais en `APP_ENV=production`, voir section 3). Tous
+se connectent sur `/connexion` comme n'importe quel compte : NPI, numéro relié, puis code.
 
-| Compte | Identifiant | Secret |
-|---|---|---|
-| Ministère (ADMIN_STATE) | `ministere@bais.demo` | `DEMO_ACCOUNT_PASSWORD` |
-| Coopérative | `cooperative@bais.demo` | `DEMO_ACCOUNT_PASSWORD` |
-| Acheteur | `acheteur@bais.demo` | `DEMO_ACCOUNT_PASSWORD` |
-| Agent de terrain (Djougou) | `+229 01 90 00 00 01` | `OTP_DEMO_CODE` (si défini) |
-| Agricultrice (Djougou) | `+229 01 90 00 00 02` | `OTP_DEMO_CODE` (si défini) |
+| Compte | NPI | Numéro | Code |
+|---|---|---|---|
+| Agent de terrain (Djougou) | `1000000000001` | `01 90 00 00 01` | `OTP_DEMO_CODE` |
+| Agricultrice (Djougou) | `1000000000002` | `01 90 00 00 02` | `OTP_DEMO_CODE` |
+| Ministère (ADMIN_STATE) | `1000000000003` | `01 90 00 00 03` | `OTP_DEMO_CODE` |
+| Coopérative | `1000000000004` | `01 90 00 00 04` | `OTP_DEMO_CODE` |
+| Acheteur | `1000000000005` | `01 90 00 00 05` | `OTP_DEMO_CODE` |
 
-Si `DEMO_ACCOUNT_PASSWORD` est absent en développement, un mot de passe aléatoire est généré au
-lancement du seed et affiché dans les journaux (`AUDIT_IP_HASH_KEY absent` suit la même logique
-pour la clé de hachage d'audit) — jamais de valeur connue à l'avance codée en dur.
+`OTP_DEMO_CODE` est vide dans `.env.example` : y mettre six chiffres de son choix (la CI et les
+tests de bout en bout utilisent `246810`). Une fois renseigné, la liste de ces comptes s'affiche
+sous le formulaire hors production, avec un bouton « Utiliser » qui remplit le NPI et le numéro ;
+aucun message n'est envoyé à ces numéros fictifs et le code de démonstration est accepté. Tant
+qu'il est vide, la liste n'apparaît pas et ces numéros reçoivent un code ordinaire par le canal
+configuré (écrit dans les journaux du serveur avec `console`). Le seed ne crée plus de mot de
+passe et supprime, à sa relance, les identifiants par mot de passe hérités d'une base antérieure.
+
+### Recevoir de vrais codes WhatsApp en local
+
+Par défaut (`MESSAGING_PRIMARY_CHANNEL=console`), le code d'un numéro réel est écrit en clair dans
+les journaux du serveur, rien n'est envoyé. Pour le recevoir sur WhatsApp par wapy.pro, mettre
+dans `.env` :
+
+```bash
+MESSAGING_PRIMARY_CHANNEL=wapy
+WAPY_API_KEY=<clé de la passerelle wapy.pro>
+```
+
+puis relancer `pnpm dev`. `.env` est ignoré par git : la clé n'y est jamais versionnée, et ne
+doit apparaître ni dans `.env.example`, ni dans un commit, ni dans une capture. Se connecter
+ensuite avec son propre numéro et un NPI de 13 chiffres. Avec
+`IDENTITY_VERIFICATION_PROVIDER=anip-local`, seule la forme du NPI est contrôlée : le compte créé
+garde ce NPI, en attente de vérification, et ce NPI ne pourra plus servir à un autre compte de la
+même base. Garder `OTP_DEMO_CODE` renseigné pour que les numéros de démonstration ne partent pas
+vers la passerelle. Quotas de wapy.pro : 2 codes par heure et par destinataire, 60 messages par
+heure, 500 par jour ; l'application ajoute sa propre limite de 5 codes par 15 minutes et par
+numéro.
 
 ### Commandes utiles
 
@@ -90,15 +119,14 @@ fait échouer le démarrage avec un message explicite plutôt qu'une panne silen
 | Variable | Obligatoire | Détail |
 |---|---|---|
 | `AUTH_SECRET` | **oui dès `NODE_ENV=production`** (sauf pendant la phase de build Next.js) | Signature des sessions better-auth, 32 caractères minimum : `openssl rand -base64 48`. En développement sans valeur, un secret éphémère est généré par process (les sessions ne survivent pas à un redémarrage). |
-| `OTP_DEMO_CODE` | non, **interdit en production** | Code fixe à 6 chiffres pour les numéros de démonstration (liste exacte dans `src/lib/auth/phone.ts`, fonction `isDemoPhone`). |
-| `DEMO_ACCOUNT_PASSWORD` | obligatoire hors `APP_ENV=development` | Mot de passe des comptes institutionnels de démonstration. |
+| `OTP_DEMO_CODE` | non, **interdit en production** | Code fixe à 6 chiffres pour les numéros de démonstration (liste exacte dans `src/lib/auth/demo-accounts.ts`, contrôlée par `isDemoPhone` dans `src/lib/auth/phone.ts`). Renseigné, il affiche aussi la liste des comptes de démonstration sous le formulaire de connexion (hors production). |
 | `TRUSTED_PROXIES` | non | Adresses IP ou plages CIDR du ou des relais inverses de confiance placés devant l'application, séparées par des virgules. Sans elle, l'en-tête `X-Forwarded-For` n'est pas crédité (voir `advanced.ipAddress` dans `src/lib/auth/auth.ts`) : la limite de débit par IP et le journal d'audit utiliseraient une adresse indistincte derrière un relais non déclaré. |
 
 ### Messagerie (codes à usage unique, alertes)
 
 | Variable | Obligatoire | Détail |
 |---|---|---|
-| `MESSAGING_PRIMARY_CHANNEL` | non (défaut `console`), **doit valoir `wapy` en production** | `console` (journalise en clair, développement uniquement) \| `wapy` \| `fixture` (tests, messages en mémoire). |
+| `MESSAGING_PRIMARY_CHANNEL` | non (défaut `console`), **doit valoir `wapy` en production** | `console` (journalise en clair, développement uniquement) \| `wapy` (envoi réel sur WhatsApp, y compris en local, voir section 2) \| `fixture` (tests, messages en mémoire). |
 | `WAPY_API_URL` | non (défaut `https://wapy.pro`) | Base de la passerelle HTTP wapy.pro. |
 | `WAPY_API_KEY` | **oui si `MESSAGING_PRIMARY_CHANNEL=wapy`** | Clé de la passerelle d'envoi WhatsApp (voir section 5). |
 | `WAPY_WEBHOOK_SECRET` | non (le webhook répond 503 sans elle) | Secret HMAC du webhook entrant `/api/v1/webhooks/wapy`. |
@@ -115,7 +143,7 @@ fait échouer le démarrage avec un message explicite plutôt qu'une panne silen
 
 | Variable | Obligatoire | Détail |
 |---|---|---|
-| `NPI_ENCRYPTION_KEY`, `NPI_HASH_KEY` | oui dès qu'un NPI doit être rattaché | Deux clés **distinctes** de 32 octets en base64 : `openssl rand -base64 32` chacune. Chiffrement AES-256-GCM et index HMAC. |
+| `NPI_ENCRYPTION_KEY`, `NPI_HASH_KEY` | **oui pour toute connexion**, développement compris | Deux clés **distinctes** de 32 octets en base64 : `openssl rand -base64 32` chacune. Chiffrement AES-256-GCM et index HMAC du NPI, lié au compte à la connexion (ADR-0012). Sans elles, le premier écran de connexion échoue et le seed crée les comptes de démonstration sans NPI. |
 | `NPI_LENGTH` | non (défaut 13) | |
 | `IDENTITY_VERIFICATION_PROVIDER` | non (défaut `anip-local`) | `anip-local` (contrôle de forme) \| `anip-xroad` (convention ANIP via X-Road BJ). |
 | `ANIP_XROAD_SECURITY_SERVER_URL`, `ANIP_XROAD_CLIENT_ID`, `ANIP_XROAD_SERVICE_ID` | oui si `anip-xroad` | |
@@ -227,7 +255,9 @@ curl -s http://localhost:3000/api/health | jq
 | `Configuration invalide : - AUTH_SECRET : obligatoire dès que NODE_ENV=production` | `.env` incomplet en environnement de production/démo | Renseigner la variable manquante (le message nomme chaque champ en cause) |
 | `Configuration invalide : - AUDIT_IP_HASH_KEY : obligatoire en production` | idem | `openssl rand -base64 32` |
 | Connexion refusée à la base | `pnpm db:up` non lancé, ou port déjà occupé | Vérifier `docker compose ps`, changer `POSTGRES_PORT` si `5432` est pris |
-| OTP jamais reçu en développement | `MESSAGING_PRIMARY_CHANNEL=console` (par défaut) | Le code est écrit dans les journaux du serveur, pas envoyé réellement |
+| OTP jamais reçu en développement | `MESSAGING_PRIMARY_CHANNEL=console` (par défaut) | Le code est écrit dans les journaux du serveur, pas envoyé réellement ; pour un envoi WhatsApp réel, voir section 2 |
+| Le premier écran de connexion échoue, journaux du serveur : `NPI_ENCRYPTION_KEY et NPI_HASH_KEY sont nécessaires à la connexion` | Clés NPI absentes de `.env` | Les générer (`openssl rand -base64 32`, deux fois), relancer le serveur, puis relancer `pnpm db:seed` pour lier les NPI de démonstration |
+| « Ce NPI et ce numéro ne sont pas reliés au même compte » après un code valide | Le numéro est lié à un autre NPI, ou le NPI saisi appartient déjà à un autre compte | Reprendre le couple exact du tableau de la section 2 ; pour un compte de test, utiliser un NPI encore libre |
 | `Trop de codes envoyés pour ce numéro` en boucle sur un numéro de test | Limite de 5 codes/15 min par numéro (`otp-phone-rate-limit.ts`) — les numéros de démonstration en sont exemptés | Attendre la fenêtre, ou vider la ligne `otp-phone:<numéro>` de la table `auth_rate_limit` |
 | Webhook wapy.pro répond 503 | `WAPY_WEBHOOK_SECRET` absent | Le renseigner (section 6) |
 | Carte blanche sur `/carte` en production | CSP trop stricte pour une origine de tuiles personnalisée | Vérifier que `NEXT_PUBLIC_MAP_STYLE_URL` correspond à l'origine réellement utilisée : `next.config.ts` en dérive la CSP automatiquement |

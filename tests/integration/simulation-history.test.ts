@@ -12,7 +12,7 @@ import { createFixtureWeatherProvider } from "@/services/weather";
 // n'a que les jours de la première ingestion : l'ingestion rattrape donc 65 jours tant que
 // l'historique est incomplet, pour qu'une simulation sur 30 jours trouve 30 jours d'observations
 // avant chacun de ses jours. Période isolée (printemps 2022), retirée à la fin avec les
-// simulations ; la double authentification du compte ministère est rétablie à son état initial.
+// simulations ; l'état du NPI du compte ministère est rétabli à sa valeur initiale.
 
 const FIRST_DAY = "2022-06-01";
 const NEXT_DAY = "2022-06-02";

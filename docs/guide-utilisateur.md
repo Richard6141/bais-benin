@@ -6,18 +6,23 @@ Un chapitre par rôle. Chaque compte de démonstration cité est décrit dans le
 
 ## Se connecter
 
-Deux parcours de connexion, selon le rôle :
+Un seul parcours pour tous les rôles (agricultrice, agent de terrain, coopérative, acheteur,
+ministère), sur `/connexion`, sans mot de passe :
 
-- **Producteurs et agents** (agricultrice, agent de terrain) : par numéro de téléphone et code à
-  usage unique reçu par message. Ouvrir `/connexion`, saisir le numéro (`01 XX XX XX XX`),
-  recevoir le code à six chiffres, le saisir. Un nouveau numéro crée automatiquement un compte.
-- **Comptes institutionnels** (ministère, coopérative, acheteur) : par e-mail et mot de passe sur
-  `/connexion/institution`, avec double authentification (TOTP, application d'authentification
-  mobile) obligatoire pour le ministère.
+1. Saisir votre NPI (13 chiffres, inscrit sur la carte d'identité ou le certificat
+   d'identification personnelle) et le numéro de téléphone qui y est relié (`01 XX XX XX XX`),
+   puis « Recevoir mon code sur WhatsApp ».
+2. Saisir le code à six chiffres reçu sur WhatsApp, valable 5 minutes. Un nouveau code peut être
+   demandé au bout de 60 secondes.
 
-Capture : [écran de connexion institutionnelle](rapports/captures/etape-3/connexion-institution-desktop.png),
-[connexion par téléphone, mobile](rapports/captures/etape-3/connexion-telephone-mobile.png),
-[saisie du code, mobile](rapports/captures/etape-3/connexion-code-mobile.png).
+À la première connexion, un compte est créé et le NPI y est lié, en attente de vérification par
+l'ANIP. Aux connexions suivantes, le numéro doit être présenté avec ce même NPI. Les rôles
+institutionnels (ministère, coopérative, acheteur) sont attribués par un administrateur à un
+compte déjà identifié par son NPI.
+
+Hors production, quand un code de démonstration est configuré, la liste des comptes de
+démonstration s'affiche sous le formulaire : le bouton « Utiliser » remplit le NPI et le numéro,
+et le code de démonstration affiché remplace le message WhatsApp.
 
 ---
 
@@ -109,7 +114,8 @@ sans changer d'adresse ni de connexion.
 
 ## Ministère (pilotage national)
 
-Connexion institutionnelle avec double authentification obligatoire.
+Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le rôle ministère est
+attribué au compte par un administrateur. Une session ministère dure 12 heures au plus.
 
 1. **Vue nationale** (`/pilotage`) : six indicateurs avec provenance et fiabilité (producteurs,
    exploitations, superficies déclarée et relevée, part vérifiée, production déclarée), carte des
@@ -126,8 +132,6 @@ Connexion institutionnelle avec double authentification obligatoire.
    concernées), activation/désactivation, simulation avant mise en service.
 6. **Exports** : CSV compatible avec un tableur français, et fiche imprimable A4 pour une
    présentation hors écran.
-7. **Sécurité du compte** (`/compte/securite`) : activation de la double authentification,
-   obligatoire pour accéder au pilotage.
 
 **Secret statistique** : toute case résumant moins de cinq exploitations est masquée (« secret
 statistique »), y compris sur la carte publique `/carte` et l'API `/api/v1/territory/stats` — pas
@@ -143,8 +147,7 @@ Captures : [vue nationale, desktop](rapports/captures/etape-7/pilotage-national-
 [fiche imprimable](rapports/captures/etape-7/pilotage-fiche-impression.png),
 [règles, liste](rapports/captures/etape-6/pilotage-regles-desktop.png) et
 [fiche d'une règle](rapports/captures/etape-6/pilotage-regle-fiche-desktop.png),
-[alertes](rapports/captures/etape-6/pilotage-alertes-desktop.png),
-[activation de la double authentification](rapports/captures/etape-3/securite-obligatoire-desktop.png).
+[alertes](rapports/captures/etape-6/pilotage-alertes-desktop.png).
 
 ---
 
@@ -153,7 +156,7 @@ Captures : [vue nationale, desktop](rapports/captures/etape-7/pilotage-national-
 - **Accès refusé** : chaque espace est réservé à son rôle ; une tentative d'accès à un autre
   espace redirige vers un écran explicite plutôt qu'une erreur technique
   ([capture](rapports/captures/etape-3/acces-refuse-mobile.png)).
-- **Compte** (`/compte`) : informations du profil, rôles attribués, déconnexion
-  ([capture](rapports/captures/etape-3/compte-desktop.png)).
+- **Compte** (`/compte`) : téléphone, rôles attribués, NPI masqué et statut de sa vérification,
+  appareils connectés (chacun peut être déconnecté à distance).
 - **Provenance des chiffres** : chaque indicateur agrégé affiche sa source et sa fiabilité
   (déclaratif ou vérifié sur le terrain) — jamais un chiffre présenté sans origine.

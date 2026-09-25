@@ -42,7 +42,7 @@ Nom de travail : **Bénin Agricultural Intelligence System (BAIS)**. Nom de code
 
 ### 5.1 Ce que la version challenge livre (V1)
 
-- **M1 Identité et accès** : inscription et connexion par téléphone + code à usage unique (canal WhatsApp via wapy.pro ou SMS, repli e-mail), comptes institutionnels par e-mail et mot de passe, rôles et périmètres territoriaux, journal d'audit, préparation ANIP (champ NPI chiffré, fournisseur d'identité externe abstrait).
+- **M1 Identité et accès** : inscription et connexion par NPI, numéro de téléphone relié et code à usage unique reçu sur WhatsApp (wapy.pro), le même parcours pour tous les rôles, comptes institutionnels compris (ADR-0012), rôles et périmètres territoriaux, journal d'audit, préparation ANIP (NPI chiffré lié au compte, fournisseur d'identité externe abstrait).
 - **M2 Registre national** : agriculteurs, exploitations, parcelles (géométrie), cultures, campagnes, déclarations de production, workflow de vérification (déclaré, vérifié par agent, vérifié sur le terrain), historique complet, saisie hors-ligne pour l'agent.
 - **M3 Carte agricole** : MapLibre + fond OSM, couches parcelles, exploitations et communes, filtres culture, zone, statut et campagne, agrégation par commune avec choroplèthes, statistiques de l'emprise visible, emplacement prévu pour couches satellites (NDVI) et raster.
 - **M4 Monitoring** : ingestion météo (Open-Meteo, sans clé), moteur de règles déclaratif à seuils composables, génération d'alertes par zone et par exploitation, diffusion multicanal, historique et accusé de réception.

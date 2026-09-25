@@ -1,8 +1,8 @@
 # Authentification et identité — parcours écran par écran
 
-- Étape : 3 (authentification), préparation.
-- Public : équipe front. Ce document décrit les écrans ; les décisions techniques sont dans docs/06 §2, ADR-0003 (Auth.js, OTP, identifiants institutionnels), ADR-0007 (wapy.pro canal WhatsApp) et docs/recherche/anip-npi-api.md (NPI).
-- Statut : proposition, à valider avant implémentation.
+- Étape : 3 (authentification), préparation ; connexion revue à l'étape 9.
+- Public : équipe front. Ce document décrit les écrans ; les décisions techniques sont dans docs/06 §2, ADR-0012 (connexion unique par NPI et code WhatsApp, qui remplace la connexion institutionnelle et le TOTP de l'ADR-0010), ADR-0007 (wapy.pro canal WhatsApp) et docs/recherche/anip-npi-api.md (NPI).
+- Statut : les écrans de connexion (§2.a, A1 et A2) et le retrait du parcours institutionnel (§2.c) décrivent l'implémentation (`src/features/auth/sign-in-form.tsx`) ; les autres écrans restent des propositions.
 
 ## 0. Règles transversales
 
@@ -17,32 +17,34 @@ Ces règles s'appliquent à tous les écrans qui suivent ; elles ne sont pas ré
 | Hors connexion | Les écrans d'authentification qui exigent le réseau l'annoncent avant la saisie (`OfflineBanner`) et gardent la saisie en local. Les écrans d'enrôlement par l'agent fonctionnent entièrement hors ligne. |
 | Erreurs | Messages en français courant, sous le champ, avec l'action pour corriger. Jamais « erreur inconnue ». Les messages liés à la sécurité sont neutres (voir §4). |
 | Accessibilité | Cibles 44 px minimum, libellés visibles (pas de texte indicatif seul), contraste AA, ordre de focus logique, `aria-describedby` sur chaque erreur. Chaque écran de l'espace agriculteur prévoit un bouton « Écouter » qui lit le titre et la consigne (synthèse vocale du navigateur, français ; les langues nationales viendront avec des enregistrements). |
-| NPI | Jamais exigé pour utiliser la plateforme. Saisi une fois, validé localement (chiffres, longueur paramétrée à 13, non bloquante), stocké chiffré, affiché masqué, vérifié plus tard par l'ANIP via X-Road quand la convention existera. Statut visible à l'utilisateur. |
+| NPI | Exigé à chaque connexion, pour tous les rôles (ADR-0012), avec le numéro qui y est relié. Contrôlé dans sa forme (chiffres, longueur paramétrée à 13), lié au compte à la première connexion, stocké chiffré, affiché masqué, vérifié plus tard par l'ANIP via X-Road quand la convention existera. Statut visible à l'utilisateur. |
 | Langue et ton | Vouvoiement, phrases courtes, aucun terme administratif sur l'espace agriculteur (« votre numéro », pas « identifiant »). |
 
 ## 1. Personas et contextes
 
 | Persona | Contexte d'usage | Conséquences pour les écrans |
 |---|---|---|
-| **Adjoa, agricultrice, Couffo** | Lit peu le français, téléphone Android d'entrée de gamme partagé avec le ménage, WhatsApp installé, réseau 2G ou 3G intermittent, souvent en plein soleil. | Connexion par téléphone et code, pictogrammes et audio, un écran = une action, pas de mot de passe, déconnexion facile car téléphone partagé, session longue mais révocable par l'agent. |
+| **Adjoa, agricultrice, Couffo** | Lit peu le français, téléphone Android d'entrée de gamme partagé avec le ménage, WhatsApp installé, réseau 2G ou 3G intermittent, souvent en plein soleil. | Connexion par NPI, numéro et code WhatsApp, pictogrammes et audio, un écran = une action, pas de mot de passe, déconnexion facile car téléphone partagé, session longue mais révocable par l'agent. |
 | **Sabi, agent de terrain ATDA, Borgou** | Android milieu de gamme, souvent hors ligne pendant les visites, dix à trente enrôlements par jour, gants ou mains sales. | Enrôlement multi-étapes hors ligne avec reprise, saisie minimale, capture QR et photo, grandes cibles, actions en bas d'écran (une main). |
-| **Mireille, gestionnaire de coopérative, Zou** | Ordinateur partagé au siège et téléphone personnel, e-mail professionnel, gère 300 membres. | Compte institutionnel e-mail + mot de passe, TOTP facultatif, import de la liste des membres, sessions de 12 h. |
+| **Mireille, gestionnaire de coopérative, Zou** | Ordinateur partagé au siège et téléphone personnel, e-mail professionnel, gère 300 membres. | Même connexion que tous (NPI, numéro relié, code WhatsApp), rôle attribué par un administrateur, import de la liste des membres, sessions de 12 h. |
 | **Kolawolé, acheteur, Plateau** | Téléphone et ordinateur, cherche des offres, contacte des producteurs via la plateforme. | Compte institutionnel léger, vérification d'entreprise différée, jamais accès aux numéros directs. |
-| **Rachidatou, agent communal, Djougou** | Poste de la mairie, connexion partagée, valide les agents et consulte les agrégats de sa commune. | Compte institutionnel, TOTP obligatoire (`COMMUNE_ADMIN`), invitation par le ministère. |
-| **Éric, analyste ministère, Cotonou** | Poste de travail, écran large, données nationales, mode projection. | E-mail + mot de passe + TOTP obligatoire pour les administrateurs, session 12 h, thème sombre disponible, révélation du NPI journalisée avec justification (`MINISTRY_ADMIN` seulement). |
+| **Rachidatou, agent communal, Djougou** | Poste de la mairie, connexion partagée, valide les agents et consulte les agrégats de sa commune. | Même connexion que tous, rôle `COMMUNE_ADMIN` attribué par le ministère à son compte identifié par son NPI. |
+| **Éric, analyste ministère, Cotonou** | Poste de travail, écran large, données nationales, mode projection. | Même connexion que tous (NPI, numéro relié, code WhatsApp), session 12 h, thème sombre disponible, révélation du NPI journalisée avec justification (`MINISTRY_ADMIN` seulement). |
 
 ## 2. Parcours
 
 Convention des tableaux : **Champs** liste ce que l'utilisateur voit à saisir ; **Automatique** ce qui est prérempli ou déduit ; **Bouton** le bouton principal unique ; **Erreurs** les messages affichés ; **Hors ligne** le comportement sans réseau ; **Aide** le repère de première utilisation.
 
-### 2.a Première connexion d'un agriculteur (téléphone + code WhatsApp)
+### 2.a Connexion de tous les rôles (NPI, numéro relié, code WhatsApp)
 
-Point d'entrée : lien reçu par WhatsApp après enrôlement par un agent, ou bouton « Me connecter » de l'accueil, ou QR code sur l'affiche de la coopérative.
+Un seul parcours, sur `/connexion`, pour l'agriculteur, l'agent, la coopérative, l'acheteur et le ministère (ADR-0012). Points d'entrée : lien « Se connecter » de l'en-tête et du pied de page, bouton « Ouvrir mon espace » et cartes des espaces sur l'accueil, ou page protégée ouverte sans session (retour à cette page après connexion, paramètre `suite`) ; restent proposés un lien reçu par WhatsApp après enrôlement par un agent et un QR code sur l'affiche de la coopérative. Les anciennes adresses `/connexion/institution` et `/connexion/institution/verification` y mènent.
+
+En tête d'écran : titre « Se connecter », puis « Avec votre NPI et le numéro de téléphone qui y est relié. Un compte est créé à votre première connexion. » Les erreurs s'affichent dans un encadré « Impossible de continuer » au-dessus du bouton.
 
 | Écran | Objectif | Champs | Automatique | Bouton | Erreurs | Hors ligne | Aide |
 |---|---|---|---|---|---|---|---|
-| A1 Numéro | Obtenir le numéro de téléphone | 1 : numéro (`PhoneField`, indicatif +229 fixe, 10 chiffres attendus, clavier numérique) | Numéro proposé par l'autofill `tel` du navigateur ; si l'ouverture vient d'un lien WhatsApp personnalisé, le numéro est prérempli et masqué (`•• •• 45 67`), l'utilisateur confirme seulement. | « Recevoir mon code » | « Ce numéro doit avoir 10 chiffres et commencer par 01 » ; « Ce numéro n'est pas encore enregistré. Demandez à votre agent ou à votre coopérative. » (uniquement si la politique de neutralité le permet, voir §4 ; sinon message générique « Si ce numéro est connu, un code va arriver ») | Bandeau « Pas de réseau : la connexion a besoin d'internet » ; le numéro saisi est gardé ; le bouton reste actif et réessaie au retour du réseau. | Repère sur le champ : « Le numéro sur lequel vous recevez WhatsApp ». Bouton « Écouter ». |
-| A2 Code | Saisir le code à 6 chiffres | 1 : code (`OtpInput`, 6 cases, clavier numérique, coller accepté) | WebOTP (`autocomplete="one-time-code"`) remplit le code depuis le SMS de repli ; pour WhatsApp, le message contient le code et un lien de retour qui préremplit le code. | « Valider » (activé à 6 chiffres, validation automatique possible) | « Code incorrect. Il vous reste N essais. » ; « Ce code a expiré. Demandez-en un nouveau. » ; après verrouillage : « Trop d'essais. Réessayez dans 15 minutes ou contactez votre agent. » | Idem A1. | Texte sous les cases : « Le code est arrivé sur WhatsApp (numéro BAIS). » Lien « Je n'ai pas reçu le code » visible après 20 s. |
+| A1 NPI et numéro | Identifier la personne et le téléphone qui recevra le code | 2 : « Votre NPI » (chiffres seuls, 13 au plus, clavier numérique) ; « Numéro de téléphone relié à votre NPI » (`PhoneField`, indicatif +229 fixe, 10 chiffres groupés par deux) | Numéro proposé par l'autofill `tel-national` du navigateur. Hors production, avec un code de démonstration configuré, un tableau « Comptes de démonstration » sous le formulaire : rôle, NPI fictif et bouton « Utiliser » qui remplit les deux champs, avec la mention « Environnement d'essai : ces comptes ne reçoivent pas de message WhatsApp. Code de connexion : … ». | « Recevoir mon code sur WhatsApp » (désactivé tant que le NPI est vide ou le numéro incomplet ; « Envoi du code… » pendant l'envoi) | « Le NPI doit comporter 13 chiffres (N saisis) » ; « Le NPI ne peut pas être une répétition » ; « Saisissez les dix chiffres de votre numéro, en commençant par 01. » ; « Trop de demandes. Patientez quelques minutes avant de réessayer. » ; « Le service est momentanément indisponible. Réessayez dans un instant. » Aucun message ne dit si le NPI ou le numéro est connu : rien n'est lu en base à cet écran. | Non traité à ce jour : l'écran exige le réseau, sans bandeau dédié (proposition : `OfflineBanner`, saisie gardée). | Sous le NPI : « Numéro personnel d'identification, inscrit sur votre carte d'identité ou votre certificat d'identification personnelle (CIP). » Sous le numéro : « Le code de connexion vous est envoyé sur WhatsApp à ce numéro. » |
+| A2 Code | Saisir le code à 6 chiffres | 1 : code (`OtpInput`, 6 cases « Chiffre 1 sur 6 » à « Chiffre 6 sur 6 », clavier numérique, coller accepté), sous le libellé « Code reçu sur WhatsApp au +229 XX XX XX XX XX » | `autocomplete="one-time-code"` sur la première case ; validation automatique à la sixième. | « Me connecter » (activé à 6 chiffres ; « Vérification… » pendant la vérification) | « Ce code n'est pas valable. Vérifiez les six chiffres ou demandez un nouveau code. » ; « Ce code a expiré. Demandez un nouveau code. » ; « Trop d'essais. Patientez quelques minutes avant de recommencer. » ; « Votre saisie a expiré. Saisissez de nouveau votre NPI et votre numéro. » (retour à A1 après dix minutes) ; après un code valide seulement : « Ce NPI et ce numéro ne sont pas reliés au même compte. Vérifiez votre NPI ou adressez-vous à un agent de votre commune. » | Idem A1. | « Le code est valable 5 minutes. » ; lien « Modifier mes informations » (retour à A1) ; « Nouveau code possible dans N s », puis lien « Renvoyer le code » au bout de 60 s. |
 | A2' Non reçu | Basculer de canal | 0 | Compteur d'envois, canal déjà utilisé. | « Recevoir par SMS » (ou « Renvoyer sur WhatsApp » si le SMS a déjà été tenté) | « Nouvel envoi possible dans 60 s ». Après 3 envois : « Contactez votre agent ou appelez le numéro d'aide. » avec numéro cliquable. | Idem. | Explique en une phrase que le SMS peut prendre une minute. |
 | A3 Bienvenue | Confirmer l'identité connue et poser la langue | 1 : langue préférée (choix parmi 3 boutons : français, fon, bariba ; liste selon le département) | Prénom, nom et commune affichés (issus de l'enrôlement). Langue proposée selon la commune (`LINGUISTIC_AREAS_BY_DEPARTEMENT`). | « C'est bien moi » | Lien « Ce n'est pas moi » qui déconnecte et propose de contacter l'agent. | Fonctionne (données du jeton). | Démarre le parcours d'accueil 2.f. |
 | A4 Téléphone partagé | Protéger le compte sur un appareil partagé | 1 : choix « Ce téléphone est à moi » / « Je le partage » (deux grands boutons) | Rien. | Le choix est le bouton. | — | Fonctionne. | Repère : « Si vous partagez ce téléphone, nous vous demanderons votre code à chaque ouverture. » |
@@ -63,31 +65,25 @@ Point d'entrée : espace agent, bouton « Enregistrer un producteur ». Chaque �
 | B6 Consentement et récapitulatif | Consentement éclairé et création | 1 : case « Le producteur accepte l'enregistrement et l'envoi de messages » ; bouton « Lire le texte au producteur » (audio) | Récapitulatif des cinq étapes, statut `DECLARED`, agent et date. | « Enregistrer » | « Le consentement est nécessaire pour enregistrer. » | L'enregistrement part dans l'outbox ; badge « À synchroniser ». | Repère : « Le producteur recevra un message WhatsApp de bienvenue avec son lien de connexion dès la synchronisation. » |
 | B7 Fait | Confirmer et enchaîner | 0 | Code du producteur, lien de connexion, QR à montrer. | « Enregistrer un autre producteur » ; lien « Voir la fiche » | — | Fonctionne. | — |
 
-Le compte créé n'a pas d'e-mail, pas de mot de passe : identifiant = numéro de téléphone (ou aucun, si « Pas de téléphone » ; dans ce cas la connexion se fera lors d'une visite ultérieure avec un numéro, ou via le téléphone d'un proche déclaré à B3).
+Le producteur enrôlé n'a ni e-mail ni mot de passe : son compte est créé à sa première connexion, avec son NPI et son numéro (§2.a). Sans téléphone (« Pas de téléphone »), la connexion se fera lors d'une visite ultérieure avec un numéro, ou via le téléphone d'un proche déclaré à B3.
 
-### 2.c Connexion institutionnelle (e-mail + mot de passe + TOTP) et activation par invitation
+### 2.c Comptes institutionnels : même connexion, rôle attribué
 
-| Écran | Objectif | Champs | Automatique | Bouton | Erreurs | Hors ligne | Aide |
-|---|---|---|---|---|---|---|---|
-| C0 Invitation | Activer un compte créé par un administrateur | 0 (lien signé reçu par e-mail, valable 7 jours) | E-mail, rôle et périmètre affichés en lecture. | « Activer mon compte » | « Ce lien a expiré : demandez une nouvelle invitation à [nom de l'émetteur]. » | Non disponible (message clair). | — |
-| C1 Mot de passe | Choisir un mot de passe | 2 : mot de passe, confirmation (affichage possible) | Indicateur de robustesse ; refus des mots de passe compromis (vérification k-anonymisée) ; gestionnaire de mots de passe reconnu (`autocomplete="new-password"`). | « Continuer » | « 12 caractères minimum. » ; « Ce mot de passe figure dans des fuites connues : choisissez-en un autre. » ; « Les deux saisies diffèrent. » | Non disponible. | Une phrase : « Une phrase de plusieurs mots est plus sûre et plus facile à retenir qu'une suite de symboles. » |
-| C2 TOTP | Activer la double authentification | 1 : code à 6 chiffres | QR code + clé en clair ; lien direct `otpauth://` sur mobile ; obligatoire pour `COMMUNE_ADMIN`, `MINISTRY_ADMIN`, `PLATFORM_ADMIN`, proposé et ignorable pour les autres (lien « Plus tard »). | « Vérifier et activer » | « Code incorrect : vérifiez l'heure de votre téléphone. » | Non disponible. | Repère : « Installez une application d'authentification (Aegis, Google Authenticator, Microsoft Authenticator) puis scannez. » |
-| C3 Codes de secours | Éviter le blocage | 0 | 8 codes générés, à télécharger ou imprimer ; case « Je les ai mis en lieu sûr ». | « Terminer » | — | — | — |
-| C4 Connexion | Se connecter | 2 : e-mail, mot de passe | E-mail mémorisé par le navigateur ; lien « Mot de passe oublié ». | « Se connecter » | Message unique : « E-mail ou mot de passe incorrect. » | Non disponible. | — |
-| C5 Deuxième facteur | Vérifier le TOTP | 1 : code | `autocomplete="one-time-code"`. Lien « Utiliser un code de secours ». | « Valider » | « Code incorrect. » ; après 5 essais : verrouillage 15 min. | — | — |
-| C6 Appareil de confiance | Réduire la friction sur poste personnel | 1 : case « Ne plus demander le code sur cet appareil pendant 30 jours » (décochée par défaut, indisponible sur les rôles d'administration) | — | « Continuer » | — | — | Une phrase : « Ne cochez pas sur un poste partagé. » |
+Plus de parcours distinct (ADR-0012) : ni invitation par e-mail, ni mot de passe, ni application d'authentification, ni codes de secours. La coopérative, l'acheteur, l'agent communal et le ministère se connectent par les écrans A1 et A2. Le rôle institutionnel est ensuite attribué par un administrateur au compte identifié par son NPI, après vérification du NPI et du numéro de la personne ; aucun écran d'attribution n'existe encore, et en démonstration le seed crée ces comptes avec leur rôle. Un compte sans rôle arrive sur « Mon compte ».
 
-Sessions : 12 h pour tous les rôles institutionnels (docs/06 §2), rappel 10 minutes avant expiration avec prolongation en un clic si l'utilisateur est actif.
+Anciennes adresses : `/connexion/institution` et `/connexion/institution/verification` redirigent vers `/connexion`, `/compte/securite` vers `/compte`.
+
+Sessions : 12 h pour tous les rôles institutionnels (docs/06 §2), rappel 10 minutes avant expiration avec prolongation en un clic si l'utilisateur est actif (proposé, non implémenté).
 
 ### 2.d Ajout et vérification du NPI
 
-Accessible depuis « Mon compte » (agriculteur), depuis la fiche producteur (agent) et depuis B4 à l'enrôlement.
+Pour le titulaire d'un compte, le NPI est saisi à chaque connexion (A1) et lié au compte à la première ; « Mon compte » n'en montre que la forme masquée et le statut (D2), sans formulaire de saisie. D1 reste proposé pour la saisie par l'agent, depuis la fiche producteur et depuis B4 à l'enrôlement.
 
 | Écran | Objectif | Champs | Automatique | Bouton | Erreurs | Hors ligne | Aide |
 |---|---|---|---|---|---|---|---|
 | D1 Saisie | Enregistrer le NPI | 1 : NPI (`NationalIdField` : chiffres seulement, groupes de 4-4-5 à l'affichage, clavier numérique) ; sélecteur NPI / NPIR (résident étranger) | Scan du QR du CIP ou CNPI (agent) ; sinon saisie. | « Enregistrer » | « Un NPI a 13 chiffres ; vous en avez saisi 12. » (non bloquant tant que la longueur n'est pas confirmée officiellement : lien « Enregistrer quand même ») ; « Ce NPI est déjà rattaché à un autre compte : contactez votre agent. » (unicité par empreinte HMAC). | Enregistré localement, envoyé à la synchronisation. | Repère : « Le NPI figure sur votre carte d'identité ou votre certificat CNPI. Il n'est jamais affiché en entier. » Lien « Je ne connais pas mon NPI » → aide ANIP (retrouver-npi, numéro vert 7054). |
-| D2 Statut | Montrer l'état | 0 | Badge : « En attente de vérification ANIP » (`watch`), « Vérifié par l'ANIP le JJ/MM/AAAA » (`success`), « Non concordant » (`critical`, avec « Voir avec votre agent »), « Vérifié sur pièce par l'agent » (`info`, quand l'agent a contrôlé visuellement le titre via l'application ANIP BJ). Affichage masqué : `•••• •••• •4567`. | « Modifier » (lien) | — | Affiche le dernier statut connu. | Une phrase : « La vérification automatique par l'ANIP sera activée dès la convention signée ; en attendant, votre agent peut vérifier la pièce. » |
-| D3 Révélation (ministère) | Voir un NPI complet | 1 : justification (texte court, obligatoire) | Rôle `MINISTRY_ADMIN`, MFA déjà passée dans la session, sinon C5 est rejoué. | « Afficher pendant 60 s » | « Justification requise (10 caractères minimum). » | Non disponible. | Bandeau : « Cet accès est journalisé. » |
+| D2 Statut | Montrer l'état | 0 | Badge : « En attente de vérification ANIP » (`watch`), « Vérifié par l'ANIP le JJ/MM/AAAA » (`success`), « Non concordant » (`critical`, avec « Voir avec votre agent »), « Vérifié sur pièce par l'agent » (`info`, quand l'agent a contrôlé visuellement le titre via l'application ANIP BJ). Affichage masqué : `•••• •••• •4567`. | Aucun : le NPI lié à la connexion ne se modifie pas depuis « Mon compte ». | — | Affiche le dernier statut connu. | Une phrase : « La vérification automatique par l'ANIP sera activée dès la convention signée ; en attendant, votre agent peut vérifier la pièce. » |
+| D3 Révélation (ministère) | Voir un NPI complet | 1 : justification (texte court, obligatoire) | Rôle `MINISTRY_ADMIN` ; confirmation par un code WhatsApp à la volée prévue (ADR-0012), non implémentée. | « Afficher pendant 60 s » | « Justification requise (10 caractères minimum). » | Non disponible. | Bandeau : « Cet accès est journalisé. » |
 
 Le statut « Non concordant » ne bloque jamais l'usage de la plateforme ; il abaisse le niveau de confiance de l'identité et crée une tâche pour l'agent.
 
@@ -96,13 +92,13 @@ Le statut « Non concordant » ne bloque jamais l'usage de la plateforme ; il ab
 | Écran | Objectif | Champs | Automatique | Bouton | Erreurs | Hors ligne | Aide |
 |---|---|---|---|---|---|---|---|
 | E1 Choix | Orienter | 0 (deux grands boutons : « J'ai un nouveau numéro » / « J'ai perdu mon téléphone ») | — | Le choix est le bouton. | — | Fonctionne. | — |
-| E2 Nouveau numéro (agriculteur seul) | Demander le changement | 2 : ancien numéro (si connu), nouveau numéro | Le nouveau numéro est celui de l'appareil (autofill). | « Demander le changement » | Format ; « Le nouveau numéro est déjà utilisé. » | Enregistré et envoyé au retour du réseau. | Une phrase : « Votre agent ou votre coopérative confirmera le changement ; vous recevrez un message sur le nouveau numéro. » |
+| E2 Nouveau numéro | Demander le changement | 2 : ancien numéro (si connu), nouveau numéro | Le nouveau numéro est celui de l'appareil (autofill). | « Demander le changement » | Format ; « Le nouveau numéro est déjà utilisé. » | Enregistré et envoyé au retour du réseau. | Une phrase : « Votre agent ou votre coopérative confirmera le changement ; vous recevrez un message sur le nouveau numéro. » |
 | E3 Validation par l'agent | Confirmer l'identité en personne | 1 : case « J'ai vérifié l'identité du producteur » ; choix de la méthode (pièce d'identité, reconnaissance par la coopérative, NPI concordant) | Demande listée dans « Tâches » de l'agent avec ancien et nouveau numéro masqués ; fiche producteur en regard. | « Confirmer le nouveau numéro » | « Sélectionnez la méthode de vérification. » | Fonctionne ; la confirmation part dans l'outbox et révoque les anciennes sessions à la synchronisation. | Repère : « Cette action déconnecte l'ancien téléphone. » |
 | E4 Confirmation | Clore | 0 | Message WhatsApp envoyé au nouveau numéro avec lien de connexion (A1 prérempli). | « Retour » | — | — | — |
-| E5 Téléphone perdu (institution) | Réinitialiser le mot de passe | 1 : e-mail | Lien signé envoyé par e-mail (15 min) ; message identique que l'e-mail existe ou non. | « Envoyer le lien » | « Si cette adresse existe, un lien vient d'être envoyé. » | Non disponible. | — |
-| E6 TOTP perdu (institution) | Recouvrer sans TOTP | 1 : code de secours | — | « Valider » | « Code de secours invalide ou déjà utilisé. » ; sans codes : « Contactez votre administrateur, qui réinitialisera le second facteur après vérification. » | — | — |
 
 Un agent peut aussi déclencher E3 sans demande préalable (producteur venu le voir avec un nouveau téléphone) depuis la fiche producteur : bouton « Changer le numéro ».
+
+Les comptes institutionnels n'ont plus de mot de passe ni de second facteur à recouvrer (ADR-0012) : un changement de numéro suit E2 à E4, confirmé par un administrateur plutôt que par un agent. Le NPI lié au compte ne change pas : la connexion suivante présente le même NPI avec le nouveau numéro. Aucun de ces écrans n'est implémenté à ce jour.
 
 ### 2.f Accueil de première utilisation par rôle (3 à 4 écrans, ignorables)
 
@@ -124,7 +120,7 @@ Les coach marks ponctuels (un par écran nouveau, ancré sur un élément) compl
 ### 3.1 Compte
 
 ```
-PENDING ──(activation : premier OTP validé ou invitation acceptée)──▶ ACTIVE
+PENDING ──(activation : premier code validé avec le NPI)──▶ ACTIVE
 ACTIVE ──(suspension par un administrateur, motif journalisé)──▶ SUSPENDED
 SUSPENDED ──(levée, motif journalisé)──▶ ACTIVE
 ACTIVE ──(demande de l'utilisateur ou inactivité de 24 mois, après préavis)──▶ CLOSED
@@ -146,7 +142,7 @@ Le niveau de confiance de l'identité est indépendant de l'état du compte : `D
 | `FARMER` (téléphone personnel) | 30 jours glissants | À chaque ouverture active, rotation du jeton | « Quitter » ; révocation par l'agent (E3) ou l'administrateur ; changement de numéro |
 | `FARMER` (téléphone partagé, A4) | 24 h | Aucun : nouveau code à chaque jour | « Quitter » toujours visible |
 | `FIELD_AGENT`, `AGENT_SUPERVISOR` | 30 jours glissants, liée à l'appareil | Idem | Révocation de l'appareil par le superviseur |
-| `COOPERATIVE_MANAGER`, `BUYER`, `COMMUNE_ADMIN`, `MINISTRY_*`, `PLATFORM_ADMIN` | 12 h | Prolongation en un clic 10 minutes avant expiration | Déconnexion ; changement de mot de passe ; révocation par l'administrateur |
+| `COOPERATIVE_MANAGER`, `BUYER`, `COMMUNE_ADMIN`, `MINISTRY_*`, `PLATFORM_ADMIN` | 12 h | Prolongation en un clic 10 minutes avant expiration | Déconnexion ; changement de numéro ; révocation par l'administrateur |
 
 La liste « Mes appareils connectés » (Mon compte) affiche appareil, date, commune approximative, et permet la déconnexion à distance.
 
@@ -157,12 +153,10 @@ La liste « Mes appareils connectés » (Mon compte) affiche appareil, date, com
 | Code OTP | 6 chiffres, 5 minutes, 5 essais par code | « Code incorrect. Il vous reste N essais. » |
 | Verrouillage progressif | Après 5 échecs : 15 min ; puis 1 h ; puis 24 h, par numéro et par appareil ; l'agent peut lever le verrou depuis la fiche | « Trop d'essais. Réessayez dans 15 minutes ou contactez votre agent. » avec compte à rebours |
 | Renvoi de code | 60 s entre deux envois, 3 envois par heure, 10 par jour | « Nouvel envoi possible dans 42 s » |
-| Énumération des comptes | Réponse identique que le numéro ou l'e-mail existe ou non, sauf sur l'espace agriculteur lorsque l'agent est identifié dans le contexte (lien d'enrôlement), où le message « pas encore enregistré » est autorisé car il n'apprend rien à un tiers | « Si ce numéro est connu, un code arrive. » / « Si cette adresse existe, un lien vient d'être envoyé. » |
-| Mot de passe | 12 caractères minimum, liste de compromission, pas de règles de composition | « Ce mot de passe figure dans des fuites connues. » |
-| TOTP | Fenêtre ±1 pas, 5 essais puis 15 min | « Code incorrect : vérifiez l'heure de votre téléphone. » |
-| Nouvel appareil (institution) | Notification e-mail « Nouvelle connexion depuis [navigateur, ville approximative] » avec lien « Ce n'était pas moi » qui révoque et force le changement de mot de passe | — |
+| Énumération des comptes | Le premier écran (A1) ne lit rien en base : aucune réponse ne dit si un NPI ou un numéro est connu. Le refus d'un NPI qui n'est pas celui relié au numéro, ou déjà lié à un autre compte, n'apparaît qu'après un code valide, donc face à qui détient le numéro saisi (ADR-0012). Proposé : sur l'espace agriculteur, lorsque l'agent est identifié dans le contexte (lien d'enrôlement), le message « pas encore enregistré » est autorisé car il n'apprend rien à un tiers | Après un code valide seulement : « Ce NPI et ce numéro ne sont pas reliés au même compte. Vérifiez votre NPI ou adressez-vous à un agent de votre commune. » |
+| Nouvel appareil (institution) | Proposé : message WhatsApp « Nouvelle connexion depuis [navigateur, ville approximative] » avec lien « Ce n'était pas moi » qui révoque la session ; en attendant, « Mon compte » liste les appareils connectés et permet de les déconnecter | — |
 | Changement de numéro | Toujours validé par un humain (agent, coopérative) ; ancien numéro notifié quand il est joignable | « Votre numéro a été changé par [agent]. Si ce n'est pas vous, appelez le [numéro d'aide]. » |
-| Accès aux NPI | MFA récente (moins de 10 min), justification, journal consultable par `PLATFORM_ADMIN` | Bandeau « Cet accès est journalisé. » |
+| Accès aux NPI | Justification, journal consultable par `PLATFORM_ADMIN` ; confirmation par un code WhatsApp à la volée prévue (ADR-0012) | Bandeau « Cet accès est journalisé. » |
 
 Les compteurs sont réinitialisés par le succès, jamais affichés au-delà du nombre d'essais restants, et aucun message ne distingue « numéro inconnu » de « code faux » hors du cas prévu.
 
@@ -174,19 +168,19 @@ Les compteurs sont réinitialisés par le succès, jamais affichés au-delà du 
 |---|---|
 | `Button` (`h-14 w-full` sur l'espace agriculteur) | Bouton principal de chaque écran |
 | `Input`, `Label`, `Form` (react-hook-form + Zod) | Tous les champs ; le schéma Zod est partagé avec l'action serveur |
-| `Checkbox` | Consentement (B6), appareil de confiance (C6), codes de secours (C3), validation par l'agent (E3) |
+| `Checkbox` | Consentement (B6), validation par l'agent (E3) |
 | `RadioGroup` ou deux `Button` `outline` | Sexe (B2), téléphone partagé (A4), méthode de vérification (E3) |
 | `Select` | Sélecteur NPI / NPIR (D1) |
 | `Alert` (`info`, `watch`, `critical`) | Verrouillage, expiration, statut ANIP |
 | `Badge` (`success`, `watch`, `critical`, `info`) et `ReliabilityBadge` | Statut du NPI (D2), niveau de confiance de l'identité |
 | `Sheet` `side="bottom"` | Aide ANIP, « Je n'ai pas reçu le code » (A2'), choix de méthode (E3) sur mobile |
 | `Dialog` | Révélation du NPI (D3), confirmation de révocation d'appareil (espace institutionnel uniquement) |
-| `OfflineBanner` | Tous les écrans ; message spécifique sur A1, A2, C* |
+| `OfflineBanner` | Tous les écrans ; message spécifique sur A1, A2 |
 | `EmptyState` | « Aucun enrôlement en cours », « Aucun appareil connecté » |
 | `Skeleton` | Chargement de la fiche (A3) |
 | `PageHeader` | Titres des écrans institutionnels |
 | `CropGlyph`, `Monogram` | Parcours d'accueil |
-| `Card` | Récapitulatif (B6), codes de secours (C3) |
+| `Card` | Récapitulatif (B6) |
 
 ### 5.2 À créer
 

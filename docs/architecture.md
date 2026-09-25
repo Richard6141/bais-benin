@@ -41,8 +41,9 @@ PostgreSQL 16 + PostGIS — registre, géométries, alertes, audit, vues matéri
 | 0007 | wapy.pro comme canal de messagerie (jamais comme fournisseur d'identité) |
 | 0008 | Prisma 7, adaptateur `pg`, Serwist via Turbopack |
 | 0009 | Géométries départementales dérivées des géométries communales |
-| 0010 | **better-auth remplace Auth.js** (sessions en base révocables, greffons OTP téléphone et TOTP) |
+| 0010 | **better-auth remplace Auth.js** (sessions en base révocables, greffons OTP téléphone et TOTP) — connexion institutionnelle et TOTP **remplacés, voir ADR-0012** |
 | 0011 | Alertes par règles déclaratives, météo Open-Meteo |
+| 0012 | **Connexion unique par NPI et code WhatsApp** pour tous les rôles, sans mot de passe ni TOTP ; NPI lié au compte à la première connexion |
 
 ## 3. Modules de domaine (état réel, `src/modules/`)
 
@@ -135,8 +136,8 @@ distingue ce qui est traité de ce qui reste, honnêtement.
   compte ; `SessionIdentityGuard` détecte une page servie depuis le cache d'un autre compte et
   force un rechargement ; le cache des pages authentifiées est réduit à un jour.
 - **API** : `getApiActor` applique désormais les mêmes contrôles que les pages (suspension de
-  compte, limite de 12 h pour les comptes institutionnels, double authentification obligatoire
-  pour l'administration nationale) ; `/api/v1/sync` en bénéficie.
+  compte, limite de 12 h pour les comptes institutionnels et, depuis l'ADR-0012, compte dont le NPI
+  est lié) ; `/api/v1/sync` en bénéficie.
 - **Confiance réseau** : `X-Forwarded-For` n'est crédité que derrière un relais listé dans
   `TRUSTED_PROXIES` ; limite d'envoi de code par numéro de téléphone, indépendante de la limite
   par IP.

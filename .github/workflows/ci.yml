@@ -104,7 +104,6 @@ jobs:
       AUTH_SECRET: ci-secret-de-test-ci-secret-de-test-ci-secret
       MESSAGING_PRIMARY_CHANNEL: console
       OTP_DEMO_CODE: "246810"
-      DEMO_ACCOUNT_PASSWORD: Demo-Bais-2026!
       NPI_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       NPI_HASH_KEY: ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=
     steps:
