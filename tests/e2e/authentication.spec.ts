@@ -84,7 +84,9 @@ test.describe("protection des espaces", () => {
       await npiField.fill("1122334455667");
       await page.getByLabel("Nom de famille").fill("Démonstration");
       await page.getByRole("button", { name: "Enregistrer mon NPI" }).click();
-      await expect(page.getByText("NPI enregistré").first()).toBeVisible({ timeout: 15_000 });
+      // Après l'enregistrement, la page se met à jour et remplace le formulaire (et son message
+      // de succès) par le NPI masqué : c'est lui qu'on attend.
+      await expect(page.getByText("•••• •••• •••6 7")).toBeVisible({ timeout: 15_000 });
     }
     await page.reload();
     await expect(page.getByText("•••• •••• •••6 7")).toBeVisible();
