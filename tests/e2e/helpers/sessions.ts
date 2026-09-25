@@ -27,15 +27,28 @@ export const sessionFile = (project: string, persona: string) =>
 export async function savePhoneSession(baseURL: string, project: string, persona: PhonePersona) {
   const browser = await chromium.launch();
   try {
-    const context = await browser.newContext({ baseURL });
-    const page = await context.newPage();
-    await page.goto("/connexion");
-    await page.getByLabel("Votre numéro de téléphone").fill(PHONE_ACCOUNTS[persona].digits);
-    await page.getByRole("button", { name: "Recevoir mon code" }).click();
-    await expect(page.getByText(/Code reçu au \+229/)).toBeVisible();
-    await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
-    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-    await context.storageState({ path: sessionFile(project, persona) });
+    // Deux tentatives, délais larges : hors du contexte d'un test, expect() attend 5 s par
+    // défaut, trop court pour la première compilation d'une route sur un serveur de développement.
+    for (let attempt = 1; ; attempt += 1) {
+      const context = await browser.newContext({ baseURL });
+      try {
+        const page = await context.newPage();
+        await page.goto("/connexion");
+        await page.getByLabel("Votre numéro de téléphone").fill(PHONE_ACCOUNTS[persona].digits);
+        await page.getByRole("button", { name: "Recevoir mon code" }).click();
+        await expect(page.getByText(/Code reçu au \+229/)).toBeVisible({ timeout: 20_000 });
+        await page.getByLabel("Chiffre 1 sur 6").fill(DEMO_CODE);
+        await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), {
+          timeout: 20_000,
+        });
+        await context.storageState({ path: sessionFile(project, persona) });
+        return;
+      } catch (error) {
+        if (attempt >= 2) throw error;
+      } finally {
+        await context.close();
+      }
+    }
   } finally {
     await browser.close();
   }

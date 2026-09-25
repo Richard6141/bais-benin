@@ -8,6 +8,8 @@ import { prisma } from "@/database/client";
 export const MONITORING_LOCKS = {
   daily: 740_101,
   dispatch: 740_102,
+  /** Rafraîchissement des vues d'agrégats du tableau de bord (module analytics). */
+  analytics: 740_103,
 } as const;
 
 export type MonitoringLock = keyof typeof MONITORING_LOCKS;

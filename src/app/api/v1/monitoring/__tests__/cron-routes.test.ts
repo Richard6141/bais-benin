@@ -32,6 +32,9 @@ vi.mock("@/modules/monitoring", () => ({
   runDispatch: calls.runDispatch,
   MonitoringBusyError: class MonitoringBusyError extends Error {},
 }));
+vi.mock("@/modules/analytics/refresh", () => ({
+  refreshAnalyticsQuietly: async () => ({ refreshed: false, reason: "fresh", views: [] }),
+}));
 vi.mock("@/services/messaging", () => ({ getMessagingChannel: () => ({ id: "fixture" }) }));
 vi.mock("@/services/weather", () => ({ createWeatherProviders: () => ({ primary: {} }) }));
 

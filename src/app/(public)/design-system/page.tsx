@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ButtonsSection } from "@/features/design-system/buttons-section";
+import { DashboardSection } from "@/features/design-system/dashboard-section";
 import { DataSection } from "@/features/design-system/data-section";
 import { FeedbackSection } from "@/features/design-system/feedback-section";
 import { FormsSection } from "@/features/design-system/forms-section";
@@ -25,6 +26,7 @@ const sections = [
   { id: "retours", label: "Alertes et états" },
   { id: "donnees", label: "Données" },
   { id: "monitoring", label: "Monitoring" },
+  { id: "tableau-de-bord", label: "Tableau de bord" },
 ];
 
 export default function DesignSystemPage() {
@@ -63,6 +65,7 @@ export default function DesignSystemPage() {
           <FeedbackSection />
           <DataSection />
           <MonitoringSection />
+          <DashboardSection />
         </div>
       </main>
       <SiteFooter />
