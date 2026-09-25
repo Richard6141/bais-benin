@@ -12,6 +12,12 @@ export {
   type DeliveryCount,
   type MonitoringOverview,
 } from "./alerts";
+export {
+  planMissingRecipients,
+  planRecipientsFor,
+  runDailyMonitoring,
+  type DailyRunResult,
+} from "./daily";
 export { addDays, beninToday } from "./dates";
 export { DEMO_EPISODES, seedDemoEpisodes, type DemoEpisodeResult } from "./demo-episodes";
 export {

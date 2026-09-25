@@ -1,6 +1,8 @@
 import { getServerEnv } from "@/lib/env";
 import {
   evaluateCommunes,
+  planMissingRecipients,
+  planRecipientsFor,
   runWeatherIngestion,
   seedDemoEpisodes,
   type DemoEpisodeResult,
@@ -24,11 +26,7 @@ export interface MonitoringSeedSummary {
 // Règles par défaut, puis une première ingestion météo (Open-Meteo, ou la fixture si le réseau
 // manque) et une évaluation, pour que la démonstration montre des alertes dès l'installation.
 // SEED_WEATHER=0 saute l'ingestion (tests, postes sans réseau pressés).
-export async function seedMonitoring(
-  options: {
-    planRecipients?: (alertId: string) => Promise<void>;
-  } = {},
-): Promise<MonitoringSeedSummary> {
+export async function seedMonitoring(): Promise<MonitoringSeedSummary> {
   const rulesCreated = await seedDefaultRules();
   if (process.env.SEED_WEATHER === "0") {
     return { rulesCreated, ingestion: null, evaluation: null, demoEpisodes: [] };
@@ -39,12 +37,14 @@ export async function seedMonitoring(
     openMeteoBaseUrl: env.OPEN_METEO_BASE_URL,
   });
   const ingestion = await runWeatherIngestion({ ...providers, retryDelayMs: 1000 });
-  const evaluation = await evaluateCommunes({}, { planRecipients: options.planRecipients });
+  const evaluation = await evaluateCommunes({}, { planRecipients: planRecipientsFor });
   // Épisodes de démonstration : jamais en production.
   const demoEpisodes =
     env.APP_ENV === "production"
       ? []
-      : await seedDemoEpisodes({ planRecipients: options.planRecipients });
+      : await seedDemoEpisodes({ planRecipients: planRecipientsFor });
+  // Alertes existantes sans destinataires (créées avant la diffusion, ou par une version précédente).
+  await planMissingRecipients();
   return {
     rulesCreated,
     ingestion: {
