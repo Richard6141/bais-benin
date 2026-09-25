@@ -248,6 +248,29 @@ describe("diffusion des alertes", () => {
     ).toBe(false);
   });
 
+  it("une réponse WhatsApp sans exploitation ne marque lue que la ligne de ce numéro (D)", async () => {
+    const alertId = await createAlert("ESTIMATED");
+    const base = { alertId, channel: "WHATSAPP" as const, status: "SENT" as const, sentAt: DAY };
+    const replying = await prisma.alertRecipient.create({
+      data: { ...base, userId: agent.userId, phoneE164: "+2290190000091" },
+    });
+    const other = await prisma.alertRecipient.create({
+      data: { ...base, userId: farmer.userId, phoneE164: "+2290190000092" },
+    });
+
+    const reply = await applyWapyEvent(
+      { evenement: "reponse", de: "+2290190000091", texte: "OK" },
+      DAY,
+    );
+    expect(reply).toMatchObject({ handled: true, kind: "reponse", updated: 1 });
+    const statuses = await prisma.alertRecipient.findMany({
+      where: { id: { in: [replying.id, other.id] } },
+      select: { id: true, status: true },
+    });
+    expect(statuses.find((row) => row.id === replying.id)?.status).toBe("READ");
+    expect(statuses.find((row) => row.id === other.id)?.status).toBe("SENT");
+  });
+
   it("trace le relais de l'agent, en ligne et hors ligne, et le refuse au producteur", async () => {
     const farms = await prisma.alertRecipient.findMany({
       where: { alertId: liveAlertId, channel: { not: "IN_APP" }, farmId: { not: null } },
