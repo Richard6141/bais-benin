@@ -1,4 +1,10 @@
-import { ClipboardCheck, FileClock, LandPlot, PlusCircle } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileClock,
+  LandPlot,
+  MessageCircleQuestion,
+  PlusCircle,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatTile } from "@/components/data-display/stat-tile";
@@ -31,6 +37,13 @@ const SECONDARY = [
     title: "Toutes les exploitations",
     description: "Recherche par nom, numéro ou code, filtre par statut.",
     icon: LandPlot,
+  },
+  {
+    href: "/agent/assistant",
+    title: "Assistant agricole",
+    description:
+      "Une question sur une exploitation, et les demandes transmises par les producteurs.",
+    icon: MessageCircleQuestion,
   },
 ] as const;
 
@@ -82,7 +95,7 @@ export default async function AgentHomePage() {
         />
       </section>
 
-      <section aria-label="Raccourcis" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Raccourcis" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {SECONDARY.map((item) => (
           <Link
             key={item.href}
