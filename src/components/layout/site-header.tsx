@@ -12,21 +12,22 @@ const NAV = [
 
 // En-tête public des portails de l'administration : une bande blanche avec l'identité du
 // ministère et l'accès à son espace, puis une barre de navigation marine en capitales. Seule la
-// marque du ministère apparaît (consigne : pas de logo propre à la plateforme).
+// marque du ministère apparaît (consigne : pas de logo propre à la plateforme). La bande blanche
+// occupe toute la largeur, sans marge : le logo touche le bord gauche, « Se connecter » le droit.
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 print:hidden">
       <div className="border-b bg-background">
-        <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex h-20 w-full items-center justify-between gap-3">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button asChild className="h-10">
               <Link href="/connexion">Se connecter</Link>
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </div>
