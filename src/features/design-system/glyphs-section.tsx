@@ -1,4 +1,5 @@
 import { CROP_CODES, CROP_GLYPH_LABELS, CropGlyph } from "@/components/data-display/crop-glyph";
+import { GovernmentEmblem } from "@/components/brand/government-emblem";
 import { Monogram } from "@/components/brand/monogram";
 import { DemoRow, DemoSection } from "@/features/design-system/demo-section";
 
@@ -7,9 +8,14 @@ export function GlyphsSection() {
     <DemoSection
       id="pictogrammes"
       title="Marque et pictogrammes"
-      description="Le monogramme et les silhouettes de cultures, repères visuels pour les utilisateurs peu lettrés."
+      description="Les armoiries de l'État dans les en-têtes, le pied de page et la fiche imprimable ; le monogramme seulement comme icône de l'application installée ; les silhouettes de cultures, repères visuels pour les utilisateurs peu lettrés."
     >
-      <DemoRow label="Monogramme">
+      <DemoRow label="Armoiries (en-têtes, pied de page, fiche imprimable)">
+        <GovernmentEmblem size={36} />
+        <GovernmentEmblem size={44} />
+        <GovernmentEmblem size={64} />
+      </DemoRow>
+      <DemoRow label="Monogramme (icône de l'application installée)">
         <Monogram className="size-9" />
         <Monogram className="size-14" />
         <Monogram className="size-20" />
