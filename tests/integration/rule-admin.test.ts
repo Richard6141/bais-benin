@@ -201,6 +201,31 @@ describe("gouvernance des règles", () => {
     });
   });
 
+  it("refuse une modification préparée sur une version dépassée, même simultanée", async () => {
+    const first = await createRuleVersion(ministry, CRITICAL_CODE, {
+      thresholds: { "any.0": 130 },
+      baseVersion: 1,
+    });
+    expect(first.rule.version).toBe(2);
+    // Brouillon préparé sur la version 1 : refusé, au lieu d'être appliqué à la version 2.
+    await expect(
+      createRuleVersion(ministry, CRITICAL_CODE, { thresholds: { "any.0": 130 }, baseVersion: 1 }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    // Deux enregistrements simultanés sur la version 2 : un seul passe, l'autre est un conflit.
+    const results = await Promise.allSettled(
+      [140, 150].map((value) =>
+        createRuleVersion(ministry, CRITICAL_CODE, {
+          thresholds: { "any.0": value },
+          baseVersion: 2,
+        }),
+      ),
+    );
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((r) => r.status === "rejected")).toMatchObject({
+      reason: { code: "CONFLICT" },
+    });
+  });
+
   it("simule un brouillon sur les observations stockées sans lever d'alerte", async () => {
     const alertsBefore = await prisma.alert.count();
     const summary = await simulateRule(ministry, {

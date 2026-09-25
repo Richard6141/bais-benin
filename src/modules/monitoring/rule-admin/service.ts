@@ -26,7 +26,12 @@ import {
 export class RuleAdminError extends Error {
   constructor(
     readonly code:
-      "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "REASON_REQUIRED" | "CONFIRMATION_REQUIRED",
+      | "FORBIDDEN"
+      | "NOT_FOUND"
+      | "INVALID"
+      | "REASON_REQUIRED"
+      | "CONFIRMATION_REQUIRED"
+      | "CONFLICT",
     message: string,
     readonly issues: { path: string; message: string }[] = [],
   ) {
@@ -231,6 +236,12 @@ export interface RulePatch {
   messageShort?: string;
   adviceFr?: string;
   reason?: string;
+  /**
+   * Version sur laquelle la modification a été préparée (celle affichée à l'utilisateur). Si une
+   * autre version a été enregistrée entre-temps, la modification est refusée (CONFLICT) au lieu
+   * d'être appliquée, à son insu, sur une version qu'il n'a pas vue.
+   */
+  baseVersion?: number;
 }
 
 /** Indicateurs fictifs de grande taille : le message court rendu doit tenir dans le pire cas. */
@@ -274,9 +285,19 @@ function snapshotOf(rule: RuleRow, definition: RuleNode): RuleSnapshot {
   };
 }
 
+function conflict(active: number): RuleAdminError {
+  return new RuleAdminError(
+    "CONFLICT",
+    `La règle a été modifiée entre-temps : la version ${active} est désormais en vigueur. Rechargez la page pour repartir de cette version.`,
+  );
+}
+
 export async function createRuleVersion(actor: Actor, code: string, patch: RulePatch) {
   await requireRight(actor, "rule.manage");
   const base = await currentVersion(code);
+  if (patch.baseVersion !== undefined && patch.baseVersion !== base.version) {
+    throw conflict(base.version);
+  }
   const baseDefinition = parseRuleDefinition(base.definition);
   let definition: RuleNode;
   try {
@@ -331,6 +352,15 @@ export async function createRuleVersion(actor: Actor, code: string, patch: RuleP
     throw new RuleAdminError("INVALID", "Aucune modification à enregistrer");
 
   const created = await prisma.$transaction(async (tx) => {
+    // Deux enregistrements simultanés du même code : le second attend le premier, puis constate
+    // qu'une version plus récente existe (CONFLICT) au lieu d'échouer sur l'unicité (code, version).
+    await tx.$queryRaw`SELECT 1 AS ok FROM pg_advisory_xact_lock(hashtext(${`rule:${code}`}))`;
+    const latest = await tx.rule.findFirst({
+      where: { code },
+      orderBy: { version: "desc" },
+      select: { version: true },
+    });
+    if (latest && latest.version >= version) throw conflict(latest.version);
     await tx.rule.updateMany({ where: { code }, data: { enabled: false } });
     return tx.rule.create({
       data: {

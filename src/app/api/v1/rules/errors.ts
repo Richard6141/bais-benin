@@ -7,6 +7,7 @@ const STATUS: Record<RuleAdminError["code"], number> = {
   INVALID: 422,
   REASON_REQUIRED: 400,
   CONFIRMATION_REQUIRED: 409,
+  CONFLICT: 409,
 };
 
 // Traduction commune des erreurs de gouvernance des règles en réponses HTTP.
