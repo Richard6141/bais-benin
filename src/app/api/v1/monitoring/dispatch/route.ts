@@ -16,3 +16,7 @@ export async function POST(request: NextRequest) {
   });
   return NextResponse.json(summary);
 }
+
+// Vercel Cron appelle les tâches planifiées en GET, avec le même en-tête
+// `Authorization: Bearer <CRON_SECRET>` : même traitement, même contrôle (ADR-0006).
+export const GET = POST;

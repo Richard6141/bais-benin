@@ -37,4 +37,6 @@ CRON_TZ=UTC
 */10 * * * * . /etc/bais/cron.env && curl -fsS --retry 3 --max-time 300 -X POST -H "Authorization: Bearer $CRON_SECRET" https://bais.example.bj/api/v1/monitoring/dispatch >> /var/log/bais/cron.log 2>&1
 ```
 
-Sur Vercel, l'équivalent serait une entrée `crons` dans `vercel.ts` ; Vercel transmet `Authorization: Bearer $CRON_SECRET`, mais appelle les routes en **GET**. Les deux routes n'acceptent aujourd'hui que POST : il faudra leur ajouter un gestionnaire GET avant ce mode de déploiement.
+## Sur Vercel
+
+`vercel.json`, à la racine du dépôt, déclare les deux mêmes tâches (horaires en UTC). Vercel appelle les routes en GET et ajoute l'en-tête `Authorization: Bearer $CRON_SECRET` dès que la variable `CRON_SECRET` est définie dans le projet ; les routes acceptent GET et POST avec le même contrôle. Le plan Hobby limite les tâches planifiées à une exécution par jour : l'envoi toutes les 10 minutes demande un plan Pro, ou un planificateur externe qui appelle `dispatch`. Sur un déploiement Docker, `vercel.json` est simplement ignoré.

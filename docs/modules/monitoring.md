@@ -24,10 +24,16 @@ Ce document décrit le monitoring livré à l'étape 6 : ce que voient les utili
 
 | Tâche | Route | Fréquence | Effet |
 |---|---|---|---|
-| Quotidienne | `POST /api/v1/monitoring/ingest` | 5 h, heure de Porto-Novo (4 h UTC) | ingestion, évaluation, destinataires des nouvelles alertes, premier envoi |
-| Envoi | `POST /api/v1/monitoring/dispatch` | toutes les 10 minutes | messages en attente, relances, fin du silence nocturne |
+| Quotidienne | `POST` ou `GET /api/v1/monitoring/ingest` | 5 h, heure de Porto-Novo (4 h UTC) | ingestion, évaluation, destinataires des nouvelles alertes, premier envoi |
+| Envoi | `POST` ou `GET /api/v1/monitoring/dispatch` | toutes les 10 minutes | messages en attente, relances, fin du silence nocturne |
 
-Les deux routes exigent `Authorization: Bearer <CRON_SECRET>` (32 caractères au moins, obligatoire en production) ; sans secret configuré elles restent fermées. Avec Docker Compose, le service `scheduler` (profil `full`) les appelle ; sans Docker, l'équivalent crontab est documenté dans `docker/scheduler`.
+Les deux routes exigent `Authorization: Bearer <CRON_SECRET>` (32 caractères au moins, obligatoire en production), comparé en temps constant ; sans secret configuré elles restent fermées. GET et POST sont le même gestionnaire : GET existe pour Vercel Cron, qui n'appelle qu'en GET.
+
+Trois façons de les déclencher, sans code propre à l'hébergeur (ADR-0006) :
+
+- **Docker Compose** : le service `scheduler` (profil `full`) les appelle par le réseau interne ; voir `docker/scheduler/README.md`.
+- **Serveur sans Docker** : crontab système, documentée dans `docker/scheduler/README.md`.
+- **Vercel** : `vercel.json` déclare les deux crons (horaires en UTC : `0 4 * * *` et `*/10 * * * *`). Vercel ajoute lui-même l'en-tête `Authorization: Bearer $CRON_SECRET` si la variable `CRON_SECRET` est définie dans le projet. Le plan Hobby n'autorise qu'une exécution quotidienne : l'envoi toutes les 10 minutes demande un plan Pro, sinon il faut garder un planificateur externe pour `dispatch`.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<hôte>/api/v1/monitoring/ingest
