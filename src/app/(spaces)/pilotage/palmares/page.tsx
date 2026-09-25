@@ -44,7 +44,7 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
       : {}),
   });
 
-  const scope = departementName ? `département ${departementName}` : "Bénin";
+  const scope = departementName ? `Département ${departementName}` : "Tout le Bénin";
   const criterion =
     ranking.filters.metric === "yield" ? "au rendement à l'hectare" : "à la production totale";
 
