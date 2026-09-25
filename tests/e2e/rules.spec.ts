@@ -86,12 +86,19 @@ test.describe("gouvernance des règles d'alerte", () => {
     await expect(page.getByText(/^\d+ \/ 160 caractères$/)).toBeVisible();
 
     const threshold = page.getByLabel(rule.threshold, { exact: true });
+    // Nouvelle valeur toujours différente de la valeur en place : le test reste valable s'il est
+    // rejoué avant le nettoyage de fin de suite (--repeat-each), la version précédente ayant déjà
+    // pris la valeur de référence.
+    const current = Number((await threshold.inputValue()).replace(",", "."));
+    const target = String(
+      current === Number(rule.value) ? Number(rule.value) + 5 : Number(rule.value),
+    );
     await threshold.fill("-5");
     await expect(page.getByText(/hors des limites/)).toBeVisible();
     await expect(
       page.getByRole("button", { name: `Enregistrer la version ${version + 1}` }),
     ).toBeDisabled();
-    await threshold.fill(rule.value);
+    await threshold.fill(target);
     await expect(page.getByText(/hors des limites/)).toBeHidden();
 
     await page.getByRole("button", { name: "Simuler sur 30 jours" }).click();
@@ -111,7 +118,7 @@ test.describe("gouvernance des règles d'alerte", () => {
 
     await page.reload();
     await expect(page.getByText(`Règle ${rule.code} · version ${version + 1}`)).toBeVisible();
-    await expect(page.getByLabel(rule.threshold, { exact: true })).toHaveValue(rule.value);
+    await expect(page.getByLabel(rule.threshold, { exact: true })).toHaveValue(target);
     const versions = page.getByRole("table").filter({ hasText: "Créée le" });
     await expect(versions.getByRole("row")).toHaveCount(version + 2);
     await expect(page.getByText("Nouvelle version").first()).toBeVisible();

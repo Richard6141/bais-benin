@@ -14,6 +14,7 @@ import {
   MINISTRY_TEST_PASSWORD,
   activateMinistryTwoFactor,
   ministryEmailFor,
+  saveMinistrySession,
 } from "./helpers/ministry";
 import { PHONE_ACCOUNTS, savePhoneSession, type PhonePersona } from "./helpers/sessions";
 
@@ -72,6 +73,7 @@ export default async function globalSetup(config: FullConfig) {
         // les tests ne font ensuite que répondre au défi, sans course entre tests parallèles.
         const baseURL = project.use.baseURL ?? config.webServer?.url ?? "http://localhost:3000";
         await activateMinistryTwoFactor(baseURL, project.name);
+        await saveMinistrySession(baseURL, project.name);
       } catch (error) {
         // Sans double authentification, tous les parcours du pilotage échoueraient plus loin avec
         // un message trompeur : on arrête la suite ici, capture d'écran dans test-results/e2e-db.
