@@ -48,7 +48,7 @@ Convention : **Contenu**, **Filtres**, **Automatique**, **Actions**, **États vi
 | B1 Départements classés | Tableau des 12 départements : exploitations, superficie déclarée et mesurée, part vérifiée, production de la culture filtrée, rang | Campagne, culture, indicateur de tri | Tri par colonne, rang recalculé ; ligne « Bénin » en pied | Tap : communes du département (B2) | — | `Table` (tri accessible, `aria-sort`) |
 | B2 Communes d'un département | Même tableau au grain commune, avec la ZAE | + département | Idem | Tap : fiche commune (2.C) | Commune sans exploitation : ligne grisée « aucune exploitation » | `Table`, `Badge` (ZAE) |
 
-### 2.C Fiche commune (`/pilotage/territoires/[code]`)
+### 2.C Fiche commune (`/pilotage/communes/[code]`)
 
 | Bloc | Contenu | Automatique | Composants |
 |---|---|---|---|
