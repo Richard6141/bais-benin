@@ -8,6 +8,10 @@ const isCI = Boolean(process.env.CI);
 // d'entrée de gamme, car l'agent de terrain est l'utilisateur de référence.
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Les parcours écrivent dans la base de démonstration : l'état est noté avant la suite et ce
+  // qu'elle a créé est retiré après (scripts/e2e-clean.ts). E2E_SKIP_CLEAN=1 désactive les deux.
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

@@ -33,6 +33,37 @@ const actions = {
     await page.getByRole("button", { name: "Télécharger" }).click();
     await page.getByRole("status").filter({ hasText: "Terminé" }).waitFor({ timeout: 30_000 });
   },
+  // Parcours A1-A7 hors ligne, puis retour du réseau et attente de la puce « À jour ».
+  async enrolOffline(page, lastName) {
+    await actions.downloadOfflineData(page);
+    await page.goto(`${baseUrl}/agent/enregistrer`);
+    await page.getByRole("heading", { name: "Quel producteur ?" }).waitFor();
+    await page.context().setOffline(true);
+    await page.getByRole("button", { name: "Nouveau producteur" }).click();
+    await page.getByLabel("Prénom").fill("Adjoa");
+    await page.getByLabel("Nom", { exact: true }).fill(lastName);
+    await page.getByRole("button", { name: "Femme" }).click();
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByRole("button", { name: "Saisir la position à la main" }).click();
+    await page.getByLabel("Latitude").fill("9,70");
+    await page.getByLabel("Longitude").fill("1,67");
+    await page.getByRole("button", { name: "Utiliser ces coordonnées" }).click();
+    await page.getByText("Djougou (Donga)").waitFor();
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByLabel("Superficie totale").fill("2,5");
+    await page.getByRole("button", { name: "Terre familiale" }).click();
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByRole("button", { name: "Sans parcelle pour l'instant" }).click();
+    await page.getByRole("group").first().getByRole("button").first().click();
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByRole("checkbox").click();
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page.getByText("Exploitation enregistrée sur cet appareil").waitFor();
+    await page.context().setOffline(false);
+    const chip = page.locator("[data-sync-state]").first();
+    await chip.getByRole("button", { name: "Synchroniser maintenant" }).click();
+    await page.locator('[data-sync-state="UP_TO_DATE"]').first().waitFor({ timeout: 30_000 });
+  },
   async institutionSignIn(page, email) {
     await page.goto(`${baseUrl}/connexion/institution`);
     await page.getByLabel("Adresse e-mail professionnelle").fill(email);
@@ -57,6 +88,8 @@ const plans = {
     {
       name: "agent-enregistrer-mobile",
       context: mobile,
+      // La barre d'action est fixée en bas d'écran : une capture pleine page la placerait au milieu.
+      fullPage: false,
       prepare: async (page) => {
         await actions.phoneSignIn(page, "0190000001");
         await actions.phoneVerify(page);
@@ -91,6 +124,8 @@ const plans = {
     {
       name: "agent-verification-mobile",
       context: mobile,
+      // La file compte des dizaines de lignes : la hauteur d'écran suffit à montrer le rendu.
+      fullPage: false,
       prepare: async (page) => {
         await actions.phoneSignIn(page, "0190000001");
         await actions.phoneVerify(page);
@@ -126,8 +161,12 @@ const plans = {
       prepare: async (page) => {
         await actions.phoneSignIn(page, "0190000001");
         await actions.phoneVerify(page);
+        // La file est propre à l'appareil : un enregistrement complet hors ligne puis synchronisé
+        // la remplit de lignes « Enregistrée ». Le producteur porte le préfixe « Testhors » pour
+        // être retiré ensuite par pnpm e2e:clean.
+        await actions.enrolOffline(page, `TesthorsCapture${Date.now().toString(36).toUpperCase()}`);
         await page.goto(`${baseUrl}/agent/synchronisation`);
-        await page.waitForLoadState("networkidle");
+        await page.getByText("Enregistrée", { exact: true }).first().waitFor({ timeout: 15_000 });
       },
     },
   ],
