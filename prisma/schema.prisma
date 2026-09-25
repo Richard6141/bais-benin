@@ -100,7 +100,6 @@ enum ScopeType {
   SELF
 }
 
-
 enum Gender {
   M
   F
@@ -179,6 +178,7 @@ enum CropStage {
   PLANNED
   SOWN
   GROWING
+  FLOWERING
   HARVESTED
   FAILED
 }
@@ -197,17 +197,21 @@ model DataSource {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  departements   Departement[]
-  communes       Commune[]
-  zones          AgroEcologicalZone[]
-  crops          Crop[]
-  campaigns      AgriculturalCampaign[]
-  farmers        Farmer[]
-  farms          Farm[]
-  parcels        Parcel[]
-  parcelCrops    ParcelCrop[]
-  declarations   ProductionDeclaration[]
-  verifications  FarmVerification[]
+  departements  Departement[]
+  communes      Commune[]
+  zones         AgroEcologicalZone[]
+  crops         Crop[]
+  campaigns     AgriculturalCampaign[]
+  farmers       Farmer[]
+  farms         Farm[]
+  parcels       Parcel[]
+  parcelCrops   ParcelCrop[]
+  declarations  ProductionDeclaration[]
+  verifications FarmVerification[]
+
+  weatherObservations WeatherObservation[]
+  rules               Rule[]
+  alerts              Alert[]
 
   @@map("data_source")
 }
@@ -241,16 +245,16 @@ model AgroEcologicalZone {
 }
 
 model Departement {
-  id       String @id @default(uuid(7)) @db.Uuid
+  id              String                                        @id @default(uuid(7)) @db.Uuid
   // Code ISO 3166-2:BJ, par exemple BJ-DO pour la Donga.
-  code     String @unique
-  name     String
-  chefLieu String @map("chef_lieu")
+  code            String                                        @unique
+  name            String
+  chefLieu        String                                        @map("chef_lieu")
   // Identifiant de la géométrie chez geoBoundaries, pour suivre les mises à jour.
-  geoboundariesId String? @map("geoboundaries_id")
-  geom     Unsupported("geography(MultiPolygon, 4326)")?
-  centroid Unsupported("geography(Point, 4326)")?
-  areaKm2  Decimal? @map("area_km2") @db.Decimal(12, 3)
+  geoboundariesId String?                                       @map("geoboundaries_id")
+  geom            Unsupported("geography(MultiPolygon, 4326)")?
+  centroid        Unsupported("geography(Point, 4326)")?
+  areaKm2         Decimal?                                      @map("area_km2") @db.Decimal(12, 3)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -266,21 +270,21 @@ model Departement {
 }
 
 model Commune {
-  id            String  @id @default(uuid(7)) @db.Uuid
+  id                      String                                        @id @default(uuid(7)) @db.Uuid
   // Code stable BJ-<DEP>-<NNN>, indépendant du libellé (docs/08 §2.1).
-  code          String  @unique
-  name          String
+  code                    String                                        @unique
+  name                    String
   // Variantes d'orthographe acceptées en recherche (Sèmè-Podji pour Sèmè-Kpodji).
-  aliases       String[]
-  departementId String  @map("departement_id") @db.Uuid
-  departement   Departement @relation(fields: [departementId], references: [id])
-  zoneId        String? @map("agro_ecological_zone_id") @db.Uuid
-  zone          AgroEcologicalZone? @relation(fields: [zoneId], references: [id])
-  geoboundariesId String? @map("geoboundaries_id")
-  geom          Unsupported("geography(MultiPolygon, 4326)")?
-  centroid      Unsupported("geography(Point, 4326)")?
-  areaKm2       Decimal? @map("area_km2") @db.Decimal(12, 3)
-  ruralPopulationEstimate Int? @map("rural_population_estimate")
+  aliases                 String[]
+  departementId           String                                        @map("departement_id") @db.Uuid
+  departement             Departement                                   @relation(fields: [departementId], references: [id])
+  zoneId                  String?                                       @map("agro_ecological_zone_id") @db.Uuid
+  zone                    AgroEcologicalZone?                           @relation(fields: [zoneId], references: [id])
+  geoboundariesId         String?                                       @map("geoboundaries_id")
+  geom                    Unsupported("geography(MultiPolygon, 4326)")?
+  centroid                Unsupported("geography(Point, 4326)")?
+  areaKm2                 Decimal?                                      @map("area_km2") @db.Decimal(12, 3)
+  ruralPopulationEstimate Int?                                          @map("rural_population_estimate")
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -293,6 +297,10 @@ model Commune {
   farmers Farmer[]
   farms   Farm[]
 
+  weatherObservations WeatherObservation[]
+  ruleEvaluations     RuleEvaluation[]
+  alerts              Alert[]
+
   @@index([departementId])
   @@index([zoneId])
   @@map("commune")
@@ -303,19 +311,19 @@ model Commune {
 // ---------------------------------------------------------------------------
 
 model Crop {
-  id                String       @id @default(uuid(7)) @db.Uuid
-  code              String       @unique
-  nameFr            String       @map("name_fr")
-  category          CropCategory
-  cycle             CropCycle
-  tradeUnit         TradeUnit    @map("trade_unit")
-  typicalYieldTPerHa Decimal?    @map("typical_yield_t_per_ha") @db.Decimal(6, 2)
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  code               String       @unique
+  nameFr             String       @map("name_fr")
+  category           CropCategory
+  cycle              CropCycle
+  tradeUnit          TradeUnit    @map("trade_unit")
+  typicalYieldTPerHa Decimal?     @map("typical_yield_t_per_ha") @db.Decimal(6, 2)
   // Zones où la culture est significative, par ordre d'importance (codes ZAE).
-  mainZoneCodes     String[]     @map("main_zone_codes")
+  mainZoneCodes      String[]     @map("main_zone_codes")
   // Fenêtres de semis et de récolte par régime, en numéros de mois : { south: {...}, north: {...} }.
-  calendar          Json
+  calendar           Json
   // Couleur fixe dans l'interface pour les cultures majeures (docs/07 §3).
-  colorHex          String?      @map("color_hex")
+  colorHex           String?      @map("color_hex")
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -359,40 +367,40 @@ model AgriculturalCampaign {
 // Table des comptes gérée par better-auth (ADR-0010). Les noms de champs sont ceux
 // qu'attend la bibliothèque ; les colonnes restent en snake_case.
 model User {
-  id                  String     @id @default(uuid(7)) @db.Uuid
-  name                String     @map("display_name")
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  name                    String    @map("display_name")
   // better-auth exige un e-mail unique : les comptes créés par téléphone reçoivent une
   // adresse technique <numéro>@telephone.bais.invalid, jamais affichée.
-  email               String     @unique @db.Citext
-  emailVerified       Boolean    @default(false) @map("email_verified")
-  image               String?
+  email                   String    @unique @db.Citext
+  emailVerified           Boolean   @default(false) @map("email_verified")
+  image                   String?
   // Identifiant principal des agriculteurs et des agents : +229 01 XX XX XX XX.
-  phoneNumber         String?    @unique @map("phone_e164")
-  phoneNumberVerified Boolean?   @map("phone_verified")
-  twoFactorEnabled    Boolean?   @default(false) @map("two_factor_enabled")
-  preferredLocale     String?    @default("fr") @map("preferred_locale")
-  status              String?    @default("ACTIVE")
+  phoneNumber             String?   @unique @map("phone_e164")
+  phoneNumberVerified     Boolean?  @map("phone_verified")
+  twoFactorEnabled        Boolean?  @default(false) @map("two_factor_enabled")
+  preferredLocale         String?   @default("fr") @map("preferred_locale")
+  status                  String?   @default("ACTIVE")
   // NPI (ANIP) : jamais en clair. L'index HMAC sert à l'unicité, le chiffré à la restitution
   // habilitée (format versionné, voir lib/crypto/npi.ts).
-  npiIndex            Bytes?     @unique @map("npi_index")
-  npiCiphertext       String?    @map("npi_ciphertext")
-  npiStatus           NpiStatus  @default(NONE) @map("npi_status")
-  npiVerifiedAt       DateTime?  @map("npi_verified_at")
-  npiVerificationProvider String? @map("npi_verification_provider")
-  lastLoginAt         DateTime?  @map("last_login_at")
-  createdAt           DateTime   @default(now()) @map("created_at")
-  updatedAt           DateTime   @updatedAt @map("updated_at")
-  archivedAt          DateTime?  @map("archived_at")
+  npiIndex                Bytes?    @unique @map("npi_index")
+  npiCiphertext           String?   @map("npi_ciphertext")
+  npiStatus               NpiStatus @default(NONE) @map("npi_status")
+  npiVerifiedAt           DateTime? @map("npi_verified_at")
+  npiVerificationProvider String?   @map("npi_verification_provider")
+  lastLoginAt             DateTime? @map("last_login_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  archivedAt              DateTime? @map("archived_at")
 
-  sessions      Session[]
-  accounts      Account[]
-  twoFactors    TwoFactor[]
-  roles         RoleAssignment[] @relation("assignments")
-  grantedRoles  RoleAssignment[] @relation("grants")
-  auditEntries  AuditLog[]
-  farmer        Farmer?
-  registeredFarms Farm[]   @relation("registeredBy")
-  verifiedFarms Farm[]     @relation("verifiedBy")
+  sessions           Session[]
+  accounts           Account[]
+  twoFactors         TwoFactor[]
+  roles              RoleAssignment[]   @relation("assignments")
+  grantedRoles       RoleAssignment[]   @relation("grants")
+  auditEntries       AuditLog[]
+  farmer             Farmer?
+  registeredFarms    Farm[]             @relation("registeredBy")
+  verifiedFarms      Farm[]             @relation("verifiedBy")
   fieldVerifications FarmVerification[]
 
   @@map("user")
@@ -499,17 +507,17 @@ model AuditLog {
 }
 
 model RoleAssignment {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  user      User      @relation("assignments", fields: [userId], references: [id], onDelete: Cascade)
-  role      Role
-  scopeType ScopeType @map("scope_type")
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  user        User      @relation("assignments", fields: [userId], references: [id], onDelete: Cascade)
+  role        Role
+  scopeType   ScopeType @map("scope_type")
   // Identifiant du territoire ou de l'organisation ciblé ; nul pour NATIONAL et SELF.
-  scopeId   String?   @map("scope_id") @db.Uuid
-  grantedById String? @map("granted_by_id") @db.Uuid
-  grantedBy User?     @relation("grants", fields: [grantedById], references: [id])
-  grantedAt DateTime  @default(now()) @map("granted_at")
-  revokedAt DateTime? @map("revoked_at")
+  scopeId     String?   @map("scope_id") @db.Uuid
+  grantedById String?   @map("granted_by_id") @db.Uuid
+  grantedBy   User?     @relation("grants", fields: [grantedById], references: [id])
+  grantedAt   DateTime  @default(now()) @map("granted_at")
+  revokedAt   DateTime? @map("revoked_at")
 
   @@index([userId, role])
   @@index([scopeType, scopeId])
@@ -547,33 +555,35 @@ model Farmer {
 
   farms Farm[]
 
+  channelConsents ChannelConsent[]
+
   @@index([communeId])
   @@index([lastName, firstName])
   @@map("farmer")
 }
 
 model Farm {
-  id                 String   @id @default(uuid(7)) @db.Uuid
-  code               String   @unique
-  farmerId           String   @map("farmer_id") @db.Uuid
-  farmer             Farmer   @relation(fields: [farmerId], references: [id])
+  id                 String                                 @id @default(uuid(7)) @db.Uuid
+  code               String                                 @unique
+  farmerId           String                                 @map("farmer_id") @db.Uuid
+  farmer             Farmer                                 @relation(fields: [farmerId], references: [id])
   name               String?
-  communeId          String   @map("commune_id") @db.Uuid
-  commune            Commune  @relation(fields: [communeId], references: [id])
+  communeId          String                                 @map("commune_id") @db.Uuid
+  commune            Commune                                @relation(fields: [communeId], references: [id])
   village            String?
   location           Unsupported("geography(Point, 4326)")?
-  declaredAreaHa     Decimal  @map("declared_area_ha") @db.Decimal(10, 3)
-  computedAreaHa     Decimal? @map("computed_area_ha") @db.Decimal(10, 3)
-  tenure             LandTenure @default(UNKNOWN)
-  mainActivity       FarmActivity @default(CROPS) @map("main_activity")
-  verificationStatus VerificationStatus @default(DECLARED) @map("verification_status")
-  verifiedAt         DateTime? @map("verified_at")
-  verifiedById       String?  @map("verified_by_id") @db.Uuid
-  verifiedBy         User?    @relation("verifiedBy", fields: [verifiedById], references: [id])
-  registeredById     String?  @map("registered_by_id") @db.Uuid
-  registeredBy       User?    @relation("registeredBy", fields: [registeredById], references: [id])
+  declaredAreaHa     Decimal                                @map("declared_area_ha") @db.Decimal(10, 3)
+  computedAreaHa     Decimal?                               @map("computed_area_ha") @db.Decimal(10, 3)
+  tenure             LandTenure                             @default(UNKNOWN)
+  mainActivity       FarmActivity                           @default(CROPS) @map("main_activity")
+  verificationStatus VerificationStatus                     @default(DECLARED) @map("verification_status")
+  verifiedAt         DateTime?                              @map("verified_at")
+  verifiedById       String?                                @map("verified_by_id") @db.Uuid
+  verifiedBy         User?                                  @relation("verifiedBy", fields: [verifiedById], references: [id])
+  registeredById     String?                                @map("registered_by_id") @db.Uuid
+  registeredBy       User?                                  @relation("registeredBy", fields: [registeredById], references: [id])
   // Verrou optimiste pour la synchronisation hors-ligne.
-  version            Int      @default(1)
+  version            Int                                    @default(1)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -587,25 +597,27 @@ model Farm {
   verifications FarmVerification[]
   events        FarmEvent[]
 
+  alertRecipients AlertRecipient[]
+
   @@index([communeId, verificationStatus])
   @@index([farmerId])
   @@map("farm")
 }
 
 model Parcel {
-  id             String  @id @default(uuid(7)) @db.Uuid
-  code           String  @unique
-  farmId         String  @map("farm_id") @db.Uuid
-  farm           Farm    @relation(fields: [farmId], references: [id])
+  id             String                                   @id @default(uuid(7)) @db.Uuid
+  code           String                                   @unique
+  farmId         String                                   @map("farm_id") @db.Uuid
+  farm           Farm                                     @relation(fields: [farmId], references: [id])
   geom           Unsupported("geography(Polygon, 4326)")?
   centroid       Unsupported("geography(Point, 4326)")?
-  declaredAreaHa Decimal  @map("declared_area_ha") @db.Decimal(10, 3)
-  computedAreaHa Decimal? @map("computed_area_ha") @db.Decimal(10, 3)
-  captureMethod  ParcelCaptureMethod @default(DECLARED_ONLY) @map("capture_method")
-  gpsAccuracyM   Decimal? @map("gps_accuracy_m") @db.Decimal(6, 1)
-  irrigation     IrrigationType @default(NONE)
-  soilType       String? @map("soil_type")
-  version        Int     @default(1)
+  declaredAreaHa Decimal                                  @map("declared_area_ha") @db.Decimal(10, 3)
+  computedAreaHa Decimal?                                 @map("computed_area_ha") @db.Decimal(10, 3)
+  captureMethod  ParcelCaptureMethod                      @default(DECLARED_ONLY) @map("capture_method")
+  gpsAccuracyM   Decimal?                                 @map("gps_accuracy_m") @db.Decimal(6, 1)
+  irrigation     IrrigationType                           @default(NONE)
+  soilType       String?                                  @map("soil_type")
+  version        Int                                      @default(1)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -624,19 +636,19 @@ model Parcel {
 
 // Culture pratiquée sur une parcelle pendant une campagne et une sous-saison.
 model ParcelCrop {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  parcelId   String    @map("parcel_id") @db.Uuid
-  parcel     Parcel    @relation(fields: [parcelId], references: [id])
-  cropId     String    @map("crop_id") @db.Uuid
-  crop       Crop      @relation(fields: [cropId], references: [id])
-  campaignId String    @map("campaign_id") @db.Uuid
-  campaign   AgriculturalCampaign @relation(fields: [campaignId], references: [id])
-  subSeason  SubSeason @default(MAIN_RAINY) @map("sub_season")
-  areaHa     Decimal   @map("area_ha") @db.Decimal(10, 3)
-  sowingDate DateTime? @map("sowing_date") @db.Date
-  expectedHarvestDate DateTime? @map("expected_harvest_date") @db.Date
-  stage      CropStage @default(PLANNED)
-  variety    String?
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  parcelId            String               @map("parcel_id") @db.Uuid
+  parcel              Parcel               @relation(fields: [parcelId], references: [id])
+  cropId              String               @map("crop_id") @db.Uuid
+  crop                Crop                 @relation(fields: [cropId], references: [id])
+  campaignId          String               @map("campaign_id") @db.Uuid
+  campaign            AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  subSeason           SubSeason            @default(MAIN_RAINY) @map("sub_season")
+  areaHa              Decimal              @map("area_ha") @db.Decimal(10, 3)
+  sowingDate          DateTime?            @map("sowing_date") @db.Date
+  expectedHarvestDate DateTime?            @map("expected_harvest_date") @db.Date
+  stage               CropStage            @default(PLANNED)
+  variety             String?
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -683,19 +695,19 @@ model ProductionDeclaration {
 
 // Visite ou contrôle qui fait évoluer le statut de vérification d'une exploitation.
 model FarmVerification {
-  id                String                   @id @default(uuid(7)) @db.Uuid
-  farmId            String                   @map("farm_id") @db.Uuid
-  farm              Farm                     @relation(fields: [farmId], references: [id])
-  parcelId          String?                  @map("parcel_id") @db.Uuid
-  parcel            Parcel?                  @relation(fields: [parcelId], references: [id])
+  id                String                                 @id @default(uuid(7)) @db.Uuid
+  farmId            String                                 @map("farm_id") @db.Uuid
+  farm              Farm                                   @relation(fields: [farmId], references: [id])
+  parcelId          String?                                @map("parcel_id") @db.Uuid
+  parcel            Parcel?                                @relation(fields: [parcelId], references: [id])
   kind              FieldVerificationKind
   outcome           FieldVerificationOutcome
   notes             String?
-  identityConfirmed Boolean                  @default(false) @map("identity_confirmed")
-  visitedAt         DateTime                 @map("visited_at")
+  identityConfirmed Boolean                                @default(false) @map("identity_confirmed")
+  visitedAt         DateTime                               @map("visited_at")
   gpsPoint          Unsupported("geography(Point, 4326)")? @map("gps_point")
-  agentId           String?                  @map("agent_id") @db.Uuid
-  agent             User?                    @relation(fields: [agentId], references: [id])
+  agentId           String?                                @map("agent_id") @db.Uuid
+  agent             User?                                  @relation(fields: [agentId], references: [id])
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -738,4 +750,274 @@ model SyncCommand {
 
   @@index([userId, receivedAt])
   @@map("sync_command")
+}
+
+// ---------------------------------------------------------------------------
+// Monitoring agricole (étape 6, docs/04 §7, docs/modules/monitoring-parcours-ux.md §4)
+// ---------------------------------------------------------------------------
+
+enum WeatherKind {
+  OBSERVED
+  FORECAST
+  REANALYSIS
+}
+
+enum AlertSeverity {
+  INFO
+  WATCH
+  WARNING
+  CRITICAL
+}
+
+enum AlertCategory {
+  WATER_STRESS
+  FLOOD
+  HEAT
+  PEST
+  MARKET
+  ADMIN
+}
+
+enum RuleTarget {
+  COMMUNE
+  FARM
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+  EXPIRED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum NotificationChannel {
+  IN_APP
+  WHATSAPP
+  SMS
+  RELAY
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  RELAYED
+  SKIPPED
+}
+
+enum ConsentMethod {
+  AGENT_FORM
+  OTP
+  WHATSAPP_REPLY
+}
+
+enum IngestionStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+// Journée météo par commune (centroïde). Une prévision est identifiée par sa date d'émission :
+// la prévision du jour J émise la veille et celle émise le jour même coexistent.
+model WeatherObservation {
+  id                  String      @id @default(uuid(7)) @db.Uuid
+  communeId           String      @map("commune_id") @db.Uuid
+  commune             Commune     @relation(fields: [communeId], references: [id])
+  observedOn          DateTime    @map("observed_on") @db.Date
+  kind                WeatherKind
+  issuedOn            DateTime    @map("issued_on") @db.Date
+  tempMaxC            Decimal?    @map("temp_max_c") @db.Decimal(4, 1)
+  tempMinC            Decimal?    @map("temp_min_c") @db.Decimal(4, 1)
+  precipitationMm     Decimal?    @map("precipitation_mm") @db.Decimal(6, 1)
+  et0Mm               Decimal?    @map("et0_mm") @db.Decimal(5, 2)
+  relativeHumidityPct Decimal?    @map("relative_humidity_pct") @db.Decimal(5, 1)
+  windKmh             Decimal?    @map("wind_kmh") @db.Decimal(5, 1)
+  soilMoisturePct     Decimal?    @map("soil_moisture_pct") @db.Decimal(5, 2)
+  sourceId            String      @map("source_id")
+  source              DataSource  @relation(fields: [sourceId], references: [id])
+  reliability         Reliability
+  ingestionRunId      String?     @map("ingestion_run_id") @db.Uuid
+  fetchedAt           DateTime    @default(now()) @map("fetched_at")
+
+  @@unique([communeId, observedOn, kind, sourceId, issuedOn])
+  @@index([communeId, observedOn])
+  @@map("weather_observation")
+}
+
+// Règle d'alerte versionnée : une modification crée une nouvelle ligne (même code, version + 1).
+model Rule {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  code          String
+  version       Int           @default(1)
+  name          String
+  description   String
+  severity      AlertSeverity
+  category      AlertCategory
+  target        RuleTarget    @default(COMMUNE)
+  definition    Json
+  messageFr     String        @map("message_fr")
+  messageShort  String        @map("message_short") @db.VarChar(160)
+  adviceFr      String        @map("advice_fr")
+  cooldownHours Int           @default(72) @map("cooldown_hours")
+  enabled       Boolean       @default(true)
+  supersedesId  String?       @map("supersedes_id") @db.Uuid
+  createdById   String?       @map("created_by_id") @db.Uuid
+  sourceId      String        @map("source_id")
+  source        DataSource    @relation(fields: [sourceId], references: [id])
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  evaluations RuleEvaluation[]
+  alerts      Alert[]
+  simulations SimulationRun[]
+
+  @@unique([code, version])
+  @@index([enabled])
+  @@map("rule")
+}
+
+model RuleEvaluation {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  ruleId             String         @map("rule_id") @db.Uuid
+  rule               Rule           @relation(fields: [ruleId], references: [id])
+  communeId          String         @map("commune_id") @db.Uuid
+  commune            Commune        @relation(fields: [communeId], references: [id])
+  referenceDate      DateTime       @map("reference_date") @db.Date
+  evaluatedAt        DateTime       @default(now()) @map("evaluated_at")
+  matched            Boolean
+  indicatorsSnapshot Json           @map("indicators_snapshot")
+  trace              Json
+  missing            String[]
+  dataStale          Boolean        @default(false) @map("data_stale")
+  simulationId       String?        @map("simulation_id") @db.Uuid
+  simulation         SimulationRun? @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  alertId            String?        @map("alert_id") @db.Uuid
+
+  @@index([ruleId, communeId, referenceDate])
+  @@index([simulationId])
+  @@map("rule_evaluation")
+}
+
+model Alert {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  ruleId               String        @map("rule_id") @db.Uuid
+  rule                 Rule          @relation(fields: [ruleId], references: [id])
+  ruleVersion          Int           @map("rule_version")
+  severity             AlertSeverity
+  category             AlertCategory
+  title                String
+  messageFr            String        @map("message_fr")
+  messageShort         String        @map("message_short") @db.VarChar(160)
+  adviceFr             String        @map("advice_fr")
+  communeId            String        @map("commune_id") @db.Uuid
+  commune              Commune       @relation(fields: [communeId], references: [id])
+  affectedFarmCount    Int           @default(0) @map("affected_farm_count")
+  affectedAreaHa       Decimal       @default(0) @map("affected_area_ha") @db.Decimal(12, 2)
+  indicators           Json
+  trace                Json
+  startsAt             DateTime      @map("starts_at")
+  endsAt               DateTime?     @map("ends_at")
+  status               AlertStatus   @default(ACTIVE)
+  raisedByEvaluationId String?       @map("raised_by_evaluation_id") @db.Uuid
+  supersededById       String?       @map("superseded_by_id") @db.Uuid
+  resolvedReason       String?       @map("resolved_reason")
+  resolvedById         String?       @map("resolved_by_id") @db.Uuid
+  sourceId             String        @map("source_id")
+  source               DataSource    @relation(fields: [sourceId], references: [id])
+  sourceDate           DateTime      @map("source_date")
+  reliability          Reliability
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  recipients AlertRecipient[]
+
+  @@index([communeId, status])
+  @@index([status, severity])
+  @@index([ruleId, communeId, startsAt])
+  @@map("alert")
+}
+
+// Destinataire d'une alerte sur un canal. La ligne est figée à la création de l'alerte.
+model AlertRecipient {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  alertId           String              @map("alert_id") @db.Uuid
+  alert             Alert               @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  farmId            String?             @map("farm_id") @db.Uuid
+  farm              Farm?               @relation(fields: [farmId], references: [id])
+  userId            String?             @map("user_id") @db.Uuid
+  phoneE164         String?             @map("phone_e164")
+  channel           NotificationChannel
+  status            DeliveryStatus      @default(PENDING)
+  providerMessageId String?             @map("provider_message_id")
+  failureReason     String?             @map("failure_reason")
+  attempts          Int                 @default(0)
+  nextAttemptAt     DateTime?           @map("next_attempt_at")
+  sentAt            DateTime?           @map("sent_at")
+  deliveredAt       DateTime?           @map("delivered_at")
+  acknowledgedAt    DateTime?           @map("acknowledged_at")
+  relayedById       String?             @map("relayed_by_id") @db.Uuid
+  relayMode         String?             @map("relay_mode")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  @@unique([alertId, farmId, userId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([userId, acknowledgedAt])
+  @@map("alert_recipient")
+}
+
+// Consentement d'un producteur à être prévenu par un canal (APDP, exigence wapy.pro).
+model ChannelConsent {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  farmerId  String              @map("farmer_id") @db.Uuid
+  farmer    Farmer              @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel
+  granted   Boolean
+  grantedAt DateTime?           @map("granted_at")
+  revokedAt DateTime?           @map("revoked_at")
+  method    ConsentMethod
+  evidence  String?
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  @@unique([farmerId, channel])
+  @@map("channel_consent")
+}
+
+model SimulationRun {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  ruleId          String?         @map("rule_id") @db.Uuid
+  rule            Rule?           @relation(fields: [ruleId], references: [id])
+  draftDefinition Json?           @map("draft_definition")
+  fromDate        DateTime        @map("from_date") @db.Date
+  toDate          DateTime        @map("to_date") @db.Date
+  requestedById   String?         @map("requested_by_id") @db.Uuid
+  status          IngestionStatus @default(RUNNING)
+  summary         Json?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  finishedAt      DateTime?       @map("finished_at")
+
+  evaluations RuleEvaluation[]
+
+  @@map("simulation_run")
+}
+
+model IngestionRun {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  provider       String
+  startedAt      DateTime        @default(now()) @map("started_at")
+  finishedAt     DateTime?       @map("finished_at")
+  status         IngestionStatus @default(RUNNING)
+  referenceDate  DateTime        @map("reference_date") @db.Date
+  communesOk     Int             @default(0) @map("communes_ok")
+  communesFailed Int             @default(0) @map("communes_failed")
+  fallback       Boolean         @default(false)
+  error          String?
+
+  @@index([startedAt])
+  @@map("ingestion_run")
 }

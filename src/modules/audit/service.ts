@@ -25,7 +25,17 @@ export type AuditAction =
   | "registry.crop.declared"
   | "registry.harvest.declared"
   | "registry.farm.verified"
-  | "sync.batch.received";
+  | "sync.batch.received"
+  | "alert.raised"
+  | "alert.acknowledged"
+  | "alert.relayed"
+  | "alert.resolved"
+  | "rule.created"
+  | "rule.updated"
+  | "rule.toggled"
+  | "rule.simulated"
+  | "monitoring.ingest.completed"
+  | "monitoring.ingest.fallback";
 
 export interface AuditEntry {
   action: AuditAction;
