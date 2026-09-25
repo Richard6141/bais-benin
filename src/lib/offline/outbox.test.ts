@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentDatabase } from "./db";
 import { applyResults, enqueueCommand, outboxCounts, pendingCommands } from "./outbox";
+import { syncBatchSchema } from "@/modules/sync/commands";
 import { runSync } from "./sync-client";
 
 const farmerId = "01923456-0000-7000-8000-000000000001";
@@ -65,6 +66,8 @@ describe("outbox hors ligne", () => {
     });
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as { commands: { id: string }[] };
+      // Le lot envoyé doit passer le contrat serveur tel quel.
+      expect(syncBatchSchema.safeParse(body).success).toBe(true);
       expect((init?.headers as Record<string, string>)["X-Device-Id"]).toBe("appareil-test");
       return new Response(
         JSON.stringify({

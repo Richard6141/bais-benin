@@ -34,7 +34,9 @@ export async function runSync(
     response = await fetchImpl(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Device-Id": options.deviceId },
-      body: JSON.stringify({ commands: batch.map(toWireCommand) }),
+      body: JSON.stringify({
+        commands: batch.map((entry) => toWireCommand(entry, options.deviceId)),
+      }),
       credentials: "same-origin",
     });
   } catch (error) {
@@ -59,9 +61,12 @@ export async function runSync(
   return { sent: batch.length, applied, failed };
 }
 
-function toWireCommand(entry: OutboxEntry) {
+// Chaque commande porte l'appareil émetteur (contrat docs/modules/registre-parcours-ux.md §5) ;
+// l'en-tête X-Device-Id identifie le lot.
+function toWireCommand(entry: OutboxEntry, deviceId: string) {
   return {
     id: entry.id,
+    deviceId,
     type: entry.type,
     payload: entry.payload,
     idempotencyKey: entry.idempotencyKey,
