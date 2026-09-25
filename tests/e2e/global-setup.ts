@@ -5,34 +5,23 @@ import {
   STARTED_AT_FILE,
   STATE_DIR,
   SNAPSHOT_FILE,
-  accountsDisabled,
   cleanDisabled,
-  runAccountsScript,
   runCleanScript,
 } from "./clean-db";
-import {
-  MINISTRY_TEST_PASSWORD,
-  activateMinistryTwoFactor,
-  ministryEmailFor,
-  saveMinistrySession,
-} from "./helpers/ministry";
 import { PHONE_ACCOUNTS, savePhoneSession, type PhonePersona } from "./helpers/sessions";
 
 // Avant la suite : horodatage de début et instantané de l'état de vérification des exploitations,
 // pour que le nettoyage final restaure exactement les exploitations visitées par les tests ; puis
-// un compte ministère jetable par profil, double authentification activée par l'interface.
+// une session par profil pour chaque compte de démonstration, ministère compris (ADR-0012 : tous
+// les rôles se connectent par NPI et code WhatsApp, sans compte jetable ni double authentification).
 export default async function globalSetup(config: FullConfig) {
   await mkdir(STATE_DIR, { recursive: true });
-  // Clés TOTP, sessions et captures d'échec d'une exécution précédente : les comptes et les
-  // sessions sont recréés à chaque exécution.
-  const stale = ["totp-", "session-", "activation-2fa-"];
+  // Sessions d'une exécution précédente : elles sont recréées à chaque exécution.
   for (const file of await readdir(STATE_DIR)) {
-    if (stale.some((prefix) => file.startsWith(prefix))) {
-      await rm(join(STATE_DIR, file), { force: true });
-    }
+    if (file.startsWith("session-")) await rm(join(STATE_DIR, file), { force: true });
   }
 
-  // Les limites de débit d'abord : l'activation de la double authentification ci-dessous se connecte.
+  // Les limites de débit d'abord : l'enregistrement des sessions ci-dessous envoie des codes.
   if (!cleanDisabled()) {
     try {
       runCleanScript(["reset-rate-limits"]);
@@ -43,7 +32,7 @@ export default async function globalSetup(config: FullConfig) {
     }
   }
 
-  // Une connexion par OTP par profil et par persona, au lieu d'une par test (limite d'envoi).
+  // Une connexion par profil et par persona, au lieu d'une par test (limite d'envoi de codes).
   for (const project of config.projects) {
     const baseURL = project.use.baseURL ?? config.webServer?.url ?? "http://localhost:3000";
     for (const persona of Object.keys(PHONE_ACCOUNTS) as PhonePersona[]) {
@@ -52,34 +41,6 @@ export default async function globalSetup(config: FullConfig) {
       } catch (error) {
         console.warn(
           `Session ${persona} non enregistrée pour ${project.name} : ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-  }
-
-  if (!accountsDisabled()) {
-    for (const project of config.projects) {
-      try {
-        runAccountsScript([
-          "create",
-          "--email",
-          ministryEmailFor(project.name),
-          "--password",
-          MINISTRY_TEST_PASSWORD,
-          "--name",
-          `Ministère (test ${project.name})`,
-        ]);
-        // Activation de la double authentification une seule fois par profil, par l'interface :
-        // les tests ne font ensuite que répondre au défi, sans course entre tests parallèles.
-        const baseURL = project.use.baseURL ?? config.webServer?.url ?? "http://localhost:3000";
-        await activateMinistryTwoFactor(baseURL, project.name);
-        await saveMinistrySession(baseURL, project.name);
-      } catch (error) {
-        // Sans double authentification, tous les parcours du pilotage échoueraient plus loin avec
-        // un message trompeur : on arrête la suite ici, capture d'écran dans test-results/e2e-db.
-        throw new Error(
-          `Compte ministère de test inutilisable pour ${project.name} : ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error },
         );
       }
     }

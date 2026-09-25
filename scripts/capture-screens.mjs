@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { chromium, devices } from "@playwright/test";
-import { cleanupMinistryAccount, ministrySignIn } from "./capture-ministry.mjs";
+import { enterDemoCode, ministrySignIn, requestDemoCode } from "./capture-ministry.mjs";
 
 // Captures d'écran de vérification manuelle, jointes au rapport de fin d'étape.
 // Usage : le serveur doit tourner (pnpm start), puis : node scripts/capture-screens.mjs <etape>
@@ -9,25 +9,16 @@ import { cleanupMinistryAccount, ministrySignIn } from "./capture-ministry.mjs";
 const step = process.argv[2] ?? "capture";
 const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
 const outputDir = `docs/rapports/captures/${step}`;
-const demoCode = process.env.OTP_DEMO_CODE ?? "246810";
-const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
 
 const desktop = { viewport: { width: 1440, height: 900 } };
 const mobile = { ...devices["Pixel 7"] };
 
-// Actions de préparation réutilisables : connexion par téléphone ou institutionnelle.
+// Actions de préparation réutilisables. Connexion unique pour tous les rôles (ADR-0012) : NPI et
+// numéro d'un compte de démonstration, puis code de démonstration (voir capture-ministry.mjs).
 const actions = {
-  async phoneSignIn(page, nationalDigits) {
-    await page.goto(`${baseUrl}/connexion`);
-    await page.getByLabel("Votre numéro de téléphone").fill(nationalDigits);
-    await page.getByRole("button", { name: "Recevoir mon code" }).click();
-    await page.getByText(/Code reçu au \+229/).waitFor();
-  },
-  async phoneVerify(page) {
-    await page.getByLabel("Chiffre 1 sur 6").fill(demoCode);
-    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-    await page.waitForLoadState("networkidle");
-  },
+  // Premier écran seulement : s'arrête sur la saisie du code.
+  phoneSignIn: (page, nationalDigits) => requestDemoCode(page, baseUrl, nationalDigits),
+  phoneVerify: (page) => enterDemoCode(page),
   // Premier lancement de l'espace agent : référentiel et exploitations mis en cache local.
   async downloadOfflineData(page) {
     await page.goto(`${baseUrl}/agent/premier-lancement`);
@@ -65,15 +56,7 @@ const actions = {
     await chip.getByRole("button", { name: "Synchroniser maintenant" }).click();
     await page.locator('[data-sync-state="UP_TO_DATE"]').first().waitFor({ timeout: 30_000 });
   },
-  async institutionSignIn(page, email) {
-    await page.goto(`${baseUrl}/connexion/institution`);
-    await page.getByLabel("Adresse e-mail professionnelle").fill(email);
-    await page.getByLabel("Mot de passe").fill(demoPassword);
-    await page.getByRole("button", { name: "Se connecter" }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-    await page.waitForLoadState("networkidle");
-  },
-  // Espace ministère, double authentification comprise (compte jetable, voir capture-ministry.mjs).
+  // Espace ministère : compte de démonstration, session réutilisée d'un écran à l'autre.
   ministrySignIn: (page, path) => ministrySignIn(page, baseUrl, path),
   // Question à l'assistant, puis attente de la carte de réponse (adaptateur de démonstration).
   async askAssistant(page, question) {
@@ -179,7 +162,7 @@ const plans = {
       prepare: (page) => actions.ministrySignIn(page, "/pilotage/assistant/journal"),
     },
   ],
-  // Tableau de bord national : compte ministère jetable, double authentification comprise.
+  // Tableau de bord national : compte ministère de démonstration.
   "etape-7": [
     {
       name: "pilotage-national-desktop",
@@ -274,7 +257,8 @@ const plans = {
       name: "cooperative-desktop",
       context: desktop,
       prepare: async (page) => {
-        await actions.institutionSignIn(page, "cooperative@bais.demo");
+        await actions.phoneSignIn(page, "0190000004");
+        await actions.phoneVerify(page);
         await page.goto(`${baseUrl}/cooperative`, { waitUntil: "networkidle" });
       },
     },
@@ -582,12 +566,6 @@ const plans = {
         await page.waitForLoadState("networkidle");
       },
     },
-    { name: "connexion-institution-desktop", path: "/connexion/institution", context: desktop },
-    {
-      name: "securite-obligatoire-desktop",
-      context: desktop,
-      prepare: (page) => actions.institutionSignIn(page, "ministere@bais.demo"),
-    },
     {
       name: "acces-refuse-mobile",
       context: mobile,
@@ -613,7 +591,7 @@ if (!targets) {
 await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch();
 
-// Le compte ministère jetable est supprimé même si une capture échoue.
+// Le navigateur est fermé même si une capture échoue.
 try {
   for (const target of targets) {
     // Le service worker précache en arrière-plan et empêche l'état « réseau au repos » :
@@ -649,5 +627,4 @@ try {
   }
 } finally {
   await browser.close();
-  cleanupMinistryAccount();
 }

@@ -4,9 +4,8 @@ import { openAs } from "./helpers/sessions";
 
 // Parcours du monitoring (étape 6) contre les alertes de démonstration du seed : Djougou (stress
 // hydrique), Adjohoun (inondation), Malanville (chaleur), Savalou (fortes pluies), Bohicon
-// (chenille). Le compte ministère n'a pas de double authentification enregistrée dans le seed :
-// on vérifie que le centre d'alertes reste protégé, pas son contenu.
-const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
+// (chenille). Chaque rôle reprend sa session enregistrée par le globalSetup (helpers/sessions.ts),
+// ministère compris : aucun code n'est demandé ici.
 
 test.describe("monitoring, espace agricultrice", () => {
   test("voit l'alerte de Djougou, ouvre la fiche, lit le conseil et confirme", async ({
@@ -89,14 +88,11 @@ test.describe("monitoring, espace agent", () => {
 });
 
 test.describe("monitoring, ministère", () => {
-  test("le centre d'alertes exige la double authentification", async ({ page }) => {
-    await page.goto("/connexion/institution");
-    await page.getByLabel("Adresse e-mail professionnelle").fill("ministere@bais.demo");
-    await page.getByLabel("Mot de passe").fill(DEMO_PASSWORD);
-    await page.getByRole("button", { name: "Se connecter" }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 15_000 });
-    await page.goto("/pilotage/alertes");
-    await expect(page).toHaveURL(/\/compte\/securite\?obligatoire=1$/, { timeout: 15_000 });
+  test("le centre d'alertes est refusé à un agent de terrain", async ({ page }, testInfo) => {
+    // Réservé au rôle ADMIN_STATE : un autre rôle connecté aboutit au refus d'accès, jamais à la
+    // vue nationale des alertes.
+    await openAs(page, testInfo, "agent", "/pilotage/alertes");
+    await expect(page).toHaveURL(/\/acces-refuse$/);
   });
 
   test("un visiteur anonyme est renvoyé vers la connexion", async ({ page }) => {
@@ -106,10 +102,8 @@ test.describe("monitoring, ministère", () => {
 });
 
 test.describe("monitoring, centre d'alertes du ministère", () => {
-  // En série : un seul défi TOTP à la fois sur le compte du profil.
-  test.describe.configure({ mode: "serial" });
-  // Compte ADMIN_STATE jetable par profil, double authentification activée par l'interface
-  // (tests/e2e/helpers/ministry.ts) : le compte de démonstration n'est jamais modifié.
+  // Session du compte ministère de démonstration (helpers/ministry.ts). Lecture seule : les deux
+  // parcours peuvent tourner en parallèle.
   test("affiche les communes en alerte, la carte, la liste et les filtres", async ({
     page,
   }, testInfo) => {

@@ -7,9 +7,9 @@ const DEMO_EMAIL_SUFFIX = "@bais.demo";
 
 /**
  * Conversations de l'assistant laissées par une suite de bout en bout : celles des comptes de
- * test (@e2e.bais.invalid), celles des comptes de démonstration créées depuis le début de la
- * suite, et celles dont l'auteur a disparu depuis ce début (le globalTeardown supprime les
- * comptes de test avant le nettoyage, et la conversation garde alors un auteur nul). Messages,
+ * démonstration (ministère compris depuis ADR-0012) créées depuis le début de la suite, celles
+ * dont l'auteur a disparu depuis ce début (la conversation garde alors un auteur nul), et celles
+ * des anciens comptes ministère jetables (@e2e.bais.invalid) qu'une base aurait gardées. Messages,
  * retours et demandes à l'agent partent avec leur conversation (suppression en cascade).
  */
 export async function cleanAssistantConversations(

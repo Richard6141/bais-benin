@@ -236,15 +236,19 @@ async function cleanSuiteWrites(
   await cleanAssistantConversations(tx, since, SUITE_PHONES, add);
 }
 
-const E2E_EMAIL_SUFFIX = "@e2e.bais.invalid";
+// Comptes dont les écritures depuis le début de la suite sont attribuées à celle-ci : les comptes
+// de démonstration, que le pilotage utilise depuis ADR-0012 (ministere@bais.demo), et l'ancien
+// domaine réservé des comptes ministère jetables, pour une base qui en garderait la trace.
+const SUITE_EMAIL_SUFFIXES = ["@bais.demo", "@e2e.bais.invalid"];
+const isSuiteEmail = (email: string) =>
+  SUITE_EMAIL_SUFFIXES.some((suffix) => email.endsWith(suffix));
 
 /**
  * Règles d'alerte modifiées par les parcours du pilotage (tests/e2e/rules.spec.ts) : les
- * versions créées depuis le début de la suite par un compte ministère de test sont supprimées,
- * leurs simulations et évaluations avec elles, et chaque code touché retrouve une version
- * active (celle qui a été remplacée). Le globalTeardown supprime les comptes de test avant ce
- * nettoyage : une version dont l'auteur n'existe plus est donc attribuée à la suite. Le journal
- * d'audit n'est jamais modifié.
+ * versions créées depuis le début de la suite par un compte de la suite (ministère de
+ * démonstration) sont supprimées, leurs simulations et évaluations avec elles, et chaque code
+ * touché retrouve une version active (celle qui a été remplacée). Une version dont l'auteur
+ * n'existe plus est aussi attribuée à la suite. Le journal d'audit n'est jamais modifié.
  */
 async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: number) => void) {
   const created = await tx.rule.findMany({
@@ -257,9 +261,7 @@ async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: n
     where: { id: { in: authorIds } },
     select: { id: true, email: true },
   });
-  const realAuthors = new Set(
-    authors.filter((u) => !u.email.endsWith(E2E_EMAIL_SUFFIX)).map((u) => u.id),
-  );
+  const realAuthors = new Set(authors.filter((u) => !isSuiteEmail(u.email)).map((u) => u.id));
   const suiteVersions = created.filter((r) => !realAuthors.has(r.createdById as string));
   const touchedCodes = new Set(suiteVersions.map((r) => r.code));
 
@@ -293,7 +295,7 @@ async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: n
     add("rule (version de test)", 1);
   }
 
-  // Simulations lancées par un compte de test : elles visent souvent la version d'origine (un
+  // Simulations lancées par un compte de la suite : elles visent souvent la version d'origine (un
   // brouillon est simulé contre la version active), et restent donc hors de la boucle ci-dessus.
   const runs = await tx.simulationRun.findMany({
     where: { createdAt: { gte: since }, requestedById: { not: null } },
@@ -303,9 +305,7 @@ async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: n
     where: { id: { in: [...new Set(runs.map((r) => r.requestedById as string))] } },
     select: { id: true, email: true },
   });
-  const realRequesters = new Set(
-    requesters.filter((u) => !u.email.endsWith(E2E_EMAIL_SUFFIX)).map((u) => u.id),
-  );
+  const realRequesters = new Set(requesters.filter((u) => !isSuiteEmail(u.email)).map((u) => u.id));
   const suiteRunIds = runs
     .filter((r) => !realRequesters.has(r.requestedById as string))
     .map((r) => r.id);
@@ -318,14 +318,17 @@ async function cleanRuleChanges(tx: Tx, since: Date, add: (key: string, value: n
     (await tx.simulationRun.deleteMany({ where: { id: { in: suiteRunIds } } })).count,
   );
 
-  // Codes désactivés ou modifiés par un compte de test (auteur supprimé : acteur nul) : la
-  // version la plus récente restante redevient active si aucune ne l'est.
+  // Codes désactivés ou modifiés par un compte de la suite (ou par un auteur supprimé depuis :
+  // acteur nul) : la version la plus récente restante redevient active si aucune ne l'est.
   const toggled = await tx.auditLog.findMany({
     where: {
       action: { in: ["rule.toggled", "rule.updated"] },
       occurredAt: { gte: since },
       resourceType: "rule",
-      OR: [{ actorId: null }, { actor: { email: { endsWith: E2E_EMAIL_SUFFIX } } }],
+      OR: [
+        { actorId: null },
+        ...SUITE_EMAIL_SUFFIXES.map((suffix) => ({ actor: { email: { endsWith: suffix } } })),
+      ],
     },
     select: { resourceId: true },
   });

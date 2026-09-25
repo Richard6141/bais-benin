@@ -1,144 +1,17 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { chromium, expect, type Page, type TestInfo } from "@playwright/test";
-import { STATE_DIR, runAccountsScript } from "../clean-db";
-import { msUntilNextStep, totp } from "./totp";
+import type { Page, TestInfo } from "@playwright/test";
+import { openAs } from "./sessions";
 
-// Connexion à l'espace ministère pour les tests de bout en bout : un compte ADMIN_STATE jetable par
-// profil (desktop, mobile), créé et doté de la double authentification une seule fois par le
-// globalSetup (activation par l'interface, clé de saisie manuelle lue à l'écran), supprimé par le
-// globalTeardown. Les tests ne font que répondre au défi TOTP avec la clé enregistrée.
-// Réutilisable par tous les parcours du pilotage (alertes, règles, tableau de bord) ; les describe
-// qui l'utilisent se déclarent en série pour ne pas consommer deux fois le même code.
-
-export const MINISTRY_TEST_PASSWORD = "E2e-Bais-Ministere-2026!";
-
-export function ministryEmailFor(projectName: string): string {
-  return `e2e-ministere-${projectName}@e2e.bais.invalid`;
-}
-
-const secretFile = (project: string) => join(STATE_DIR, `totp-${project}.txt`);
-// Dernier pas TOTP consommé pour le profil : better-auth peut refuser un code déjà utilisé.
-const lastStepFile = (project: string) => join(STATE_DIR, `totp-${project}.last-step`);
-
-const currentStep = () => Math.floor(Date.now() / 30_000);
-
-async function submitInstitutionForm(page: Page, email: string) {
-  await page.goto("/connexion/institution");
-  await page.getByLabel("Adresse e-mail professionnelle").fill(email);
-  await page.getByLabel("Mot de passe").fill(MINISTRY_TEST_PASSWORD);
-  await page.getByRole("button", { name: "Se connecter" }).click();
-  await page.waitForURL((url) => url.pathname !== "/connexion/institution", { timeout: 20_000 });
-}
+// Connexion à l'espace ministère pour les tests de bout en bout. Depuis ADR-0012, le ministère se
+// connecte comme tous les rôles (NPI, numéro relié, code WhatsApp) : ni compte jetable, ni double
+// authentification par application. Le compte ministère de démonstration est connecté une fois
+// par profil (desktop, mobile) par le globalSetup, et tous les parcours du pilotage (alertes,
+// règles, tableau de bord, assistant) reprennent cette session au lieu de consommer un envoi de
+// code à chaque test.
 
 /**
- * Active la double authentification du compte de test d'un profil, par l'interface, et enregistre
- * la clé. Appelé une fois par profil depuis le globalSetup, dans un navigateur à part. Échoue
- * bruyamment (capture de l'écran dans test-results/e2e-db) si l'activation n'est pas confirmée
- * à l'écran puis en base.
- */
-export async function activateMinistryTwoFactor(baseURL: string, project: string) {
-  const browser = await chromium.launch();
-  const page = await (await browser.newContext({ baseURL })).newPage();
-  try {
-    await submitInstitutionForm(page, ministryEmailFor(project));
-    await page.goto("/compte/securite?obligatoire=1");
-    await page.getByLabel("Confirmez votre mot de passe").fill(MINISTRY_TEST_PASSWORD);
-    await page.getByRole("button", { name: "Continuer" }).click();
-    const manual = page.getByText("Saisie manuelle").locator("code");
-    await expect(manual).toBeVisible({ timeout: 20_000 });
-    const secret = ((await manual.textContent()) ?? "").trim();
-    if (!/^[A-Z2-7]+=*$/.test(secret)) throw new Error(`Clé TOTP illisible : « ${secret} »`);
-    // Pendant la vérification, le bouton « Activer » devient « Vérification… » : attendre sa
-    // disparition validait l'activation avant la réponse du serveur, puis le navigateur se fermait
-    // en coupant la requête. On attend l'écran 3, et on retente une fois au pas suivant si le code
-    // est refusé (code calculé à la frontière de deux pas).
-    const done = page.getByText("Double authentification activée");
-    const refused = page.getByText(/Code refusé/);
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      if (attempt > 0) await page.waitForTimeout(msUntilNextStep() + 300);
-      await page.getByLabel("Chiffre 1 sur 6").fill(totp(secret));
-      await expect(done.or(refused)).toBeVisible({ timeout: 20_000 });
-      if (await done.isVisible()) break;
-    }
-    await expect(done).toBeVisible();
-    writeFileSync(lastStepFile(project), String(currentStep()));
-    runAccountsScript(["check-2fa", "--email", ministryEmailFor(project)]);
-    writeFileSync(secretFile(project), secret);
-  } catch (error) {
-    await page
-      .screenshot({ path: join(STATE_DIR, `activation-2fa-${project}.png`), fullPage: true })
-      .catch(() => undefined);
-    throw error;
-  } finally {
-    await browser.close();
-  }
-}
-
-async function answerChallenge(page: Page, project: string, secret: string) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const last = existsSync(lastStepFile(project))
-      ? Number(readFileSync(lastStepFile(project), "utf8"))
-      : -1;
-    if (currentStep() <= last) await page.waitForTimeout(msUntilNextStep() + 300);
-    await page.getByLabel("Chiffre 1 sur 6").fill(totp(secret));
-    const accepted = await page
-      .waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 10_000 })
-      .then(() => true)
-      .catch(() => false);
-    writeFileSync(lastStepFile(project), String(currentStep()));
-    if (accepted) return;
-  }
-  throw new Error("Défi TOTP refusé deux fois");
-}
-
-// Session du compte ministère de test, enregistrée une fois par profil après l'activation : chaque
-// connexion complète (mot de passe puis code) compte dans les limites de débit, et une suite complète
-// en enchaîne assez pour les dépasser.
-const sessionStateFile = (project: string) => join(STATE_DIR, `session-ministere-${project}.json`);
-
-/** Connexion complète dans un navigateur à part, puis enregistrement de l'état. Pour le globalSetup. */
-export async function saveMinistrySession(baseURL: string, project: string) {
-  const secret = readFileSync(secretFile(project), "utf8").trim();
-  const browser = await chromium.launch();
-  try {
-    const context = await browser.newContext({ baseURL });
-    const page = await context.newPage();
-    await submitInstitutionForm(page, ministryEmailFor(project));
-    await expect(page).toHaveURL(/\/connexion\/institution\/verification/, { timeout: 20_000 });
-    await answerChallenge(page, project, secret);
-    await context.storageState({ path: sessionStateFile(project) });
-  } finally {
-    await browser.close();
-  }
-}
-
-/**
- * Connecte la page au compte ministère de test du profil courant, double authentification
- * comprise, puis ouvre `path` (par défaut le centre de pilotage). Reprend la session enregistrée
- * par le globalSetup ; si elle est refusée, fait une connexion complète.
+ * Ouvre `path` (par défaut le centre de pilotage) avec la session ministère enregistrée pour le
+ * profil courant.
  */
 export async function signInAsMinistry(page: Page, testInfo: TestInfo, path = "/pilotage") {
-  const project = testInfo.project.name;
-  const saved = sessionStateFile(project);
-  if (existsSync(saved)) {
-    const state = JSON.parse(readFileSync(saved, "utf8")) as {
-      cookies: Parameters<ReturnType<Page["context"]>["addCookies"]>[0];
-    };
-    await page.context().addCookies(state.cookies);
-    await page.goto(path);
-    if (!/\/compte\/securite|\/connexion/.test(new URL(page.url()).pathname)) return;
-    await page.context().clearCookies();
-  }
-  if (!existsSync(secretFile(project))) {
-    throw new Error(
-      `Compte ministère de test sans double authentification pour « ${project} » : le globalSetup a échoué (voir sa sortie).`,
-    );
-  }
-  const secret = readFileSync(secretFile(project), "utf8").trim();
-  await submitInstitutionForm(page, ministryEmailFor(project));
-  await expect(page).toHaveURL(/\/connexion\/institution\/verification/);
-  await answerChallenge(page, project, secret);
-  await page.goto(path);
-  await expect(page).not.toHaveURL(/\/compte\/securite|\/connexion/);
+  await openAs(page, testInfo, "ministry", path);
 }
