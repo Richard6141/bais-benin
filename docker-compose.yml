@@ -8,11 +8,16 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-bais}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bais}
+      # C7 : plus de repli en dur — un mot de passe PostgreSQL connu de tout lecteur du dépôt
+      # n'a pas sa place dans un fichier versionné, même comme valeur par défaut de commodité.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}
       POSTGRES_DB: ${POSTGRES_DB:-bais}
       # Les migrations Prisma activent les extensions ; l'image se contente de les fournir.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # C7 : liée à la boucle locale par défaut — la base n'a rien à faire sur l'interface
+      # publique d'un serveur ; DB_BIND_HOST permet une exposition volontaire si nécessaire
+      # (ex. accès depuis un autre hôte du réseau interne).
+      - "${DB_BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -36,12 +41,30 @@ services:
       APP_ENV: ${APP_ENV:-production}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET est obligatoire}
       APP_URL: ${APP_URL:-http://localhost:3000}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-bais}:${POSTGRES_PASSWORD:-bais}@db:5432/${POSTGRES_DB:-bais}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bais}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}@db:5432/${POSTGRES_DB:-bais}?schema=public
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Secret partagé avec le planificateur : sans lui, les routes planifiées restent fermées.
       CRON_SECRET: ${CRON_SECRET:-}
+      # C7 : messagerie et relais de confiance ont aussi leur mot à dire en production
+      # (lib/env.ts refuse "console"/"fixture" et un AUTH_SECRET absent) ; laissés à la charge
+      # de l'opérateur du déploiement plutôt que fixés ici.
+      MESSAGING_PRIMARY_CHANNEL: ${MESSAGING_PRIMARY_CHANNEL:-wapy}
+      WAPY_API_KEY: ${WAPY_API_KEY:-}
+      WAPY_WEBHOOK_SECRET: ${WAPY_WEBHOOK_SECRET:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     ports:
-      - "3000:3000"
+      # C7 : liée à la boucle locale par défaut. Un déploiement réel place un reverse proxy
+      # TLS devant (nginx, Caddy, load balancer managé) qui, lui, écoute sur l'interface
+      # publique ; APP_BIND_HOST permet de changer ce comportement si l'architecture le veut.
+      - "${APP_BIND_HOST:-127.0.0.1}:3000:3000"
+    healthcheck:
+      # C7 : /api/health ne révèle que l'état, jamais de configuration (route.ts).
+      test:
+        ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # Tâches planifiées du monitoring : ingestion quotidienne (5 h, heure de Porto-Novo) et envoi
   # des messages toutes les 10 minutes. Appelle l'application par le réseau interne du compose.
