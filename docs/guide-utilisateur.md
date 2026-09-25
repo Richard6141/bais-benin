@@ -15,10 +15,14 @@ ministère), sur `/connexion`, sans mot de passe :
 2. Saisir le code à six chiffres reçu sur WhatsApp, valable 5 minutes. Un nouveau code peut être
    demandé au bout de 60 secondes.
 
-À la première connexion, un compte est créé et le NPI y est lié, en attente de vérification par
-l'ANIP. Aux connexions suivantes, le numéro doit être présenté avec ce même NPI. Les rôles
-institutionnels (ministère, coopérative, acheteur) sont attribués par un administrateur à un
-compte déjà identifié par son NPI.
+**Agricultrices et agriculteurs** : à la première connexion, un compte d'agriculteur est créé et le
+NPI y est lié, en attente de vérification par l'ANIP. Si l'agent de la commune vous a déjà
+enregistré avec ce numéro, le compte est relié à votre fiche. Aux connexions suivantes, le numéro
+doit être présenté avec ce même NPI.
+
+**Agents, ministère, coopératives et acheteurs** : la connexion ne crée jamais ces comptes. Ils
+sont ouverts par l'administration avec le NPI et le numéro de la personne (ADR-0013) ; on se
+connecte ensuite par le même formulaire.
 
 Hors production, quand un code de démonstration est configuré, la liste des comptes de
 démonstration s'affiche sous le formulaire : le bouton « Utiliser » remplit le NPI et le numéro,
@@ -114,8 +118,8 @@ sans changer d'adresse ni de connexion.
 
 ## Ministère (pilotage national)
 
-Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le rôle ministère est
-attribué au compte par un administrateur. Une session ministère dure 12 heures au plus.
+Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le compte ministère est
+ouvert par l'administration, jamais par la connexion elle-même. Une session ministère dure 12 heures au plus.
 
 1. **Vue nationale** (`/pilotage`) : six indicateurs avec provenance et fiabilité (producteurs,
    exploitations, superficies déclarée et relevée, part vérifiée, production déclarée), carte des
