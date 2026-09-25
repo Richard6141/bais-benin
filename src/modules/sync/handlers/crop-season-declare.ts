@@ -1,5 +1,5 @@
 import { farmTarget, findFarmOfParcel } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Déclaration d'une culture sur une parcelle pour une campagne et une sous-saison. Le couple
 // (parcelle, culture, campagne, sous-saison) est unique : une redéclaration renvoie l'existant.
@@ -37,8 +37,9 @@ export const cropSeasonDeclare: SyncHandler<"cropSeason.declare"> = {
 
     const byId = await db.parcelCrop.findUnique({
       where: { id: payload.id },
-      select: { id: true },
+      select: { id: true, parcelId: true },
     });
+    if (byId && byId.parcelId !== parcel.id) return idConflict();
     const byKey =
       byId ??
       (await db.parcelCrop.findFirst({

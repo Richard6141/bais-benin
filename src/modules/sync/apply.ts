@@ -1,5 +1,6 @@
 import { prisma } from "@/database/client";
 import type { Prisma } from "@/generated/prisma/client";
+import { logger } from "@/lib/logger";
 import { recordAudit } from "@/modules/audit";
 import { authorize, type Actor } from "@/modules/authorization";
 import { parseSyncCommand, type SyncCommand, type SyncOutcome } from "./commands";
@@ -75,6 +76,22 @@ async function persistCommand(
   });
 }
 
+// C2 : une clé d'idempotence appartient au compte qui l'a utilisée le premier. Rejouée par un
+// autre compte, elle ne renvoie jamais le résultat mémorisé (code, version d'une entité qu'il ne
+// lit peut-être pas) et n'écrase jamais la ligne existante.
+function foreignKey(id: string): SyncApplyResult {
+  return {
+    id,
+    outcome: "REJECTED",
+    error: {
+      code: "IDEMPOTENCY_KEY_CONFLICT",
+      message: "Cette clé d'idempotence est déjà utilisée par un autre compte",
+    },
+  };
+}
+
+const NOT_FOUND_MESSAGE = "L'entité visée par la commande n'existe pas";
+
 function outcomeToResult(id: string, outcome: HandlerOutcome): SyncApplyResult {
   switch (outcome.outcome) {
     case "APPLIED":
@@ -112,8 +129,9 @@ export function createSyncApplier(deps: SyncApplierDeps) {
 
     const stored = await deps.db.syncCommand.findUnique({
       where: { idempotencyKey: command.idempotencyKey },
-      select: { outcome: true, result: true },
+      select: { outcome: true, result: true, userId: true },
     });
+    if (stored && stored.userId !== context.actor.userId) return foreignKey(command.id);
     if (stored && !FAILED.has(stored.outcome)) {
       return fromStored(command.id, stored.result);
     }
@@ -130,8 +148,11 @@ export function createSyncApplier(deps: SyncApplierDeps) {
           await deps.lockKey(tx, command.idempotencyKey);
           const concurrent = await tx.syncCommand.findUnique({
             where: { idempotencyKey: command.idempotencyKey },
-            select: { outcome: true, result: true },
+            select: { outcome: true, result: true, userId: true },
           });
+          if (concurrent && concurrent.userId !== context.actor.userId) {
+            return foreignKey(command.id);
+          }
           if (concurrent && !FAILED.has(concurrent.outcome)) {
             return fromStored(command.id, concurrent.result);
           }
@@ -141,15 +162,18 @@ export function createSyncApplier(deps: SyncApplierDeps) {
           return {
             id: command.id,
             outcome: "REJECTED",
-            error: { code: "NOT_FOUND", message: "L'entité visée par la commande n'existe pas" },
+            error: { code: "NOT_FOUND", message: NOT_FOUND_MESSAGE },
           } satisfies SyncApplyResult;
         }
         const decision = authorize(context.actor, target.action, target.resource);
         if (!decision.allowed) {
+          // C2 : hors périmètre, une entité désignée par son identifiant répond comme absente.
           return {
             id: command.id,
             outcome: "REJECTED",
-            error: { code: "FORBIDDEN", message: decision.reason },
+            error: target.byId
+              ? { code: "NOT_FOUND", message: NOT_FOUND_MESSAGE }
+              : { code: "FORBIDDEN", message: decision.reason },
           } satisfies SyncApplyResult;
         }
 
@@ -187,11 +211,19 @@ export function createSyncApplier(deps: SyncApplierDeps) {
         return applied;
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur interne";
+      // Le détail (contrainte, requête SQL) reste dans les journaux du serveur, jamais dans la
+      // réponse renvoyée à l'appareil.
+      logger.error(
+        { err: error, commandId: command.id, type: command.type },
+        "Commande non appliquée",
+      );
       result = {
         id: command.id,
         outcome: "REJECTED",
-        error: { code: "INTERNAL_ERROR", message: `Application impossible : ${message}` },
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "La commande n'a pas pu être appliquée ; elle sera renvoyée plus tard",
+        },
       };
     }
 
@@ -199,8 +231,9 @@ export function createSyncApplier(deps: SyncApplierDeps) {
       // Un échec ne remplace jamais une application réussie entre-temps : on renvoie celle-ci.
       const latest = await deps.db.syncCommand.findUnique({
         where: { idempotencyKey: command.idempotencyKey },
-        select: { outcome: true, result: true },
+        select: { outcome: true, result: true, userId: true },
       });
+      if (latest && latest.userId !== context.actor.userId) return result;
       if (latest && !FAILED.has(latest.outcome)) return fromStored(command.id, latest.result);
       await persistCommand(deps.db, command, context.actor.userId, context.deviceId, result, null);
     }

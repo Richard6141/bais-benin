@@ -80,5 +80,6 @@ export function farmTarget(farm: FarmRef, action: CommandTarget["action"]): Comm
       ownerUserId: farm.ownerUserId,
       registeredByUserId: farm.registeredByUserId,
     },
+    byId: true,
   };
 }

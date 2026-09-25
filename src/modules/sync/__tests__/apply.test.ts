@@ -19,6 +19,7 @@ interface StoredCommand {
   idempotencyKey: string;
   outcome: string;
   result: unknown;
+  userId?: string;
 }
 
 function fakeDb() {
@@ -45,7 +46,7 @@ function fakeDb() {
   };
   const findUnique = vi.fn(async ({ where }: { where: { idempotencyKey: string } }) => {
     const found = store.get(where.idempotencyKey);
-    return found ? { outcome: found.outcome, result: found.result } : null;
+    return found ? { outcome: found.outcome, result: found.result, userId: found.userId } : null;
   });
   Object.assign(tx.syncCommand, { findUnique });
   const db = {
@@ -277,6 +278,56 @@ describe("applySyncBatch", () => {
     expect(notFound).toMatchObject({ outcome: "REJECTED", error: { code: "NOT_FOUND" } });
   });
 
+  it("répond comme une absence quand l'entité visée par identifiant est hors périmètre (C2)", async () => {
+    const { db } = fakeDb();
+    const hidden = handlerReturning(
+      {
+        outcome: "APPLIED",
+        entity: { type: "farmer", id: FARMER_ID, version: 1 },
+        audit: { action: "registry.farmer.created" },
+      },
+      { action: "farm.update", resource: { communeId: "commune-autre" }, byId: true },
+    );
+    const apply = createSyncApplier({
+      db: db as never,
+      handlers: { "farmer.create": hidden } as unknown as SyncHandlers,
+    });
+    const [result] = await apply(AGENT, "device-abcd", [farmerCommand(FARMER_ID)]);
+    expect(result).toMatchObject({
+      outcome: "REJECTED",
+      error: { code: "NOT_FOUND", message: "L'entité visée par la commande n'existe pas" },
+    });
+    expect(hidden.apply).not.toHaveBeenCalled();
+  });
+
+  it("refuse une clé d'idempotence déjà utilisée par un autre compte, sans rien révéler (C2)", async () => {
+    const { db, store } = fakeDb();
+    store.set(`key-${FARMER_ID}`, {
+      id: FARMER_ID,
+      idempotencyKey: `key-${FARMER_ID}`,
+      outcome: "APPLIED",
+      result: { id: FARMER_ID, outcome: "APPLIED", entity: { type: "farmer", code: "SECRET" } },
+      userId: "user-autre",
+    });
+    const handler = handlerReturning({
+      outcome: "APPLIED",
+      entity: { type: "farmer", id: FARMER_ID, version: 1 },
+      audit: { action: "registry.farmer.created" },
+    });
+    const apply = createSyncApplier({
+      db: db as never,
+      handlers: { "farmer.create": handler } as unknown as SyncHandlers,
+    });
+    const [result] = await apply(AGENT, "device-abcd", [farmerCommand(FARMER_ID)]);
+    expect(result).toMatchObject({
+      outcome: "REJECTED",
+      error: { code: "IDEMPOTENCY_KEY_CONFLICT" },
+    });
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+    expect(handler.apply).not.toHaveBeenCalled();
+    expect(store.get(`key-${FARMER_ID}`)?.userId).toBe("user-autre");
+  });
+
   it("convertit une exception du handler en REJECTED INTERNAL_ERROR sans interrompre le lot", async () => {
     const { db } = fakeDb();
     const failing = handlerReturning({ outcome: "REJECTED", error: { code: "X", message: "x" } });
@@ -290,6 +341,8 @@ describe("applySyncBatch", () => {
       farmerCommand("018f4b2e-1c2d-7a3b-8c4d-000000000009"),
     ]);
     expect(results[0]).toMatchObject({ outcome: "REJECTED", error: { code: "INTERNAL_ERROR" } });
+    // Le message d'erreur interne reste dans les journaux du serveur (D).
+    expect(results[0]?.error?.message).not.toContain("panne");
     expect(results[1]).toMatchObject({ outcome: "REJECTED", error: { code: "X" } });
   });
 
@@ -307,6 +360,8 @@ describe("applySyncBatch", () => {
         id: FARMER_ID,
         idempotencyKey: key,
         outcome: "APPLIED",
+        // Même compte : deux onglets ou deux composants qui envoient le même lot.
+        userId: AGENT.userId,
         result: {
           id: FARMER_ID,
           outcome: "APPLIED",
@@ -332,6 +387,7 @@ describe("applySyncBatch", () => {
           id: FARMER_ID,
           idempotencyKey: key,
           outcome: "APPLIED",
+          userId: AGENT.userId,
           result: {
             id: FARMER_ID,
             outcome: "APPLIED",

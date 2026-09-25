@@ -57,6 +57,12 @@ export type AuditActionOfRegistry =
 export interface CommandTarget {
   action: ActionCode;
   resource: ResourceRef;
+  /**
+   * C2 : la cible est une entité désignée par son identifiant (exploitation, parcelle, alerte).
+   * Un refus d'autorisation y répond alors comme une absence (NOT_FOUND), pour ne pas révéler
+   * qu'un identifiant hors périmètre existe. Une commune, publique, garde un refus explicite.
+   */
+  byId?: boolean;
 }
 
 export interface SyncHandler<T extends SyncCommandType> {
@@ -72,4 +78,13 @@ export const FIELD_SOURCE_ID = "ATDA_TERRAIN";
 
 export function rejected(code: string, message: string, field?: string): HandlerOutcome {
   return { outcome: "REJECTED", error: { code, message, field } };
+}
+
+/**
+ * C2 : l'identifiant fourni par le client existe déjà, mais pour une autre entité que celle que
+ * la commande vise (autre exploitation, autre parcelle). Répondre DUPLICATE avec cette entité
+ * renverrait son code et sa version à qui ne la lit pas forcément : on refuse sans rien en dire.
+ */
+export function idConflict(): HandlerOutcome {
+  return rejected("ID_CONFLICT", "Cet identifiant est déjà utilisé par une autre saisie", "id");
 }

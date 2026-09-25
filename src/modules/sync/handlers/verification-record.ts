@@ -1,6 +1,6 @@
 import { writeVerificationPoint } from "./geometry";
 import { farmTarget, findFarm } from "./lookups";
-import { FIELD_SOURCE_ID, rejected, type SyncHandler } from "./types";
+import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Compte rendu d'une visite de terrain. CONFIRMED et CORRECTED font passer l'exploitation au
 // statut FIELD_VERIFIED (avec application des corrections constatées) ; REJECTED la place en
@@ -27,9 +27,10 @@ export const verificationRecord: SyncHandler<"verification.record"> = {
 
     const existing = await db.farmVerification.findUnique({
       where: { id: payload.id },
-      select: { id: true },
+      select: { id: true, farmId: true },
     });
     if (existing) {
+      if (existing.farmId !== farm.id) return idConflict();
       return {
         outcome: "DUPLICATE",
         entity: { type: "farm", id: farm.id, code: farm.code, version: farm.version },
