@@ -1,4 +1,5 @@
 import { prisma } from "@/database/client";
+import { refreshAnalyticsQuietly, type AnalyticsRefreshResult } from "@/modules/analytics/refresh";
 import type { WeatherProvider } from "@/services/ports/weather-provider";
 import {
   dispatchPendingDeliveries,
@@ -23,6 +24,8 @@ export interface DailyRunResult {
   ingestion: IngestionResult;
   evaluation: EvaluationSummary;
   dispatch: DispatchSummary;
+  /** Rafraîchissement des agrégats du tableau de bord en fin de tâche. */
+  analytics: AnalyticsRefreshResult;
 }
 
 export async function runDailyMonitoring(deps: {
@@ -37,7 +40,8 @@ export async function runDailyMonitoring(deps: {
     const ingestion = await runWeatherIngestion({ primary: deps.primary, fallback: deps.fallback });
     const evaluation = await evaluateCommunes({}, { planRecipients: planRecipientsFor });
     const dispatch = await runDispatch(deps.messaging, deps.now);
-    return { ingestion, evaluation, dispatch };
+    const analytics = await refreshAnalyticsQuietly(deps.now);
+    return { ingestion, evaluation, dispatch, analytics };
   });
 }
 
