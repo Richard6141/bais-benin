@@ -1,4 +1,4 @@
-import { ClipboardCheck, MapPin, MessageCircleQuestion, Phone } from "lucide-react";
+import { ClipboardCheck, MapPin, MapPinned, MessageCircleQuestion, Phone } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import {
@@ -198,6 +198,16 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
                         ? ` · ${formatHa(parcel.computedAreaHa)} mesurés`
                         : ""}
                     </p>
+                    <Button asChild variant="outline" size="sm" className="self-start">
+                      <Link
+                        href={
+                          `/agent/exploitations/${farm.id}/parcelles/${parcel.id}/contour` as Route
+                        }
+                      >
+                        <MapPinned aria-hidden />
+                        Relever le contour
+                      </Link>
+                    </Button>
                     {parcel.crops.length > 0 ? (
                       <ul className="flex flex-wrap gap-2 text-sm">
                         {parcel.crops.map((crop) => (

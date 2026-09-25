@@ -149,6 +149,7 @@ export interface FarmDetail extends FarmListItem {
   parcels: Array<{
     id: string;
     code: string;
+    version: number;
     declaredAreaHa: number;
     computedAreaHa: number | null;
     captureMethod: string;
@@ -209,6 +210,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
         select: {
           id: true,
           code: true,
+          version: true,
           declaredAreaHa: true,
           computedAreaHa: true,
           captureMethod: true,
@@ -272,6 +274,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
     parcels: row.parcels.map((parcel) => ({
       id: parcel.id,
       code: parcel.code,
+      version: parcel.version,
       declaredAreaHa: Number(parcel.declaredAreaHa),
       computedAreaHa: parcel.computedAreaHa === null ? null : Number(parcel.computedAreaHa),
       captureMethod: parcel.captureMethod,
