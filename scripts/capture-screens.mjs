@@ -156,6 +156,44 @@ const plans = {
           .waitFor();
       },
     },
+    {
+      name: "agent-tableau-de-bord-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/tableau-de-bord`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "agent-tableau-de-bord-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await actions.phoneSignIn(page, "0190000001");
+        await actions.phoneVerify(page);
+        await page.goto(`${baseUrl}/agent/tableau-de-bord`, { waitUntil: "networkidle" });
+        await page.waitForTimeout(800);
+      },
+    },
+    {
+      name: "cooperative-desktop",
+      context: desktop,
+      prepare: async (page) => {
+        await actions.institutionSignIn(page, "cooperative@bais.demo");
+        await page.goto(`${baseUrl}/cooperative`, { waitUntil: "networkidle" });
+      },
+    },
+    {
+      name: "design-system-tableau-de-bord-mobile",
+      context: mobile,
+      fullPage: false,
+      prepare: async (page) => {
+        await page.goto(`${baseUrl}/design-system#tableau-de-bord`, { waitUntil: "networkidle" });
+        // Défilement vers l'ancre puis glissement de l'en-tête collant : on attend la fin.
+        await page.waitForTimeout(1500);
+      },
+    },
   ],
   "etape-6": [
     {

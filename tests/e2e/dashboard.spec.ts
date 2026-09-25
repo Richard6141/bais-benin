@@ -6,6 +6,8 @@ import { openAs } from "./helpers/sessions";
 // fiche imprimable et exports. Lecture seule : ces parcours n'écrivent rien en base. Le compte
 // ministère jetable (helpers/ministry.ts) répond au défi TOTP : describe en série.
 
+const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "Demo-Bais-2026!";
+
 async function expectNoHorizontalScroll(page: Page) {
   const fits = await page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -111,6 +113,54 @@ test.describe("tableau de bord national", () => {
     // BOM UTF-8 et séparateur « ; » : ouverture directe dans Excel en français.
     expect(body.charCodeAt(0)).toBe(0xfeff);
     expect(body.split("\n")[0]).toContain(";");
+  });
+});
+
+test.describe("tableau de bord réduit, agent et coopérative", () => {
+  test("l'agent lit les chiffres de sa commune, jamais ceux des autres", async ({
+    page,
+  }, testInfo) => {
+    await openAs(page, testInfo, "agent");
+    // Barre basse pleine sur téléphone : l'entrée passe par l'accueil.
+    await page
+      .getByRole("region", { name: "Raccourcis" })
+      .getByRole("link", { name: /Tableau de bord/ })
+      .click();
+    await page.waitForURL(/\/agent\/tableau-de-bord/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Tableau de bord de mon périmètre",
+    );
+    await expect(page.getByText(/^Djougou · campagne/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Indicateurs clés" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Déclarations à vérifier" })).toBeVisible();
+    // Aucun lien vers les écrans nationaux depuis les tuiles.
+    await expect(
+      page.getByRole("region", { name: "Indicateurs clés" }).getByRole("link"),
+    ).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
+
+    const csv = await page.request.get("/api/v1/analytics/export.csv?kind=indicators");
+    expect(csv.status()).toBe(200);
+    const body = await csv.text();
+    expect(body).toContain("Djougou");
+    expect(body).not.toContain("Bassila");
+
+    await page.goto("/pilotage/territoires");
+    await expect(page).toHaveURL(/\/acces-refuse/);
+  });
+
+  test("la coopérative voit un état vide explicite", async ({ page }) => {
+    await page.goto("/connexion/institution");
+    await page.getByLabel("Adresse e-mail professionnelle").fill("cooperative@bais.demo");
+    await page.getByLabel("Mot de passe").fill(DEMO_PASSWORD);
+    await page.getByRole("button", { name: "Se connecter" }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/connexion"), { timeout: 20_000 });
+    await page.goto("/cooperative");
+    await expect(
+      page.getByRole("heading", {
+        name: "Votre organisation n'est pas encore rattachée à des exploitations",
+      }),
+    ).toBeVisible();
   });
 });
 
