@@ -36,7 +36,8 @@ export const OUTBOX_STATUS_LABELS = {
   PENDING: "En attente",
   SENDING: "Envoi en cours",
   APPLIED: "Enregistrée",
-  DUPLICATE: "Déjà enregistrée",
+  // Un renvoi reconnu par le serveur est une réussite pour l'agent (docs/modules/registre-parcours-ux.md §5).
+  DUPLICATE: "Enregistrée",
   REJECTED: "Refusée",
   CONFLICT: "Conflit",
 } as const;
