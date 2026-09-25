@@ -303,6 +303,8 @@ describe("applySyncBatch", () => {
   it("refuse une clé d'idempotence déjà utilisée par un autre compte, sans rien révéler (C2)", async () => {
     const { db, store } = fakeDb();
     store.set(`key-${FARMER_ID}`, {
+      id: FARMER_ID,
+      idempotencyKey: `key-${FARMER_ID}`,
       outcome: "APPLIED",
       result: { id: FARMER_ID, outcome: "APPLIED", entity: { type: "farmer", code: "SECRET" } },
       userId: "user-autre",

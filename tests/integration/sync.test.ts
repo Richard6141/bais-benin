@@ -287,6 +287,7 @@ describe("serveur de synchronisation", () => {
         id: "019284a0-0000-7000-8000-00000000c002",
         farmId: ids.farm,
         declaredAreaHa: 0.5,
+        captureMethod: "DECLARED_ONLY",
       }),
     ]);
     expect(outside).toMatchObject({ outcome: "REJECTED", error: { code: "NOT_FOUND" } });
@@ -308,6 +309,7 @@ describe("serveur de synchronisation", () => {
         id: ids.parcel,
         farmId: ids.secondFarm,
         declaredAreaHa: 0.8,
+        captureMethod: "DECLARED_ONLY",
       }),
     ]);
     expect(secondFarm?.outcome).toBe("APPLIED");
