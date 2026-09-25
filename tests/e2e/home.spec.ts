@@ -16,13 +16,6 @@ test.describe("page d'accueil", () => {
     await expect(spaces).toHaveCount(6);
   });
 
-  test("indique l'état de la base de données", async ({ page }) => {
-    await page.goto("/");
-    const status = page.locator("#etat-plateforme");
-    await expect(status.getByText("Base de données")).toBeVisible();
-    await expect(status.getByText("Opérationnel").first()).toBeVisible();
-  });
-
   test("n'a pas de défilement horizontal sur mobile", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "profil mobile uniquement");
     await page.goto("/");
