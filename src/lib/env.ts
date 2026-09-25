@@ -12,6 +12,10 @@ const base64Key = (bytes: number, name: string) =>
       message: `${name} doit être une clé de ${bytes} octets encodée en base64`,
     });
 
+// Variable présente mais vide dans .env (« NOM= ») : traitée comme absente.
+const optionalText = (schema: z.ZodType<string>) =>
+  z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
+
 const serverSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -73,6 +77,38 @@ const serverSchema = z
     // (modules/audit/service.ts) — une IPv4 tient sur 32 bits, un sha256 non salé se retourne
     // par table arc-en-ciel ; un HMAC à clé secrète ne peut pas se précalculer sans elle.
     AUDIT_IP_HASH_KEY: base64Key(32, "AUDIT_IP_HASH_KEY"),
+
+    // Assistant agricole : aucun fournisseur par défaut. Sans ASSISTANT_LLM_MODEL, l'assistant
+    // fonctionne avec l'adaptateur de démonstration (extractif, sans réseau). Les identifiants
+    // de modèle sont transmis tels quels au SDK ; avec ASSISTANT_LLM_BASE_URL, le point d'accès
+    // compatible OpenAI indiqué est interrogé.
+    ASSISTANT_LLM_MODEL: optionalText(z.string().trim().min(1)),
+    ASSISTANT_EMBEDDING_MODEL: optionalText(z.string().trim().min(1)),
+    // https obligatoire, sauf point d'accès local (poste de développement, conteneur voisin).
+    ASSISTANT_LLM_BASE_URL: optionalText(
+      z.url().refine(
+        (value) => {
+          const url = new URL(value);
+          return (
+            url.protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+          );
+        },
+        { message: "ASSISTANT_LLM_BASE_URL doit être en https (sauf localhost)" },
+      ),
+    ),
+    ASSISTANT_LLM_API_KEY: optionalText(z.string()),
+    // Dimension de la colonne assistant_chunk.embedding (migration assistant) : 1024.
+    ASSISTANT_EMBEDDING_DIMENSIONS: z.coerce
+      .number()
+      .int()
+      .refine((value) => value === 1024, {
+        message: "ASSISTANT_EMBEDDING_DIMENSIONS doit valoir 1024, dimension de la colonne en base",
+      })
+      .default(1024),
+    ASSISTANT_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
+    ASSISTANT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(20000),
+    // Plafond global de questions par jour (heure de Porto-Novo) : borne le coût d'un modèle payant.
+    ASSISTANT_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
   })
   .superRefine((env, ctx) => {
     // A1 : pendant la phase de build Next.js (NEXT_PHASE=phase-production-build), aucune

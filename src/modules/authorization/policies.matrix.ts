@@ -39,6 +39,11 @@ export const ACTIONS = [
   "user.role.grant",
   "user.npi.reveal",
   "audit.read",
+  // Assistant agricole (étape 8) : poser une question, lire le journal des conversations,
+  // gérer le corpus de fiches techniques.
+  "assistant.ask",
+  "assistant.journal.read",
+  "assistant.corpus.manage",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -68,6 +73,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "user.role.grant": "ALL",
     "user.npi.reveal": "ALL",
     "audit.read": "ALL",
+    "assistant.ask": "ALL",
+    "assistant.journal.read": "ALL",
+    "assistant.corpus.manage": "ALL",
   },
   AGENT_AGRICULTURE: {
     "farm.read": "SCOPE",
@@ -92,6 +100,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "user.role.grant": "NONE",
     "user.npi.reveal": "NONE",
     "audit.read": "NONE",
+    "assistant.ask": "SCOPE",
+    "assistant.journal.read": "SCOPE",
+    "assistant.corpus.manage": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -116,6 +127,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "user.role.grant": "NONE",
     "user.npi.reveal": "NONE",
     "audit.read": "NONE",
+    "assistant.ask": "SELF",
+    "assistant.journal.read": "NONE",
+    "assistant.corpus.manage": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -140,6 +154,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "user.role.grant": "NONE",
     "user.npi.reveal": "NONE",
     "audit.read": "NONE",
+    "assistant.ask": "SELF",
+    "assistant.journal.read": "NONE",
+    "assistant.corpus.manage": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -164,5 +181,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "user.role.grant": "NONE",
     "user.npi.reveal": "NONE",
     "audit.read": "NONE",
+    "assistant.ask": "NONE",
+    "assistant.journal.read": "NONE",
+    "assistant.corpus.manage": "NONE",
   },
 };

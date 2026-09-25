@@ -47,3 +47,21 @@ Chaque licence a été lue sur la page source le 24 septembre 2026 (champ « Lic
 2. Ajouter une entrée au catalogue de `scripts/optimize-images.mjs` (titre exact du fichier Commons, base en kebab-case, texte alternatif en français, crédit, étiquettes).
 3. Lancer `node scripts/optimize-images.mjs` ; vérifier que la version 1600 px reste sous 250 Ko.
 4. Ajouter la ligne correspondante au tableau ci-dessus.
+
+## Logo du ministère en charge de l'agriculture
+
+`public/images/logos/maep-benin-logo-complet.png` (version couleur, fond clair) et
+`public/images/logos/maep-benin-logo-complet-blanc.png` (version blanche, fond sombre) sont le
+logo complet officiel du ministère en charge de l'agriculture, de l'élevage et de la pêche :
+armoiries, dénomination du ministère et devise tricolore, tel qu'affiché en en-tête de
+`https://agriculture.gouv.bj`. Téléchargés depuis `https://agriculture.gouv.bj/img/logo-MAEP.png`
+et `https://agriculture.gouv.bj/img/logo-MAEP-white.png` le 25 septembre 2026, fond transparent
+d'origine, aucune retouche. Ils ne sont pas soumis à une licence Creative Commons ; ils identifient
+le ministère comme destinataire prévu de la plateforme et n'impliquent aucune approbation
+officielle du produit à ce stade de démonstration. Affichés dans l'en-tête public, l'en-tête des
+espaces connectés et le pied de page (`src/components/brand/government-emblem.tsx`), la version
+couleur ou la version blanche s'affichant selon le thème clair ou sombre.
+
+`public/images/logos/maep-benin.png` (armoiries seules, sans dénomination ni devise) est l'ancien
+fichier utilisé avant l'adoption du logo complet ci-dessus ; il n'est plus référencé par le code et
+peut être supprimé.

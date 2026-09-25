@@ -3,3 +3,5 @@
 0 4 * * * /usr/local/bin/call-app.sh ingest
 # Envoi des messages en attente et relances : toutes les 10 minutes.
 */10 * * * * /usr/local/bin/call-app.sh dispatch
+# Assistant : purge des conversations de plus de 12 mois, chaque jour à 4 h 00 à Porto-Novo.
+0 3 * * * /usr/local/bin/call-app.sh assistant-maintenance

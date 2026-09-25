@@ -1,4 +1,4 @@
-import { ClipboardCheck, MapPin, Phone } from "lucide-react";
+import { ClipboardCheck, MapPin, MessageCircleQuestion, Phone } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import {
@@ -77,14 +77,23 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
             <VerificationStatusBadge status={farm.verificationStatus} />
           </div>
         </div>
-        {farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED" ? (
-          <Button asChild className="h-12">
-            <Link href={`/agent/verification/${farm.id}` as Route}>
-              <ClipboardCheck aria-hidden />
-              Vérifier sur place
+        <div className="flex flex-wrap gap-2">
+          {/* B : l'assistant répond pour cette exploitation (contexte chargé côté serveur). */}
+          <Button asChild variant="outline" className="h-12">
+            <Link href={`/agent/assistant?exploitation=${farm.code}` as Route}>
+              <MessageCircleQuestion aria-hidden />
+              Poser une question
             </Link>
           </Button>
-        ) : null}
+          {farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED" ? (
+            <Button asChild className="h-12">
+              <Link href={`/agent/verification/${farm.id}` as Route}>
+                <ClipboardCheck aria-hidden />
+                Vérifier sur place
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Tabs defaultValue="resume">

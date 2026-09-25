@@ -119,6 +119,19 @@ describe("parseServerEnv", () => {
     ).toBe(VALID_BASE64_KEY);
   });
 
+  it("exige https pour le point d'accès de l'assistant, sauf en local", () => {
+    expect(() =>
+      parseServerEnv({ ...validEnv, ASSISTANT_LLM_BASE_URL: "http://modele.exemple.bj/v1" }),
+    ).toThrow(/https/);
+    expect(
+      parseServerEnv({ ...validEnv, ASSISTANT_LLM_BASE_URL: "http://localhost:11434/v1" })
+        .ASSISTANT_LLM_BASE_URL,
+    ).toBe("http://localhost:11434/v1");
+    const env = parseServerEnv({ ...validEnv, ASSISTANT_LLM_BASE_URL: "" });
+    expect(env.ASSISTANT_LLM_BASE_URL).toBeUndefined();
+    expect(env.ASSISTANT_DAILY_LIMIT).toBe(2000);
+  });
+
   it("refuse une DATABASE_URL qui n'est pas PostgreSQL", () => {
     expect(() => parseServerEnv({ ...validEnv, DATABASE_URL: "mysql://localhost/bais" })).toThrow(
       /URL PostgreSQL/,

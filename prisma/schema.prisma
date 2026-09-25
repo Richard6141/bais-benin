@@ -301,6 +301,9 @@ model Commune {
   ruleEvaluations     RuleEvaluation[]
   alerts              Alert[]
 
+  assistantConversations AssistantConversation[]
+  assistantAgentRequests AssistantAgentRequest[]
+
   @@index([departementId])
   @@index([zoneId])
   @@map("commune")
@@ -402,6 +405,10 @@ model User {
   registeredFarms    Farm[]             @relation("registeredBy")
   verifiedFarms      Farm[]             @relation("verifiedBy")
   fieldVerifications FarmVerification[]
+
+  assistantConversations AssistantConversation[]
+  assistantFeedback      AssistantFeedback[]
+  handledAgentRequests   AssistantAgentRequest[]
 
   @@map("user")
 }
@@ -598,6 +605,8 @@ model Farm {
   events        FarmEvent[]
 
   alertRecipients AlertRecipient[]
+
+  assistantConversations AssistantConversation[]
 
   @@index([communeId, verificationStatus])
   @@index([farmerId])
@@ -1024,6 +1033,163 @@ model IngestionRun {
 
   @@index([startedAt])
   @@map("ingestion_run")
+}
+
+// ---------------------------------------------------------------------------
+// Assistant agricole (étape 8, docs/modules/assistant-parcours-ux.md)
+// ---------------------------------------------------------------------------
+
+enum AssistantDocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AssistantMessageRole {
+  USER
+  ASSISTANT
+}
+
+// Issue d'une question : réponse affichée, ou raison pour laquelle elle ne l'a pas été.
+enum AssistantOutcome {
+  ANSWERED
+  LOW_CONFIDENCE
+  OFF_TOPIC
+  UNSAFE_DOSAGE
+  PROVIDER_ERROR
+}
+
+enum AssistantRequestStatus {
+  OPEN
+  HANDLED
+}
+
+// Fiche technique du corpus : une source publique citée (organisme, adresse, licence vérifiées
+// en ligne), ou une fiche rédigée par l'équipe, marquée démonstration.
+model AssistantDocument {
+  id              String                  @id @default(uuid(7)) @db.Uuid
+  slug            String                  @unique
+  title           String
+  organization    String
+  sourceTitle     String                  @map("source_title")
+  sourceUrl       String                  @map("source_url")
+  licence         String
+  publishedOn     String?                 @map("published_on")
+  // Date à laquelle l'adresse et la licence ont été vérifiées en ligne.
+  checkedOn       DateTime                @map("checked_on") @db.Date
+  demonstration   Boolean                 @default(false)
+  crops           String[]                @default([])
+  zoneCodes       String[]                @default([]) @map("zone_codes")
+  topics          String[]                @default([])
+  alertCategories String[]                @default([]) @map("alert_categories")
+  contentHash     String                  @map("content_hash")
+  status          AssistantDocumentStatus @default(PUBLISHED)
+  reviewedBy      String?                 @map("reviewed_by")
+  reviewedAt      DateTime?               @map("reviewed_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+
+  chunks AssistantChunk[]
+
+  @@index([status])
+  @@map("assistant_document")
+}
+
+// Extrait d'une fiche. La colonne embedding (vector, dimension fixée par la migration) et son
+// index HNSW sont gérés en SQL : les requêtes passent par src/database/sql/assistant.sql.ts.
+model AssistantChunk {
+  id             String                       @id @default(uuid(7)) @db.Uuid
+  documentId     String                       @map("document_id") @db.Uuid
+  document       AssistantDocument            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ordinal        Int
+  heading        String
+  content        String
+  tokenCount     Int                          @map("token_count")
+  contentHash    String                       @map("content_hash")
+  embedding      Unsupported("vector(1024)")?
+  embeddingModel String?                      @map("embedding_model")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+
+  @@unique([documentId, ordinal])
+  @@map("assistant_chunk")
+}
+
+// Conversation : l'auteur n'est gardé que pour « mes questions » ; le journal du ministère ne
+// montre que le rôle et la commune. Purge automatique à purge_after.
+model AssistantConversation {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role       Role
+  communeId  String?  @map("commune_id") @db.Uuid
+  commune    Commune? @relation(fields: [communeId], references: [id])
+  farmId     String?  @map("farm_id") @db.Uuid
+  farm       Farm?    @relation(fields: [farmId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+  purgeAfter DateTime @map("purge_after")
+
+  messages AssistantMessage[]
+
+  @@index([userId, createdAt])
+  @@index([communeId, createdAt])
+  @@index([purgeAfter])
+  @@map("assistant_conversation")
+}
+
+model AssistantMessage {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  conversationId  String                @map("conversation_id") @db.Uuid
+  conversation    AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            AssistantMessageRole
+  content         String
+  // [{ chunkId, slug, quote }] : extraits cités, vérifiés côté serveur.
+  citations       Json?
+  confidence      Decimal?              @db.Decimal(4, 3)
+  confidenceLabel String?               @map("confidence_label")
+  outcome         AssistantOutcome?
+  // Identifiant du modèle tel que configuré (variable d'environnement), ou « fixture ».
+  modelRef        String?               @map("model_ref")
+  latencyMs       Int?                  @map("latency_ms")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  feedback     AssistantFeedback[]
+  agentRequest AssistantAgentRequest?
+
+  @@index([conversationId, createdAt])
+  @@index([outcome, createdAt])
+  @@map("assistant_message")
+}
+
+model AssistantFeedback {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  messageId String           @map("message_id") @db.Uuid
+  message   AssistantMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String?          @map("user_id") @db.Uuid
+  user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  useful    Boolean
+  reason    String?
+  comment   String?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@unique([messageId, userId])
+  @@map("assistant_feedback")
+}
+
+// « Demander à mon agent » : la question et la réponse sont transmises aux agents de la commune.
+model AssistantAgentRequest {
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  messageId   String                 @unique @map("message_id") @db.Uuid
+  message     AssistantMessage       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  communeId   String                 @map("commune_id") @db.Uuid
+  commune     Commune                @relation(fields: [communeId], references: [id])
+  status      AssistantRequestStatus @default(OPEN)
+  handledById String?                @map("handled_by_id") @db.Uuid
+  handledBy   User?                  @relation(fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt   DateTime?              @map("handled_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+
+  @@index([communeId, status, createdAt])
+  @@map("assistant_agent_request")
 }
 
 // ---------------------------------------------------------------------------

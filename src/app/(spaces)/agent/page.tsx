@@ -1,4 +1,11 @@
-import { BarChart3, ClipboardCheck, FileClock, LandPlot, PlusCircle } from "lucide-react";
+import {
+  BarChart3,
+  ClipboardCheck,
+  FileClock,
+  LandPlot,
+  MessageCircleQuestion,
+  PlusCircle,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatTile } from "@/components/data-display/stat-tile";
@@ -37,6 +44,13 @@ const SECONDARY = [
     title: "Tableau de bord",
     description: "Indicateurs de vos communes : cultures, production, vérifications en attente.",
     icon: BarChart3,
+  },
+  {
+    href: "/agent/assistant",
+    title: "Assistant agricole",
+    description:
+      "Une question sur une exploitation, et les demandes transmises par les producteurs.",
+    icon: MessageCircleQuestion,
   },
 ] as const;
 

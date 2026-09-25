@@ -1,5 +1,5 @@
 #!/bin/sh
-# Appelle une route planifiée de l'application : ingest ou dispatch.
+# Appelle une route planifiée de l'application : ingest, dispatch ou assistant-maintenance.
 # L'environnement (URL, secret) est relu depuis le fichier écrit au démarrage : crond ne
 # transmet pas l'environnement du conteneur aux tâches.
 set -eu
@@ -7,7 +7,8 @@ set -eu
 
 task="$1"
 case "$task" in
-  ingest|dispatch) ;;
+  ingest|dispatch) path="/api/v1/monitoring/${task}" ;;
+  assistant-maintenance) path="/api/v1/assistant/maintenance" ;;
   *) echo "Tâche inconnue : $task" >&2; exit 2 ;;
 esac
 
@@ -18,7 +19,7 @@ if curl --fail --silent --show-error \
   -X POST \
   -H "Authorization: Bearer ${CRON_SECRET}" \
   -H "Content-Type: application/json" \
-  "${APP_INTERNAL_URL}/api/v1/monitoring/${task}" \
+  "${APP_INTERNAL_URL}${path}" \
   -o /tmp/last-"$task".json; then
   echo "${started} ${task} : OK $(head -c 300 /tmp/last-"$task".json)"
 else

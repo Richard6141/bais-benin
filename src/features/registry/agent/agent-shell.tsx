@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Home,
   LandPlot,
+  MessageCircleQuestion,
   PlusCircle,
   RefreshCw,
 } from "lucide-react";
@@ -28,8 +29,10 @@ const NAV = [
   { href: "/agent/enregistrer", label: "Enregistrer", icon: PlusCircle, primary: true },
   { href: "/agent/verification", label: "À vérifier", icon: ClipboardCheck },
   { href: "/agent/alertes", label: "Alertes", icon: BellRing },
-  // Barre basse pleine (cinq entrées) : sur téléphone, le tableau de bord s'ouvre depuis l'accueil.
+  // Barre basse pleine (cinq entrées) : sur téléphone, le tableau de bord et l'assistant
+  // s'ouvrent depuis l'accueil.
   { href: "/agent/tableau-de-bord", label: "Tableau de bord", icon: BarChart3, desktopOnly: true },
+  { href: "/agent/assistant", label: "Assistant", icon: MessageCircleQuestion, desktopOnly: true },
   // Absent de la barre basse mobile : la puce de synchronisation, toujours visible en haut, y mène.
   { href: "/agent/synchronisation", label: "Synchro", icon: RefreshCw, desktopOnly: true },
 ] as const;

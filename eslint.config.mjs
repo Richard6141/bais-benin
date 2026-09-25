@@ -18,6 +18,7 @@ const layers = [
       "src/lib/container.ts",
       "src/database/seed/index.ts",
       "src/database/seed/steps/monitoring.seed.ts",
+      "src/database/seed/steps/assistant.seed.ts",
     ],
     mode: "file",
   },

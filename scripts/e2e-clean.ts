@@ -2,6 +2,7 @@ import "dotenv/config";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { prisma } from "@/database/client";
+import { cleanAssistantConversations } from "./e2e-clean-assistant";
 
 // Nettoyage de la base de démonstration après les tests de bout en bout du registre.
 //
@@ -232,6 +233,7 @@ async function cleanSuiteWrites(
   );
 
   await cleanRuleChanges(tx, since, add);
+  await cleanAssistantConversations(tx, since, SUITE_PHONES, add);
 }
 
 const E2E_EMAIL_SUFFIX = "@e2e.bais.invalid";
