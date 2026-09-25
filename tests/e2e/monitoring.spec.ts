@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAsMinistry } from "./helpers/ministry";
 
 // Parcours du monitoring (étape 6) contre les alertes de démonstration du seed : Djougou (stress
 // hydrique), Adjohoun (inondation), Malanville (chaleur), Savalou (fortes pluies), Bohicon
@@ -65,6 +66,17 @@ test.describe("monitoring, espace agent", () => {
     await expect(page.getByText("Diffusion", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Exploitations concernées/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "J'ai prévenu" }).first()).toBeVisible();
+    // Résumé chiffré puis liste paginée par 20 : les 109 exploitations ne s'affichent pas d'un bloc.
+    await expect(page.getByRole("definition").first()).toBeVisible();
+    const farmsList = page.getByRole("list", { name: "Liste des exploitations concernées" });
+    const before = await farmsList.getByRole("listitem").count();
+    expect(before).toBeLessThanOrEqual(20);
+    const more = page.getByRole("link", { name: "Afficher la suite" });
+    if (await more.isVisible()) {
+      await more.click();
+      await expect(page).toHaveURL(/page=2/);
+      await expect.poll(() => farmsList.getByRole("listitem").count()).toBeGreaterThan(before);
+    }
     const noHorizontalScroll = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     );
@@ -97,5 +109,44 @@ test.describe("monitoring, ministère", () => {
   test("un visiteur anonyme est renvoyé vers la connexion", async ({ page }) => {
     await page.goto("/pilotage/alertes");
     await expect(page).toHaveURL(/\/connexion\?suite=%2Fpilotage%2Falertes$/);
+  });
+});
+
+test.describe("monitoring, centre d'alertes du ministère", () => {
+  // En série : un seul défi TOTP à la fois sur le compte du profil.
+  test.describe.configure({ mode: "serial" });
+  // Compte ADMIN_STATE jetable par profil, double authentification activée par l'interface
+  // (tests/e2e/helpers/ministry.ts) : le compte de démonstration n'est jamais modifié.
+  test("affiche les communes en alerte, la carte, la liste et les filtres", async ({
+    page,
+  }, testInfo) => {
+    test.slow();
+    await signInAsMinistry(page, testInfo, "/pilotage/alertes");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Centre d'alertes");
+    await expect(page.getByText("5 communes en alerte")).toBeVisible();
+    await expect(page.locator('[data-map-idle="true"]')).toBeVisible({ timeout: 30_000 });
+    const list = page.getByRole("list", { name: "Alertes actives" });
+    await expect(list.getByRole("link")).toHaveCount(5);
+
+    await page.getByLabel("Sévérité").click();
+    await page.getByRole("option", { name: "Vigilance" }).click();
+    await expect(page).toHaveURL(/severite=WATCH/);
+    await expect(list.getByRole("link")).toHaveCount(2);
+
+    const noHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    );
+    expect(noHorizontalScroll).toBe(true);
+  });
+
+  test("ouvre la fiche d'audit d'une alerte", async ({ page }, testInfo) => {
+    test.slow();
+    await signInAsMinistry(page, testInfo, "/pilotage/alertes");
+    await page.getByRole("list", { name: "Alertes actives" }).getByRole("link").first().click();
+    await page.waitForURL(/\/pilotage\/alertes\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole("region", { name: "Conditions de la règle" })).toBeVisible();
+    await expect(page.getByText(/Règle [A-Z0-9_]+, version \d+/)).toBeVisible();
+    await expect(page.getByText("Indicateurs lus")).toBeVisible();
+    await expect(page.getByText("Diffusion", { exact: true })).toBeVisible();
   });
 });
