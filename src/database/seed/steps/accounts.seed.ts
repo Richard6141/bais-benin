@@ -196,3 +196,40 @@ export async function attachDemoFarmerAccount(prisma: PrismaClient): Promise<boo
   });
   return true;
 }
+
+export const DEMO_AGENT_PHONE = "+2290190000001";
+const DEMO_AGENT_FARM_COUNT = 6;
+
+// ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées. Le registre
+// synthétique (sourceId BAIS_SEED) n'a pas d'agent enregistreur, comme un import national réel :
+// sans rattachement, l'espace agent de démonstration serait vide. Un lot déterministe (premières
+// par code) de la commune de démonstration lui est donc attribué, dont l'exploitation reliée au
+// compte agricultrice de démonstration. Idempotent ; refait après SEED_FARM_RESET.
+export async function attachDemoAgentFarms(prisma: PrismaClient): Promise<number> {
+  // A4 : même filet qu'au-dessus, par défense en profondeur.
+  if (getServerEnv().APP_ENV === "production") return 0;
+
+  const agent = await prisma.user.findUnique({
+    where: { phoneNumber: DEMO_AGENT_PHONE },
+    select: { id: true },
+  });
+  if (!agent) return 0;
+
+  const farms = await prisma.farm.findMany({
+    where: {
+      archivedAt: null,
+      sourceId: "BAIS_SEED",
+      commune: { code: DEMO_FARMER_COMMUNE_CODE },
+    },
+    orderBy: { code: "asc" },
+    take: DEMO_AGENT_FARM_COUNT,
+    select: { id: true },
+  });
+  if (farms.length === 0) return 0;
+
+  const result = await prisma.farm.updateMany({
+    where: { id: { in: farms.map((f) => f.id) } },
+    data: { registeredById: agent.id },
+  });
+  return result.count;
+}

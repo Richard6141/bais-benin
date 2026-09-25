@@ -1,5 +1,5 @@
 import { prisma } from "@/database/client";
-import { scopeFilter, type Actor } from "@/modules/authorization";
+import { actorTerritory, type Actor } from "@/modules/authorization";
 
 // Traduction du périmètre territorial d'un acteur en communes concrètes. Le ministère
 // (portée nationale) voit tout ; un agent voit ses communes et celles de ses départements ;
@@ -15,7 +15,7 @@ export interface ScopedCommune {
 export type CommuneScope = "all" | "none" | ScopedCommune[];
 
 export async function scopedCommunes(actor: Actor): Promise<CommuneScope> {
-  const filter = scopeFilter(actor, "farm.read");
+  const filter = actorTerritory(actor);
   if (filter.kind === "all") return "all";
   if (filter.kind !== "territory") return "none";
   const or: Array<{ id?: { in: string[] }; departementId?: { in: string[] } }> = [];

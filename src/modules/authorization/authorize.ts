@@ -19,6 +19,10 @@ export interface Actor {
 // Description minimale d'une ressource pour la décision : à qui elle appartient et où elle est.
 export interface ResourceRef {
   ownerUserId?: string | null;
+  // Compte de l'agent qui a enregistré la ressource (`farm.registeredById`), distinct du
+  // propriétaire (`ownerUserId`, le compte du producteur) : un agent ne voit que ce qu'il a
+  // lui-même enregistré, jamais les fiches créées par un collègue ou par le producteur.
+  registeredByUserId?: string | null;
   communeId?: string | null;
   departementId?: string | null;
   organizationIds?: readonly string[];
@@ -62,6 +66,8 @@ function reachSatisfied(
       return true;
     case "SELF":
       return Boolean(resource.ownerUserId) && resource.ownerUserId === actor.userId;
+    case "OWN":
+      return Boolean(resource.registeredByUserId) && resource.registeredByUserId === actor.userId;
     case "SCOPE":
       return grantCovers(grant, resource, actor);
   }
@@ -84,6 +90,9 @@ export type ScopeFilter =
   | { kind: "all" }
   | { kind: "none" }
   | { kind: "self"; userId: string }
+  // L'agent ne lit que ce qu'il a lui-même enregistré (farm.registeredById), jamais tout son
+  // périmètre territorial : distinct de "self", qui porte sur le compte du producteur.
+  | { kind: "registered"; userId: string }
   | {
       kind: "territory";
       communeIds: string[];
@@ -99,12 +108,17 @@ export function scopeFilter(actor: Actor, action: ActionCode): ScopeFilter {
   const departementIds = new Set<string>();
   const organizationIds = new Set<string>();
   let includeSelf = false;
+  let includeOwn = false;
 
   for (const grant of actor.grants) {
     const reach = POLICY_MATRIX[grant.role][action];
     if (reach === "NONE") continue;
     if (reach === "ALL" || (reach === "SCOPE" && grant.scopeType === "NATIONAL"))
       return { kind: "all" };
+    if (reach === "OWN") {
+      includeOwn = true;
+      continue;
+    }
     if (reach === "SELF" || grant.scopeType === "SELF") {
       includeSelf = true;
       continue;
@@ -116,7 +130,9 @@ export function scopeFilter(actor: Actor, action: ActionCode): ScopeFilter {
   }
 
   if (communeIds.size === 0 && departementIds.size === 0 && organizationIds.size === 0) {
-    return includeSelf ? { kind: "self", userId: actor.userId } : { kind: "none" };
+    if (includeSelf) return { kind: "self", userId: actor.userId };
+    if (includeOwn) return { kind: "registered", userId: actor.userId };
+    return { kind: "none" };
   }
   return {
     kind: "territory",
@@ -124,5 +140,28 @@ export function scopeFilter(actor: Actor, action: ActionCode): ScopeFilter {
     departementIds: [...departementIds],
     organizationIds: [...organizationIds],
     includeSelf,
+  };
+}
+
+// Territoire administratif couvert par les affectations de l'acteur, indépendamment de toute
+// action ou de la portée d'un droit particulier. Sert aux pages qui bornent par commune (carte,
+// tableau de bord, formulaire d'enregistrement) même quand la lecture des exploitations
+// elles-mêmes est plus restreinte (agent limité à ce qu'il a personnellement enregistré).
+export function actorTerritory(actor: Actor): ScopeFilter {
+  const communeIds = new Set<string>();
+  const departementIds = new Set<string>();
+  for (const grant of actor.grants) {
+    if (grant.scopeType === "NATIONAL") return { kind: "all" };
+    if (!grant.scopeId) continue;
+    if (grant.scopeType === "COMMUNE") communeIds.add(grant.scopeId);
+    if (grant.scopeType === "DEPARTEMENT") departementIds.add(grant.scopeId);
+  }
+  if (communeIds.size === 0 && departementIds.size === 0) return { kind: "none" };
+  return {
+    kind: "territory",
+    communeIds: [...communeIds],
+    departementIds: [...departementIds],
+    organizationIds: [],
+    includeSelf: false,
   };
 }

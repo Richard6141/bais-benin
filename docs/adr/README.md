@@ -17,3 +17,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0011 | Alertes par règles déclaratives versionnées, météo Open-Meteo avec repli sur la fixture | acceptée |
 | 0012 | Connexion unique par NPI et code WhatsApp pour tous les rôles | acceptée, remplace en partie 0010 |
 | 0013 | Création de compte réservée aux agriculteurs, autres comptes ouverts par l'administration | acceptée, complète 0012 |
+| 0014 | Un agent ne lit que les exploitations qu'il a lui-même enregistrées | acceptée, complète 0004 |
