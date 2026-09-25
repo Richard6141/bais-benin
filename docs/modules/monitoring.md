@@ -13,7 +13,7 @@ Ce document décrit le monitoring livré à l'étape 6 : ce que voient les utili
 | Étape | Emplacement | Rôle |
 |---|---|---|
 | Météo | `src/services/ports/weather-provider.ts`, `src/services/weather/{open-meteo,fixture-provider}.ts` | Open-Meteo par centroïde communal (77 communes, deux requêtes), fixture synthétique en repli |
-| Ingestion | `src/modules/monitoring/ingestion.ts`, `src/database/sql/weather.sql.ts` | 35 jours observés et 8 jours de prévision, écriture idempotente, trois tentatives puis repli, journal `ingestion_run` |
+| Ingestion | `src/modules/monitoring/ingestion.ts`, `src/database/sql/weather.sql.ts` | 35 jours observés (65 tant que l'historique stocké est incomplet, pour qu'une simulation sur 30 jours dispose de 30 jours d'observations avant chacun de ses jours) et 8 jours de prévision, écriture idempotente, trois tentatives puis repli, journal `ingestion_run` |
 | Indicateurs et règles | `src/modules/monitoring/rules/*` | 18 indicateurs (cumuls, jours secs, bilan hydrique, températures, prévisions, cultures et stades), langage `all` / `any` / `not` validé par Zod, trace d'évaluation |
 | Évaluation | `src/modules/monitoring/evaluation.ts` | chaque règle active sur chaque commune, à la date du dernier jour observé ; une alerte active par catégorie et par commune ; refroidissement ; aucune alerte sur des données de plus de 48 h |
 | Diffusion | `src/modules/monitoring/delivery/*` | destinataires (in-app, WhatsApp avec consentement, SMS, relais agent), silence de 21 h à 6 h sauf alerte critique, repli et relance, accusés de lecture |

@@ -33,7 +33,8 @@ function trend(
 }
 
 // Résultat d'une simulation (§2.C6) : alertes qui auraient été levées, communes et exploitations,
-// comparaison avec la version active, communes aux données insuffisantes. Rien n'a été diffusé.
+// comparaison avec la version active, jours non évaluables faute d'historique, communes aux
+// données insuffisantes. Rien n'a été diffusé.
 export function SimulationResult({ summary }: { summary: SimulationSummary }) {
   const period = `du ${frDate(summary.from)} au ${frDate(summary.to)}`;
   return (
@@ -72,6 +73,24 @@ export function SimulationResult({ summary }: { summary: SimulationSummary }) {
           {summary.active.communes.length} commune(s), {summary.active.affectedFarms}{" "}
           exploitation(s).
         </p>
+      ) : null}
+      {summary.unevaluated ? (
+        <Alert variant="watch">
+          <AlertTitle>
+            {summary.evaluatedDays} jour(s) évalué(s) sur {summary.days}
+          </AlertTitle>
+          <AlertDescription>
+            <p>
+              Du {frDate(summary.unevaluated.from)} au {frDate(summary.unevaluated.to)}, aucune
+              commune n&apos;avait assez d&apos;observations sur les 30 jours précédents
+              {summary.historyStart
+                ? ` (météo stockée depuis le ${frDate(summary.historyStart)})`
+                : " (aucune météo stockée sur cette période)"}
+              . Ces jours ne lèvent aucune alerte ; choisissez une période plus récente ou attendez
+              que l&apos;historique s&apos;allonge.
+            </p>
+          </AlertDescription>
+        </Alert>
       ) : null}
       {summary.insufficientData.length > 0 ? (
         <Alert variant="watch">

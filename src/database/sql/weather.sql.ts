@@ -177,3 +177,24 @@ export async function readCommuneLocations(): Promise<CommuneLocation[]> {
     ORDER BY c."code"`;
   return rows.map((row) => communeLocationSchema.parse(row));
 }
+
+const coverageSchema = z.object({
+  first: z.string().nullable(),
+  days: z.coerce.number(),
+});
+
+// Couverture des observations sur une période (bornes incluses), toutes communes et sources :
+// premier jour observé et nombre de jours distincts. Sert à dire depuis quand l'historique
+// existe et à décider si l'ingestion doit rattraper un historique trop court.
+export async function readObservedCoverage(
+  from: string,
+  to: string,
+): Promise<{ first: string | null; days: number }> {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT to_char(min("observed_on"), 'YYYY-MM-DD') AS first,
+           count(DISTINCT "observed_on") AS days
+    FROM "weather_observation"
+    WHERE "kind" = 'OBSERVED'
+      AND "observed_on" BETWEEN ${from}::date AND ${to}::date`;
+  return coverageSchema.parse(rows[0]);
+}

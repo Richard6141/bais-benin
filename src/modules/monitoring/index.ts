@@ -27,7 +27,13 @@ export {
   type EvaluationOptions,
   type EvaluationSummary,
 } from "./evaluation";
-export { runWeatherIngestion, type IngestionOptions, type IngestionResult } from "./ingestion";
+export {
+  BACKFILL_PAST_DAYS,
+  DAILY_PAST_DAYS,
+  runWeatherIngestion,
+  type IngestionOptions,
+  type IngestionResult,
+} from "./ingestion";
 export { MonitoringBusyError, withMonitoringLock } from "./lock";
 export { resolveAlert, type ResolveResult } from "./resolve";
 export { seedDefaultRules } from "./rule-catalog";

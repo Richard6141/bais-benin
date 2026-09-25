@@ -1,6 +1,7 @@
 import { prisma } from "@/database/client";
 import {
   readCommuneLocations,
+  readObservedCoverage,
   upsertWeatherRows,
   type WeatherRow,
 } from "@/database/sql/weather.sql";
@@ -10,7 +11,27 @@ import {
   type WeatherProvider,
   type WeatherSeries,
 } from "@/services/ports/weather-provider";
-import { beninToday } from "./dates";
+import { addDays, beninToday } from "./dates";
+
+/** Profondeur ordinaire : les 30 jours lus par les indicateurs, plus une marge. */
+export const DAILY_PAST_DAYS = 35;
+/**
+ * Profondeur de rattrapage : une simulation sur 30 jours lit 30 jours d'observations avant
+ * chacun de ses jours, soit 60 jours, plus une marge. Open-Meteo accepte jusqu'à 92 jours.
+ */
+export const BACKFILL_PAST_DAYS = 65;
+
+// Rattrapage quand l'historique stocké est plus court que la profondeur de rattrapage : premier
+// passage, base neuve, ou trou laissé par une panne. Une fois l'historique complet, l'ingestion
+// quotidienne repasse à 35 jours et la fenêtre glissante reste pleine.
+// Hier n'est pas encore stocké avant cette ingestion : la vérification s'arrête à avant-hier.
+async function choosePastDays(today: string): Promise<number> {
+  const coverage = await readObservedCoverage(
+    addDays(today, -BACKFILL_PAST_DAYS),
+    addDays(today, -2),
+  );
+  return coverage.days < BACKFILL_PAST_DAYS - 1 ? BACKFILL_PAST_DAYS : DAILY_PAST_DAYS;
+}
 
 // Ingestion quotidienne de la météo par commune (docs/modules/monitoring-parcours-ux.md §2.E).
 // Le fournisseur principal (Open-Meteo) est interrogé avec trois tentatives ; en cas d'échec,
@@ -21,6 +42,7 @@ export interface IngestionOptions {
   primary: WeatherProvider;
   fallback?: WeatherProvider;
   today?: string;
+  /** Par défaut : 35 jours, ou 65 si l'historique stocké est incomplet (rattrapage). */
   pastDays?: number;
   forecastDays?: number;
   retries?: number;
@@ -34,6 +56,7 @@ export interface IngestionResult {
   provider: WeatherProvider["id"];
   fallback: boolean;
   referenceDate: string;
+  pastDays: number;
   communes: number;
   communesFailed: number;
   rows: number;
@@ -62,7 +85,7 @@ async function fetchWithRetry(
 
 export async function runWeatherIngestion(options: IngestionOptions): Promise<IngestionResult> {
   const today = options.today ?? beninToday();
-  const pastDays = options.pastDays ?? 35;
+  const pastDays = options.pastDays ?? (await choosePastDays(today));
   const forecastDays = options.forecastDays ?? 8;
   const communes = await readCommuneLocations();
   const byCode = new Map(communes.map((c) => [c.code, c]));
@@ -169,7 +192,7 @@ export async function runWeatherIngestion(options: IngestionOptions): Promise<In
       actorId: options.actorId ?? null,
       resourceType: "ingestion_run",
       resourceId: run.id,
-      details: { provider: provider.id, fallback, rows: written, communesFailed },
+      details: { provider: provider.id, fallback, pastDays, rows: written, communesFailed },
     });
 
     return {
@@ -177,6 +200,7 @@ export async function runWeatherIngestion(options: IngestionOptions): Promise<In
       provider: provider.id,
       fallback,
       referenceDate: today,
+      pastDays,
       communes: communes.length,
       communesFailed,
       rows: written,

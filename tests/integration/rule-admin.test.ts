@@ -231,7 +231,10 @@ describe("gouvernance des règles", () => {
       to: "2023-01-03",
     });
     expect(empty.candidate.alerts).toBe(0);
-    expect(empty.insufficientData).toHaveLength(77);
+    // Aucun jour évaluable : compté comme trou d'historique, pas comme 77 communes en défaut.
+    expect(empty.insufficientData).toEqual([]);
+    expect(empty.evaluatedDays).toBe(0);
+    expect(empty.unevaluated).toEqual({ days: 3, from: "2023-01-01", to: "2023-01-03" });
     await expect(
       simulateRule(agent, { code: WARNING_CODE, from: "2024-08-01", to: "2024-08-02" }),
     ).rejects.toMatchObject({

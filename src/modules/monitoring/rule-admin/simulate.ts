@@ -2,6 +2,7 @@ import { prisma } from "@/database/client";
 import {
   readCommuneLocations,
   readCropPresence,
+  readObservedCoverage,
   readWeatherSeries,
 } from "@/database/sql/weather.sql";
 import type { Prisma } from "@/generated/prisma/client";
@@ -48,6 +49,13 @@ export interface SimulationSummary {
   usesDraft: boolean;
   candidate: Outcome;
   active: Outcome;
+  /** Jours où au moins une commune avait assez d'observations pour être évaluée. */
+  evaluatedDays: number;
+  /** Jours où aucune commune n'était évaluable (historique trop court ou panne générale). */
+  unevaluated: { days: number; from: string; to: string } | null;
+  /** Premier jour observé stocké dans la fenêtre lue par la simulation. */
+  historyStart: string | null;
+  /** Communes sans données suffisantes certains jours où les autres étaient évaluables. */
   insufficientData: Array<{ code: string; name: string; days: number }>;
   evaluations: number;
 }
@@ -146,7 +154,7 @@ export async function simulateRule(
 
   const matchedCandidate = new Map<string, string[]>();
   const matchedActive = new Map<string, string[]>();
-  const insufficient = new Map<string, number>();
+  const lackingByDay = new Map<string, string[]>();
   const evaluations: Prisma.RuleEvaluationCreateManyInput[] = [];
 
   for (const day of days) {
@@ -162,7 +170,7 @@ export async function simulateRule(
       );
       const missing = Number(context.indicators.observed_days_missing_30d ?? 30);
       const lacking = context.stale || missing > MAX_MISSING_DAYS;
-      if (lacking) insufficient.set(commune.id, (insufficient.get(commune.id) ?? 0) + 1);
+      if (lacking) lackingByDay.set(day, [...(lackingByDay.get(day) ?? []), commune.id]);
       const result = evaluateRule(candidate, context.indicators);
       const matched = result.matched && !lacking;
       if (matched)
@@ -186,6 +194,16 @@ export async function simulateRule(
   for (let i = 0; i < evaluations.length; i += 1000) {
     await prisma.ruleEvaluation.createMany({ data: evaluations.slice(i, i + 1000) });
   }
+
+  // Un jour où aucune commune n'est évaluable relève de l'historique (ou d'une panne générale),
+  // pas d'une commune : il est compté à part pour ne pas désigner les 77 communes.
+  const deadDays = days.filter((day) => (lackingByDay.get(day)?.length ?? 0) === communes.length);
+  const insufficient = new Map<string, number>();
+  for (const [day, lackingIds] of lackingByDay) {
+    if (deadDays.includes(day)) continue;
+    for (const id of lackingIds) insufficient.set(id, (insufficient.get(id) ?? 0) + 1);
+  }
+  const coverage = await readObservedCoverage(addDays(input.from, -PAST_DAYS), input.to);
 
   const cooldownDays = Math.max(1, Math.ceil(rule.cooldownHours / 24));
   const byId = new Map(communes.map((c) => [c.id, c]));
@@ -214,6 +232,12 @@ export async function simulateRule(
     usesDraft: input.draftDefinition !== undefined,
     candidate: await outcome(matchedCandidate, candidate),
     active: await outcome(matchedActive, activeDefinition),
+    evaluatedDays: days.length - deadDays.length,
+    unevaluated:
+      deadDays.length > 0
+        ? { days: deadDays.length, from: deadDays[0]!, to: deadDays[deadDays.length - 1]! }
+        : null,
+    historyStart: coverage.first,
     insufficientData: [...insufficient.entries()]
       .map(([id, count]) => ({
         code: byId.get(id)?.code ?? id,
