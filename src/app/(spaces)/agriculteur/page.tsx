@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/features/auth/session";
+import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
 export const metadata: Metadata = { title: "Mon exploitation" };
@@ -137,11 +138,7 @@ export default async function FarmerSpacePage() {
           {harvest ? (
             <>
               <p className="tabular text-3xl font-semibold">
-                {kgFormatter.format(harvest.declaredQuantity)}{" "}
-                <span className="text-lg font-normal text-muted-foreground">
-                  {harvest.unit === "KG" ? "kg" : harvest.unit.toLowerCase().replace("_", " ")} de{" "}
-                  {harvest.cropName.toLowerCase()}
-                </span>
+                {formatHarvestOf(harvest.declaredQuantity, harvest.unit, harvest.cropName)}
               </p>
               <p className="flex items-center gap-2 text-base text-muted-foreground">
                 <CalendarDays className="size-4" aria-hidden />

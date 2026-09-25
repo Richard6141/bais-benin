@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/features/auth/session";
 import { CampaignSelect } from "@/features/registry/harvest/campaign-select";
+import {
+  cropStageLabel,
+  formatHarvestQuantity,
+  subSeasonLabel,
+} from "@/features/registry/harvest/format";
 import { listHarvestHistory, listOwnFarms, type CampaignHistory } from "@/modules/registry";
 
 export const metadata: Metadata = { title: "Mon historique" };
@@ -131,7 +136,8 @@ export default async function HarvestHistoryPage({
                         <CardTitle className="text-lg">{crop.cropName}</CardTitle>
                         <CardDescription>
                           Parcelle {crop.parcelCode.split("-").pop()} ·{" "}
-                          {numberFormatter.format(crop.areaHa)} ha
+                          {numberFormatter.format(crop.areaHa)} ha ·{" "}
+                          {subSeasonLabel(crop.subSeason)} · {cropStageLabel(crop.stage)}
                         </CardDescription>
                       </div>
                     </div>
@@ -145,10 +151,7 @@ export default async function HarvestHistoryPage({
                       <ul className="flex flex-col gap-1 text-base">
                         {crop.declarations.map((d) => (
                           <li key={d.id} className="flex justify-between gap-3">
-                            <span>
-                              {numberFormatter.format(d.declaredQuantity)}{" "}
-                              {d.unit === "KG" ? "kg" : d.unit.toLowerCase().replace("_", " ")}
-                            </span>
+                            <span>{formatHarvestQuantity(d.declaredQuantity, d.unit)}</span>
                             <span className="tabular text-muted-foreground">
                               ≈ {numberFormatter.format(d.quantityKg)} kg ·{" "}
                               {dateFormatter.format(d.declaredOn)}

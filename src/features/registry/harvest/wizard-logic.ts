@@ -2,6 +2,8 @@
 // ordre des écrans, saut de l'écran de choix quand il n'y a qu'une culture, niveaux de pertes,
 // phrase de résumé. Aucun accès réseau ni composant : testable sans navigateur.
 
+import { unitLabel } from "./format";
+
 export type WizardStep = "CROP" | "QUANTITY" | "LOSSES" | "DONE";
 
 export const WIZARD_STEP_LABELS: Record<Exclude<WizardStep, "DONE">, string> = {
@@ -82,14 +84,7 @@ export function lossesPctFor(level: LossLevel | null | undefined): number | unde
   return LOSS_LEVELS.find((l) => l.code === level)?.lossesPct;
 }
 
-/** Libellé d'unité accordé au nombre : « 8 sacs de 100 kg », « 1 régime », « 3 tas ». */
-export function unitLabel(unitLabelSingular: string, amount: number): string {
-  if (amount <= 1) return unitLabelSingular;
-  const [first, ...rest] = unitLabelSingular.split(" ");
-  if (!first) return unitLabelSingular;
-  const plural = first.endsWith("s") ? first : `${first}s`;
-  return [plural, ...rest].join(" ");
-}
+export { unitLabel } from "./format";
 
 const amountFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 

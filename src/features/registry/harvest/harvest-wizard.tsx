@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { declareHarvestAction, type HarvestActionState } from "./actions";
+import { formatHarvestOf } from "./format";
 import {
   LOSS_CAUSES,
   LOSS_LEVELS,
@@ -63,7 +64,7 @@ export function HarvestWizard({ seasons, parcelCount }: HarvestWizardProps) {
     nameFr: s.cropName,
   }));
   const seasonsOfCrop = season ? seasons.filter((s) => s.cropCode === season.cropCode) : [];
-  const unitLabel = HARVEST_UNITS.find((u) => u.code === quantity.unit)?.label ?? quantity.unit;
+  const quantityValue = parseQuantity(quantity.amount);
 
   if (state.status === "success" || step === "DONE") {
     return (
@@ -215,7 +216,9 @@ export function HarvestWizard({ seasons, parcelCount }: HarvestWizardProps) {
             Avez-vous eu des pertes ?
           </h2>
           <p className="text-base text-muted-foreground">
-            {quantity.amount} {unitLabel} de {season.cropName.toLowerCase()}
+            {Number.isNaN(quantityValue)
+              ? season.cropName
+              : formatHarvestOf(quantityValue, quantity.unit, season.cropName)}
             {describeKgEquivalent(quantity, HARVEST_UNITS)
               ? ` (${describeKgEquivalent(quantity, HARVEST_UNITS)})`
               : ""}
