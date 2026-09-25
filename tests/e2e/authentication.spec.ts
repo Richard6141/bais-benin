@@ -19,7 +19,8 @@ test.describe("connexion par téléphone", () => {
   test("une agricultrice se connecte en deux écrans et arrive sur son espace", async ({ page }) => {
     await signInByPhone(page, "0190000002");
     await expect(page).toHaveURL(/\/agriculteur$/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Bienvenue");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Déclarer ma récolte" })).toBeVisible();
     await expect(page.getByText("Agriculteur", { exact: true })).toBeVisible();
   });
 
