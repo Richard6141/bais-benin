@@ -12,8 +12,9 @@ import {
 // en cas de relance ; les quotas (2 codes par heure et par destinataire) sont respectés en
 // ne renvoyant un code qu'à la demande explicite de l'utilisateur.
 
+// La documentation publique de wapy.pro renvoie `id` sous forme numérique (ex. 1042).
 const sendResponseSchema = z.object({
-  id: z.string().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
   message_id: z.string().optional(),
   statut: z.string(),
   remise: z.string().optional(),
@@ -61,7 +62,7 @@ export class WapyMessagingChannel implements MessagingChannel {
     const parsed = sendResponseSchema.parse(await response.json());
     return {
       channel: this.id,
-      providerMessageId: parsed.message_id ?? parsed.id ?? null,
+      providerMessageId: parsed.message_id ?? (parsed.id === undefined ? null : String(parsed.id)),
       accepted: parsed.statut === "envoye",
       replayed: parsed.rejeu === true,
     };
