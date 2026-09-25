@@ -5,7 +5,7 @@ import { hashPassword } from "@/lib/auth/password";
 // Comptes temporaires des tests de bout en bout.
 //
 //   tsx scripts/e2e-accounts.ts create --email <e> --password <p> --name <n>
-//   tsx scripts/e2e-accounts.ts delete
+//   tsx scripts/e2e-accounts.ts delete [--email <e>]
 //
 // Le compte ministère de démonstration (ministere@bais.demo) n'a pas de double authentification
 // et doit rester ainsi : les parcours du pilotage utilisent des comptes ADMIN_STATE jetables,
@@ -55,9 +55,12 @@ async function create(email: string, password: string, name: string) {
   console.log(`Compte de test créé : ${email}`);
 }
 
-async function removeAll() {
+// Sans --email, tous les comptes du domaine réservé ; avec, ce seul compte (le script de captures
+// supprime le sien sans toucher aux comptes d'une suite de tests lancée en parallèle).
+async function removeAll(email?: string) {
+  if (email) assertTestEmail(email);
   const users = await prisma.user.findMany({
-    where: { email: { endsWith: E2E_EMAIL_DOMAIN } },
+    where: { email: email ?? { endsWith: E2E_EMAIL_DOMAIN } },
     select: { id: true, email: true },
   });
   for (const user of users) await deleteUser(user.id);
@@ -75,7 +78,7 @@ async function main() {
     if (!email || !password) throw new Error("--email et --password sont requis");
     await create(email, password, argument("name") ?? "Compte de test (ministère)");
   } else if (command === "delete") {
-    await removeAll();
+    await removeAll(argument("email"));
   } else {
     throw new Error("Commande attendue : create ou delete");
   }
