@@ -33,7 +33,7 @@ export function StepShell({
 }: StepShellProps) {
   return (
     <section
-      className={cn("flex flex-col gap-5 pb-28 sm:pb-0", className)}
+      className={cn("flex flex-col gap-5 pb-36 md:pb-0", className)}
       aria-labelledby="step-title"
     >
       <header className="flex flex-col gap-1">
@@ -43,13 +43,14 @@ export function StepShell({
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </header>
       <div className="flex flex-col gap-4">{children}</div>
-      <footer className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t bg-background/95 p-4 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+      {/* Sur téléphone, la barre d'action se pose au-dessus de la navigation basse de l'espace agent. */}
+      <footer className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2 border-t bg-background/95 p-4 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <Button
           type="button"
           onClick={onPrimary}
           disabled={primaryDisabled || primaryBusy}
           aria-busy={primaryBusy}
-          className="h-14 w-full text-base sm:w-auto sm:self-start"
+          className="h-14 w-full text-base md:w-auto md:self-start"
         >
           {primaryLabel}
         </Button>

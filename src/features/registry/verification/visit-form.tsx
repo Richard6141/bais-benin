@@ -95,7 +95,7 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-24 md:pb-0">
       <StepIndicator steps={STEPS} current={step} />
 
       {step === 0 ? (
@@ -196,7 +196,7 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
         </Alert>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-16 z-30 border-t bg-background/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t bg-background/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
         <div className="mx-auto flex max-w-6xl gap-2">
           {step > 0 ? (
             <Button variant="outline" className="h-12" onClick={() => setStep(step - 1)}>
