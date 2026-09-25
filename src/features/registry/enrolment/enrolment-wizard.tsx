@@ -64,12 +64,14 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
       if (cancelled) return;
       setDraft(current);
       setStep(firstIncompleteStep(current.data));
-      if (!existing) router.replace(`/agent/enregistrer?brouillon=${current.id}`);
+      // Adresse mise à jour sans aller-retour serveur : l'écran doit fonctionner hors ligne.
+      if (!existing)
+        window.history.replaceState(null, "", `/agent/enregistrer?brouillon=${current.id}`);
     })();
     return () => {
       cancelled = true;
     };
-  }, [db, requestedId, router]);
+  }, [db, requestedId]);
 
   const commune =
     bundle?.communes.find((c) => c.code === draft?.data.location?.communeCode) ?? null;
@@ -226,7 +228,7 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
           result={data.result}
           farmerLabel={farmerLabel}
           sync={sync}
-          onAnother={() => router.push("/agent/enregistrer")}
+          onAnother={() => window.history.replaceState(null, "", "/agent/enregistrer")}
         />
       ) : null}
     </div>
