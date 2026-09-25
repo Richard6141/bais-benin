@@ -72,7 +72,13 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
         version: 1,
         sourceId: FIELD_SOURCE_ID,
         sourceDate: new Date(command.clientCreatedAt),
-        reliability: payload.captureMethod === "GPS_WALK" ? "FIELD_VERIFIED" : "DECLARED",
+        // C2 : FIELD_VERIFIED suppose qu'un agent a réellement marché le contour ; captureMethod
+        // seul (envoyé par le client) ne le prouve pas — n'importe quel téléphone peut prétendre
+        // GPS_WALK. On la plafonne au rôle qui a autorisé la commande (context.grantRole).
+        reliability:
+          payload.captureMethod === "GPS_WALK" && context.grantRole === "AGENT_AGRICULTURE"
+            ? "FIELD_VERIFIED"
+            : "DECLARED",
       },
       select: { id: true, code: true, version: true },
     });

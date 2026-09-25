@@ -77,6 +77,9 @@ export const harvestDeclarePayload = z.object({
   declaredQuantity: z.number().positive("La quantité doit être supérieure à zéro").max(1_000_000),
   unit: z.enum(["KG", "T", "BAG_100KG", "BAG_50KG", "BUNCH", "HEAP", "BASIN"]),
   declaredOn: z.iso.date(),
+  // C2 : conservé dans le contrat pour la compatibilité du client hors ligne existant, mais
+  // ignoré côté serveur pour décider de la fiabilité — harvest-declare.ts la déduit du rôle qui
+  // a autorisé la commande, jamais de ce champ.
   declaredBy: z.enum(["FARMER", "AGENT"]),
   lossesPct: z.number().min(0).max(100).optional(),
   lossCause: z.string().trim().max(120).optional(),

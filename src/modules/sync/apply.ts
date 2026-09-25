@@ -5,10 +5,10 @@ import { authorize, type Actor } from "@/modules/authorization";
 import { parseSyncCommand, type SyncCommand, type SyncOutcome } from "./commands";
 import { syncHandlers } from "./handlers";
 import type {
+  BatchContext,
   Db,
   HandlerOutcome,
   SyncApplyResult,
-  SyncContext,
   SyncHandlers,
 } from "./handlers/types";
 
@@ -93,7 +93,7 @@ export function createSyncApplier(deps: SyncApplierDeps) {
 
   async function applyOne(
     command: SyncCommand,
-    context: SyncContext,
+    context: BatchContext,
     batchOutcomes: ReadonlyMap<string, SyncOutcome>,
   ): Promise<SyncApplyResult> {
     const failedDependency = (command.dependsOn ?? []).find((dependencyId) =>
@@ -153,7 +153,13 @@ export function createSyncApplier(deps: SyncApplierDeps) {
           } satisfies SyncApplyResult;
         }
 
-        const outcome = await handler.apply(command as never, tx, context);
+        // C2 : le rôle qui a effectivement autorisé cette commande est transmis au handler, qui
+        // s'en sert pour plafonner toute fiabilité de terrain plutôt que de faire confiance à un
+        // champ envoyé par le client.
+        const outcome = await handler.apply(command as never, tx, {
+          ...context,
+          grantRole: decision.via.role,
+        });
         const applied = outcomeToResult(command.id, outcome);
         if (outcome.outcome === "APPLIED") {
           appliedAt = now();
@@ -216,7 +222,7 @@ export function createSyncApplier(deps: SyncApplierDeps) {
     deviceId: string,
     commands: readonly unknown[],
   ): Promise<SyncApplyResult[]> {
-    const context: SyncContext = { actor, deviceId, now: now() };
+    const context: BatchContext = { actor, deviceId, now: now() };
     const results: SyncApplyResult[] = [];
     const outcomes = new Map<string, SyncOutcome>();
 

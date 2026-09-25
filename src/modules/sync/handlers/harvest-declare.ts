@@ -53,6 +53,10 @@ export const harvestDeclare: SyncHandler<"harvest.declare"> = {
     }
 
     const quantityKg = quantityToKg(payload.declaredQuantity, payload.unit);
+    // C2 : declaredBy/reliability viennent du rôle qui a autorisé la commande (grantRole),
+    // jamais du champ payload.declaredBy — sans quoi un agriculteur pourrait s'attribuer
+    // AGENT_VERIFIED simplement en déclarant "AGENT" dans sa propre saisie hors ligne.
+    const declaredByAgent = context.grantRole === "AGENT_AGRICULTURE";
     const declaration = await db.productionDeclaration.create({
       data: {
         id: payload.id,
@@ -61,14 +65,14 @@ export const harvestDeclare: SyncHandler<"harvest.declare"> = {
         unit: payload.unit,
         quantityKg,
         declaredOn: new Date(payload.declaredOn),
-        declaredBy: payload.declaredBy,
+        declaredBy: declaredByAgent ? "AGENT" : "FARMER",
         declaredByUserId: context.actor.userId,
         lossesPct: payload.lossesPct ?? null,
         lossCause: payload.lossCause ?? null,
         priceHintFcfaPerKg: payload.priceHintFcfaPerKg ?? null,
         sourceId: FIELD_SOURCE_ID,
         sourceDate: new Date(payload.declaredOn),
-        reliability: payload.declaredBy === "AGENT" ? "AGENT_VERIFIED" : "DECLARED",
+        reliability: declaredByAgent ? "AGENT_VERIFIED" : "DECLARED",
       },
       select: { id: true },
     });
