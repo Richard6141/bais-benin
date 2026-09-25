@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCheck, Home, LandPlot, PlusCircle, RefreshCw } from "lucide-react";
+import { BellRing, ClipboardCheck, Home, LandPlot, PlusCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -19,8 +19,14 @@ const NAV = [
   { href: "/agent/exploitations", label: "Exploitations", icon: LandPlot },
   { href: "/agent/enregistrer", label: "Enregistrer", icon: PlusCircle, primary: true },
   { href: "/agent/verification", label: "À vérifier", icon: ClipboardCheck },
-  { href: "/agent/synchronisation", label: "Synchro", icon: RefreshCw },
+  { href: "/agent/alertes", label: "Alertes", icon: BellRing },
+  // Absent de la barre basse mobile : la puce de synchronisation, toujours visible en haut, y mène.
+  { href: "/agent/synchronisation", label: "Synchro", icon: RefreshCw, desktopOnly: true },
 ] as const;
+
+// Barre basse mobile : cinq entrées au plus. À 360 px, six cases de 60 px tronqueraient
+// « Exploitations » et « À vérifier » ; la synchronisation reste à un tap via la puce.
+const MOBILE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
 
 // Coque de l'espace agent : navigation en haut sur grand écran, en bas sur téléphone
 // (le pouce reste en bas, docs/modules/registre-parcours-ux.md §0), et la puce de
@@ -57,15 +63,22 @@ export function AgentShell({ userId, children }: AgentShellProps) {
             ))}
           </ul>
         </nav>
-        <SyncStatusChip
-          pending={sync.pending}
-          failed={sync.failed}
-          lastSyncedAt={sync.lastSyncedAt}
-          online={sync.online}
-          syncing={sync.syncing}
-          onSync={() => void sync.sync()}
-          className="self-start md:self-auto"
-        />
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <SyncStatusChip
+            pending={sync.pending}
+            failed={sync.failed}
+            lastSyncedAt={sync.lastSyncedAt}
+            online={sync.online}
+            syncing={sync.syncing}
+            onSync={() => void sync.sync()}
+          />
+          <Link
+            href="/agent/synchronisation"
+            className="inline-flex min-h-11 items-center text-sm text-primary underline-offset-4 hover:underline md:hidden"
+          >
+            Voir la file
+          </Link>
+        </div>
       </div>
 
       {children}
@@ -75,7 +88,7 @@ export function AgentShell({ userId, children }: AgentShellProps) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden"
       >
         <ul className="grid grid-cols-5">
-          {NAV.map((item) => {
+          {MOBILE_NAV.map((item) => {
             const active = isActive(item);
             const primary = "primary" in item && item.primary;
             return (

@@ -1,30 +1,17 @@
 "use client";
 
+import { CheckCheck } from "lucide-react";
 import {
-  Bug,
-  CheckCheck,
-  Droplets,
-  FileText,
-  Store,
-  SunMedium,
-  Waves,
-  type LucideIcon,
-} from "lucide-react";
+  CATEGORY_LABELS,
+  formatPeriod,
+  type AlertCategory,
+} from "@/components/data-display/alert-labels";
 import { SourceCaption } from "@/components/data-display/source-caption";
 import { SeverityBadge, type AlertSeverity } from "@/components/data-display/severity-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type AlertCategory = "WATER_STRESS" | "FLOOD" | "HEAT" | "PEST" | "MARKET" | "ADMIN";
-
-export const CATEGORY_LABELS: Record<AlertCategory, { label: string; Icon: LucideIcon }> = {
-  WATER_STRESS: { label: "Stress hydrique", Icon: Droplets },
-  FLOOD: { label: "Excès d'eau", Icon: Waves },
-  HEAT: { label: "Chaleur", Icon: SunMedium },
-  PEST: { label: "Ravageurs", Icon: Bug },
-  MARKET: { label: "Marché", Icon: Store },
-  ADMIN: { label: "Administration", Icon: FileText },
-};
+export { CATEGORY_LABELS, formatPeriod, type AlertCategory };
 
 export interface AlertCardData {
   title: string;
@@ -55,11 +42,6 @@ interface AlertCardProps {
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" });
 const integer = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
-
-export function formatPeriod(startsOn: string, endsOn?: string | null): string {
-  const start = dateFormatter.format(new Date(startsOn));
-  return endsOn ? `Du ${start} au ${dateFormatter.format(new Date(endsOn))}` : `Depuis le ${start}`;
-}
 
 // Carte d'alerte : ce qui se passe, où, depuis quand, et surtout que faire. La provenance est
 // toujours visible (docs/modules/design-system.md §4.1).
