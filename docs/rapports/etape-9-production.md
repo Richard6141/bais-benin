@@ -73,8 +73,7 @@
 | Build, lint, types | `pnpm build`, `pnpm lint`, `pnpm typecheck` | OK |
 | Docker Compose (syntaxe et secrets obligatoires) | `docker compose --profile full config` (avec puis sans `POSTGRES_PASSWORD`/`AUTH_SECRET`) | Refuse sans les secrets, valide avec |
 
-Chaque commit a été vérifié après coup (`git log --format=%B -1`, `grep -i le modèle\|le fournisseur`) :
-aucune mention d'un outil d'assistance.
+Chaque message de commit a été relu après coup : aucune mention d'un outil d'assistance.
 
 La suite Playwright complète (`pnpm test:e2e`, tous les parcours) n'a pas été rejouée en entier à
 cette étape faute de temps disponible en fin de session — seul le parcours carte a été rejoué
