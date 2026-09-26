@@ -45,13 +45,14 @@ import {
   type MetricKey,
   type SkyView,
 } from "./map-config";
+import { FIRE_ATTRIBUTION, hideFireLayer, showFireLayer, type FireCollection } from "./fire-layer";
 
 const BOUNDARIES_ATTRIBUTION = "Limites administratives : geoBoundaries (CC BY 4.0)";
 
-function attributionControl(extra: string | null): AttributionControl {
+function attributionControl(extras: readonly string[]): AttributionControl {
   return new AttributionControl({
     compact: true,
-    customAttribution: extra ? [BOUNDARIES_ATTRIBUTION, extra] : BOUNDARIES_ATTRIBUTION,
+    customAttribution: [BOUNDARIES_ATTRIBUTION, ...extras],
   });
 }
 
@@ -59,10 +60,10 @@ function attributionControl(extra: string | null): AttributionControl {
 function swapAttribution(
   map: MapLibreMap,
   current: AttributionControl | null,
-  extra: string | null,
+  extras: readonly string[],
 ): AttributionControl {
   if (current) map.removeControl(current);
-  const next = attributionControl(extra);
+  const next = attributionControl(extras);
   map.addControl(next, "bottom-right");
   return next;
 }
@@ -94,6 +95,8 @@ interface MapCanvasProps {
   focusBounds?: [number, number, number, number] | null;
   /** Niveau de zoom après chaque déplacement (invite à se rapprocher pour voir les champs). */
   onZoomChange?: (zoom: number) => void;
+  /** Feux actifs à afficher au-dessus de tout (ADR-0022) ; null : pas de couche de feux. */
+  fires?: FireCollection | null;
 }
 
 // Carte MapLibre : fond OpenStreetMap, communes en choroplèthe alimentée par les agrégats,
@@ -115,10 +118,21 @@ export function MapCanvas({
   onSelectParcel,
   focusBounds = null,
   onZoomChange,
+  fires = null,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const attributionRef = useRef<AttributionControl | null>(null);
+  // Mentions propres aux couches affichées (Copernicus, NASA FIRMS), réunies dans un contrôle.
+  const extrasRef = useRef<{ sky: string | null; fires: string | null }>({
+    sky: null,
+    fires: null,
+  });
+  const refreshAttribution = (map: MapLibreMap) => {
+    const { sky: skyMention, fires: fireMention } = extrasRef.current;
+    const extras = [skyMention, fireMention].filter((mention): mention is string => !!mention);
+    attributionRef.current = swapAttribution(map, attributionRef.current, extras);
+  };
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
   const [supported] = useState(hasWebGL2);
   const hoveredRef = useRef<string | null>(null);
@@ -154,7 +168,7 @@ export function MapCanvas({
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
-    attributionRef.current = attributionControl(null);
+    attributionRef.current = attributionControl([]);
     map.addControl(attributionRef.current, "bottom-right");
     mapRef.current = map;
 
@@ -535,15 +549,36 @@ export function MapCanvas({
     }
     // Une source d'image ne porte pas d'attribution : la mention Copernicus passe par le
     // contrôle, recréé avec elle (ses mentions sont fixées à la construction).
-    attributionRef.current = swapAttribution(map, attributionRef.current, attribution);
+    const extras = extrasRef.current;
+    extras.sky = attribution;
+    refreshAttribution(map);
     return () => {
-      if (mapRef.current) {
-        attributionRef.current = swapAttribution(mapRef.current, attributionRef.current, null);
-      }
+      extras.sky = null;
+      if (mapRef.current) refreshAttribution(mapRef.current);
     };
     // skyKey résume sky et skyDetail : l'objet sky change d'identité à chaque rendu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skyKey, ready]);
+
+  // Feux actifs (ADR-0022), dans leur propre effet : la couche est ajoutée en dernier, donc
+  // au-dessus des communes et des parcelles, avec la mention NASA FIRMS.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (!fires) {
+      hideFireLayer(map);
+      if (extrasRef.current.fires) {
+        extrasRef.current.fires = null;
+        refreshAttribution(map);
+      }
+      return;
+    }
+    showFireLayer(map, fires);
+    if (!extrasRef.current.fires) {
+      extrasRef.current.fires = FIRE_ATTRIBUTION;
+      refreshAttribution(map);
+    }
+  }, [fires, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
