@@ -131,6 +131,8 @@ enum ParcelCaptureMethod {
   GPS_WALK
   MAP_DRAW
   DECLARED_ONLY
+  // Contour proposé depuis l'image Sentinel-2 et validé par l'agent (ADR-0016, phase 3).
+  SATELLITE_ASSISTED
 }
 
 enum IrrigationType {
@@ -1337,6 +1339,8 @@ model SatelliteUsage {
   month              String   @id
   imageRequests      Int      @default(0) @map("image_requests")
   statisticsRequests Int      @default(0) @map("statistics_requests")
+  // Propositions de contours de champs : part réservée du plafond (SATELLITE_PROPOSAL_SHARE).
+  proposalRequests   Int      @default(0) @map("proposal_requests")
   processingUnits    Decimal  @default(0) @map("processing_units") @db.Decimal(12, 3)
   updatedAt          DateTime @updatedAt @map("updated_at")
 
