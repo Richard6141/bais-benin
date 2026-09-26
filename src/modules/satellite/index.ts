@@ -53,8 +53,11 @@ export {
   CROP_AREA_RESOLUTION_M,
   CULTIVATED_CLASSES,
   cropMapClassOf,
+  getCropAreaComparison,
   runCropAreaEstimates,
   writeDemoCropAreaEstimates,
+  type CropAreaComparison,
+  type CropAreaFigures,
   type CropAreaRunResult,
   type CultivatedClass,
 } from "./crop-areas";
