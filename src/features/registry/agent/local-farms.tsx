@@ -34,10 +34,10 @@ export function LocalFarms({ userId }: { userId: string }) {
                   </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                  <span className="font-mono text-xs">{farm.code}</span> · {farm.communeName}
+                  <span className="font-mono text-xs">{farm.code}</span> ({farm.communeName})
                 </p>
                 <p className="tabular mt-1 text-sm">
-                  {formatHa(farm.declaredAreaHa)} déclarés · {farm.parcelCount} parcelle
+                  {formatHa(farm.declaredAreaHa)} déclarés, {farm.parcelCount} parcelle
                   {farm.parcelCount > 1 ? "s" : ""}
                 </p>
               </div>

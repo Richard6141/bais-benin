@@ -58,7 +58,7 @@ export function DraftsList({ userId }: { userId: string }) {
             <div className="flex flex-col gap-1">
               <span className="font-medium">{draft.farmerLabel}</span>
               <span className="text-sm text-muted-foreground">
-                {draft.communeName ? `${draft.communeName} · ` : ""}
+                {draft.communeName ? `${draft.communeName}, ` : ""}
                 Étape {draft.resumeStep + 1} sur 6 : {ENROLMENT_STEPS[draft.resumeStep]}
               </span>
               <span className="tabular text-xs text-muted-foreground">

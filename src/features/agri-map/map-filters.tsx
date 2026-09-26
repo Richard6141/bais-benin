@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTip } from "@/components/forms/help-tip";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -124,16 +125,17 @@ export function MapFiltersBar({
             disabled={!canShowFarms}
             onCheckedChange={onShowFarmsChange}
           />
-          <Label htmlFor="filtre-exploitations" className="font-normal">
-            Exploitations
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="filtre-exploitations" className="font-normal">
+                Exploitations
+              </Label>
+              <HelpTip label="Exploitations">Comptes connectés, dans leur périmètre.</HelpTip>
+            </div>
             {!canShowFarms ? (
-              <span className="block text-xs text-muted-foreground">Zoomez pour les voir</span>
-            ) : (
-              <span className="block text-xs text-muted-foreground">
-                Comptes connectés, dans leur périmètre
-              </span>
-            )}
-          </Label>
+              <span className="text-xs text-muted-foreground">Zoomez pour les voir</span>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

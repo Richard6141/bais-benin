@@ -79,7 +79,7 @@ export function StepConsent({
           label="Superficie et faire-valoir"
           value={
             size
-              ? `${areaFormatter.format(parseAmount(size.areaHa))} ha · ${TENURE_LABELS[size.tenure]} · irrigation ${IRRIGATION_LABELS[size.irrigation].toLowerCase()}`
+              ? `${areaFormatter.format(parseAmount(size.areaHa))} ha, ${TENURE_LABELS[size.tenure]}, irrigation ${IRRIGATION_LABELS[size.irrigation].toLowerCase()}`
               : "Non renseignés"
           }
           origin="Déclaré par le producteur"
@@ -104,7 +104,7 @@ export function StepConsent({
           label="Cultures de la campagne"
           value={
             crops
-              ? `${crops.cropCodes.length ? cropList(crops.cropCodes) : "portées par les parcelles"} · ${SEASON_LABELS[crops.seasonCode]}`
+              ? `${crops.cropCodes.length ? cropList(crops.cropCodes) : "portées par les parcelles"} (${SEASON_LABELS[crops.seasonCode]})`
               : "Non renseignées"
           }
           origin="Déclaré par le producteur"

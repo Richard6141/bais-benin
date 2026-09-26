@@ -84,7 +84,7 @@ export function FirstLaunch({ userId, communes }: FirstLaunchProps) {
             {communes.map((commune) => (
               <li key={commune.code} className="rounded-md border px-3 py-2 text-sm">
                 <span className="font-medium">{commune.name}</span>
-                <span className="text-muted-foreground"> · {commune.departementName}</span>
+                <span className="text-muted-foreground"> ({commune.departementName})</span>
               </li>
             ))}
           </ul>

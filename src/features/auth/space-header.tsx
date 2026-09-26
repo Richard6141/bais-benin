@@ -27,7 +27,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
-            <span className="sr-only"> — Accueil de la plateforme</span>
+            <span className="sr-only">, Accueil de la plateforme</span>
           </Link>
           <ThemeToggle />
         </div>

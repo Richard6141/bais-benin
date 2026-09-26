@@ -242,10 +242,10 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
                     <Label htmlFor={`contour-${candidate.level}`} className="flex-1 font-normal">
                       <span className="font-medium">{LEVEL_LABELS[candidate.level]}</span>
                       <span className="tabular block text-sm text-muted-foreground">
-                        {areaFormatter.format(candidate.areaHa)} ha ·{" "}
+                        {areaFormatter.format(candidate.areaHa)} ha,{" "}
                         {confidenceLabel(candidate.confidence)} (
                         {percent.format(candidate.confidence)})
-                        {candidate.touchesEdge ? " · déborde de l'image, à vérifier" : ""}
+                        {candidate.touchesEdge ? ", déborde de l'image, à vérifier" : ""}
                       </span>
                     </Label>
                   </div>
@@ -278,7 +278,7 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
               ) : null}
               <p className="text-xs text-muted-foreground">
                 {proposal.sourceId === "COPERNICUS_S2"
-                  ? `Copernicus Sentinel-2, passages du ${new Date(proposal.window.from).toLocaleDateString("fr-FR")} au ${new Date(proposal.window.to).toLocaleDateString("fr-FR")} · ${proposal.attribution}`
+                  ? `Copernicus Sentinel-2, passages du ${new Date(proposal.window.from).toLocaleDateString("fr-FR")} au ${new Date(proposal.window.to).toLocaleDateString("fr-FR")}, ${proposal.attribution}`
                   : "Contours de démonstration (image synthétique)"}
               </p>
             </fieldset>

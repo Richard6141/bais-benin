@@ -32,8 +32,8 @@ export function RequestList({ requests, forAgent = false, empty }: RequestListPr
             <p className="text-sm whitespace-pre-line">{request.description}</p>
             <ol className="flex flex-col gap-1 text-sm text-muted-foreground">
               <li>
-                Reçue le {dateFormatter.format(request.createdAt)} · {request.communeName}
-                {request.farm ? ` · ${request.farm.name ?? request.farm.code}` : ""}
+                Reçue le {dateFormatter.format(request.createdAt)}, {request.communeName}
+                {request.farm ? `, ${request.farm.name ?? request.farm.code}` : ""}
               </li>
               {request.takenAt ? (
                 <li>
@@ -57,7 +57,7 @@ export function RequestList({ requests, forAgent = false, empty }: RequestListPr
                   <span className="font-medium">Contact : </span>
                   {request.requesterName}
                   {request.requesterPhone
-                    ? ` · +229 ${formatNational(request.requesterPhone.slice(4))}`
+                    ? ` (+229 ${formatNational(request.requesterPhone.slice(4))})`
                     : ""}
                 </p>
                 {request.status !== "RESOLVED" ? (

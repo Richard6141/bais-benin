@@ -96,12 +96,13 @@ export function StepParcels({
               <div className="flex flex-col">
                 <span className="font-medium">{parcel.name}</span>
                 <span className="tabular text-sm text-muted-foreground">
-                  {areaFormatter.format(parcel.areaHa)} ha ·{" "}
+                  {areaFormatter.format(parcel.areaHa)} ha (
                   {parcel.cropCodes.length > 0
                     ? parcel.cropCodes
                         .map((code) => cropOptions.find((c) => c.code === code)?.nameFr ?? code)
                         .join(", ")
                     : "cultures à préciser"}
+                  )
                 </span>
               </div>
               <Button

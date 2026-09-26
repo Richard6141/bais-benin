@@ -48,18 +48,15 @@ export function FarmList({ items, emptyTitle, emptyDescription, hrefFor }: FarmL
                     <VerificationStatusBadge status={farm.verificationStatus} />
                   </div>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    <span className="font-mono text-xs">{farm.code}</span>
-                    {" · "}
-                    {farm.commune.name}
-                    {farm.village ? `, ${farm.village}` : ""}
+                    <span className="font-mono text-xs">{farm.code}</span> ({farm.commune.name}
+                    {farm.village ? `, ${farm.village}` : ""})
                   </p>
                   <p className="tabular mt-1 text-sm">
                     {formatHa(farm.declaredAreaHa)} déclarés
                     {farm.computedAreaHa !== null
-                      ? ` · ${formatHa(farm.computedAreaHa)} mesurés`
+                      ? `, ${formatHa(farm.computedAreaHa)} mesurés`
                       : ""}
-                    {" · "}
-                    {farm.parcelCount} parcelle{farm.parcelCount > 1 ? "s" : ""}
+                    , {farm.parcelCount} parcelle{farm.parcelCount > 1 ? "s" : ""}
                   </p>
                 </div>
                 <div className="hidden items-center gap-1 sm:flex" aria-hidden>
