@@ -7,6 +7,7 @@ import { PageTabs, type PageTab } from "@/components/layout/page-tabs";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SurveySection } from "@/features/area-survey/survey-section";
 import { requireRole } from "@/features/auth/session";
 import { DashboardFiltersBar } from "@/features/dashboard/dashboard-filters";
 import { parseDashboardFilters } from "@/features/dashboard/dashboard-logic";
@@ -21,6 +22,7 @@ import {
   getCropMapAccuracy,
   getParcelCropOverview,
 } from "@/modules/satellite";
+import { getSurveyEstimates } from "@/modules/area-survey";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Surfaces par satellite" };
@@ -35,10 +37,11 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/cultures" });
   const search = await props.searchParams;
   const { departementCode, cropCode } = parseDashboardFilters(search);
-  const [comparison, accuracy, parcelCrops, departements] = await Promise.all([
+  const [comparison, accuracy, parcelCrops, survey, departements] = await Promise.all([
     getCropAreaComparison(user.actor, { departementCode, cropClass: cropCode }),
     getCropMapAccuracy(user.actor),
     getParcelCropOverview(user.actor),
+    getSurveyEstimates(user.actor),
     listDepartements(),
   ]);
 
@@ -95,6 +98,21 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
         ),
       },
     );
+  }
+  if (survey) {
+    tabs.push({
+      value: "sondage",
+      label: "Sondage",
+      content: (
+        <DashboardSection
+          id="sondage"
+          title="Surfaces par sondage"
+          description={`Points tirés au hasard et constatés par les agents, campagne ${survey.campaignCode} : chaque surface avec sa marge d'erreur.`}
+        >
+          <SurveySection survey={survey} />
+        </DashboardSection>
+      ),
+    });
   }
 
   return (
