@@ -30,6 +30,18 @@ async function actorForPhone(phone: string) {
 
 describe("enquête aréolaire", () => {
   afterAll(async () => {
+    // Les constats du test et les points de la commune de l'agent (hors enquête) ne restent pas
+    // dans la base de démonstration.
+    await prisma.areaFrameObservation.deleteMany({
+      where: {
+        observedAt: { in: [new Date(AT), new Date("2026-08-20T10:00:00Z")] },
+        point: { commune: { code: { in: [PILOT, AGENT_COMMUNE] } } },
+      },
+    });
+    await prisma.areaFrameObservation.deleteMany({
+      where: { point: { commune: { code: AGENT_COMMUNE } } },
+    });
+    await prisma.areaFramePoint.deleteMany({ where: { commune: { code: AGENT_COMMUNE } } });
     await prisma.$disconnect();
   });
 

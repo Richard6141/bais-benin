@@ -11,7 +11,11 @@ export {
   createCdseProvider,
   parseStatistics,
 } from "./cdse";
-export { createFixtureRemoteSensingProvider, seasonalNdvi } from "./fixture-provider";
+export {
+  FIXTURE_CLASS_CONFUSION,
+  createFixtureRemoteSensingProvider,
+  seasonalNdvi,
+} from "./fixture-provider";
 export { MASKED_SCL_CLASSES } from "./evalscripts";
 export { CROP_CLASS_CODES, CROP_CLASSES, type CropClass } from "./crop-classes";
 
