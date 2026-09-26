@@ -38,7 +38,7 @@ export default async function AgentRequestsPage(props: PageProps<"/agent/demande
           const active = filter.status === status;
           const href = `/agent/demandes?statut=${filter.status ?? "TOUTES"}`;
           return (
-            <Button key={filter.label} asChild size="sm" variant={active ? "default" : "outline"}>
+            <Button key={filter.label} asChild variant={active ? "default" : "outline"}>
               <Link href={href as Route} aria-current={active ? "page" : undefined}>
                 {filter.label}
               </Link>
