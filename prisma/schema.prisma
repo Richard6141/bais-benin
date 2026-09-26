@@ -464,6 +464,8 @@ model User {
   producerGroupMessages ProducerGroupMessage[]  @relation("producerGroupMessageSender")
   areaFrameObservations AreaFrameObservation[]
   importedStatistics    OfficialCropStatistic[]
+  feedbacks             TesterFeedback[]        @relation("feedbackAuthor")
+  feedbackStatusChanges TesterFeedback[]        @relation("feedbackStatusChanger")
 
   @@map("user")
 }
@@ -2111,4 +2113,47 @@ model CommunePopulation {
 
   @@unique([communeId, year, sourceId])
   @@map("commune_population")
+}
+
+// Avis des testeurs (chantier J) : type d'avis, état de traitement et type d'écran.
+enum FeedbackKind {
+  BUG
+  CONFUSING
+  IDEA
+}
+
+enum FeedbackStatus {
+  NEW
+  SEEN
+  DONE
+}
+
+enum FeedbackDevice {
+  MOBILE
+  DESKTOP
+}
+
+// Avis déposé depuis l'application par un testeur connecté (chantier J). Le message est masqué
+// avant l'écriture (numéros et NPI, comme dans l'assistant) ; page, rôle, date et type d'écran sont
+// ajoutés sans être montrés. Aucun envoi sortant : l'avis reste en base, lu par le ministère.
+model TesterFeedback {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  authorId          String?        @map("author_id") @db.Uuid
+  author            User?          @relation("feedbackAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  role              Role
+  kind              FeedbackKind
+  message           String         @db.VarChar(1000)
+  rating            Int?           @db.SmallInt
+  // Chemin de la page, sans paramètres ni ancre.
+  pagePath          String         @map("page_path") @db.VarChar(300)
+  device            FeedbackDevice
+  status            FeedbackStatus @default(NEW)
+  statusChangedAt   DateTime?      @map("status_changed_at")
+  statusChangedById String?        @map("status_changed_by_id") @db.Uuid
+  statusChangedBy   User?          @relation("feedbackStatusChanger", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("tester_feedback")
 }
