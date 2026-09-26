@@ -154,7 +154,7 @@ export default async function HarvestHistoryPage({
                           <li key={d.id} className="flex justify-between gap-3">
                             <span>{formatHarvestQuantity(d.declaredQuantity, d.unit)}</span>
                             <span className="tabular text-muted-foreground">
-                              ≈ {numberFormatter.format(d.quantityKg)} kg ·{" "}
+                              ≈ {numberFormatter.format(d.quantityKg)} kg, le{" "}
                               {dateFormatter.format(d.declaredOn)}
                             </span>
                           </li>

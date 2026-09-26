@@ -31,7 +31,7 @@ export function PrintLayout({
       <header className="flex items-start justify-between gap-4 border-b pb-4" data-print-block>
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Centre de pilotage · Fiche imprimable
+            Centre de pilotage, fiche imprimable
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm">{scope}</p>

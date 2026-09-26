@@ -39,7 +39,7 @@ export function SourceList({ sources }: { sources: readonly SourceItem[] }) {
               {source.demonstration ? <Badge variant="outline">démonstration</Badge> : null}
             </div>
             <p className="text-muted-foreground">
-              {source.organization}, « {source.sourceTitle} » · {source.licence} · vérifiée le{" "}
+              {source.organization}, « {source.sourceTitle} » ({source.licence}), vérifiée le{" "}
               {formatDate(source.checkedOn)}
             </p>
             {source.quotes.map((quote) => (
