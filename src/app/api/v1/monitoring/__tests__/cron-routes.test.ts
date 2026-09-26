@@ -22,6 +22,7 @@ const calls = vi.hoisted(() => ({
     dispatch: { sent: 0 },
   })),
   runDispatch: vi.fn(async () => ({ considered: 0, sent: 0 })),
+  sendFarmerNotifications: vi.fn(async () => ({ considered: 0, sent: 0 })),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -31,6 +32,9 @@ vi.mock("@/modules/monitoring", () => ({
   runDailyMonitoring: calls.runDailyMonitoring,
   runDispatch: calls.runDispatch,
   MonitoringBusyError: class MonitoringBusyError extends Error {},
+}));
+vi.mock("@/modules/notifications", () => ({
+  sendFarmerNotifications: calls.sendFarmerNotifications,
 }));
 vi.mock("@/modules/analytics/refresh", () => ({
   refreshAnalyticsQuietly: async () => ({ refreshed: false, reason: "fresh", views: [] }),
