@@ -30,6 +30,9 @@ import { RICE_RADAR_STATISTICS_EVALSCRIPT } from "./rice-radar";
 import {
   FIELD_FEATURES_EVALSCRIPT,
   NDVI_STATISTICS_EVALSCRIPT,
+  DB_OFFSET,
+  DB_SCALE,
+  INDEX_SCALE,
   PARCEL_S1_EVALSCRIPT,
   PARCEL_S2_EVALSCRIPT,
   RADAR_STATISTICS_EVALSCRIPT,
@@ -542,6 +545,16 @@ const parcelS1Schema = z.object({
   ),
 });
 
+function unscaleIndex(mean: number | null | undefined): number | null {
+  return mean === null || mean === undefined ? null : Number((mean / INDEX_SCALE - 1).toFixed(4));
+}
+
+function unscaleDb(mean: number | null | undefined): number | null {
+  return mean === null || mean === undefined
+    ? null
+    : Number((mean / DB_SCALE - DB_OFFSET).toFixed(2));
+}
+
 /**
  * Décades Sentinel-2 : la part de pixels vus se rapporte à la décade la plus dégagée de la série,
  * seule mesure fiable de la taille de la parcelle en pixels.
@@ -558,8 +571,8 @@ export function parseParcelS2(payload: unknown): ParcelSeriesResult["s2"] {
     return {
       from: entry.interval.from,
       to: entry.interval.to,
-      ndvi: valid > 0 ? (entry.outputs?.ndvi.bands.B0.stats.mean ?? null) : null,
-      ndmi: valid > 0 ? (entry.outputs?.ndmi.bands.B0.stats.mean ?? null) : null,
+      ndvi: valid > 0 ? unscaleIndex(entry.outputs?.ndvi.bands.B0.stats.mean) : null,
+      ndmi: valid > 0 ? unscaleIndex(entry.outputs?.ndmi.bands.B0.stats.mean) : null,
       valid: Number((valid / full).toFixed(3)),
     };
   });
@@ -572,8 +585,8 @@ export function parseParcelS1(payload: unknown): ParcelSeriesResult["s1"] {
     return {
       from: entry.interval.from,
       to: entry.interval.to,
-      vv: valid > 0 ? (vv?.mean ?? null) : null,
-      vh: valid > 0 ? (entry.outputs?.vh.bands.B0.stats.mean ?? null) : null,
+      vv: valid > 0 ? unscaleDb(vv?.mean) : null,
+      vh: valid > 0 ? unscaleDb(entry.outputs?.vh.bands.B0.stats.mean) : null,
     };
   });
 }

@@ -7,12 +7,13 @@ import { isCronRequest } from "../../monitoring/cron-auth";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// Cultures par parcelle (ADR-0030) : lit ou complète les séries Sentinel-2 et Sentinel-1 des
-// parcelles des communes pilotes, les parcelles vérifiées d'abord. Deux requêtes Statistical par
-// parcelle, dans la part des statistiques : environ 0,7 unité à la première lecture, 0,1 ensuite
-// pour chaque mois ajouté. Planifiée du 10 au 14 du mois ; une parcelle à jour ne coûte rien.
+// Cultures par parcelle (ADR-0030, ADR-0031) : lit ou complète les séries Sentinel-2 et
+// Sentinel-1 des parcelles des communes pilotes, les parcelles vérifiées d'abord. Deux requêtes
+// Statistical par parcelle, dans la part des statistiques : environ 0,7 unité à la première
+// lecture, 0,1 ensuite pour chaque mois ajouté. Planifiée du 10 au 19 du mois, 150 parcelles par
+// jour, jusqu'au plafond mensuel CROP_MODEL_MONTHLY_UNIT_CAP ; une parcelle à jour ne coûte rien.
 const querySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).default(300),
+  limit: z.coerce.number().int().min(1).max(1000).default(150),
 });
 
 export async function POST(request: NextRequest) {

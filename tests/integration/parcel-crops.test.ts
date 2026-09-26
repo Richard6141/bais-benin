@@ -36,7 +36,7 @@ describe("cultures par parcelle", () => {
       now: new Date("2099-01-01T00:00:00Z"),
     });
     expect(series.errors).toBe(0);
-    const model = await trainAndPredictCrops();
+    const model = await trainAndPredictCrops({ force: true });
     expect(model.version).not.toBeNull();
     expect(model.trainingParcels).toBeGreaterThan(50);
     expect(model.outOfBagAccuracy).toBeGreaterThan(0.6);
@@ -89,4 +89,39 @@ describe("cultures par parcelle", () => {
     const agent = await loadActor(agentUser.id);
     expect(await getParcelCropPrediction(agent, other.parcelId)).toBeNull();
   });
+
+  it("s'arrête au plafond mensuel d'unités, sans lire une parcelle de plus", async () => {
+    const fixture = createFixtureRemoteSensingProvider();
+    // Faux compte Copernicus : chaque lecture est facturée une unité.
+    const metered = {
+      ...fixture,
+      id: "cdse" as const,
+      provenance: {
+        ...fixture.provenance,
+        sourceId: "COPERNICUS_S2" as const,
+        reliability: "ESTIMATED" as const,
+      },
+      parcelSeries: async (request: Parameters<typeof fixture.parcelSeries>[0]) => ({
+        ...(await fixture.parcelSeries(request)),
+        processingUnits: 1,
+      }),
+    };
+    const later = new Date("2099-06-15T00:00:00Z");
+    try {
+      const run = await collectParcelSeries({
+        provider: metered,
+        limit: 10,
+        communeCodes: [PILOT],
+        now: later,
+        monthlyUnitCap: 2,
+      });
+      expect(run.read).toBe(2);
+      expect(run.stopped).toBe("monthly-cap");
+      expect(run.monthUnits).toBe(2);
+    } finally {
+      // La démonstration reprend ses séries synthétiques.
+      await prisma.parcelSignature.deleteMany({ where: { sourceId: "COPERNICUS_S2" } });
+      await prisma.satelliteUsage.deleteMany({ where: { month: "2099-06" } });
+    }
+  }, 120_000);
 });
