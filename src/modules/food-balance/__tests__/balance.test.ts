@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCommuneBalance, statusOf } from "../balance";
+import { computeCommuneBalance, statusOf, type CropInput } from "../balance";
 import {
   NEEDS,
   SEVERE_THRESHOLD,
@@ -13,6 +13,19 @@ import {
 
 const survey = { kind: "survey" as const, campaignCode: "2026-2027", cv: 0.08 };
 const flatYield = (t: number) => ({ meanTPerHa: t, p25TPerHa: t, p75TPerHa: t, basis: "commune" });
+const official = { kind: "official" as const, sourceId: "MAEP_DSA", campaignCode: "2025-2026" };
+
+/** Culture présente avec une surface fixe (sans marge). */
+function crop(cropCode: string, areaHa: number, source: CropInput["source"] = survey): CropInput {
+  return {
+    cropCode,
+    areaHa,
+    areaLowHa: areaHa,
+    areaHighHa: areaHa,
+    source,
+    yieldRef: flatYield(1),
+  };
+}
 
 describe("calories d'une récolte", () => {
   it("déduit semences et pertes du maïs, puis compte 335 kcal pour 100 g", () => {
@@ -62,12 +75,44 @@ describe("statut d'une commune", () => {
           source: survey,
           yieldRef: flatYield(1),
         },
+        // Igname et manioc vus nulle part au sondage : présents, avec une surface nulle.
+        crop("YAM", 0),
+        crop("CASSAVA", 0),
       ],
       missingCrops: [],
     });
     expect(balance.coverage!.central).toBeCloseTo(1, 2);
     expect(balance.toConfirm).toBe(true);
     expect(balance.crops[0]!.productionT).toBeCloseTo(area, 6);
+  });
+
+  it("n'évalue pas une commune qui n'a que son riz : le déficit serait faux", () => {
+    const riceOnly = computeCommuneBalance({
+      code: "BJ-R",
+      name: "Commune R",
+      population: 50_000,
+      crops: [crop("RICE", 500, official)],
+      missingCrops: ["MAIZE", "SORGHUM", "MILLET", "YAM", "CASSAVA", "SWEET_POTATO"],
+    });
+    expect(riceOnly.status).toBe("not-evaluated");
+    expect(riceOnly.coverage).toBeNull();
+    expect(riceOnly.reason).toMatch(/maïs, l'igname ou le manioc/);
+  });
+
+  it("met à confirmer un statut autre que couvert quand une culture manque", () => {
+    const partial = computeCommuneBalance({
+      code: "BJ-P",
+      name: "Commune P",
+      population: 200_000,
+      crops: [
+        crop("MAIZE", 1000, official),
+        crop("YAM", 100, official),
+        crop("CASSAVA", 100, official),
+      ],
+      missingCrops: ["SORGHUM"],
+    });
+    expect(partial.status).not.toBe("covered");
+    expect(partial.toConfirm).toBe(true);
   });
 
   it("n'évalue pas une commune sans surface de toute la commune ni population", () => {

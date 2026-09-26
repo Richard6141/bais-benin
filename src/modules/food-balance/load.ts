@@ -1,10 +1,11 @@
 import { prisma } from "@/database/client";
-import { surveyPoints } from "@/database/sql/area-survey.sql";
+import { communeMapShares, surveyPoints } from "@/database/sql/area-survey.sql";
 import { readSownAreas, readYieldHistory } from "@/database/sql/forecast.sql";
 import { indexYields, yieldReference } from "@/modules/analytics/forecast";
-import { getSurveyEstimates, type TargetEstimate } from "@/modules/area-survey";
+import { estimateSurvey, type TargetEstimate } from "@/modules/area-survey";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import {
+  STATUS_RANK,
   computeCommuneBalance,
   type BalanceStatus,
   type CommuneBalance,
@@ -56,7 +57,7 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
     .filter((campaign) => campaign.status === "CLOSED" && campaign.startsOn < open.startsOn)
     .slice(-2);
 
-  const [communes, populations, crops, sown, yields, survey, official, faostat, points] =
+  const [communes, populations, crops, sown, yields, mapShares, official, faostat, points] =
     await Promise.all([
       prisma.commune.findMany({
         where: { archivedAt: null },
@@ -72,7 +73,7 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
       }),
       readSownAreas([open.id]),
       readYieldHistory(history.map((campaign) => campaign.id)),
-      getSurveyEstimates(actor),
+      communeMapShares(open.id),
       // Dernière surface DSA connue par commune et culture.
       prisma.$queryRaw<
         { territory_code: string; crop_code: string; campaign_code: string; value: number }[]
@@ -94,6 +95,10 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
            AND s."metric" IN ('AREA_HA', 'PRODUCTION_T')`,
       surveyPoints(open.id, null),
     ]);
+
+  // Les points du sondage, lus une seule fois, servent à l'estimation et à la répartition.
+  const survey =
+    points.length > 0 ? { campaignCode: open.code, ...estimateSurvey(points, mapShares) } : null;
 
   const population = new Map<string, number>();
   let populationInfo: FoodBalanceView["population"] = null;
@@ -187,15 +192,9 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
     });
   });
 
-  const rank: Record<BalanceStatus, number> = {
-    deficit: 0,
-    tension: 1,
-    covered: 2,
-    "not-evaluated": 3,
-  };
   balances.sort(
     (a, b) =>
-      rank[a.status] - rank[b.status] ||
+      STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
       (a.coverage?.central ?? 0) - (b.coverage?.central ?? 0) ||
       a.name.localeCompare(b.name, "fr"),
   );

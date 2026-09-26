@@ -64,6 +64,20 @@ export interface CommuneBalance {
   reason: string | null;
 }
 
+/**
+ * Sans surface pour ces trois cultures, qui portent l'essentiel des calories du pays, un bilan
+ * serait faux : une commune n'est pas évaluée (revue du chef d'équipe, repli sur la DSA).
+ */
+export const REQUIRED_CROPS = ["MAIZE", "YAM", "CASSAVA"] as const;
+
+/** Rang d'un statut, du plus urgent au moins urgent : il ordonne listes et tris. */
+export const STATUS_RANK: Record<BalanceStatus, number> = {
+  deficit: 0,
+  tension: 1,
+  covered: 2,
+  "not-evaluated": 3,
+};
+
 export function statusOf(coverage: number): Exclude<BalanceStatus, "not-evaluated"> {
   if (coverage >= 1) return "covered";
   if (coverage >= SEVERE_THRESHOLD) return "tension";
@@ -114,6 +128,9 @@ export function computeCommuneBalance(input: CommuneInput): CommuneBalance {
   });
   if (!input.population || input.population <= 0) return notEvaluated("Population inconnue");
   if (crops.length === 0) return notEvaluated("Aucune surface de toute la commune");
+  if (REQUIRED_CROPS.some((code) => !crops.some((crop) => crop.cropCode === code))) {
+    return notEvaluated("Surface manquante pour le maïs, l'igname ou le manioc");
+  }
   const needsKcal = annualStapleNeedsKcal(input.population);
   const coverage = {
     central: available.central / needsKcal,
@@ -126,7 +143,11 @@ export function computeCommuneBalance(input: CommuneInput): CommuneBalance {
     availableKcal: available,
     coverage,
     status: statusOf(coverage.central),
-    toConfirm: statusOf(coverage.low) !== statusOf(coverage.high),
+    // Une culture manquante sous-estime la couverture : un statut autre que « couverte » reste à
+    // confirmer.
+    toConfirm:
+      statusOf(coverage.low) !== statusOf(coverage.high) ||
+      (input.missingCrops.length > 0 && statusOf(coverage.central) !== "covered"),
     crops,
     reason: null,
   };

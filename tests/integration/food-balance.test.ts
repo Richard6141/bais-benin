@@ -90,15 +90,29 @@ describe("bilan alimentaire", () => {
       metric: "AREA_HA",
       value: 8_000,
     });
+    // Sans manioc, pas de bilan : maïs, igname et manioc sont exigés.
+    expect(
+      (await getFoodBalance(ministry.actor))!.communes.find((entry) => entry.code === COMMUNE)!
+        .status,
+    ).toBe("not-evaluated");
+    await addStatistic(ministry.id, {
+      sourceId: "MAEP_DSA",
+      level: "COMMUNE",
+      territory: COMMUNE,
+      crop: "CASSAVA",
+      campaign: "2025-2026",
+      metric: "AREA_HA",
+      value: 6_000,
+    });
     const after = await getFoodBalance(ministry.actor);
     const official = after!.communes.find((entry) => entry.code === COMMUNE)!;
     expect(official.status).not.toBe("not-evaluated");
-    expect(official.crops.map((crop) => crop.cropCode).sort()).toEqual(["MAIZE", "YAM"]);
+    expect(official.crops.map((crop) => crop.cropCode).sort()).toEqual(["CASSAVA", "MAIZE", "YAM"]);
     expect(official.crops[0]!.source).toMatchObject({
       kind: "official",
       campaignCode: "2025-2026",
     });
-    expect(official.missingCrops).toContain("CASSAVA");
+    expect(official.missingCrops).toContain("SORGHUM");
     expect(official.coverage!.central).toBeGreaterThan(0);
   });
 

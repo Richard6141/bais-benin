@@ -17,6 +17,7 @@ import {
   SOURCES,
   type CitedSource,
 } from "@/modules/food-balance/coefficients";
+import { STATUS_RANK } from "@/modules/food-balance/balance";
 
 const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -119,7 +120,7 @@ export function FoodBalanceSection({ view }: { view: FoodBalanceView }) {
                   {balance.toConfirm ? <Badge variant="watch">À confirmer</Badge> : null}
                 </span>
               ),
-              sort: balance.status,
+              sort: STATUS_RANK[balance.status],
             },
             source: {
               display: sourceLabel(balance.crops.map((crop) => crop.source)),

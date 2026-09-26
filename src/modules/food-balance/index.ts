@@ -2,6 +2,8 @@
 // commune convertie en calories, face aux besoins de sa population.
 
 export {
+  REQUIRED_CROPS,
+  STATUS_RANK,
   computeCommuneBalance,
   statusOf,
   type AreaSource,
