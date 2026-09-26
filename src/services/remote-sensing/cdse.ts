@@ -8,6 +8,8 @@ import {
   type FieldFeatures,
   type FieldFeaturesRequest,
   type MultiPolygonGeometry,
+  type ParcelSeriesRequest,
+  type ParcelSeriesResult,
   type RiceRadarRequest,
   type RiceRadarResult,
   type RadarInterval,
@@ -28,6 +30,8 @@ import { RICE_RADAR_STATISTICS_EVALSCRIPT } from "./rice-radar";
 import {
   FIELD_FEATURES_EVALSCRIPT,
   NDVI_STATISTICS_EVALSCRIPT,
+  PARCEL_S1_EVALSCRIPT,
+  PARCEL_S2_EVALSCRIPT,
   RADAR_STATISTICS_EVALSCRIPT,
   renderEvalscript,
 } from "./evalscripts";
@@ -464,6 +468,116 @@ export function parseRiceRadar(payload: unknown): { ricePixels: number; observed
   return { ricePixels, observedPixels };
 }
 
+/**
+ * Séries d'une parcelle (ADR-0030) : Sentinel-2 par décade (NDVI, NDMI, scène la moins nuageuse
+ * d'abord) et Sentinel-1 par pas de 12 jours (VV, VH, orbites descendantes, orthorectifié, sans
+ * correction de relief ni filtre de chatoiement : le pays est plat, la moyenne sur la parcelle
+ * lisse le chatoiement, et chacune de ces options multiplie le coût).
+ */
+export function buildParcelSeriesBodies(request: ParcelSeriesRequest) {
+  const resolution = 10 / Math.cos((request.latitude * Math.PI) / 180);
+  const bounds = { geometry: projectPolygon(request.geometry), properties: { crs: CRS_3857 } };
+  return {
+    s2: {
+      input: {
+        bounds,
+        data: [{ type: COLLECTION, dataFilter: { mosaickingOrder: "leastCC" } }],
+      },
+      aggregation: {
+        timeRange: { from: request.from, to: request.to },
+        aggregationInterval: { of: "P10D" },
+        evalscript: PARCEL_S2_EVALSCRIPT,
+        resx: resolution,
+        resy: resolution,
+      },
+      calculations: { default: {} },
+    },
+    s1: {
+      input: {
+        bounds,
+        data: [
+          {
+            type: "sentinel-1-grd",
+            dataFilter: {
+              acquisitionMode: "IW",
+              polarization: "DV",
+              resolution: "HIGH",
+              orbitDirection: "DESCENDING",
+            },
+            processing: {
+              backCoeff: "SIGMA0_ELLIPSOID",
+              orthorectify: true,
+              demInstance: "COPERNICUS_30",
+            },
+          },
+        ],
+      },
+      aggregation: {
+        timeRange: { from: request.from, to: request.to },
+        aggregationInterval: { of: "P12D" },
+        evalscript: PARCEL_S1_EVALSCRIPT,
+        resx: resolution,
+        resy: resolution,
+      },
+      calculations: { default: {} },
+    },
+  };
+}
+
+const parcelS2Schema = z.object({
+  data: z.array(
+    z.object({
+      interval: z.object({ from: z.string(), to: z.string() }),
+      outputs: z.object({ ndvi: bandStats, ndmi: bandStats }).optional(),
+    }),
+  ),
+});
+
+const parcelS1Schema = z.object({
+  data: z.array(
+    z.object({
+      interval: z.object({ from: z.string(), to: z.string() }),
+      outputs: z.object({ vv: bandStats, vh: bandStats }).optional(),
+    }),
+  ),
+});
+
+/**
+ * Décades Sentinel-2 : la part de pixels vus se rapporte à la décade la plus dégagée de la série,
+ * seule mesure fiable de la taille de la parcelle en pixels.
+ */
+export function parseParcelS2(payload: unknown): ParcelSeriesResult["s2"] {
+  const parsed = parcelS2Schema.parse(payload);
+  const counts = parsed.data.map((entry) => {
+    const stats = entry.outputs?.ndvi.bands.B0.stats;
+    return stats ? stats.sampleCount - stats.noDataCount : 0;
+  });
+  const full = Math.max(1, ...counts);
+  return parsed.data.map((entry, index) => {
+    const valid = counts[index] ?? 0;
+    return {
+      from: entry.interval.from,
+      to: entry.interval.to,
+      ndvi: valid > 0 ? (entry.outputs?.ndvi.bands.B0.stats.mean ?? null) : null,
+      ndmi: valid > 0 ? (entry.outputs?.ndmi.bands.B0.stats.mean ?? null) : null,
+      valid: Number((valid / full).toFixed(3)),
+    };
+  });
+}
+
+export function parseParcelS1(payload: unknown): ParcelSeriesResult["s1"] {
+  return parcelS1Schema.parse(payload).data.map((entry) => {
+    const vv = entry.outputs?.vv.bands.B0.stats;
+    const valid = vv ? vv.sampleCount - vv.noDataCount : 0;
+    return {
+      from: entry.interval.from,
+      to: entry.interval.to,
+      vv: valid > 0 ? (vv?.mean ?? null) : null,
+      vh: valid > 0 ? (entry.outputs?.vh.bands.B0.stats.mean ?? null) : null,
+    };
+  });
+}
+
 export function buildRadarStatisticsBody(request: RadarStatisticsRequest) {
   return {
     input: {
@@ -731,6 +845,36 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         classPixels,
         rainyMonthsSeen: parseRainyMonths(payload),
         processingUnits: spentUnits(response),
+      };
+    },
+
+    async parcelSeries(request): Promise<ParcelSeriesResult> {
+      const bodies = buildParcelSeriesBodies(request);
+      const optical = await processing(
+        "/api/v1/statistics",
+        bodies.s2,
+        "application/json",
+        request.timeoutMs,
+      );
+      const s2 = await readResponse("Série Sentinel-2 de parcelle", async () =>
+        parseParcelS2(await optical.json()),
+      );
+      const radar = await processing(
+        "/api/v1/statistics",
+        bodies.s1,
+        "application/json",
+        request.timeoutMs,
+      );
+      const s1 = await readResponse("Série Sentinel-1 de parcelle", async () =>
+        parseParcelS1(await radar.json()),
+      );
+      const units = [spentUnits(optical), spentUnits(radar)];
+      return {
+        s2,
+        s1,
+        processingUnits: units.some((value) => value !== null)
+          ? units.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+          : null,
       };
     },
 
