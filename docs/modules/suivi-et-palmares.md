@@ -49,6 +49,9 @@ accord couvre les alertes de la commune.
 - **Jamais deux fois** : chaque ligne est réservée avant l'envoi, et la clé d'idempotence
   `farmer-notification-<id>` couvre un arrêt en plein envoi.
 - **Numéro** : celui du compte (vérifié par code WhatsApp), sinon celui de la fiche producteur.
+- **Conservation** : un message traité (envoyé, échoué ou écarté) est supprimé 90 jours plus
+  tard par la purge de conservation (`purgeFarmerNotifications`, `pnpm db:purge`) ; son texte
+  cite la réponse de l'agent. Un message encore en attente n'est jamais supprimé.
 
 ### Fichiers
 
