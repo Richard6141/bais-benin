@@ -99,6 +99,21 @@ export const cropColors = {
 
 export type CropColorCode = keyof typeof cropColors;
 
+// Carte des cultures par satellite (ADR-0021) : les classes cultivées reprennent la couleur de
+// leur culture (riz, maïs, coton, anacarde) ; le reste en teintes neutres, lisibles sur le fond.
+export const cropMapColors = {
+  UNCLASSIFIED: "#00000000",
+  RICE: cropColors.RICE,
+  ANNUAL: cropColors.MAIZE,
+  COTTON: cropColors.COTTON,
+  PERENNIAL: cropColors.CASHEW,
+  GARDEN: "#7b5ea7",
+  FALLOW: "#d9c9a8",
+  NATURAL: "#2f5d3a",
+  WATER: "#3b8fc4",
+  BUILT: "#8a8a8a",
+} as const;
+
 export const reliabilityColors = {
   DECLARED: "#a9a196",
   AGENT_VERIFIED: "#52909c",

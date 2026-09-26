@@ -3,6 +3,8 @@ import { lonLatTo3857 } from "@/lib/geo/tile-math";
 import {
   RemoteSensingNotConfiguredError,
   RemoteSensingProviderError,
+  type CropAreaRequest,
+  type CropAreaResult,
   type FieldFeatures,
   type FieldFeaturesRequest,
   type RadarInterval,
@@ -17,6 +19,8 @@ import {
   type VegetationInterval,
   type VegetationStatisticsRequest,
 } from "@/services/ports/remote-sensing-provider";
+import { cropMapColors } from "@/styles/tokens";
+import { cropClassRenderEvalscript, cropClassStatisticsEvalscript } from "./crop-classes";
 import {
   FIELD_FEATURES_EVALSCRIPT,
   NDVI_STATISTICS_EVALSCRIPT,
@@ -154,6 +158,8 @@ export function buildStacSearchBody(request: SceneSearchRequest) {
 
 /** Requête de l'API Process pour une emprise EPSG:3857 et une période. */
 export function buildProcessBody(request: ImageryRequest) {
+  // Carte des cultures : toute la série du pixel (un passage par mois, retenu par le script).
+  const crop = request.layer === "CROP_CLASSES";
   return {
     input: {
       // Emprise de sortie (bbox) et découpe (geometry) : hors contour, pas de donnée.
@@ -169,7 +175,7 @@ export function buildProcessBody(request: ImageryRequest) {
             timeRange: { from: request.from, to: request.to },
             maxCloudCoverage: request.maxCloudCover,
             // La scène la moins nuageuse de la période passe devant les autres.
-            mosaickingOrder: "leastCC",
+            ...(crop ? {} : { mosaickingOrder: "leastCC" }),
           },
         },
       ],
@@ -179,8 +185,75 @@ export function buildProcessBody(request: ImageryRequest) {
       height: request.height,
       responses: [{ identifier: "default", format: { type: "image/png" } }],
     },
-    evalscript: renderEvalscript(request.layer),
+    evalscript: crop ? cropClassRenderEvalscript(cropMapColors) : renderEvalscript(request.layer),
   };
+}
+
+/**
+ * Surfaces par classe de culture sur une commune (ADR-0021) : histogramme des codes de classe
+ * sur la géométrie, pixels de `resolutionM` mètres au sol, sur toute la période en un seul pas.
+ */
+export function buildCropAreaBody(request: CropAreaRequest) {
+  const days = Math.max(
+    1,
+    Math.ceil((Date.parse(request.to) - Date.parse(request.from)) / 86_400_000),
+  );
+  // En Web Mercator, un mètre au sol vaut 1/cos(latitude) unités.
+  const resolution = request.resolutionM / Math.cos((request.latitude * Math.PI) / 180);
+  return {
+    input: {
+      bounds: { geometry: projectPolygon(request.geometry), properties: { crs: CRS_3857 } },
+      data: [
+        {
+          type: COLLECTION,
+          dataFilter: { maxCloudCoverage: 80 },
+        },
+      ],
+    },
+    aggregation: {
+      timeRange: { from: request.from, to: request.to },
+      aggregationInterval: { of: `P${days}D` },
+      evalscript: cropClassStatisticsEvalscript(request.zoneOffset),
+      resx: resolution,
+      resy: resolution,
+    },
+    calculations: {
+      default: { histograms: { default: { nBins: 10, lowEdge: 0, highEdge: 10 } } },
+    },
+  };
+}
+
+const cropAreaSchema = z.object({
+  data: z.array(
+    z.object({
+      outputs: z.object({
+        crop: z.object({
+          bands: z.object({
+            B0: z.object({
+              histogram: z.object({
+                bins: z.array(
+                  z.object({ lowEdge: z.number(), highEdge: z.number(), count: z.number() }),
+                ),
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  ),
+});
+
+/** Pixels par code de classe (0 à 9), cumulés sur les intervalles renvoyés. */
+export function parseCropArea(payload: unknown): number[] {
+  const parsed = cropAreaSchema.parse(payload);
+  const pixels = new Array<number>(10).fill(0);
+  for (const entry of parsed.data) {
+    for (const bin of entry.outputs.crop.bands.B0.histogram.bins) {
+      const code = Math.round(bin.lowEdge);
+      if (code >= 0 && code < pixels.length) pixels[code] = (pixels[code] ?? 0) + bin.count;
+    }
+  }
+  return pixels;
 }
 
 function projectPolygon(geometry: PolygonGeometry): PolygonGeometry {
@@ -514,6 +587,18 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         parseStatistics(await response.json()),
       );
       return { intervals, processingUnits: spentUnits(response) };
+    },
+
+    async cropAreaStatistics(request): Promise<CropAreaResult> {
+      const response = await processing(
+        "/api/v1/statistics",
+        buildCropAreaBody(request),
+        "application/json",
+      );
+      const classPixels = await readResponse("Surfaces des cultures CDSE", async () =>
+        parseCropArea(await response.json()),
+      );
+      return { classPixels, processingUnits: spentUnits(response) };
     },
 
     async radarStatistics(request): Promise<StatisticsResult<RadarInterval>> {
