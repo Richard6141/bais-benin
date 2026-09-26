@@ -79,8 +79,9 @@ describe("périmètre du registre", () => {
     expect(await getFarmDetail(buyer, elsewhere.id)).toBeNull();
 
     const agent = await actorForPhone(AGENT_PHONE);
+    // Une exploitation que l'agent a enregistrée : il ne voit que celles-là (ADR-0014).
     const inside = await prisma.farm.findFirstOrThrow({
-      where: { archivedAt: null, commune: { code: "BJ-DON-003" } },
+      where: { archivedAt: null, commune: { code: "BJ-DON-003" }, registeredById: agent.userId },
       select: { id: true },
     });
     expect((await getFarmDetail(agent, inside.id))?.commune.code).toBe("BJ-DON-003");

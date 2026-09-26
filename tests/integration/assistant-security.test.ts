@@ -79,8 +79,13 @@ describe("assistant agricole : sécurité", () => {
   });
 
   it("n'envoie pas le code de l'exploitation choisie par l'agent", async () => {
+    // Une exploitation que l'agent a enregistrée : il ne voit que celles-là (ADR-0014).
     const farm = await prisma.farm.findFirstOrThrow({
-      where: { archivedAt: null, commune: { code: "BJ-DON-003" } },
+      where: {
+        archivedAt: null,
+        commune: { code: "BJ-DON-003" },
+        registeredById: actors.agent.userId,
+      },
       select: { code: true },
     });
     const spy = spying();
