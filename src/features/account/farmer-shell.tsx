@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { SpaceNav, type SpaceNavItem } from "@/components/layout/space-nav";
+import { useFeedbackAction } from "@/features/feedback/feedback-button";
 import { GuidedTour } from "@/features/onboarding/guided-tour";
 
 // Rubriques du producteur. La barre basse du téléphone garde ce qu'il fait le plus souvent : son
@@ -62,9 +63,11 @@ export function FarmerShell({
   demo: boolean;
   children: ReactNode;
 }) {
+  const feedback = useFeedbackAction();
   return (
     <div className="flex flex-col gap-6 pb-24 md:pb-0">
-      <SpaceNav label="Espace producteur" items={NAV} />
+      <SpaceNav label="Espace producteur" items={NAV} actions={[feedback.action]} />
+      {feedback.dialog}
       <Suspense fallback={null}>
         <GuidedTour role="producteur" userId={userId} demo={demo} />
       </Suspense>

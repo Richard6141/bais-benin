@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { FeedbackButton } from "@/features/feedback/feedback-button";
 import { cn } from "@/lib/utils";
 
 // Navigation du centre de pilotage, à deux niveaux par thème (portail officiel : onglets puis
@@ -63,6 +64,7 @@ const GROUPS = [
       { href: "/pilotage/qualite", label: "Qualité", match: ["/pilotage/qualite"] },
       { href: "/pilotage/regles", label: "Règles", match: ["/pilotage/regles"] },
       { href: "/pilotage/assistant", label: "Assistant", match: ["/pilotage/assistant"] },
+      { href: "/pilotage/avis", label: "Avis des testeurs", match: ["/pilotage/avis"] },
     ],
   },
 ] as const;
@@ -82,7 +84,10 @@ function activeGroupIndex(pathname: string): number {
   return index === -1 ? 0 : index;
 }
 
-export function PilotageNav() {
+/** Avis des testeurs encore nouveaux : compteur de l'entrée « Avis des testeurs ». */
+const FEEDBACK_HREF = "/pilotage/avis";
+
+export function PilotageNav({ newFeedback = 0 }: { newFeedback?: number }) {
   const pathname = usePathname();
   const router = useRouter();
   const groupIndex = activeGroupIndex(pathname);
@@ -131,10 +136,18 @@ export function PilotageNav() {
                 )}
               >
                 {entry.label}
+                {entry.href === FEEDBACK_HREF && newFeedback > 0 ? (
+                  <span className="tabular ml-1.5 rounded-sm bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                    {newFeedback}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
         })}
+        <li className="ml-auto shrink-0 self-center">
+          <FeedbackButton />
+        </li>
       </ul>
 
       {/* Téléphone et tablette : une seule liste des rubriques, groupées par thème. Une ligne
@@ -153,13 +166,16 @@ export function PilotageNav() {
             <optgroup key={candidate.label} label={candidate.label}>
               {candidate.entries.map((entry) => (
                 <option key={entry.href} value={entry.href}>
-                  {entry.label}
+                  {entry.href === FEEDBACK_HREF && newFeedback > 0
+                    ? `${entry.label} (${newFeedback} nouveaux)`
+                    : entry.label}
                 </option>
               ))}
             </optgroup>
           ))}
         </select>
       </label>
+      <FeedbackButton className="self-end lg:hidden" />
     </nav>
   );
 }

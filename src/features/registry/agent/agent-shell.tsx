@@ -17,6 +17,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { SyncStatusChip } from "@/components/forms/sync-status-chip";
 import { SpaceNav, type SpaceNavItem } from "@/components/layout/space-nav";
+import { useFeedbackAction } from "@/features/feedback/feedback-button";
 import { GuidedTour } from "@/features/onboarding/guided-tour";
 import { useSync } from "@/lib/offline/use-sync";
 
@@ -56,11 +57,13 @@ const NAV: readonly SpaceNavItem[] = [
 // toujours visible.
 export function AgentShell({ userId, demo = false, children }: AgentShellProps) {
   const sync = useSync(userId);
+  const feedback = useFeedbackAction();
 
   return (
     <div className="flex flex-col gap-6 pb-24 md:pb-0">
       <div className="flex flex-col gap-3">
-        <SpaceNav label="Espace agent" items={NAV} />
+        <SpaceNav label="Espace agent" items={NAV} actions={[feedback.action]} />
+        {feedback.dialog}
         <div className="flex items-center gap-2 self-start">
           <SyncStatusChip
             pending={sync.pending}

@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -46,17 +47,25 @@ export function isActiveItem(pathname: string, item: SpaceNavItem): boolean {
   );
 }
 
+/** Action discrète en fin du menu « Plus » (« Donner mon avis ») : ouvre une fenêtre. */
+export interface SpaceNavAction {
+  label: string;
+  icon: LucideIcon;
+  onSelect: () => void;
+}
+
 interface SpaceNavProps {
   /** Nom de l'espace pour les lecteurs d'écran (« Espace agent »). */
   label: string;
   items: readonly SpaceNavItem[];
+  actions?: readonly SpaceNavAction[];
 }
 
 // Navigation d'un espace connecté, la même pour l'agent et le producteur. Sur ordinateur, des
 // onglets en tête de page, les rubriques rares dans « Plus ». Sur téléphone, une barre basse de
 // cinq cases sous le pouce : quatre rubriques, puis « Plus », qui ouvre toutes les autres dans un
 // panneau montant du bas. Aucune rubrique n'est hors d'atteinte, sur aucun écran.
-export function SpaceNav({ label, items }: SpaceNavProps) {
+export function SpaceNav({ label, items, actions = [] }: SpaceNavProps) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
   const top = items.filter((item) => item.top);
@@ -101,7 +110,7 @@ export function SpaceNav({ label, items }: SpaceNavProps) {
               </li>
             );
           })}
-          {topMore.length > 0 ? (
+          {topMore.length > 0 || actions.length > 0 ? (
             <li className="ml-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -126,6 +135,18 @@ export function SpaceNav({ label, items }: SpaceNavProps) {
                         <item.icon className="size-4" aria-hidden />
                         {item.label}
                       </Link>
+                    </DropdownMenuItem>
+                  ))}
+                  {actions.length > 0 ? <DropdownMenuSeparator /> : null}
+                  {actions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.label}
+                      className="flex min-h-10 items-center gap-3"
+                      // Le menu se ferme d'abord, puis la fenêtre s'ouvre et garde le focus.
+                      onSelect={() => window.setTimeout(action.onSelect, 0)}
+                    >
+                      <action.icon className="size-4" aria-hidden />
+                      {action.label}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -196,6 +217,21 @@ export function SpaceNav({ label, items }: SpaceNavProps) {
                 </li>
               );
             })}
+            {actions.map((action) => (
+              <li key={action.label} className="mt-1 border-t pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSheetOpen(false);
+                    window.setTimeout(action.onSelect, 0);
+                  }}
+                  className="flex min-h-12 w-full items-center gap-3 rounded-sm px-3 text-left text-base hover:bg-muted"
+                >
+                  <action.icon className="size-5 text-muted-foreground" aria-hidden />
+                  {action.label}
+                </button>
+              </li>
+            ))}
           </ul>
         </SheetContent>
       </Sheet>
