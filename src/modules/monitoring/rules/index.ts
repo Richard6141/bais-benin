@@ -3,6 +3,8 @@ export {
   INDICATOR_CODES,
   NUMERIC_INDICATORS,
   OPERATORS,
+  PARAMETERIZED_INDICATORS,
+  REPORT_CLUSTER_TYPES,
   SEVERITIES,
   conditionSchema,
   parseRuleDefinition,
@@ -14,6 +16,7 @@ export {
   type IndicatorValues,
   type NumericIndicator,
   type Operator,
+  type ReportClusterParams,
   type Rule,
   type RuleCategory,
   type RuleCondition,
@@ -28,11 +31,13 @@ export {
   type IndicatorInput,
   type WeatherDay,
 } from "./indicators";
+export { clusterKey, clusterLabel, clusterParamsOf, usesReports, usesWeather } from "./clusters";
 export {
   evaluateRule,
   explainTrace,
   formatIndicatorValue,
   indicatorLabel,
+  type ConditionResolver,
   type Evaluation,
   type TraceEntry,
 } from "./evaluate";

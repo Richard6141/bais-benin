@@ -795,6 +795,8 @@ enum AlertCategory {
   PEST
   MARKET
   ADMIN
+  CROP_DISEASE
+  ANIMAL_DISEASE
 }
 
 enum RuleTarget {

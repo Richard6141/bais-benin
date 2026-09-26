@@ -14,7 +14,10 @@ import { ruleSchema, type Rule, type RuleSpec } from "./definition";
 // - chenille légionnaire d'automne (Spodoptera frugiperda) : pullulations favorisées par une
 //   reprise des pluies après une période sèche, sur maïs jeune, nuits chaudes (FAO, programme
 //   FAW ; observations INRAB) ;
-// - fortes pluies prévues : 80 mm en 3 jours justifient de différer semis et épandages.
+// - fortes pluies prévues : 80 mm en 3 jours justifient de différer semis et épandages ;
+// - épidémie probable (ADR-0015) : 3 exploitations distinctes signalant le même problème à moins
+//   de 5 km en 7 jours, valeurs de départ de la feuille de route, à ajuster avec l'ATDA et les
+//   services vétérinaires une fois les premiers signalements reçus.
 
 const specs: RuleSpec[] = [
   {
@@ -149,6 +152,84 @@ const specs: RuleSpec[] = [
       "BAIS {commune} : risque de chenille légionnaire sur le maïs. Inspectez les cornets des jeunes plants cette semaine.",
     adviceFr:
       "Inspectez chaque semaine 20 plants par parcelle, cherchez les feuilles trouées et la sciure dans le cornet, prévenez votre agent avant tout traitement.",
+  },
+  {
+    code: "PEST_OUTBREAK_V1",
+    version: 1,
+    name: "Épidémie probable de ravageurs",
+    description:
+      "Au moins 3 exploitations distinctes signalent des ravageurs à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+    severity: "WARNING",
+    category: "PEST",
+    cooldownHours: 72,
+    definition: {
+      all: [
+        {
+          indicator: "report_cluster",
+          params: { type: "PEST", radiusKm: 5, days: 7 },
+          op: ">=",
+          value: 3,
+        },
+      ],
+    },
+    messageFr:
+      "{commune} : {report_cluster} exploitations signalent des ravageurs à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+    messageShort:
+      "BAIS {commune} : ravageurs signalés par plusieurs exploitations proches. Inspectez vos parcelles et signalez ce que vous voyez.",
+    adviceFr:
+      "Inspectez vos parcelles dès aujourd'hui et signalez ce que vous voyez dans BAIS. N'appliquez aucun produit sans l'avis de l'agent : il vient confirmer et conseiller le bon traitement.",
+  },
+  {
+    code: "CROP_DISEASE_OUTBREAK_V1",
+    version: 1,
+    name: "Épidémie probable de maladie des cultures",
+    description:
+      "Au moins 3 exploitations distinctes signalent une maladie des cultures à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+    severity: "WARNING",
+    category: "CROP_DISEASE",
+    cooldownHours: 72,
+    definition: {
+      all: [
+        {
+          indicator: "report_cluster",
+          params: { type: "CROP_DISEASE", radiusKm: 5, days: 7 },
+          op: ">=",
+          value: 3,
+        },
+      ],
+    },
+    messageFr:
+      "{commune} : {report_cluster} exploitations signalent une maladie des cultures à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+    messageShort:
+      "BAIS {commune} : maladie des cultures signalée par plusieurs exploitations proches. Inspectez vos parcelles.",
+    adviceFr:
+      "Inspectez vos parcelles, arrachez et brûlez les plants très atteints hors du champ, lavez vos outils entre deux parcelles et signalez ce que vous voyez. L'agent vient confirmer.",
+  },
+  {
+    code: "ANIMAL_DISEASE_OUTBREAK_V1",
+    version: 1,
+    name: "Épidémie probable de maladie animale",
+    description:
+      "Au moins 3 exploitations distinctes signalent une maladie animale à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+    severity: "WARNING",
+    category: "ANIMAL_DISEASE",
+    cooldownHours: 72,
+    definition: {
+      all: [
+        {
+          indicator: "report_cluster",
+          params: { type: "ANIMAL_DISEASE", radiusKm: 5, days: 7 },
+          op: ">=",
+          value: 3,
+        },
+      ],
+    },
+    messageFr:
+      "{commune} : {report_cluster} exploitations signalent une maladie animale à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+    messageShort:
+      "BAIS {commune} : maladie animale signalée par plusieurs élevages proches. Isolez les bêtes malades, ne les vendez pas.",
+    adviceFr:
+      "Isolez les animaux malades, ne vendez et ne déplacez aucun animal malade, ne consommez pas la viande d'un animal mort de maladie et prévenez l'agent ou le vétérinaire.",
   },
 ];
 

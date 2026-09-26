@@ -59,6 +59,13 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "FIELD",
   },
   {
+    // Signalements de terrain (phase 0) : source des alertes de regroupement (ADR-0015).
+    id: "BAIS_SIGNALEMENTS",
+    name: "Signalements des producteurs et des agents",
+    organization: "Plateforme BAIS",
+    kind: "FIELD",
+  },
+  {
     id: "BAIS_SEED",
     name: "Jeu de données de démonstration BAIS",
     organization: "Équipe BAIS",

@@ -13,7 +13,18 @@ export const ficheMetaSchema = z.object({
   zones: z.array(z.string()).default([]),
   topics: z.array(z.string()).min(1),
   alertCategories: z
-    .array(z.enum(["WATER_STRESS", "FLOOD", "HEAT", "PEST", "MARKET", "ADMIN"]))
+    .array(
+      z.enum([
+        "WATER_STRESS",
+        "FLOOD",
+        "HEAT",
+        "PEST",
+        "CROP_DISEASE",
+        "ANIMAL_DISEASE",
+        "MARKET",
+        "ADMIN",
+      ]),
+    )
     .default([]),
   /** Vrai pour une fiche rédigée par l'équipe (synthèse de la source citée). */
   demonstration: z.boolean(),

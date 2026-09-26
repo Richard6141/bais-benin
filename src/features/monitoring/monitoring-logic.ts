@@ -2,7 +2,15 @@
 // lecture, diffusion par canal, filtres du centre d'alertes. Aucune dépendance à la base.
 
 export type Severity = "INFO" | "WATCH" | "WARNING" | "CRITICAL";
-export type Category = "WATER_STRESS" | "FLOOD" | "HEAT" | "PEST" | "MARKET" | "ADMIN";
+export type Category =
+  | "WATER_STRESS"
+  | "FLOOD"
+  | "HEAT"
+  | "PEST"
+  | "CROP_DISEASE"
+  | "ANIMAL_DISEASE"
+  | "MARKET"
+  | "ADMIN";
 
 export const SEVERITIES: readonly Severity[] = ["CRITICAL", "WARNING", "WATCH", "INFO"];
 export const CATEGORIES: readonly Category[] = [
@@ -10,6 +18,8 @@ export const CATEGORIES: readonly Category[] = [
   "FLOOD",
   "HEAT",
   "PEST",
+  "CROP_DISEASE",
+  "ANIMAL_DISEASE",
   "MARKET",
   "ADMIN",
 ];

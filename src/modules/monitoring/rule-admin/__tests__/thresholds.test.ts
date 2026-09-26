@@ -110,3 +110,44 @@ describe("explication lisible", () => {
     ]);
   });
 });
+
+describe("regroupement de signalements (ADR-0015)", () => {
+  const outbreak = parseRuleDefinition({
+    all: [
+      {
+        indicator: "report_cluster",
+        params: { type: "PEST", radiusKm: 5, days: 7 },
+        op: ">=",
+        value: 3,
+      },
+    ],
+  });
+
+  it("propose le nombre d'exploitations, le rayon et la durée comme réglages", () => {
+    const fields = listThresholds(outbreak);
+    expect(fields.map((f) => [f.path, f.value])).toEqual([
+      ["all.0", 3],
+      ["all.0#radiusKm", 5],
+      ["all.0#days", 7],
+    ]);
+    expect(fields[0]?.label).toBe(
+      "Exploitations ayant signalé des ravageurs à moins de 5 km en 7 jours",
+    );
+  });
+
+  it("applique un nouveau rayon et une nouvelle durée, et refuse un seuil de 1", () => {
+    const next = applyThresholds(outbreak, { "all.0#radiusKm": 10, "all.0#days": 14 });
+    expect(parseRuleDefinition(next)).toEqual({
+      all: [
+        {
+          indicator: "report_cluster",
+          params: { type: "PEST", radiusKm: 10, days: 14 },
+          op: ">=",
+          value: 3,
+        },
+      ],
+    });
+    expect(validateBounds(applyThresholds(outbreak, { "all.0": 1 }))).toHaveLength(1);
+    expect(explainDefinition(outbreak)[0]).toContain("à moins de 5 km en 7 jours au moins 3");
+  });
+});

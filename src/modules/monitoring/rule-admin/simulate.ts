@@ -11,7 +11,13 @@ import type { Actor } from "@/modules/authorization";
 import { cropFilterFromDefinition } from "@/modules/monitoring/delivery/crop-filter";
 import { addDays } from "@/modules/monitoring/dates";
 import { buildContext } from "@/modules/monitoring/evaluation";
-import { evaluateRule, parseRuleDefinition, type RuleNode } from "@/modules/monitoring/rules";
+import {
+  evaluateRule,
+  parseRuleDefinition,
+  usesWeather,
+  type RuleNode,
+} from "@/modules/monitoring/rules";
+import { clusterResolver, computeClusterValues } from "../report-clusters";
 import { RuleAdminError, currentVersion, requireRuleRight } from "./service";
 import { validateBounds } from "./thresholds";
 
@@ -161,6 +167,8 @@ export async function simulateRule(
     // Comme l'évaluation quotidienne : le jour de référence est le dernier jour observé, et les
     // prévisions acceptées sont celles émises au plus tard le lendemain.
     const series = await readWeatherSeries(ids, day, PAST_DAYS, FORECAST_DAYS, addDays(day, 1));
+    // Regroupements de signalements du jour (ADR-0015), pour les deux versions de la règle.
+    const clusters = await computeClusterValues([candidate, activeDefinition], ids, day);
     for (const commune of communes) {
       const context = buildContext(
         commune,
@@ -169,13 +177,15 @@ export async function simulateRule(
         day,
       );
       const missing = Number(context.indicators.observed_days_missing_30d ?? 30);
-      const lacking = context.stale || missing > MAX_MISSING_DAYS;
+      // Une météo lacunaire ne rend non évaluable qu'une règle qui lit la météo.
+      const lacking = (context.stale || missing > MAX_MISSING_DAYS) && usesWeather(candidate);
       if (lacking) lackingByDay.set(day, [...(lackingByDay.get(day) ?? []), commune.id]);
-      const result = evaluateRule(candidate, context.indicators);
+      const resolve = clusterResolver(clusters, commune.id);
+      const result = evaluateRule(candidate, context.indicators, resolve);
       const matched = result.matched && !lacking;
       if (matched)
         matchedCandidate.set(commune.id, [...(matchedCandidate.get(commune.id) ?? []), day]);
-      if (!lacking && evaluateRule(activeDefinition, context.indicators).matched) {
+      if (!lacking && evaluateRule(activeDefinition, context.indicators, resolve).matched) {
         matchedActive.set(commune.id, [...(matchedActive.get(commune.id) ?? []), day]);
       }
       evaluations.push({

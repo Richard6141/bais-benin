@@ -1,7 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { getApiActor } from "@/features/auth/api-actor";
 import { readJsonWithLimit } from "@/lib/http/read-json";
+import { logger } from "@/lib/logger";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { evaluateNewReports } from "@/modules/monitoring";
 import { applySyncBatch, syncBatchSchema } from "@/modules/sync";
 
 export const dynamic = "force-dynamic";
@@ -55,5 +57,18 @@ export async function POST(request: NextRequest) {
   }
 
   const results = await applySyncBatch(apiActor.actor, deviceId, parsed.data.commands);
+
+  // ADR-0015 : des signalements nouveaux peuvent former un foyer. Les règles de regroupement sont
+  // réévaluées après la réponse, sans la retarder ; un échec reste dans les journaux.
+  const reportIds = results
+    .filter((r) => r.outcome === "APPLIED" && r.entity?.type === "fieldReport")
+    .map((r) => r.entity!.id);
+  if (reportIds.length > 0) {
+    after(() =>
+      evaluateNewReports(reportIds).catch((error: unknown) =>
+        logger.error({ err: error, reportIds }, "Évaluation des regroupements impossible"),
+      ),
+    );
+  }
   return NextResponse.json({ results, receivedAt: new Date().toISOString() });
 }

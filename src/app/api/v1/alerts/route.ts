@@ -8,7 +8,18 @@ export const dynamic = "force-dynamic";
 const querySchema = z.object({
   status: z.enum(["ACTIVE", "RECENT"]).optional(),
   severity: z.enum(["INFO", "WATCH", "WARNING", "CRITICAL"]).optional(),
-  category: z.enum(["WATER_STRESS", "FLOOD", "HEAT", "PEST", "MARKET", "ADMIN"]).optional(),
+  category: z
+    .enum([
+      "WATER_STRESS",
+      "FLOOD",
+      "HEAT",
+      "PEST",
+      "CROP_DISEASE",
+      "ANIMAL_DISEASE",
+      "MARKET",
+      "ADMIN",
+    ])
+    .optional(),
   commune: z.string().trim().min(1).max(20).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });

@@ -9,12 +9,15 @@ import {
 } from "@/database/sql/weather.sql";
 import { recordAudit } from "@/modules/audit";
 import { addDays, beninToday, isoDate } from "./dates";
+import { clusterResolver, computeClusterValues, reportAlertProvenance } from "./report-clusters";
 import {
   computeIndicators,
   evaluateRule,
   parseRuleDefinition,
   renderMessage,
   SHORT_MESSAGE_MAX,
+  usesReports,
+  usesWeather,
   type IndicatorValues,
   type WeatherDay,
 } from "./rules";
@@ -26,7 +29,9 @@ import {
 // - au plus une alerte active par catégorie et par commune ; une règle plus grave remplace
 //   l'alerte en cours, une règle égale ou moins grave prolonge l'existante ;
 // - délai de refroidissement : pas de nouvelle alerte d'une même règle sur une commune tant
-//   que la précédente date de moins de `cooldownHours`.
+//   que la précédente date de moins de `cooldownHours` ;
+// - une règle qui ne lit que des signalements (regroupements, ADR-0015) n'est jamais bloquée par
+//   une météo ancienne, et son alerte porte la provenance des signalements.
 
 const SEVERITY_RANK = { INFO: 0, WATCH: 1, WARNING: 2, CRITICAL: 3 } as const;
 const PAST_DAYS = 35;
@@ -42,6 +47,8 @@ export interface EvaluationDeps {
 export interface EvaluationOptions {
   referenceDate?: string;
   communeIds?: readonly string[];
+  /** Seulement les règles de regroupement de signalements (évaluation à l'arrivée d'un signalement). */
+  reportRulesOnly?: boolean;
 }
 
 export interface EvaluationSummary {
@@ -79,8 +86,10 @@ export interface CommuneContext {
   indicators: IndicatorValues;
   stale: boolean;
   sourceId: string;
-  reliability: "ESTIMATED" | "SYNTHETIC" | "OFFICIAL";
+  reliability: "ESTIMATED" | "SYNTHETIC" | "OFFICIAL" | "DECLARED" | "AGENT_VERIFIED";
   sourceDate: Date;
+  /** Marqueurs de message propres à la règle (regroupement de signalements). */
+  messageValues?: Record<string, number>;
 }
 
 export function buildContext(
@@ -157,10 +166,14 @@ export async function evaluateCommunes(
     expired: 0,
     staleCommunes: 0,
   };
-  const parsedRules = rules.map((rule) => ({
-    rule,
-    definition: parseRuleDefinition(rule.definition),
-  }));
+  const parsedRules = rules
+    .map((rule) => ({ rule, definition: parseRuleDefinition(rule.definition) }))
+    .filter(({ definition }) => !options.reportRulesOnly || usesReports(definition));
+  const clusterValues = await computeClusterValues(
+    parsedRules.map((r) => r.definition),
+    ids,
+    referenceDate,
+  );
 
   // Toutes les évaluations sont calculées en mémoire puis écrites en une fois ; seules celles qui
   // se déclenchent passent ensuite par la création ou la prolongation d'alerte.
@@ -183,8 +196,12 @@ export async function evaluateCommunes(
     );
     if (context.stale) summary.staleCommunes += 1;
     for (const { rule, definition } of parsedRules) {
-      const result = evaluateRule(definition, context.indicators);
-      const matched = result.matched && !context.stale;
+      const result = evaluateRule(
+        definition,
+        context.indicators,
+        clusterResolver(clusterValues, commune.id),
+      );
+      const matched = result.matched && !(context.stale && usesWeather(definition));
       const id = crypto.randomUUID();
       rows.push({
         id,
@@ -197,7 +214,15 @@ export async function evaluateCommunes(
         missing: result.missing,
         dataStale: context.stale,
       });
-      if (matched) triggered.push({ rule, context, evaluationId: id, trace: result.trace });
+      if (matched) {
+        const provenance = reportAlertProvenance(definition, clusterValues, commune.id, now);
+        triggered.push({
+          rule,
+          context: provenance ? { ...context, ...provenance } : context,
+          evaluationId: id,
+          trace: result.trace,
+        });
+      }
     }
   }
   await prisma.ruleEvaluation.createMany({ data: rows });
@@ -285,6 +310,7 @@ export async function raiseOrExtend(
   const messageContext = {
     commune: context.commune.name,
     departement: context.commune.departement_name,
+    ...context.messageValues,
   };
   // L'alerte remplacée sort de l'état actif avant la création de la nouvelle : l'index unique
   // partiel (une alerte active par commune et par catégorie) le vérifie à chaque instruction.

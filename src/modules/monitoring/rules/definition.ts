@@ -21,7 +21,27 @@ export const NUMERIC_INDICATORS = [
   "forecast_temp_max_max_3d",
   "month",
   "observed_days_missing_30d",
+  // Regroupement de signalements de terrain (ADR-0015) : seul indicateur paramétré.
+  "report_cluster",
 ] as const;
+
+/** Indicateurs dont la valeur dépend des paramètres de la condition (ADR-0015). */
+export const PARAMETERIZED_INDICATORS = ["report_cluster"] as const;
+
+export const REPORT_CLUSTER_TYPES = ["PEST", "CROP_DISEASE", "ANIMAL_DISEASE", "OTHER"] as const;
+
+// Paramètres d'un regroupement : type de problème, rayon autour d'un signalement, durée qui se
+// termine à la date de référence, et au besoin restriction aux signalements confirmés.
+export const reportClusterParamsSchema = z
+  .object({
+    type: z.enum(REPORT_CLUSTER_TYPES),
+    radiusKm: z.number().min(1).max(50),
+    days: z.number().int().min(1).max(60),
+    confirmedOnly: z.boolean().optional(),
+  })
+  .strict();
+
+export type ReportClusterParams = z.infer<typeof reportClusterParamsSchema>;
 
 export const TEXT_INDICATORS = ["zae_in"] as const;
 export const LIST_INDICATORS = ["crop_in", "crop_stage_in"] as const;
@@ -48,9 +68,25 @@ export const conditionSchema = z
     // Facultatif : `in` par défaut quand la valeur est une liste, `==` sinon.
     op: z.enum(OPERATORS).optional(),
     value: z.union([scalar, z.array(scalar).min(1)]),
+    params: reportClusterParamsSchema.optional(),
   })
   .strict()
   .superRefine((condition, ctx) => {
+    const parameterized = (PARAMETERIZED_INDICATORS as readonly string[]).includes(
+      condition.indicator,
+    );
+    if (parameterized && !condition.params) {
+      ctx.addIssue({
+        code: "custom",
+        message: `L'indicateur « ${condition.indicator} » attend ses paramètres (type, rayon, durée)`,
+      });
+    }
+    if (!parameterized && condition.params) {
+      ctx.addIssue({
+        code: "custom",
+        message: `L'indicateur « ${condition.indicator} » n'accepte pas de paramètres`,
+      });
+    }
     const op = resolveOperator(condition);
     const isList = Array.isArray(condition.value);
     if (op === "in" && !isList) {
@@ -96,7 +132,16 @@ export function parseRuleDefinition(input: unknown): RuleNode {
 export const SEVERITIES = ["INFO", "WATCH", "WARNING", "CRITICAL"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
-export const CATEGORIES = ["WATER_STRESS", "FLOOD", "HEAT", "PEST", "MARKET", "ADMIN"] as const;
+export const CATEGORIES = [
+  "WATER_STRESS",
+  "FLOOD",
+  "HEAT",
+  "PEST",
+  "CROP_DISEASE",
+  "ANIMAL_DISEASE",
+  "MARKET",
+  "ADMIN",
+] as const;
 export type RuleCategory = (typeof CATEGORIES)[number];
 
 export const ruleSchema = z.object({

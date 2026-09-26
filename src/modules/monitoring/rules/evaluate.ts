@@ -1,3 +1,4 @@
+import { clusterLabel } from "./clusters";
 import { labelForCode } from "./code-labels";
 import {
   resolveOperator,
@@ -5,6 +6,7 @@ import {
   type IndicatorValue,
   type IndicatorValues,
   type Operator,
+  type ReportClusterParams,
   type RuleCondition,
   type RuleNode,
 } from "./definition";
@@ -23,7 +25,15 @@ export interface TraceEntry {
   actual: IndicatorValue;
   result: boolean;
   missing: boolean;
+  /** Paramètres d'un indicateur paramétré (regroupement de signalements, ADR-0015). */
+  params?: ReportClusterParams;
 }
+
+/**
+ * Valeur d'un indicateur paramétré pour sa condition ; indéfini quand elle n'est pas connue
+ * (la condition est alors non évaluable, comme un indicateur manquant).
+ */
+export type ConditionResolver = (condition: RuleCondition) => IndicatorValue | undefined;
 
 export interface Evaluation {
   matched: boolean;
@@ -69,24 +79,25 @@ function evaluateNode(
   indicators: IndicatorValues,
   path: string,
   trace: TraceEntry[],
+  resolve?: ConditionResolver,
 ): boolean {
   if ("all" in node) {
     const results = node.all.map((child, i) =>
-      evaluateNode(child, indicators, join(path, `all.${i}`), trace),
+      evaluateNode(child, indicators, join(path, `all.${i}`), trace, resolve),
     );
     return results.every(Boolean);
   }
   if ("any" in node) {
     const results = node.any.map((child, i) =>
-      evaluateNode(child, indicators, join(path, `any.${i}`), trace),
+      evaluateNode(child, indicators, join(path, `any.${i}`), trace, resolve),
     );
     return results.some(Boolean);
   }
   if ("not" in node) {
-    return !evaluateNode(node.not, indicators, join(path, "not"), trace);
+    return !evaluateNode(node.not, indicators, join(path, "not"), trace, resolve);
   }
   const op = resolveOperator(node);
-  const actual = indicators[node.indicator] ?? null;
+  const actual = (node.params ? resolve?.(node) : indicators[node.indicator]) ?? null;
   const result = compare(actual, op, node.value);
   trace.push({
     path: path || "racine",
@@ -96,13 +107,18 @@ function evaluateNode(
     actual,
     result,
     missing: actual === null,
+    ...(node.params ? { params: node.params } : {}),
   });
   return result;
 }
 
-export function evaluateRule(definition: RuleNode, indicators: IndicatorValues): Evaluation {
+export function evaluateRule(
+  definition: RuleNode,
+  indicators: IndicatorValues,
+  resolve?: ConditionResolver,
+): Evaluation {
   const trace: TraceEntry[] = [];
-  const matched = evaluateNode(definition, indicators, "", trace);
+  const matched = evaluateNode(definition, indicators, "", trace, resolve);
   const missing = [...new Set(trace.filter((t) => t.missing).map((t) => t.indicator))];
   return { matched, trace, missing };
 }
@@ -131,6 +147,7 @@ const INDICATOR_LABELS: Record<IndicatorCode, { label: string; unit?: string }> 
   zae_in: { label: "Zone agro-écologique" },
   crop_in: { label: "Cultures présentes" },
   crop_stage_in: { label: "Stades des cultures" },
+  report_cluster: { label: "Exploitations ayant signalé un même problème", unit: "exploitations" },
 };
 
 const OPERATOR_TEXT: Record<Operator, string> = {
@@ -163,7 +180,10 @@ export function indicatorLabel(code: IndicatorCode): string {
 /** Une phrase par condition : « Cumul de pluie sur 10 jours : 2 mm, seuil < 5 mm (remplie). » */
 export function explainTrace(trace: readonly TraceEntry[]): string[] {
   return trace.map((entry) => {
-    const { label, unit } = INDICATOR_LABELS[entry.indicator];
+    const { unit } = INDICATOR_LABELS[entry.indicator];
+    const label = entry.params
+      ? clusterLabel(entry.params)
+      : INDICATOR_LABELS[entry.indicator].label;
     const actual = formatIndicatorValue(entry.actual, unit);
     const expected = formatIndicatorValue(entry.expected, unit);
     const status = entry.missing ? "non évaluable" : entry.result ? "remplie" : "non remplie";

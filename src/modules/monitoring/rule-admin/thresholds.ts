@@ -1,5 +1,6 @@
 import {
   NUMERIC_INDICATORS,
+  clusterLabel,
   indicatorLabel,
   resolveOperator,
   type NumericIndicator,
@@ -35,7 +36,16 @@ export const INDICATOR_BOUNDS: Record<NumericIndicator, IndicatorBound> = {
   water_balance_10d: { min: -500, max: 2000, unit: "mm", step: 1 },
   month: { min: 1, max: 12, unit: null, step: 1 },
   observed_days_missing_30d: { min: 0, max: 30, unit: "jours", step: 1 },
+  // Au moins deux exploitations : un signalement isolé n'est jamais une alerte (ADR-0015).
+  report_cluster: { min: 2, max: 100, unit: "exploitations", step: 1 },
 };
+
+// Paramètres réglables d'un regroupement de signalements, bornés comme les seuils.
+const CLUSTER_PARAM_BOUNDS = {
+  radiusKm: { label: "Rayon du regroupement", min: 1, max: 50, unit: "km", step: 0.5 },
+  days: { label: "Durée observée", min: 1, max: 60, unit: "jours", step: 1 },
+} as const;
+type ClusterParam = keyof typeof CLUSTER_PARAM_BOUNDS;
 
 export interface ThresholdField {
   path: string;
@@ -47,6 +57,8 @@ export interface ThresholdField {
   min: number;
   max: number;
   step: number;
+  /** Paramètre d'un regroupement de signalements (chemin « all.0#radiusKm »), pas un seuil. */
+  param?: ClusterParam;
 }
 
 export interface BoundIssue {
@@ -80,11 +92,24 @@ export function listThresholds(definition: RuleNode): ThresholdField[] {
     fields.push({
       path,
       indicator: node.indicator,
-      label: indicatorLabel(node.indicator),
+      label: node.params ? clusterLabel(node.params) : indicatorLabel(node.indicator),
       op: resolveOperator(node),
       value: node.value,
       ...bound,
     });
+    if (!node.params) return;
+    for (const param of Object.keys(CLUSTER_PARAM_BOUNDS) as ClusterParam[]) {
+      const { label, ...paramBound } = CLUSTER_PARAM_BOUNDS[param];
+      fields.push({
+        path: `${path}#${param}`,
+        indicator: node.indicator,
+        label,
+        op: "==",
+        value: node.params[param],
+        param,
+        ...paramBound,
+      });
+    }
   });
   return fields;
 }
@@ -103,6 +128,11 @@ export function applyThresholds(
     if ("all" in node || "any" in node || "not" in node) return;
     const next = values[path];
     if (next !== undefined) (node as { value: unknown }).value = next;
+    if (!node.params) return;
+    for (const param of Object.keys(CLUSTER_PARAM_BOUNDS) as ClusterParam[]) {
+      const nextParam = values[`${path}#${param}`];
+      if (nextParam !== undefined) node.params = { ...node.params, [param]: nextParam };
+    }
   });
   return clone;
 }
@@ -248,7 +278,8 @@ export function explainDefinition(definition: RuleNode): string[] {
       return value;
     });
     const unit = isNumeric(node.indicator) ? INDICATOR_BOUNDS[node.indicator].unit : null;
-    const text = `${indicatorLabel(node.indicator)} ${OPERATOR_WORDS[op]} ${words.join(", ")}${unit ? ` ${unit}` : ""}`;
+    const label = node.params ? clusterLabel(node.params) : indicatorLabel(node.indicator);
+    const text = `${label} ${OPERATOR_WORDS[op]} ${words.join(", ")}${unit ? ` ${unit}` : ""}`;
     lines.push(`${prefix}${text}`);
   }
   visit(definition, "");
