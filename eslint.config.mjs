@@ -88,7 +88,9 @@ export default defineConfig([
             ]),
             allow("components", ["components", "lib", "types", "styles"]),
             allow("modules", ["modules", "services", "database", "lib", "types", "generated"]),
-            allow("services", ["services", "lib", "types"]),
+            // styles : les jetons de couleur des données (classes NDVI) sont aussi envoyés dans les
+            // scripts de rendu de l'imagerie satellite, pour une seule définition avec la légende.
+            allow("services", ["services", "lib", "types", "styles"]),
             allow("database", ["database", "lib", "types", "styles", "generated"]),
             // lib/auth et lib/container câblent les adaptateurs : ils peuvent voir services et database.
             allow("lib", ["lib", "types", "services", "database", "generated"]),
