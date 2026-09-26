@@ -230,7 +230,7 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                         </ul>
                       </div>
                     ) : null}
-                    <Button asChild variant="outline" size="sm" className="self-start">
+                    <Button asChild variant="outline" className="self-start">
                       <Link
                         href={
                           `/agent/exploitations/${farm.id}/parcelles/${parcel.id}/contour` as Route

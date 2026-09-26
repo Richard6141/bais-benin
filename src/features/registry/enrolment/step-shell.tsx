@@ -56,7 +56,7 @@ export function StepShell({
         </Button>
         <div className="flex items-center justify-between gap-3">
           {onBack ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+            <Button type="button" variant="ghost" onClick={onBack}>
               Retour
             </Button>
           ) : (

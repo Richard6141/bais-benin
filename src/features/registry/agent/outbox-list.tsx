@@ -85,19 +85,11 @@ export function OutboxList({ userId, farmId }: OutboxListProps) {
               {entry.status === "CONFLICT" ? <ConflictSummary result={entry.serverResult} /> : null}
               {failed ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void retryCommands(db, [entry.id])}
-                  >
+                  <Button variant="outline" onClick={() => void retryCommands(db, [entry.id])}>
                     <RotateCcw aria-hidden />
                     Réessayer
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => void discardCommands(db, [entry.id])}
-                  >
+                  <Button variant="ghost" onClick={() => void discardCommands(db, [entry.id])}>
                     <Trash2 aria-hidden />
                     Abandonner
                   </Button>

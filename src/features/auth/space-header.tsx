@@ -40,7 +40,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
           <div className="flex shrink-0 items-center gap-1">
             <Link
               href="/compte"
-              className="inline-flex h-9 items-center gap-2 rounded-sm px-2 text-sm font-medium hover:bg-white/10 focus-visible:bg-white/15 focus-visible:outline-none"
+              className="inline-flex h-11 items-center gap-2 rounded-sm px-2 text-sm font-medium hover:bg-white/10 focus-visible:bg-white/15 focus-visible:outline-none"
             >
               <UserRound className="size-4" aria-hidden />
               <span className="hidden max-w-48 truncate sm:inline">{user.name}</span>

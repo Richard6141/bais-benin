@@ -30,7 +30,7 @@ export function OfflineReadiness({ userId }: { userId: string }) {
           Téléchargez une fois les communes de votre périmètre, leurs cultures et leurs
           exploitations. Ensuite, tout fonctionne sans connexion.
         </p>
-        <Button asChild size="sm" className="mt-2">
+        <Button asChild className="mt-2">
           <Link href="/agent/premier-lancement">
             <Download aria-hidden />
             Télécharger maintenant

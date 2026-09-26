@@ -47,7 +47,7 @@ export async function ReportsListPage({
           const active = filter.status === status;
           const href = filter.status ? `${space.base}?statut=${filter.status}` : space.base;
           return (
-            <Button key={filter.label} asChild size="sm" variant={active ? "default" : "outline"}>
+            <Button key={filter.label} asChild variant={active ? "default" : "outline"}>
               <Link href={href as Route} aria-current={active ? "page" : undefined}>
                 {filter.label}
               </Link>
