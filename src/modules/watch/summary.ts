@@ -4,7 +4,7 @@ import {
   reportGroups,
   type FireExposureRow,
 } from "@/database/sql/watch.sql";
-import { getAnalyticsFreshness } from "@/modules/analytics";
+import { K_ANONYMITY, getAnalyticsFreshness, getCropCondition } from "@/modules/analytics";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import { fireFreshness, listFires } from "@/modules/fires";
 import { communeAlertLevels, listAlertsForActor, type AlertSeverity } from "@/modules/monitoring";
@@ -35,6 +35,12 @@ export interface WatchSummary {
     confirmed: number;
     lastAt: string;
   }>;
+  /** Cultures dont la part de surface en état « faible » est la plus haute (vue du satellite). */
+  cropCondition: {
+    campaignCode: string;
+    demo: boolean;
+    worst: Array<{ code: string; name: string; poorShare: number; observedHa: number }>;
+  } | null;
   alerts: {
     active: number;
     bySeverity: Record<AlertSeverity, number>;
@@ -71,10 +77,11 @@ export async function getWatchSummary(actor: Actor, now = new Date()): Promise<W
     fireFreshness(),
     getAnalyticsFreshness(now),
   ]);
-  const [exposure24h, exposure7d, groups] = await Promise.all([
+  const [exposure24h, exposure7d, groups, condition] = await Promise.all([
     fireExposureByCommune(day),
     fireExposureByCommune(week),
     reportGroups(week),
+    worstCropCondition(actor),
   ]);
   const bySeverity: Record<AlertSeverity, number> = { INFO: 0, WATCH: 0, WARNING: 0, CRITICAL: 0 };
   for (const alert of alerts) bySeverity[alert.severity] += 1;
@@ -96,6 +103,7 @@ export async function getWatchSummary(actor: Actor, now = new Date()): Promise<W
       confirmed: group.confirmed,
       lastAt: group.last_at.toISOString(),
     })),
+    cropCondition: condition,
     alerts: {
       active: alerts.length,
       bySeverity,
@@ -141,6 +149,31 @@ export async function getWatchSummary(actor: Actor, now = new Date()): Promise<W
       },
     ],
   };
+}
+
+/**
+ * Les trois cultures dont la part de surface observée en état « faible » est la plus haute,
+ * d'après l'état des cultures de la campagne en cours (getCropCondition). Une culture observée
+ * sur moins de 5 parcelles n'est pas citée (secret statistique). Null si l'état des cultures
+ * n'est pas disponible (aucune campagne, aucun contrôle) : l'encart l'indique sans bloquer la page.
+ */
+async function worstCropCondition(actor: Actor): Promise<WatchSummary["cropCondition"]> {
+  try {
+    const condition = await getCropCondition(actor);
+    const worst = condition.crops
+      .filter((crop) => crop.national.poorShare !== null && crop.national.parcels >= K_ANONYMITY)
+      .map((crop) => ({
+        code: crop.code,
+        name: crop.name,
+        poorShare: crop.national.poorShare as number,
+        observedHa: crop.national.areaHa - crop.national.byClass.UNOBSERVED.areaHa,
+      }))
+      .sort((a, b) => b.poorShare - a.poorShare)
+      .slice(0, 3);
+    return { campaignCode: condition.campaign.code, demo: condition.demo, worst };
+  } catch {
+    return null;
+  }
 }
 
 /** Volumes nationaux des demandes d'assistance : des nombres, jamais une demande. */

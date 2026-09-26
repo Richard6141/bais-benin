@@ -9,6 +9,7 @@ import { useFires } from "@/features/agri-map/use-fires";
 import type { WatchSummary } from "@/modules/watch";
 import {
   AlertsPanel,
+  CropConditionPanel,
   ExposurePanel,
   FreshnessPanel,
   HeldOutbreaksPanel,
@@ -89,6 +90,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <ExposurePanel summary={summary} window={window === "24h" ? "24h" : "7d"} />
+          <CropConditionPanel summary={summary} />
           <FreshnessPanel summary={summary} />
         </div>
         <figure className="flex min-w-0 flex-col gap-2">

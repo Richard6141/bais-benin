@@ -32,6 +32,13 @@ describe("centre de veille", () => {
     expect(Array.isArray(summary.exposure["24h"])).toBe(true);
     expect(Array.isArray(summary.exposure["7d"])).toBe(true);
     expect(summary.reportGroups.every((group) => group.reports >= 2)).toBe(true);
+    // État des cultures : trois cultures au plus, la part « faible » la plus haute d'abord.
+    const worst = summary.cropCondition?.worst ?? [];
+    expect(worst.length).toBeLessThanOrEqual(3);
+    for (let i = 1; i < worst.length; i += 1) {
+      expect(worst[i - 1]!.poorShare).toBeGreaterThanOrEqual(worst[i]!.poorShare);
+    }
+    expect(worst.every((crop) => crop.poorShare >= 0 && crop.poorShare <= 1)).toBe(true);
     expect(summary.freshness.map((source) => source.source)).toEqual([
       "Feux actifs (NASA FIRMS)",
       "Météo (Open-Meteo)",

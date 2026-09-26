@@ -42,6 +42,10 @@ manque, `FAILED`), lignes lues au Bénin, détections créées ou complétées, 
 - `/pilotage/veille` (ministère) : synthèse `src/modules/watch/summary.ts`, requêtes
   `src/database/sql/watch.sql.ts`, écran `src/features/watch/`, relecture `GET /api/v1/veille`
   (réservée au ministère, jamais en cache).
+- Encart « État des cultures » du centre de veille : les trois cultures dont la part de surface
+  en état faible est la plus haute sur la campagne en cours, d'après `getCropCondition`
+  (`src/modules/analytics/crop-condition.ts`), avec un lien vers `/pilotage/etat-des-cultures`.
+  Une culture observée sur moins de 5 parcelles n'est pas citée.
 
 ## 4. Essayer en local
 
