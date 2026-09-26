@@ -18,3 +18,19 @@ export {
   isDetailTileInBenin,
   overviewSize,
 } from "./tiles";
+export {
+  evaluateVegetation,
+  expectedProfile,
+  seasonWindow,
+  type VegetationCheckReason,
+  type VegetationCheckStatus,
+} from "./crop-profiles";
+export {
+  getFarmVegetationChecks,
+  getVegetationSummary,
+  listFlaggedFarms,
+  runVegetationChecks,
+  type ParcelVegetationCheck,
+  type VegetationRunResult,
+  type VegetationSummary,
+} from "./vegetation";

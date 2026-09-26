@@ -63,6 +63,12 @@ export interface VegetationStatisticsRequest {
   to: string;
   /** Pas d'agrégation en jours (10 : une valeur par décade). */
   intervalDays: number;
+  /**
+   * Couvert attendu d'après la culture déclarée : saisonnier (culture annuelle) ou permanent
+   * (plantation). Sert seulement à la fixture pour synthétiser une série plausible ; un vrai
+   * fournisseur mesure et l'ignore.
+   */
+  expectedCover?: "SEASONAL" | "PERMANENT";
 }
 
 /** NDVI moyen d'une géométrie sur un intervalle, pixels nuageux exclus. */
