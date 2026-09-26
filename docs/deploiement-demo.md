@@ -57,7 +57,7 @@ réactiver une, retirer son nom de cette liste (ou fixer `SCHEDULER_DISABLED` da
 
 Chaque envoi sur la branche `develop` du dépôt GitHub déclenche `.github/workflows/ci.yml` :
 
-1. lint, formatage, types et tests unitaires ; migrations et tests d'intégration sur PostGIS ;
+1. lint, formatage, types, tests unitaires et build de production ; les migrations et tests d'intégration sur PostGIS et les parcours de bout en bout tournent aussi, sans bloquer le déploiement ;
 2. si tout passe, construction des images `app`, `tools` et `scheduler`, étiquetées par SHA et
    publiées en privé sur `ghcr.io/richard6141/bais-benin/` (le serveur ne compile rien) ;
 3. déploiement par SSH, un seul à la fois : la clé dédiée ne peut lancer que
