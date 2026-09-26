@@ -43,6 +43,11 @@ const GROUPS = [
         match: ["/pilotage/cultures"],
       },
       { href: "/pilotage/previsions", label: "Prévisions", match: ["/pilotage/previsions"] },
+      {
+        href: "/pilotage/bilan-alimentaire",
+        label: "Bilan alimentaire",
+        match: ["/pilotage/bilan-alimentaire"],
+      },
     ],
   },
   {
