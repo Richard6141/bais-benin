@@ -87,10 +87,13 @@ export function CropConditionCards({
   selected: string | null;
   hrefFor: (code: string) => string;
 }) {
+  // Cultures jugées d'abord (par surface jugée), puis celles dont la saison n'est pas encore jugée.
+  const ordered = [...crops].sort((a, b) => observedArea(b.national) - observedArea(a.national));
   return (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {crops.map((crop) => {
+      {ordered.map((crop) => {
         const b = crop.national;
+        const judged = b.parcels - b.byClass.UNOBSERVED.parcels;
         const active = crop.code === selected;
         return (
           <li key={crop.code}>
@@ -104,22 +107,29 @@ export function CropConditionCards({
             >
               <span className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold">{crop.name}</span>
-                <span className="tabular text-xs text-muted-foreground">
-                  {hectares.format(observedArea(b))} ha
+                <span className="tabular text-xs whitespace-nowrap text-muted-foreground">
+                  {judged > 0
+                    ? `${integer.format(judged)} parcelles, ${hectares.format(observedArea(b))} ha`
+                    : `${integer.format(b.parcels)} parcelles`}
                 </span>
               </span>
-              <ConditionBar breakdown={b} />
-              <span className="tabular flex justify-between text-sm">
-                <span>
-                  Bon <strong>{percent.format(share(b, "GOOD"))}</strong>
+              {judged > 0 ? (
+                <>
+                  <ConditionBar breakdown={b} />
+                  <span className="tabular grid grid-cols-3 gap-2 text-sm">
+                    {CLASSES.slice(0, 3).map((c) => (
+                      <span key={c.key} className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">{c.label}</span>
+                        <strong>{percent.format(share(b, c.key))}</strong>
+                      </span>
+                    ))}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Saison en cours, pas encore jugée
                 </span>
-                <span>
-                  Faible <strong>{percent.format(share(b, "POOR"))}</strong>
-                </span>
-                <span className="text-muted-foreground">
-                  {integer.format(b.parcels - b.byClass.UNOBSERVED.parcels)} parcelles
-                </span>
-              </span>
+              )}
             </Link>
           </li>
         );
