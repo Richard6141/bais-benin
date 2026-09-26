@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpTip } from "@/components/data-display/help-tip";
+import { HelpTip } from "@/components/forms/help-tip";
 import { Label } from "@/components/ui/label";
 import {
   Select,
