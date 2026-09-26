@@ -271,6 +271,23 @@ function retryableStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
+/**
+ * Lecture d'une réponse (JSON, schéma, image) : une réponse illisible devient un échec du
+ * fournisseur, pas une erreur 500. L'appelant a déjà réservé son unité de quota ; il doit
+ * pouvoir conclure proprement et, pour le lot quotidien, passer à la parcelle suivante (R2).
+ */
+export async function readResponse<T>(what: string, read: () => Promise<T> | T): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof RemoteSensingProviderError) throw error;
+    throw new RemoteSensingProviderError(
+      `${what} : réponse illisible (${error instanceof Error ? error.message.slice(0, 120) : "format inattendu"})`,
+      false,
+    );
+  }
+}
+
 export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProvider {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
@@ -317,7 +334,9 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
       },
       "Jeton CDSE",
     );
-    const parsed = tokenSchema.parse(await response.json());
+    const parsed = await readResponse("Jeton CDSE", async () =>
+      tokenSchema.parse(await response.json()),
+    );
     token = {
       value: parsed.access_token,
       expiresAt: now() + Math.max(0, parsed.expires_in - TOKEN_MARGIN_S) * 1000,
@@ -365,7 +384,9 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
           },
           "Catalogue STAC",
         );
-        const page = stacPageSchema.parse(await response.json());
+        const page = await readResponse("Catalogue STAC", async () =>
+          stacPageSchema.parse(await response.json()),
+        );
         for (const feature of page.features) {
           scenes.push({
             id: feature.id,
@@ -385,10 +406,11 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
     async renderImage(request): Promise<ImageryResult> {
       const response = await processing("/api/v1/process", buildProcessBody(request), "image/png");
       const spent = Number(response.headers.get("x-processingunits-spent"));
-      return {
-        image: new Uint8Array(await response.arrayBuffer()),
-        processingUnits: Number.isFinite(spent) && spent > 0 ? spent : null,
-      };
+      const image = await readResponse(
+        "Image CDSE",
+        async () => new Uint8Array(await response.arrayBuffer()),
+      );
+      return { image, processingUnits: Number.isFinite(spent) && spent > 0 ? spent : null };
     },
 
     async vegetationStatistics(request): Promise<VegetationInterval[]> {
@@ -397,7 +419,7 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         buildStatisticsBody(request),
         "application/json",
       );
-      return parseStatistics(await response.json());
+      return readResponse("Statistiques CDSE", async () => parseStatistics(await response.json()));
     },
 
     async fieldFeatures(request): Promise<FieldFeatures> {
@@ -408,11 +430,13 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
       );
       const spent = Number(response.headers.get("x-processingunits-spent"));
       // sharp n'est chargé qu'ici : les autres usages de l'adaptateur n'en ont pas besoin.
-      const { default: sharp } = await import("sharp");
-      const { data, info } = await sharp(Buffer.from(await response.arrayBuffer()))
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+      const { data, info } = await readResponse("Variables de champ CDSE", async () => {
+        const { default: sharp } = await import("sharp");
+        return sharp(Buffer.from(await response.arrayBuffer()))
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+      });
       if (info.width !== request.width || info.height !== request.height || info.channels !== 4) {
         throw new RemoteSensingProviderError("Variables de champ CDSE : image inattendue", false);
       }

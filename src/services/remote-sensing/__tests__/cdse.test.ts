@@ -282,3 +282,43 @@ describe("variables de délimitation des champs", () => {
     expect(Number.isNaN(features.peak[1])).toBe(true);
   });
 });
+
+describe("réponses illisibles de Copernicus", () => {
+  it("deviennent un échec du fournisseur, pas une erreur 500 après réservation", async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      String(url).includes("openid-connect")
+        ? Response.json({ access_token: "jeton", expires_in: 600 })
+        : new Response("<html>maintenance</html>", { headers: { "Content-Type": "text/html" } }),
+    );
+    const provider = createCdseProvider({
+      clientId: "client",
+      clientSecret: "secret",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const statistics = await provider
+      .vegetationStatistics({
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [0.001, 0],
+              [0.001, 0.001],
+              [0, 0],
+            ],
+          ],
+        },
+        from: "2026-05-01T00:00:00Z",
+        to: "2026-10-31T00:00:00Z",
+        intervalDays: 10,
+      })
+      .catch((error: unknown) => error);
+    expect(statistics).toBeInstanceOf(RemoteSensingProviderError);
+    expect((statistics as Error).message).toMatch(/Statistiques CDSE : réponse illisible/);
+
+    const scenes = await provider
+      .searchScenes({ bbox: BENIN, from: "a", to: "b", limit: 1 })
+      .catch((error: unknown) => error);
+    expect(scenes).toBeInstanceOf(RemoteSensingProviderError);
+  });
+});
