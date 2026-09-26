@@ -1,6 +1,6 @@
 # Vue du ciel : imagerie Sentinel-2 et confrontation déclaration / satellite
 
-Ce document décrit la phase 1 de la vue du ciel : les images de la carte agricole et la confrontation de chaque parcelle relevée avec la culture déclarée. La décision d'architecture (Copernicus Data Space Ecosystem, calcul côté Copernicus, quota) est dans ADR-0016 ; la carte elle-même est décrite dans `docs/modules/carte.md`.
+Ce document décrit la vue du ciel : les images de la carte agricole, la confrontation de chaque parcelle relevée avec la culture déclarée, et la délimitation assistée des champs (phase 3). La décision d'architecture (Copernicus Data Space Ecosystem, calcul côté Copernicus, quota) est dans ADR-0016 ; la carte elle-même est décrite dans `docs/modules/carte.md`.
 
 ## Ce que voit l'utilisateur
 
@@ -57,14 +57,63 @@ Un « à vérifier » appelle une visite : association de cultures, semis tardif
 - Chaque requête réserve sa place sous le plafond mensuel avant l'appel (même garde-fou que les images) ; au-delà, la tâche s'arrête et reprend le mois suivant.
 - Table `parcel_vegetation_check` : une ligne par parcelle, campagne et sous-saison, avec la série par décade (audit), le pic, le plancher, le seuil comparé, la source et la fiabilité (`ESTIMATED` pour Copernicus, `SYNTHETIC` pour la fixture).
 
+## Délimitation assistée des champs (phase 3)
+
+### Ce que fait l'agent
+
+Fiche exploitation, bouton « Relever le contour », onglet **Depuis le satellite** (à côté de « À pied ») :
+
+1. Sur l'image Sentinel-2 des 60 derniers jours, l'agent touche l'intérieur du champ. À défaut, le centre de la parcelle ou le siège de l'exploitation sert de point de départ.
+2. « Proposer un contour » : jusqu'à trois contours (serré, moyen, large), chacun avec sa surface et un indice de confiance. Le plus sûr, qui ne déborde pas de l'image, est présélectionné.
+3. Il fait glisser les sommets à corriger, compare la surface à la superficie déclarée, puis « Valider ce contour ».
+4. Le contour part par la file hors ligne, comme un relevé à pied (`parcel.geometry.set`), avec le mode `SATELLITE_ASSISTED`. La proposition demande le réseau ; l'enregistrement non.
+
+Fiabilité : un contour satellite validé par l'agent devient `AGENT_VERIFIED`, jamais `FIELD_VERIFIED`, qui reste réservé à la marche GPS sur place (testé dans le handler). Le ministère n'a pas le droit de modifier les exploitations (`farm.update`) et ne demande donc pas de proposition.
+
+### Calcul
+
+- **Côté Copernicus** : une requête de l'API Process par proposition, sur une fenêtre de 640 m × 640 m (64 × 64 pixels de 10 m) centrée sur le point, avec tous les passages des dix derniers mois (mosaïque par orbite, scènes couvertes à plus de 60 % écartées). Pour chaque pixel, nuages exclus, elle calcule le NDVI le plus haut, le NDVI le plus bas et la réflectance B11 moyenne, codés dans un PNG de quatre canaux 8 bits.
+- **Côté serveur**, en TypeScript pur, sans GDAL (`src/modules/satellite/field-segmentation.ts`) :
+  1. croissance de région depuis le pixel du point, arrêtée par les bords nets ;
+  2. trous comblés et ouverture 3 × 3 ;
+  3. contour suivi le long des bords de pixels et simplifié à 7 m (Douglas-Peucker) ;
+  4. surfaces recalculées par PostGIS.
+- **Indice de confiance** : il combine le contraste au bord et la compacité de la forme. Il est divisé par deux quand la région atteint le bord de l'image, c'est-à-dire quand le champ déborde.
+
+### Limites et garde-fous
+
+- Pas de proposition sous 0,5 ha (50 pixels) ni au-delà de 20 ha (plusieurs champs fondus) : « relevez à pied ».
+- Point à moins de 2 km de la parcelle, au Bénin : le service ne balaie pas le territoire.
+- 30 propositions par agent et par jour ; même point dans la même journée : proposition resservie sans nouvelle requête.
+- **Quota** : les propositions ont leur part réservée du plafond mensuel (`SATELLITE_PROPOSAL_SHARE`, 30 % par défaut), que la tâche de confrontation et les images de la carte ne peuvent pas prendre, et inversement. Une part épuisée affiche : « La part mensuelle des propositions satellite est épuisée : relevez le contour à pied, les propositions reviennent le mois prochain ».
+- **Précision attendue** à 10 m : un pixel près sur les bords (5 à 10 m). Sur la surface, 15 à 25 % près à 2 ha et 30 à 50 % à 0,5 ha. Sont difficiles :
+  - les champs voisins de même culture sans limite visible ;
+  - les parcs arborés ;
+  - les bas-fonds.
+
+La marche GPS reste la référence pour les petites parcelles.
+
+### Protocole de mesure de la précision (pilote terrain)
+
+À lancer par le ministère avec un agent volontaire, avant de généraliser :
+
+1. **Échantillon** : 30 champs réels d'au moins 1 ha, répartis sur trois zones agro-écologiques (nord, centre, sud), dont un tiers en association de cultures ou en parc arboré.
+2. **Référence** : chaque champ est relevé à pied au GPS, mode `GPS_WALK`, précision moyenne affichée ≤ 5 m.
+3. **Proposition** : le même jour ou dans la même quinzaine, depuis la fiche, touchez l'intérieur du champ, retenez le candidat présélectionné **sans correction**, puis notez le niveau choisi et sa confiance.
+4. **Mesure**, par champ : l'IoU (surface de l'intersection ÷ surface de l'union, par PostGIS) et l'écart de surface (|proposé − marché| ÷ marché).
+5. **Critère d'acceptation** : IoU ≥ 0,6 et écart de surface ≤ 25 % pour au moins 80 % des champs d'1 ha et plus.
+6. **Analyse** : résultats par zone et par type de champ, et seuils de segmentation recalés si besoin (`LEVELS` dans `field-segmentation.ts`). Les deux contours restent en base, l'événement de l'exploitation gardant la trace de chacun.
+
+Tant que le pilote n'a pas eu lieu, la délimitation assistée sert de point de départ, que l'agent corrige ; elle ne remplace pas la marche sur les parcelles de moins d'un hectare.
+
 ## Démonstration sans compte
 
-Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE.
+Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE. Avec `SATELLITE_PROVIDER=fixture`, les propositions de contours dessinent un champ rectangulaire synthétique de 1 à 4 ha autour du point, pour montrer l'écran sans compte.
 
 ## Vérifier
 
 ```bash
-pnpm exec vitest run --project unit src/modules/satellite src/services/remote-sensing src/features/satellite src/features/agri-map
-pnpm exec vitest run --project integration tests/integration/satellite.test.ts tests/integration/vegetation-checks.test.ts
+pnpm exec vitest run --project unit src/modules/satellite src/services/remote-sensing src/features/satellite src/features/agri-map src/features/registry/parcel-survey
+pnpm exec vitest run --project integration tests/integration/satellite.test.ts tests/integration/vegetation-checks.test.ts tests/integration/field-proposals.test.ts tests/integration/satellite-contour-reliability.test.ts
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/vegetation-checks?limit=20"
 ```
