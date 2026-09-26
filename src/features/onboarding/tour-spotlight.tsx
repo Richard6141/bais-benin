@@ -102,7 +102,7 @@ export function TourSpotlight({ steps, done, onShown }: TourSpotlightProps) {
         />
       ) : null}
       <section
-        aria-label="Premiers pas"
+        aria-label="Étape en cours"
         aria-live="polite"
         className="fixed inset-x-3 bottom-20 z-50 flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-overlay md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
       >
