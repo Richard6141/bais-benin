@@ -147,7 +147,7 @@ const INDICATOR_LABELS: Record<IndicatorCode, { label: string; unit?: string }> 
   zae_in: { label: "Zone agro-écologique" },
   crop_in: { label: "Cultures présentes" },
   crop_stage_in: { label: "Stades des cultures" },
-  report_cluster: { label: "Exploitations ayant signalé un même problème", unit: "exploitations" },
+  report_cluster: { label: "Producteurs ayant signalé un même problème", unit: "producteurs" },
 };
 
 const OPERATOR_TEXT: Record<Operator, string> = {

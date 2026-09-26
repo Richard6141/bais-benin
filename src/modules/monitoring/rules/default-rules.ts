@@ -15,7 +15,7 @@ import { ruleSchema, type Rule, type RuleSpec } from "./definition";
 //   reprise des pluies après une période sèche, sur maïs jeune, nuits chaudes (FAO, programme
 //   FAW ; observations INRAB) ;
 // - fortes pluies prévues : 80 mm en 3 jours justifient de différer semis et épandages ;
-// - épidémie probable (ADR-0015) : 3 exploitations distinctes signalant le même problème à moins
+// - épidémie probable (ADR-0015) : 3 producteurs distincts signalant le même problème à moins
 //   de 5 km en 7 jours, valeurs de départ de la feuille de route, à ajuster avec l'ATDA et les
 //   services vétérinaires une fois les premiers signalements reçus.
 
@@ -158,7 +158,7 @@ const specs: RuleSpec[] = [
     version: 1,
     name: "Épidémie probable de ravageurs",
     description:
-      "Au moins 3 exploitations distinctes signalent des ravageurs à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+      "Au moins 3 producteurs distincts signalent des ravageurs à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
     severity: "WARNING",
     category: "PEST",
     cooldownHours: 72,
@@ -173,7 +173,7 @@ const specs: RuleSpec[] = [
       ],
     },
     messageFr:
-      "{commune} : {report_cluster} exploitations signalent des ravageurs à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+      "{commune} : {report_cluster} producteurs signalent des ravageurs à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
     messageShort:
       "BAIS {commune} : ravageurs signalés par plusieurs exploitations proches. Inspectez vos parcelles et signalez ce que vous voyez.",
     adviceFr:
@@ -184,7 +184,7 @@ const specs: RuleSpec[] = [
     version: 1,
     name: "Épidémie probable de maladie des cultures",
     description:
-      "Au moins 3 exploitations distinctes signalent une maladie des cultures à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+      "Au moins 3 producteurs distincts signalent une maladie des cultures à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
     severity: "WARNING",
     category: "CROP_DISEASE",
     cooldownHours: 72,
@@ -199,7 +199,7 @@ const specs: RuleSpec[] = [
       ],
     },
     messageFr:
-      "{commune} : {report_cluster} exploitations signalent une maladie des cultures à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+      "{commune} : {report_cluster} producteurs signalent une maladie des cultures à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
     messageShort:
       "BAIS {commune} : maladie des cultures signalée par plusieurs exploitations proches. Inspectez vos parcelles.",
     adviceFr:
@@ -210,7 +210,7 @@ const specs: RuleSpec[] = [
     version: 1,
     name: "Épidémie probable de maladie animale",
     description:
-      "Au moins 3 exploitations distinctes signalent une maladie animale à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
+      "Au moins 3 producteurs distincts signalent une maladie animale à moins de 5 km les unes des autres en 7 jours. Épidémie probable, à confirmer sur place par l'agent.",
     severity: "WARNING",
     category: "ANIMAL_DISEASE",
     cooldownHours: 72,
@@ -225,7 +225,7 @@ const specs: RuleSpec[] = [
       ],
     },
     messageFr:
-      "{commune} : {report_cluster} exploitations signalent une maladie animale à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
+      "{commune} : {report_cluster} producteurs signalent une maladie animale à moins de {radius_km} km en {days} jours. Épidémie probable, en attente de confirmation par l'agent.",
     messageShort:
       "BAIS {commune} : maladie animale signalée par plusieurs élevages proches. Isolez les bêtes malades, ne les vendez pas.",
     adviceFr:

@@ -6,17 +6,20 @@ import { beninToday, evaluateNewReports, seedDefaultRules } from "@/modules/moni
 import { simulateRule } from "@/modules/monitoring/rule-admin";
 
 // Détection des foyers (ADR-0015) sur Glazoué, commune qu'aucun autre test n'utilise : trois
-// signalements d'une même exploitation ne font pas un foyer ; deux exploitations non plus ;
-// trois exploitations proches en 7 jours lèvent une alerte « épidémie probable » de ravageurs,
-// provenance « signalements », avec un message qui dit combien d'exploitations.
+// signalements d'une même exploitation ne font pas un foyer ; trois exploitations d'un même
+// producteur non plus, ni deux producteurs ; trois producteurs proches en 7 jours lèvent une
+// alerte « épidémie probable » de ravageurs, provenance « signalements », avec un message qui dit
+// combien de producteurs.
 
 const COMMUNE = "BJ-COL-003";
 const PREFIX = "019284a0-0000-7000-8000-0000000e";
+// Le premier producteur tient trois exploitations (0 à 2), les deux autres une chacune (3 et 4).
 const ids = {
-  farmer: `${PREFIX}0001`,
-  farms: [`${PREFIX}0011`, `${PREFIX}0012`, `${PREFIX}0013`],
-  reports: [`${PREFIX}0101`, `${PREFIX}0102`, `${PREFIX}0103`, `${PREFIX}0104`, `${PREFIX}0105`],
+  farmers: [`${PREFIX}0001`, `${PREFIX}0002`, `${PREFIX}0003`],
+  farms: [`${PREFIX}0011`, `${PREFIX}0012`, `${PREFIX}0013`, `${PREFIX}0014`, `${PREFIX}0015`],
+  reports: Array.from({ length: 7 }, (_, i) => `${PREFIX}010${i}`),
 };
+const FARMER_OF_FARM = [0, 0, 0, 1, 2];
 const now = new Date();
 let communeId = "";
 let reporterId = "";
@@ -54,24 +57,26 @@ describe("détection des foyers par regroupement de signalements", () => {
     communeId = commune.id;
     const agent = await prisma.user.findFirstOrThrow({ where: { phoneNumber: "+2290190000001" } });
     reporterId = agent.id;
-    await prisma.farmer.create({
-      data: {
-        id: ids.farmer,
-        code: "BJ-TEST-OUTB-0001",
-        firstName: "Foyer",
-        lastName: "Test",
-        communeId,
-        sourceId: "ATDA_TERRAIN",
-        sourceDate: now,
-        reliability: "DECLARED",
-      },
-    });
+    for (const [index, id] of ids.farmers.entries()) {
+      await prisma.farmer.create({
+        data: {
+          id,
+          code: `BJ-TEST-OUTB-000${index + 1}`,
+          firstName: "Foyer",
+          lastName: `Test ${index + 1}`,
+          communeId,
+          sourceId: "ATDA_TERRAIN",
+          sourceDate: now,
+          reliability: "DECLARED",
+        },
+      });
+    }
     for (const [index, id] of ids.farms.entries()) {
       await prisma.farm.create({
         data: {
           id,
           code: `BJ-COL-GLA-99990${index}`,
-          farmerId: ids.farmer,
+          farmerId: ids.farmers[FARMER_OF_FARM[index]!]!,
           communeId,
           declaredAreaHa: 1,
           verificationStatus: "DECLARED",
@@ -95,7 +100,7 @@ describe("détection des foyers par regroupement de signalements", () => {
     await prisma.simulationRun.deleteMany({ where: { rule: { code: { endsWith: "_OUTBREAK" } } } });
     await prisma.fieldReport.deleteMany({ where: { id: { in: ids.reports } } });
     await prisma.farm.deleteMany({ where: { id: { in: ids.farms } } });
-    await prisma.farmer.deleteMany({ where: { id: ids.farmer } });
+    await prisma.farmer.deleteMany({ where: { id: { in: ids.farmers } } });
     await prisma.$disconnect();
   });
 
@@ -108,15 +113,23 @@ describe("détection des foyers par regroupement de signalements", () => {
     expect(await activePestAlert()).toBeNull();
   });
 
-  it("ni dans deux exploitations proches", async () => {
-    await report(ids.reports[3]!, 1, 0.01);
-    await evaluateNewReports([ids.reports[3]!], now);
+  it("ni dans trois exploitations proches d'un même producteur", async () => {
+    await report(ids.reports[3]!, 1, 0.005);
+    await report(ids.reports[4]!, 2, 0.006);
+    const summary = await evaluateNewReports(ids.reports.slice(3, 5), now);
+    expect(summary?.raised).toEqual([]);
     expect(await activePestAlert()).toBeNull();
   });
 
-  it("lève une alerte d'épidémie probable à la troisième exploitation, à moins de 5 km", async () => {
-    await report(ids.reports[4]!, 2, 0.02);
-    const summary = await evaluateNewReports([ids.reports[4]!], now);
+  it("ni dans deux producteurs proches", async () => {
+    await report(ids.reports[5]!, 3, 0.01);
+    await evaluateNewReports([ids.reports[5]!], now);
+    expect(await activePestAlert()).toBeNull();
+  });
+
+  it("lève une alerte d'épidémie probable au troisième producteur, à moins de 5 km", async () => {
+    await report(ids.reports[6]!, 4, 0.02);
+    const summary = await evaluateNewReports([ids.reports[6]!], now);
     expect(summary?.raised.length).toBe(1);
     const alert = await activePestAlert();
     expect(alert).toMatchObject({
@@ -124,11 +137,11 @@ describe("détection des foyers par regroupement de signalements", () => {
       sourceId: "BAIS_SIGNALEMENTS",
       reliability: "DECLARED",
     });
-    expect(alert?.messageFr).toContain("3 exploitations signalent des ravageurs");
+    expect(alert?.messageFr).toContain("3 producteurs signalent des ravageurs");
     expect(alert?.messageFr).toContain("5 km en 7 jours");
 
     // Une deuxième évaluation ne relance pas d'alerte : elle prolonge l'épisode en cours.
-    const again = await evaluateNewReports([ids.reports[4]!], now);
+    const again = await evaluateNewReports([ids.reports[6]!], now);
     expect(again?.raised).toEqual([]);
   });
 

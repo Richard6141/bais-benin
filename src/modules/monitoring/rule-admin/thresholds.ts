@@ -36,8 +36,8 @@ export const INDICATOR_BOUNDS: Record<NumericIndicator, IndicatorBound> = {
   water_balance_10d: { min: -500, max: 2000, unit: "mm", step: 1 },
   month: { min: 1, max: 12, unit: null, step: 1 },
   observed_days_missing_30d: { min: 0, max: 30, unit: "jours", step: 1 },
-  // Au moins deux exploitations : un signalement isolé n'est jamais une alerte (ADR-0015).
-  report_cluster: { min: 2, max: 100, unit: "exploitations", step: 1 },
+  // Au moins deux producteurs : un signalement isolé n'est jamais une alerte (ADR-0015).
+  report_cluster: { min: 2, max: 100, unit: "producteurs", step: 1 },
 };
 
 // Paramètres réglables d'un regroupement de signalements, bornés comme les seuils.

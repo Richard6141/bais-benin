@@ -58,11 +58,11 @@ const TYPE_TEXT: Record<ReportClusterParams["type"], string> = {
 
 const kmFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
-/** « Exploitations ayant signalé des ravageurs à moins de 5 km en 7 jours ». */
+/** « Producteurs ayant signalé des ravageurs à moins de 5 km en 7 jours ». */
 export function clusterLabel(params: ReportClusterParams): string {
   const confirmed = params.confirmedOnly ? " (signalements confirmés)" : "";
   return (
-    `Exploitations ayant signalé ${TYPE_TEXT[params.type]} à moins de ` +
+    `Producteurs ayant signalé ${TYPE_TEXT[params.type]} à moins de ` +
     `${kmFormatter.format(params.radiusKm)} km en ${params.days} jours${confirmed}`
   );
 }
