@@ -84,9 +84,16 @@ const serverSchema = z
     // Plafond mensuel de requêtes de traitement envoyées à CDSE (quota gratuit : 10 000 par
     // mois) : au-delà, BAIS ne sert que son cache jusqu'au mois suivant.
     SATELLITE_MONTHLY_REQUEST_BUDGET: z.coerce.number().int().min(0).max(10000).default(9000),
-    // Part de ce plafond réservée aux propositions de contours de champs (phase 3) : la tâche
-    // quotidienne de confrontation et les images de la carte se partagent le reste.
+    // Parts étanches de ce plafond (revue R2) : propositions de contours de champs, statistiques
+    // de la confrontation déclaration / satellite ; les images de la carte ont le reste.
     SATELLITE_PROPOSAL_SHARE: z.coerce.number().min(0).max(0.9).default(0.3),
+    SATELLITE_STATISTICS_SHARE: z.coerce.number().min(0).max(0.9).default(0.5),
+    // Unités de traitement par mois (quota gratuit : 10 000) et requêtes par minute, tous usages
+    // confondus (plafond Copernicus : 300).
+    SATELLITE_MONTHLY_UNIT_BUDGET: z.coerce.number().min(0).max(10000).default(9000),
+    SATELLITE_REQUESTS_PER_MINUTE: z.coerce.number().int().min(0).max(300).default(250),
+    // Tuiles détaillées absentes du cache qu'un même compte peut faire calculer par mois.
+    SATELLITE_TILE_MISSES_PER_ACCOUNT: z.coerce.number().int().min(0).default(400),
 
     // NPI : chiffrement AES-256-GCM et index HMAC, deux clés distinctes de 32 octets.
     NPI_ENCRYPTION_KEY: base64Key(32, "NPI_ENCRYPTION_KEY"),
@@ -132,6 +139,14 @@ const serverSchema = z
     ASSISTANT_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
   })
   .superRefine((env, ctx) => {
+    // Parts étanches du quota Copernicus : les images de la carte ont ce qui reste.
+    if (env.SATELLITE_PROPOSAL_SHARE + env.SATELLITE_STATISTICS_SHARE > 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["SATELLITE_STATISTICS_SHARE"],
+        message: "SATELLITE_PROPOSAL_SHARE et SATELLITE_STATISTICS_SHARE dépassent ensemble 1",
+      });
+    }
     // A1 : pendant la phase de build Next.js (NEXT_PHASE=phase-production-build), aucune
     // requête n'est encore servie et les secrets de déploiement peuvent ne pas être présents
     // dans l'environnement de build (image Docker construite avant injection des variables

@@ -31,6 +31,7 @@ const ERRORS = {
     429,
     "La part mensuelle des propositions satellite est épuisée : relevez le contour à pied, les propositions reviennent le mois prochain",
   ],
+  throttled: [429, "Copernicus est très sollicité : réessayez dans une minute"],
   "not-configured": [503, "Propositions satellite pas encore disponibles"],
   unavailable: [502, "Copernicus ne répond pas : réessayez dans quelques minutes"],
   clouded: [422, "Ce point est resté sous les nuages : touchez un autre endroit du champ"],

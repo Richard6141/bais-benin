@@ -55,6 +55,7 @@ export type FieldProposalOutcome =
   | { status: "point-too-far" }
   | { status: "rate-limited" }
   | { status: "share-exhausted" }
+  | { status: "throttled" }
   | { status: "not-configured" }
   | { status: "unavailable" }
   | { status: "clouded" }
@@ -149,11 +150,10 @@ export async function proposeFieldContours(
     return { status: "rate-limited" };
   }
   const month = periodOf(now);
-  if (
-    provider.id === "cdse" &&
-    !(await reserveProcessingRequest(month, "PROPOSAL", processingBudget()))
-  ) {
-    return { status: "share-exhausted" };
+  if (provider.id === "cdse") {
+    const reservation = await reserveProcessingRequest(month, "PROPOSAL", processingBudget(), now);
+    if (reservation === "throttled") return { status: "throttled" };
+    if (reservation !== "reserved") return { status: "share-exhausted" };
   }
 
   // Emprise de 64 pixels de 10 m au sol : en Web Mercator, un mètre au sol vaut 1/cos(lat).
