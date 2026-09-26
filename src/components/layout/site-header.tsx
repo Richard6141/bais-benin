@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MinistryLogo } from "@/components/brand/ministry-logo";
+import { HeaderAccountButton } from "@/components/layout/header-account-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { Button } from "@/components/ui/button";
 
 const NAV = [
   { href: "/", label: "Accueil" },
@@ -26,9 +26,7 @@ export function SiteHeader() {
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button asChild className="h-10">
-              <Link href="/connexion">Se connecter</Link>
-            </Button>
+            <HeaderAccountButton />
           </div>
         </div>
       </div>
