@@ -446,6 +446,7 @@ model User {
   withdrawnRankings PublishedRanking[] @relation("rankingWithdrawer")
 
   createdProducerGroups ProducerGroup[]        @relation("producerGroupCreator")
+  issuedAttestations    FarmAttestation[]      @relation("attestationIssuer")
   producerGroupMessages ProducerGroupMessage[] @relation("producerGroupMessageSender")
 
   @@map("user")
@@ -652,6 +653,8 @@ model Farm {
   assistance      AssistanceRequest[]
 
   assistantConversations AssistantConversation[]
+
+  attestations FarmAttestation[]
 
   @@index([communeId, verificationStatus])
   @@index([farmerId])
@@ -1912,4 +1915,23 @@ model ReferenceField {
   @@unique([sourceId, year, sourceRef])
   @@index([communeId, year])
   @@map("reference_field")
+}
+
+// Attestation d'exploitation remise au producteur (plan d'action, chantier F) : photographie de
+// l'exploitation au jour de l'émission (surfaces, cultures, vérification, identité contrôlée ou
+// non), vérifiable par quiconque tient son code QR, révocable. Le code est tiré au hasard et
+// n'est pas l'identifiant de la ligne : il ne révèle rien de l'ordre d'émission.
+model FarmAttestation {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  code       String    @unique
+  farmId     String    @map("farm_id") @db.Uuid
+  farm       Farm      @relation(fields: [farmId], references: [id])
+  issuedById String    @map("issued_by_id") @db.Uuid
+  issuedBy   User      @relation("attestationIssuer", fields: [issuedById], references: [id])
+  issuedAt   DateTime  @default(now()) @map("issued_at")
+  snapshot   Json
+  revokedAt  DateTime? @map("revoked_at")
+
+  @@index([farmId, issuedAt])
+  @@map("farm_attestation")
 }
