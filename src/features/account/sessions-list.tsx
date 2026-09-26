@@ -47,7 +47,7 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
                 ) : null}
               </span>
               <span className="text-xs text-muted-foreground">
-                Connecté le {formatDate(session.createdAt)} · expire le{" "}
+                Connecté le {formatDate(session.createdAt)}, expire le{" "}
                 {formatDate(session.expiresAt)}
               </span>
             </div>

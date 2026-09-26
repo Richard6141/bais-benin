@@ -22,7 +22,7 @@ export function ReportDetail({ report, cropName, canReview }: ReportDetailProps)
         <Badge variant={status.tone}>{status.label}</Badge>
         <span className="text-sm text-muted-foreground">
           {REPORT_TYPE_LABELS[report.type].label}
-          {cropName ? ` · ${cropName}` : ""}
+          {cropName ? `, ${cropName}` : ""}
         </span>
       </div>
       <p className="text-base whitespace-pre-line">{report.description}</p>
@@ -39,7 +39,7 @@ export function ReportDetail({ report, cropName, canReview }: ReportDetailProps)
         <dd>{dateFormatter.format(report.observedAt)}</dd>
         <dt className="text-muted-foreground">Exploitation</dt>
         <dd>
-          {report.farm.name ?? report.farm.code} ({report.farm.code}) · {report.farm.farmerName}
+          {report.farm.name ?? report.farm.code} ({report.farm.code}), {report.farm.farmerName}
         </dd>
         <dt className="text-muted-foreground">Parcelle</dt>
         <dd>{report.parcelCode ?? "Toute l'exploitation"}</dd>
