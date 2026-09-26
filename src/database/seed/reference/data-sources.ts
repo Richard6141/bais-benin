@@ -80,6 +80,15 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "SENSOR",
   },
   {
+    // Contours de champs de référence (ADR-0029) : modèle PRUE appliqué à des mosaïques Sentinel-2.
+    id: "FTW_GLOBAL",
+    name: "Fields of The World, contours de champs à 10 m (PRUE)",
+    organization: "Taylor Geospatial Institute et partenaires (Fields of The World)",
+    url: "https://fieldsofthe.world",
+    licence: "CC BY 4.0, « Fields of The World, Taylor Geospatial Institute »",
+    kind: "MODEL",
+  },
+  {
     id: "ATDA_TERRAIN",
     name: "Relevés de terrain des agents",
     organization: "Agences Territoriales de Développement Agricole",

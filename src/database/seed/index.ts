@@ -19,6 +19,7 @@ import {
   seedParcelCrops,
   seedVegetationChecks,
 } from "./steps/satellite.seed";
+import { seedReferenceFields } from "./steps/reference-fields.seed";
 import { seedTerritory } from "./steps/territory.seed";
 
 export interface SeedSummary {
@@ -34,6 +35,7 @@ export interface SeedSummary {
   monitoring: MonitoringSeedSummary;
   assistant: Awaited<ReturnType<typeof seedAssistantCorpus>>;
   vegetation: Awaited<ReturnType<typeof seedVegetationChecks>>;
+  referenceFields: Awaited<ReturnType<typeof seedReferenceFields>>;
   cropAreaCommunes: number | null;
   cropClassChecks: number | null;
   parcelSignatures: number | null;
@@ -58,6 +60,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   const monitoring = await seedMonitoring();
   const assistant = await seedAssistantCorpus();
   const vegetation = await seedVegetationChecks();
+  const referenceFields = await seedReferenceFields();
   const cropAreaCommunes = await seedCropAreaEstimates();
   const cropClassChecks = await seedCropClassChecks();
   const parcelSignatures = await seedParcelCrops();
@@ -73,6 +76,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
     monitoring,
     assistant,
     vegetation,
+    referenceFields,
     cropAreaCommunes,
     cropClassChecks,
     parcelSignatures,
