@@ -25,6 +25,7 @@ import {
   COMMUNE_FILL_OPACITY,
   NO_DATA_COLOR,
   FARM_COLORS,
+  HIRES_IMAGERY,
   INITIAL_ZOOM,
   LAYER_IDS,
   MAP_STYLE_URL,
@@ -462,7 +463,7 @@ export function MapCanvas({
     selectedParcelRef.current = selectedParcelId;
   }, [selectedParcelId, ready]);
 
-  // Cadrage demandé (fiche ouverte depuis un lien) : la parcelle entière, sans dépasser le zoom 16.
+  // Cadrage demandé (fiche ouverte depuis un lien) : la parcelle entière, sans trop grossir.
   const focusKey = focusBounds ? focusBounds.join(",") : null;
   useEffect(() => {
     const map = mapRef.current;
@@ -472,7 +473,8 @@ export function MapCanvas({
         [focusBounds[0], focusBounds[1]],
         [focusBounds[2], focusBounds[3]],
       ],
-      { padding: 80, maxZoom: 16, duration: 900 },
+      // Sans imagerie haute résolution, au-delà de 15 les pixels de 10 m ne montrent plus rien.
+      { padding: 80, maxZoom: HIRES_IMAGERY ? 16 : 15, duration: 900 },
     );
     // focusKey résume l'emprise : le tableau change d'identité à chaque rendu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -485,11 +487,20 @@ export function MapCanvas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    for (const id of [SATELLITE_IDS.detailLayer, SATELLITE_IDS.overviewLayer]) {
-      if (map.getLayer(id)) map.removeLayer(id);
+    const hires = sky?.layer === "couleur-naturelle" && skyDetail ? HIRES_IMAGERY : null;
+    for (const id of [
+      HIRES_IMAGERY?.layerId,
+      SATELLITE_IDS.detailLayer,
+      SATELLITE_IDS.overviewLayer,
+    ]) {
+      if (id && map.getLayer(id)) map.removeLayer(id);
     }
-    for (const id of [SATELLITE_IDS.detailSource, SATELLITE_IDS.overviewSource]) {
-      if (map.getSource(id)) map.removeSource(id);
+    for (const id of [
+      HIRES_IMAGERY?.sourceId,
+      SATELLITE_IDS.detailSource,
+      SATELLITE_IDS.overviewSource,
+    ]) {
+      if (id && map.getSource(id)) map.removeSource(id);
     }
     map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", sky ? 0 : COMMUNE_FILL_OPACITY);
     if (!sky) return;
@@ -533,9 +544,26 @@ export function MapCanvas({
         LAYER_IDS.communeFill,
       );
     }
+    if (hires) {
+      map.addSource(hires.sourceId, {
+        type: "raster",
+        tiles: [hires.url],
+        tileSize: 256,
+        minzoom: hires.minZoom,
+        maxzoom: 19,
+      });
+      map.addLayer(
+        { id: hires.layerId, type: "raster", source: hires.sourceId, minzoom: hires.minZoom },
+        LAYER_IDS.communeFill,
+      );
+    }
     // Une source d'image ne porte pas d'attribution : la mention Copernicus passe par le
     // contrôle, recréé avec elle (ses mentions sont fixées à la construction).
-    attributionRef.current = swapAttribution(map, attributionRef.current, attribution);
+    attributionRef.current = swapAttribution(
+      map,
+      attributionRef.current,
+      hires ? `${attribution}, ${hires.attribution}` : attribution,
+    );
     return () => {
       if (mapRef.current) {
         attributionRef.current = swapAttribution(mapRef.current, attributionRef.current, null);
