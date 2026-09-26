@@ -1,5 +1,8 @@
-import type { Metadata } from "next";
+import { Maximize2 } from "lucide-react";
+import type { Metadata, Route } from "next";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
 import { WatchCentre } from "@/features/watch/watch-centre";
 import { getWatchSummary } from "@/modules/watch";
@@ -18,6 +21,14 @@ export default async function WatchCentrePage() {
         eyebrow="Centre de pilotage"
         title="Centre de veille"
         description="La situation du pays en temps réel : feux de brousse, alertes, foyers de signalements et demandes d'assistance."
+        actions={
+          <Button asChild variant="outline" className="h-11">
+            <Link href={"/salle-de-situation" as Route}>
+              <Maximize2 aria-hidden />
+              Salle de situation
+            </Link>
+          </Button>
+        }
       />
       <WatchCentre initial={summary} />
     </div>

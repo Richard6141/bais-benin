@@ -12,6 +12,7 @@ const protectedPrefixes = [
   "/commune",
   "/pilotage",
   "/compte",
+  "/salle-de-situation",
 ];
 
 export function proxy(request: NextRequest) {
