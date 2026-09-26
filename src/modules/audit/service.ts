@@ -47,6 +47,8 @@ export type AuditAction =
   | "registry.harvest.declared"
   | "registry.farm.verified"
   | "registry.parcel.inspected"
+  | "registry.attestation.issued"
+  | "registry.attestation.revoked"
   | "sync.batch.received"
   | "alert.raised"
   | "alert.released"
