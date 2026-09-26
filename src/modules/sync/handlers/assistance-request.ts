@@ -1,5 +1,5 @@
 import { findCommuneByCode, findFarm } from "./lookups";
-import { idConflict, rejected, type CommandTarget, type SyncHandler } from "./types";
+import { idConflict, rejected, type CommandTarget, type Db, type SyncHandler } from "./types";
 
 // Demande d'assistance « Solliciter l'État » (phase 0, docs/modules/signalements.md) : le
 // producteur la dépose pour son exploitation, ou pour lui-même et sa commune s'il n'a pas encore
@@ -8,6 +8,20 @@ import { idConflict, rejected, type CommandTarget, type SyncHandler } from "./ty
 // Par compte et par 24 heures : largement assez pour un producteur, trop peu pour saturer une
 // commune.
 const MAX_REQUESTS_PER_DAY = 10;
+
+/**
+ * Commune d'une demande sans exploitation : celle de la fiche producteur du demandeur, jamais une
+ * commune choisie (revue de sécurité R4) ; la commune indiquée ne sert qu'à un compte qu'aucune
+ * fiche ne relie encore.
+ */
+async function requesterCommune(db: Db, userId: string, communeCode: string | undefined) {
+  const farmer = await db.farmer.findUnique({
+    where: { userId },
+    select: { commune: { select: { id: true, departementId: true } } },
+  });
+  if (farmer) return farmer.commune;
+  return findCommuneByCode(db, communeCode ?? "");
+}
 
 export const assistanceRequest: SyncHandler<"assistance.request"> = {
   async target(command, db, actor) {
@@ -25,7 +39,7 @@ export const assistanceRequest: SyncHandler<"assistance.request"> = {
         byId: true,
       } satisfies CommandTarget;
     }
-    const commune = await findCommuneByCode(db, communeCode ?? "");
+    const commune = await requesterCommune(db, actor.userId, communeCode);
     if (!commune) return null;
     // Sans exploitation, la demande porte sur le compte même de l'acteur.
     return {
@@ -46,7 +60,7 @@ export const assistanceRequest: SyncHandler<"assistance.request"> = {
       if (!farm) return rejected("NOT_FOUND", "Exploitation inconnue", "farmId");
       communeId = farm.communeId;
     } else {
-      const commune = await findCommuneByCode(db, payload.communeCode ?? "");
+      const commune = await requesterCommune(db, context.actor.userId, payload.communeCode);
       if (!commune) return rejected("NOT_FOUND", "Commune inconnue", "communeCode");
       communeId = commune.id;
     }

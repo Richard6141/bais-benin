@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/features/auth/session";
+import { expirePublicRankings } from "@/features/public-ranking/cached";
 import { MAX_PUBLISHED_LAUREATES, publishRanking, withdrawRanking } from "@/modules/public-ranking";
 
 export interface PublicationActionState {
@@ -40,6 +41,7 @@ export async function publishRankingAction(
   const count = z.coerce.number().int().safeParse(formData.get("laureates"));
   const result = await publishRanking(user.actor, input, count.success ? count.data : 0);
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
+  expirePublicRankings();
   revalidatePath("/pilotage/palmares");
   return {
     status: "success",
@@ -56,6 +58,7 @@ export async function withdrawRankingAction(
   if (!id.success) return { status: "error", message: "Demande invalide." };
   const result = await withdrawRanking(user.actor, id.data);
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
+  expirePublicRankings();
   revalidatePath("/pilotage/palmares");
   return { status: "success", message: "Palmarès retiré de la page publique." };
 }

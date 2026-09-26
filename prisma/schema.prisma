@@ -969,6 +969,10 @@ model Alert {
   source               DataSource    @relation(fields: [sourceId], references: [id])
   sourceDate           DateTime      @map("source_date")
   reliability          Reliability
+  // Foyer levé sur des signalements non vérifiés (ADR-0015) : visible des agents et du ministère,
+  // diffusé aux producteurs seulement quand un agent confirme un signalement du foyer.
+  awaitingConfirmation Boolean       @default(false) @map("awaiting_confirmation")
+  releasedAt           DateTime?     @map("released_at")
   createdAt            DateTime      @default(now()) @map("created_at")
   updatedAt            DateTime      @updatedAt @map("updated_at")
 
@@ -1011,17 +1015,19 @@ model AlertRecipient {
 
 // Consentement d'un producteur à être prévenu par un canal (APDP, exigence wapy.pro).
 model ChannelConsent {
-  id        String              @id @default(uuid(7)) @db.Uuid
-  farmerId  String              @map("farmer_id") @db.Uuid
-  farmer    Farmer              @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  channel   NotificationChannel
-  granted   Boolean
-  grantedAt DateTime?           @map("granted_at")
-  revokedAt DateTime?           @map("revoked_at")
-  method    ConsentMethod
-  evidence  String?
-  createdAt DateTime            @default(now()) @map("created_at")
-  updatedAt DateTime            @updatedAt @map("updated_at")
+  id          String              @id @default(uuid(7)) @db.Uuid
+  farmerId    String              @map("farmer_id") @db.Uuid
+  farmer      Farmer              @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  channel     NotificationChannel
+  granted     Boolean
+  grantedAt   DateTime?           @map("granted_at")
+  revokedAt   DateTime?           @map("revoked_at")
+  method      ConsentMethod
+  evidence    String?
+  // Version du texte accepté (preuve APDP) ; nulle pour un accord antérieur au suivi des versions.
+  textVersion String?             @map("text_version")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
 
   @@unique([farmerId, channel])
   @@map("channel_consent")
@@ -1478,11 +1484,13 @@ model FarmerNotification {
 // Accord du producteur pour figurer dans les palmarès publiés (complément d'ADR-0018), donné et
 // retiré par lui-même depuis son compte. Le retirer l'efface aussitôt des palmarès publiés.
 model RankingConsent {
-  farmerId  String    @id @map("farmer_id") @db.Uuid
-  farmer    Farmer    @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  grantedAt DateTime  @map("granted_at")
-  revokedAt DateTime? @map("revoked_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  farmerId    String    @id @map("farmer_id") @db.Uuid
+  farmer      Farmer    @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  grantedAt   DateTime  @map("granted_at")
+  revokedAt   DateTime? @map("revoked_at")
+  // Version du texte accepté (preuve APDP) ; nulle pour un accord antérieur au suivi des versions.
+  textVersion String?   @map("text_version")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("ranking_consent")
 }

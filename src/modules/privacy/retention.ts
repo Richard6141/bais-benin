@@ -1,6 +1,13 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/database/client";
 import { logger } from "@/lib/logger";
+import {
+  purgeFieldReportPhotos,
+  purgeFieldReports,
+  purgeResolvedAssistanceRequests,
+  purgeSatelliteTilesOutsideWindow,
+  purgeWithdrawnRankingEntries,
+} from "./field-retention";
 
 // C4 : purge/anonymisation périodique, exigée par le principe de minimisation de l'APDP
 // (Autorité de protection des données à caractère personnel, loi béninoise n° 2017-20) — les
@@ -33,6 +40,11 @@ export interface RetentionSummary {
   syncCommandPayloadsPurged: number;
   auditLogDetailsPurged: number;
   farmerNotificationsPurged: number;
+  fieldReportPhotosPurged: number;
+  fieldReportsPurged: number;
+  assistanceRequestsPurged: number;
+  rankingEntriesPurged: number;
+  satelliteTilesPurged: number;
 }
 
 /** Efface la charge utile des commandes de synchronisation appliquées depuis plus de 180 jours. */
@@ -87,6 +99,12 @@ export async function runRetentionPurge(now: Date = new Date()): Promise<Retenti
     syncCommandPayloadsPurged: await purgeSyncCommandPayloads(now),
     auditLogDetailsPurged: await purgeAuditLogDetails(now),
     farmerNotificationsPurged: await purgeFarmerNotifications(now),
+    // Données des phases 0 à 2 (field-retention.ts) : photos d'abord, puis signalements.
+    fieldReportPhotosPurged: await purgeFieldReportPhotos(now),
+    fieldReportsPurged: await purgeFieldReports(now),
+    assistanceRequestsPurged: await purgeResolvedAssistanceRequests(now),
+    rankingEntriesPurged: await purgeWithdrawnRankingEntries(),
+    satelliteTilesPurged: await purgeSatelliteTilesOutsideWindow(now),
   };
   logger.info(summary, "Purge des données personnelles au-delà de leur délai de conservation");
   return summary;

@@ -37,6 +37,8 @@ export function clusterResolver(values: ClusterValues, communeId: string): Condi
  * signalements : source « signalements », fiabilité déclarative (vérifiée par un agent si la
  * règle ne compte que des signalements confirmés), marqueurs {report_cluster}, {radius_km},
  * {days} pour les gabarits. Null pour une règle qui lit la météo : sa provenance reste la météo.
+ * Un foyer compté sur des signalements non vérifiés attend la confirmation d'un agent avant
+ * d'être diffusé aux producteurs (ADR-0015, revue de sécurité R1).
  */
 export function reportAlertProvenance(
   definition: RuleNode,
@@ -48,14 +50,17 @@ export function reportAlertProvenance(
   reliability: "DECLARED" | "AGENT_VERIFIED";
   sourceDate: Date;
   messageValues: Record<string, number>;
+  awaitingConfirmation: boolean;
 } | null {
   if (usesWeather(definition)) return null;
   const params = clusterParamsOf([definition]);
   const first = params[0];
   if (!first) return null;
+  const verified = params.every((p) => p.confirmedOnly);
   return {
     sourceId: "BAIS_SIGNALEMENTS",
-    reliability: params.every((p) => p.confirmedOnly) ? "AGENT_VERIFIED" : "DECLARED",
+    reliability: verified ? "AGENT_VERIFIED" : "DECLARED",
+    awaitingConfirmation: !verified,
     sourceDate: now,
     messageValues: {
       report_cluster: values.get(clusterKey(first))?.get(communeId) ?? 0,

@@ -5,6 +5,7 @@ import { resolveRequest, takeChargeOfRequest } from "@/modules/assistance";
 import type { Actor } from "@/modules/authorization";
 import { loadActor } from "@/modules/identity";
 import {
+  WHATSAPP_CONSENT_TEXT,
   sendFarmerNotifications,
   setWhatsappConsent,
   whatsappConsentOf,
@@ -102,6 +103,11 @@ describe("messages de suivi au producteur", () => {
     expect(await setWhatsappConsent(agent, true)).toEqual({ ok: false, code: "FORBIDDEN" });
     expect(await setWhatsappConsent(farmer, true, DAY)).toEqual({ ok: true });
     expect(await whatsappConsentOf(farmer)).toEqual({ available: true, grantedAt: DAY });
+    // La version du texte accepté est gardée avec l'accord (preuve APDP).
+    const stored = await prisma.channelConsent.findUniqueOrThrow({
+      where: { farmerId_channel: { farmerId: farmerRecord.id, channel: "WHATSAPP" } },
+    });
+    expect(stored).toMatchObject({ method: "OTP", textVersion: WHATSAPP_CONSENT_TEXT.version });
   });
 
   it("prévient le producteur quand sa demande est prise en charge, une seule fois", async () => {

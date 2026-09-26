@@ -209,3 +209,18 @@ Constat d'origine :
 
 1. Avant une présentation publique : cette branche (P1 à P11). R1 à décider, puisque les alertes WhatsApp partent réellement dès que `WAPY_API_KEY` est posée.
 2. Avant un déploiement réel : R2 (session « vue du ciel »), R1, R3, puis R4 à R8.
+
+## Suite donnée (26 septembre 2026)
+
+P1 à P11 sont fusionnés. Décisions du chef d'équipe et corrections sur la branche `fix/security-follow-up` :
+
+| Point | Décision | Réalisation |
+|---|---|---|
+| R1 | Option 1 : diffusion après confirmation | Foyer « en attente de confirmation », visible des agents et du ministère seulement ; la confirmation d'un signalement du foyer le libère et planifie la diffusion (complément d'ADR-0015) |
+| R2 | Confié à la session « vue du ciel » | — |
+| R3 | Durées par défaut, ajustables par le ministère | Registre des traitements (`docs/recherche/registre-des-traitements.md`) ; purges : photos 1 an, signalements 3 ans, demandes 3 ans après résolution, lauréats jusqu'au retrait, images satellite hors fenêtre |
+| R4 | Commune du producteur | Une demande sans exploitation part à la commune de la fiche producteur ; le choix ne reste qu'à un compte sans fiche |
+| R5 | Réponse nettoyée | Liens, adresses, caractères invisibles et d'inversion retirés avant WhatsApp, puis troncature |
+| R6 | Sous-cases masquées | Cases par statut de moins de 5 masquées avec leur complément ; délais médians sur 5 demandes au moins |
+| R7 | Version du texte | Textes des accords versionnés dans le domaine ; version enregistrée avec chaque accord et dans le journal |
+| R8 | Cache court | Pages publiques du palmarès en cache de 2 minutes, expiré à chaque publication, retrait ou accord |

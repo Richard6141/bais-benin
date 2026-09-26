@@ -1,6 +1,6 @@
 # ADR-0015 — Détection des foyers par regroupement de signalements, dans le moteur de règles
 
-- Statut : acceptée, corrigée le 2026-09-26 (revue de sécurité des phases 0 à 2)
+- Statut : acceptée, corrigée et complétée le 2026-09-26 (revue de sécurité des phases 0 à 2)
 - Date : 2026-09-26
 - Décideurs : Chef d'équipe (feuille de route validée par l'utilisateur), Architecte
 
@@ -87,4 +87,27 @@ levaient une alerte diffusée par WhatsApp à toute une commune.
   jour, pas plus de 60 jours en arrière) ; 20 signalements au plus par compte et par 24 heures.
 - Libellés, messages et éditeur de seuils parlent de producteurs.
 - Reste ouvert (docs/recherche/revue-securite-phases-0-2.md, R1) : trois comptes coordonnés dont le
-  NPI n'est pas encore vérifié par l'ANIP suffisent encore à lever une alerte diffusée.
+  NPI n'est pas encore vérifié par l'ANIP suffisent encore à lever une alerte diffusée. Réglé par
+  le complément ci-dessous.
+
+## Complément du 2026-09-26 : diffusion après confirmation (R1)
+
+Décideurs : chef d'équipe (option retenue parmi les deux proposées par la revue de sécurité).
+
+- Un foyer levé par une règle qui compte des signalements non vérifiés (`confirmedOnly` absent)
+  naît **en attente de confirmation** (`alert.awaiting_confirmation`). Il reste dans
+  l'application pour ceux qui encadrent la diffusion (droit `alert.relay` : agents de la
+  commune, ministère), marqué « en attente de confirmation ». Les producteurs ne le voient pas,
+  ni dans leur espace ni par l'assistant, et ne reçoivent rien : ni WhatsApp, ni SMS, ni relais
+  oral.
+- Dès qu'un agent (ou le ministère) confirme un signalement qui appartient au foyer (même type,
+  dans la fenêtre, à moins du rayon d'un signalement non écarté de la commune), l'alerte est
+  libérée (`released_at`) : les destinataires producteurs sont planifiés et la diffusion part au
+  prochain passage de la tâche d'envoi (10 minutes au plus). Un signalement du foyer déjà
+  confirmé au moment de la levée libère l'alerte tout de suite. Chaque libération est journalisée
+  (`alert.released`).
+- Une règle qui ne compte que des signalements confirmés (`confirmedOnly: true`) n'est jamais
+  retenue : sa fiabilité est déjà « vérifiée par un agent ».
+- Conséquence : la détection reste immédiate pour les agents, qui savent où aller ; la diffusion
+  aux producteurs attend une visite. Des comptes coordonnés ne peuvent plus alerter une commune
+  sans qu'un agent ait vu le problème.

@@ -1,4 +1,5 @@
 export {
+  WHATSAPP_CONSENT_TEXT,
   setWhatsappConsent,
   whatsappConsentOf,
   type ConsentResult,

@@ -87,6 +87,10 @@ hors de portée répond comme inexistant (404), en lecture comme en décision.
 `report.reviewed` (décision) dans `audit_log` ; événements `REPORT_SUBMITTED` et
 `REPORT_REVIEWED` dans le fil d'activité de l'exploitation.
 
+Conservation (registre des traitements) : photo 1 an après le dépôt, signalement 3 ans ; demande
+d'assistance 3 ans après sa résolution. Appliquée par `pnpm db:purge`
+(`src/modules/privacy/field-retention.ts`).
+
 ## 8. Détection des foyers (ADR-0015)
 
 Un signalement isolé n'est jamais une alerte. Plusieurs signalements du même type, dans la même
@@ -110,6 +114,12 @@ existant (ADR-0011), avec sa diffusion (producteurs de la commune, agents, relai
   apporte des signalements (`evaluateNewReports`, lancé après la réponse par `after()`), pour les
   communes voisines dans le plus grand rayon des règles actives. L'envoi des messages suit au
   prochain passage de la diffusion.
+- **Diffusion après confirmation** (complément d'ADR-0015) : un foyer compté sur des signalements
+  non vérifiés reste aux agents et au ministère, marqué « en attente de confirmation » ; les
+  producteurs ne le voient pas et ne reçoivent rien. La confirmation, par un agent, d'un
+  signalement du foyer le libère et planifie la diffusion aux producteurs
+  (`src/modules/monitoring/outbreak-release.ts`). Un signalement déjà confirmé à la levée le
+  libère tout de suite.
 - **Météo** : une météo ancienne ne bloque jamais une règle qui ne lit que des signalements.
 - **Provenance** : source `BAIS_SIGNALEMENTS`, fiabilité déclarative (vérifiée par un agent si
   la règle ne compte que des signalements confirmés).

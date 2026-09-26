@@ -27,9 +27,23 @@ const dayMonth = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Africa/Porto-Novo",
 });
 
-/** Citation d'une réponse d'agent, sur une ligne et tronquée. */
+// Nettoyage de la citation (revue de sécurité R5) : le message part du numéro officiel, un lien ou
+// une adresse y serait pris pour une consigne de l'État (hameçonnage depuis un compte d'agent
+// compromis). Caractères de contrôle, invisibles et d'inversion du sens d'écriture retirés : ils
+// servent à maquiller un texte.
+const INVISIBLE = /[\u0000-\u0008\u000b-\u001f\u007f​-‏‪-‮⁠-⁤﻿]/g;
+const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const LINK =
+  /\b(?:https?:\/\/|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|bj|me|ly|io|info|biz|link|app|xyz|site|online|co|gl)\b(?:\/\S*)?/gi;
+
+/** Citation d'une réponse d'agent : sans lien ni adresse, sur une ligne, tronquée. */
 export function quote(text: string): string {
-  const flat = text.replace(/\s+/g, " ").trim();
+  const flat = text
+    .replace(INVISIBLE, "")
+    .replace(EMAIL, "[adresse retirée]")
+    .replace(LINK, "[lien retiré]")
+    .replace(/\s+/g, " ")
+    .trim();
   return flat.length <= MAX_QUOTE ? flat : `${flat.slice(0, MAX_QUOTE - 1).trimEnd()}…`;
 }
 

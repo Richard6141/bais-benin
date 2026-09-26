@@ -47,6 +47,7 @@ export async function planAlertRecipients(
     select: {
       id: true,
       communeId: true,
+      awaitingConfirmation: true,
       commune: { select: { departementId: true } },
       rule: { select: { definition: true } },
     },
@@ -105,7 +106,10 @@ export async function planAlertRecipients(
   });
 
   const planned: PlannedRow[] = [];
-  for (const farm of farms) {
+  // Foyer en attente de confirmation (ADR-0015) : les agents seulement ; les producteurs sont
+  // ajoutés à la libération de l'alerte (outbreak-release.ts), par un nouvel appel de ce plan.
+  const producers = alert.awaitingConfirmation ? [] : farms;
+  for (const farm of producers) {
     const { userId, phoneE164, channelConsents } = farm.farmer;
     const consented = new Set(channelConsents.map((c) => c.channel));
     if (userId) planned.push({ farmId: farm.id, userId, phoneE164: null, channel: "IN_APP" });
