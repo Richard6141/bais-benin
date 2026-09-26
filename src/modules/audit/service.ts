@@ -62,6 +62,7 @@ export type AuditAction =
   | "stats.official.imported"
   | "feedback.created"
   | "feedback.status.changed"
+  | "feedback.exported"
   | "assistance.taken"
   | "assistance.resolved"
   | "rule.created"

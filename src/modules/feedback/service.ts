@@ -218,5 +218,12 @@ export async function exportFeedbackCsv(
       row.message,
     ]),
   );
+  // Comme les autres exports (analytics.export, group.exported) : qui a exporté quoi.
+  await recordAudit({
+    action: "feedback.exported",
+    actorId: actor.userId,
+    resourceType: "tester_feedback",
+    details: { ...filters, rows: rows.length },
+  });
   return { filename: `avis-testeurs-${new Date().toISOString().slice(0, 10)}.csv`, content };
 }

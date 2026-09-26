@@ -74,8 +74,19 @@ describe("avis des testeurs", () => {
     expect(mine).toBeDefined();
     expect(Object.keys(mine)).not.toContain("authorId");
     expect(await countNewFeedback(ministry.actor)).toBeGreaterThanOrEqual(1);
+    const exportedFrom = new Date(Date.now() - 1000);
     const csv = await exportFeedbackCsv(ministry.actor, { role: "FARMER" });
     expect(csv.content).toContain("C'est difficile à comprendre");
+    const exported = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "feedback.exported",
+        actorId: ministry.id,
+        occurredAt: { gte: exportedFrom },
+      },
+      select: { details: true },
+    });
+    expect(exported.details).toMatchObject({ role: "FARMER" });
+    expect((exported.details as { rows: number }).rows).toBeGreaterThanOrEqual(1);
   });
 
   it("laisse le ministère changer l'état, et le journalise", async () => {
