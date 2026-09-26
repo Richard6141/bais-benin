@@ -92,6 +92,10 @@ const serverSchema = z
     // confondus (plafond Copernicus : 300).
     SATELLITE_MONTHLY_UNIT_BUDGET: z.coerce.number().min(0).max(10000).default(9000),
     SATELLITE_REQUESTS_PER_MINUTE: z.coerce.number().int().min(0).max(300).default(250),
+    // Radar Sentinel-1 (ADR-0019) : quand les nuages empêchent Sentinel-2 de conclure, la
+    // confrontation demande l'indice radar. Désactivé tant que le coût en unités de traitement
+    // n'a pas été mesuré (POST /api/v1/satellite/radar-calibration).
+    SATELLITE_RADAR_FALLBACK: z.enum(["0", "1"]).default("0"),
     // Tuiles détaillées absentes du cache qu'un même compte peut faire calculer par mois.
     SATELLITE_TILE_MISSES_PER_ACCOUNT: z.coerce.number().int().min(0).default(400),
 
