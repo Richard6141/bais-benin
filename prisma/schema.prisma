@@ -780,8 +780,12 @@ model FarmEvent {
   payload    Json?
   actorId    String?  @map("actor_id") @db.Uuid
   occurredAt DateTime @default(now()) @map("occurred_at")
+  // Arrivée sur le serveur. occurredAt est l'heure de saisie sur l'appareil, parfois des heures
+  // plus tôt (hors ligne) : le fil d'activité en direct lit les arrivées, pas les saisies.
+  recordedAt DateTime @default(now()) @map("recorded_at")
 
   @@index([farmId, occurredAt])
+  @@index([recordedAt])
   @@map("farm_event")
 }
 
@@ -997,6 +1001,7 @@ model Alert {
   @@index([communeId, status])
   @@index([status, severity])
   @@index([ruleId, communeId, startsAt])
+  @@index([createdAt])
   @@map("alert")
 }
 
@@ -1310,6 +1315,7 @@ model FieldReport {
   @@index([communeId, type, observedAt])
   @@index([farmId, createdAt])
   @@index([status, createdAt])
+  @@index([createdAt])
   @@map("field_report")
 }
 
@@ -1418,6 +1424,7 @@ model AssistanceRequest {
 
   @@index([communeId, status, createdAt])
   @@index([requesterId, createdAt])
+  @@index([createdAt])
   @@map("assistance_request")
 }
 
@@ -1723,6 +1730,7 @@ model FireDetection {
 
   @@index([detectedAt])
   @@index([communeId, detectedAt])
+  @@index([createdAt])
   @@map("fire_detection")
 }
 
