@@ -213,3 +213,56 @@ export async function parcelPolygonsTile(
     WHERE q.geom IS NOT NULL`;
   return toBuffer(rows);
 }
+
+export const FIELD_TILE_MIN_ZOOM = 12;
+
+/** Communes autorisées pour les champs de référence : null pour tout le pays, [] pour rien. */
+export type FieldTileScope = string[] | null;
+
+/**
+ * Tuile des champs de référence (ADR-0029) : id, confiance, surface, et `registered` quand le
+ * champ recouvre déjà une parcelle enregistrée. Aucune donnée nominative : ni exploitant ni NPI.
+ * Le contour est simplifié à environ deux pixels près, comme les parcelles.
+ */
+export async function referenceFieldsTile(
+  z: number,
+  x: number,
+  y: number,
+  scope: FieldTileScope = null,
+  year = 2025,
+): Promise<Buffer | null> {
+  assertTile(z, x, y);
+  if (z < FIELD_TILE_MIN_ZOOM || (scope !== null && scope.length === 0)) return null;
+  const scopeClause =
+    scope === null
+      ? Prisma.empty
+      : Prisma.sql`AND f."commune_id" IN (${Prisma.join(scope.map((id) => Prisma.sql`${id}::uuid`))})`;
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH bounds AS (
+      SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
+    ),
+    q AS (
+      SELECT
+        f."id"::text AS id,
+        f."confidence"::float8 AS confidence,
+        f."area_ha"::float8 AS area_ha,
+        EXISTS (
+          SELECT 1 FROM "parcel" p
+          WHERE p."archived_at" IS NULL AND p."geom" IS NOT NULL AND ST_Intersects(p."geom", f."geom")
+        ) AS registered,
+        ST_AsMVTGeom(
+          ST_SimplifyPreserveTopology(
+            ST_Transform(f."geom"::geometry, 3857), ${simplifyToleranceMeters(z)}::float8),
+          bounds.env, ${EXTENT}::int, ${BUFFER}::int, true
+        ) AS geom
+      FROM "reference_field" f
+      CROSS JOIN bounds
+      WHERE f."year" = ${year}::int
+        AND f."geom" && ST_Transform(bounds.env, 4326)::geography
+        ${scopeClause}
+    )
+    SELECT ST_AsMVT(q, 'fields', ${EXTENT}::int, 'geom') AS tile
+    FROM q
+    WHERE q.geom IS NOT NULL`;
+  return toBuffer(rows);
+}

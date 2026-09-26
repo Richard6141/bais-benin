@@ -24,6 +24,9 @@ import {
   CHOROPLETH_SCALE,
   COMMUNE_FILL_OPACITY,
   CROP_MAP_QUARTERS,
+  FIELD_COLORS,
+  FIELD_MIN_ZOOM,
+  FIELDS_ATTRIBUTION,
   NO_DATA_COLOR,
   FARM_COLORS,
   HIRES_IMAGERY,
@@ -100,6 +103,8 @@ interface MapCanvasProps {
   focusBounds?: [number, number, number, number] | null;
   /** Niveau de zoom après chaque déplacement (invite à se rapprocher pour voir les champs). */
   onZoomChange?: (zoom: number) => void;
+  /** Champs détectés (contours de référence) à partir du zoom 12, non nominatifs. */
+  showFields?: boolean;
   /** Feux actifs à afficher au-dessus de tout (ADR-0022) ; null : pas de couche de feux. */
   fires?: FireCollection | null;
 }
@@ -125,19 +130,31 @@ export function MapCanvas({
   focusBounds = null,
   onZoomChange,
   fires = null,
+  showFields = false,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const attributionRef = useRef<AttributionControl | null>(null);
   // Mentions propres aux couches affichées (Copernicus, NASA FIRMS), réunies dans un contrôle.
-  const extrasRef = useRef<{ sky: string | null; crops: string | null; fires: string | null }>({
+  const extrasRef = useRef<{
+    sky: string | null;
+    crops: string | null;
+    fires: string | null;
+    fields: string | null;
+  }>({
     sky: null,
     crops: null,
     fires: null,
+    fields: null,
   });
   const refreshAttribution = (map: MapLibreMap) => {
-    const { sky: skyMention, crops: cropMention, fires: fireMention } = extrasRef.current;
-    const extras = [skyMention, cropMention, fireMention].filter(
+    const {
+      sky: skyMention,
+      crops: cropMention,
+      fires: fireMention,
+      fields: fieldMention,
+    } = extrasRef.current;
+    const extras = [skyMention, cropMention, fireMention, fieldMention].filter(
       (mention): mention is string => !!mention,
     );
     attributionRef.current = swapAttribution(map, attributionRef.current, extras);
@@ -203,6 +220,13 @@ export function MapCanvas({
         maxzoom: 14,
         promoteId: "id",
       });
+      map.addSource(SOURCE_IDS.fields, {
+        type: "vector",
+        tiles: [`${window.location.origin}${TILE_URL_TEMPLATE("fields")}`],
+        minzoom: FIELD_MIN_ZOOM,
+        maxzoom: 14,
+        promoteId: "id",
+      });
       map.addSource(SOURCE_IDS.farms, {
         type: "vector",
         tiles: [`${window.location.origin}${TILE_URL_TEMPLATE("farms")}`],
@@ -251,6 +275,38 @@ export function MapCanvas({
         source: SOURCE_IDS.departements,
         "source-layer": "departements",
         paint: { "line-color": OUTLINE_COLOR, "line-width": 1.4, "line-opacity": 0.7 },
+      });
+      // Champs détectés sous les parcelles : voile léger, trait fin, plus net quand aucune
+      // parcelle enregistrée ne recouvre le champ.
+      map.addLayer({
+        id: LAYER_IDS.fieldFill,
+        type: "fill",
+        source: SOURCE_IDS.fields,
+        "source-layer": "fields",
+        minzoom: FIELD_MIN_ZOOM,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": FIELD_COLORS.toRegister,
+          "fill-opacity": ["case", ["boolean", ["get", "registered"], false], 0, 0.08],
+        },
+      });
+      map.addLayer({
+        id: LAYER_IDS.fieldLine,
+        type: "line",
+        source: SOURCE_IDS.fields,
+        "source-layer": "fields",
+        minzoom: FIELD_MIN_ZOOM,
+        layout: { visibility: "none", "line-join": "round" },
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["get", "registered"], false],
+            FIELD_COLORS.registered,
+            FIELD_COLORS.toRegister,
+          ],
+          "line-width": ["case", ["boolean", ["get", "registered"], false], 0.6, 1],
+          "line-opacity": 0.85,
+        },
       });
       map.addLayer({
         id: LAYER_IDS.parcelFill,
@@ -464,6 +520,19 @@ export function MapCanvas({
     map.setLayoutProperty(LAYER_IDS.parcelFill, "visibility", visibility);
     map.setLayoutProperty(LAYER_IDS.parcelLine, "visibility", visibility);
   }, [showParcels, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const visibility = showFields ? "visible" : "none";
+    map.setLayoutProperty(LAYER_IDS.fieldFill, "visibility", visibility);
+    map.setLayoutProperty(LAYER_IDS.fieldLine, "visibility", visibility);
+    const mention = showFields ? FIELDS_ATTRIBUTION : null;
+    if (extrasRef.current.fields !== mention) {
+      extrasRef.current.fields = mention;
+      refreshAttribution(map);
+    }
+  }, [showFields, ready]);
 
   const selectedParcelRef = useRef<string | null>(null);
   useEffect(() => {

@@ -35,7 +35,8 @@ describe("référentiels et territoire", () => {
     expect(await prisma.commune.count()).toBe(77);
     expect(await prisma.departement.count()).toBe(12);
     expect(await prisma.crop.count()).toBe(21);
-  });
+    // Le seed complet dépasse 30 s sur une machine chargée.
+  }, 180_000);
 
   it("relie chaque commune à son département et à une zone agro-écologique", async () => {
     const departements = await listDepartements();

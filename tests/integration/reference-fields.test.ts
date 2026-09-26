@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
+import { referenceFieldsTile } from "@/database/sql/tiles.sql";
+import { lonLatToTile } from "@/lib/geo/tile-math";
+import { renderTile } from "@/modules/territory/tiles";
 import { measureReferenceQuality } from "@/modules/reference-fields/quality";
 import {
   FTW_SOURCE_ID,
@@ -78,5 +81,28 @@ describe("champs de référence", () => {
     expect(quality.medianCoverage).toBeCloseTo(0.8, 2);
     expect(quality.found).toBe(1);
     expect(quality.foundShare).toBe(1);
+  });
+
+  it("sert les champs par tuile dès le zoom 12, selon la portée demandée", async () => {
+    const at12 = lonLatToTile(1.67, 9.7, 12);
+    const all = await referenceFieldsTile(12, at12.x, at12.y, null);
+    expect(all).not.toBeNull();
+    expect(all!.byteLength).toBeGreaterThan(100);
+
+    // Sous le zoom 12 : pas de tuile. Portée vide : pas de tuile. Sans portée précisée : vide.
+    const at11 = lonLatToTile(1.67, 9.7, 11);
+    expect(await referenceFieldsTile(11, at11.x, at11.y, null)).toBeNull();
+    expect(await referenceFieldsTile(12, at12.x, at12.y, [])).toBeNull();
+    expect(await renderTile("fields", 12, at12.x, at12.y)).toBeNull();
+
+    // Une commune sans champs ne reçoit rien ; la commune de Djougou reçoit la tuile.
+    const communes = await prisma.commune.findMany({
+      where: { code: { in: ["BJ-DON-003", "BJ-LIT-001"] } },
+      select: { id: true, code: true },
+    });
+    const djougou = communes.find((c) => c.code === "BJ-DON-003")!.id;
+    const cotonou = communes.find((c) => c.code === "BJ-LIT-001")!.id;
+    expect(await referenceFieldsTile(12, at12.x, at12.y, [cotonou])).toBeNull();
+    expect(await referenceFieldsTile(12, at12.x, at12.y, [djougou])).not.toBeNull();
   });
 });
