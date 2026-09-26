@@ -69,4 +69,28 @@ describe("SortableTable", () => {
       .map((row) => within(row).getAllByRole("cell")[0]?.textContent);
     expect(ranks).toEqual(["1", "2", ""]);
   });
+
+  it("replie au-delà de la limite, avec « Voir tout », sans rien retirer du tableau", () => {
+    render(<SortableTable caption="Départements" columns={columns} rows={rows} limit={2} />);
+    const body = screen.getAllByRole("rowgroup")[1]!;
+    // Les lignes repliées restent dans le tableau (elles s'impriment), cachées à l'écran.
+    const hidden = within(body)
+      .getAllByRole("row", { hidden: true })
+      .filter((row) => row.classList.contains("hidden"));
+    expect(hidden).toHaveLength(1);
+    const toggle = screen.getByRole("button", { name: "Voir tout (3 lignes)" });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent("Réduire à 2 lignes");
+    expect(
+      within(body)
+        .getAllByRole("row")
+        .filter((row) => row.classList.contains("hidden")),
+    ).toHaveLength(0);
+  });
+
+  it("n'offre pas « Voir tout » quand toutes les lignes tiennent", () => {
+    render(<SortableTable caption="Départements" columns={columns} rows={rows} />);
+    expect(screen.queryByRole("button", { name: /Voir tout/ })).not.toBeInTheDocument();
+  });
 });

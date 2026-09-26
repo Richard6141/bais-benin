@@ -26,8 +26,9 @@ export const metadata: Metadata = { title: "Centre d'alertes" };
 
 const integer = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 
-// C1 : vue nationale des alertes. requireRole("ADMIN_STATE") la réserve au ministère, comme le
-// reste du pilotage (compte identifié par NPI, ADR-0012).
+// C1 : vue nationale des alertes. Trois chiffres, puis la carte et la liste côte à côte.
+// requireRole("ADMIN_STATE") la réserve au ministère, comme le reste du pilotage (compte identifié
+// par NPI, ADR-0012).
 export default async function AlertCenterPage(props: PageProps<"/pilotage/alertes">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/alertes" });
   const params = await props.searchParams;
@@ -54,7 +55,7 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
   const bySeverity = overview.activeBySeverity;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Centre de pilotage"
         title="Centre d'alertes"
@@ -74,71 +75,67 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
         </Alert>
       ) : null}
 
-      <section
-        aria-label="Chiffres des alertes"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
-      >
-        <StatTile
-          label="Alertes actives"
-          value={bySeverity.CRITICAL + bySeverity.WARNING + bySeverity.WATCH + bySeverity.INFO}
-          source={`${bySeverity.CRITICAL} graves, ${bySeverity.WARNING} alertes, ${bySeverity.WATCH} vigilances, ${bySeverity.INFO} infos`}
-        />
-        <StatTile
-          label="Communes en alerte"
-          value={overview.communesInAlert}
-          source="sur 77 communes"
-        />
-        <StatTile
-          label="Exploitations touchées"
-          value={overview.affectedFarms}
-          source={`${integer.format(overview.affectedAreaHa)} ha concernés`}
-          reliability="DECLARED"
-        />
-        <StatTile
-          label="Taux de lecture"
-          value={
-            overview.readRate === null ? "Non mesuré" : percentFormatter.format(overview.readRate)
-          }
-          wordValue={overview.readRate === null}
-          source="Destinataires ayant lu l'alerte"
-        />
-        <StatTile
-          label="Données météo"
-          value={freshness.label}
-          wordValue
-          source={freshness.source}
-          reliability={freshness.state === "FALLBACK" ? "SYNTHETIC" : "ESTIMATED"}
-        />
-      </section>
-
-      <AlertMap levels={levels} communeNames={communeNames} />
-
-      <section
-        id="liste"
-        aria-labelledby="liste-title"
-        className="flex scroll-mt-24 flex-col gap-4"
-      >
-        <h2 id="liste-title" className="text-xl font-semibold">
-          Alertes actives
-          {commune ? ` à ${communeNames[commune] ?? commune}` : ""}
-          <span className="tabular ml-2 text-base font-normal text-muted-foreground">
-            {visible.length}
-          </span>
-        </h2>
-        <Suspense>
-          <CenterFilters departements={departements} />
-        </Suspense>
-        {visible.length === 0 ? (
-          <EmptyState icon={<ShieldCheck />} title="Aucune alerte pour ces filtres" />
-        ) : (
-          <AlertLinkList
-            alerts={visible}
-            variant="compact"
+      <section aria-label="Chiffres des alertes" className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatTile
             label="Alertes actives"
-            hrefFor={(alert) => `/pilotage/alertes/${alert.id}`}
+            value={bySeverity.CRITICAL + bySeverity.WARNING + bySeverity.WATCH + bySeverity.INFO}
+            source={`${bySeverity.CRITICAL} graves, ${bySeverity.WARNING} alertes, ${bySeverity.WATCH} vigilances, ${bySeverity.INFO} infos`}
           />
-        )}
+          <StatTile
+            label="Communes en alerte"
+            value={overview.communesInAlert}
+            source="sur 77 communes"
+          />
+          <StatTile
+            label="Exploitations touchées"
+            value={overview.affectedFarms}
+            source={`${integer.format(overview.affectedAreaHa)} ha concernés`}
+            reliability="DECLARED"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Taux de lecture :{" "}
+          {overview.readRate === null
+            ? "non mesuré"
+            : `${percentFormatter.format(overview.readRate)} des destinataires`}
+          . Données météo : {freshness.label.toLowerCase()} ({freshness.source}).
+        </p>
       </section>
+
+      {/* Carte et liste côte à côte sur grand écran : on lit la carte en parcourant la liste. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
+        <AlertMap levels={levels} communeNames={communeNames} />
+
+        <section
+          id="liste"
+          aria-labelledby="liste-title"
+          className="flex scroll-mt-24 flex-col gap-4 lg:max-h-[36rem]"
+        >
+          <h2 id="liste-title" className="text-xl font-semibold">
+            Alertes actives
+            {commune ? ` à ${communeNames[commune] ?? commune}` : ""}
+            <span className="tabular ml-2 text-base font-normal text-muted-foreground">
+              {visible.length}
+            </span>
+          </h2>
+          <Suspense>
+            <CenterFilters departements={departements} />
+          </Suspense>
+          {visible.length === 0 ? (
+            <EmptyState icon={<ShieldCheck />} title="Aucune alerte pour ces filtres" />
+          ) : (
+            <div className="min-h-0 overflow-y-auto overscroll-contain lg:pr-1">
+              <AlertLinkList
+                alerts={visible}
+                variant="compact"
+                label="Alertes actives"
+                hrefFor={(alert) => `/pilotage/alertes/${alert.id}`}
+              />
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

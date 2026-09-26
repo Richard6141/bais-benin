@@ -22,7 +22,7 @@ import {
 
 // Centre de veille (ADR-0022) : la synthèse est relue chaque minute et les feux toutes les cinq
 // minutes, sans recharger la page. Carte au centre : communes colorées par l'alerte la plus grave,
-// feux des dernières 24 heures ou des 7 derniers jours au-dessus.
+// feux des dernières 24 heures ou des 7 derniers jours au-dessus. Les panneaux autour se replient.
 
 const AlertMapCanvas = dynamic(
   () => import("@/features/monitoring/alert-map-canvas").then((module) => module.AlertMapCanvas),
@@ -97,7 +97,8 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
           <CropConditionPanel summary={summary} />
           <FreshnessPanel summary={summary} />
         </div>
-        <figure className="flex min-w-0 flex-col gap-2">
+        {/* Sur téléphone, la carte passe en premier ; les panneaux suivent, repliables. */}
+        <figure className="order-first flex min-w-0 flex-col gap-2 lg:order-none">
           <div
             role="group"
             aria-label="Période des feux affichés"

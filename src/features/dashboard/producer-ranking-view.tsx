@@ -41,7 +41,7 @@ export function ProducerRankingFilters({ ranking, crops, campaigns, departements
   return (
     <form
       method="get"
-      aria-label="Critères du palmarès"
+      aria-label="Critères du classement"
       className="grid gap-4 rounded-sm border bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-3 print:hidden"
     >
       <Field id="culture" label="Culture">
@@ -115,7 +115,7 @@ export function ProducerRankingFilters({ ranking, crops, campaigns, departements
       </Field>
       <div className="sm:col-span-2 lg:col-span-3">
         <Button type="submit" className="h-11">
-          Afficher le palmarès
+          Afficher le classement
         </Button>
       </div>
     </form>

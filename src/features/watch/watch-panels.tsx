@@ -1,5 +1,9 @@
+"use client";
+
+import { ChevronDown } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
+import { useState } from "react";
 import { HelpTip } from "@/components/forms/help-tip";
 import { SeverityBadge } from "@/components/data-display/severity-badge";
 import { REPORT_TYPE_LABELS } from "@/features/reports/labels";
@@ -53,23 +57,38 @@ export function Indicator({
   );
 }
 
+// Panneau repliable : on garde ouverts ceux qu'on suit, on replie les autres. L'état tient pendant
+// les rafraîchissements de la synthèse (chaque minute). L'aide « ? » s'ouvre sans replier.
 function Panel({
   title,
   help,
+  defaultOpen = true,
   children,
 }: {
   title: string;
   help: string;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        {title}
-        <HelpTip label={title}>{help}</HelpTip>
-      </h2>
-      {children}
-    </section>
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      className="group rounded-lg border bg-card"
+    >
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          {title}
+          <HelpTip label={title}>{help}</HelpTip>
+        </h2>
+        <ChevronDown
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="flex flex-col gap-3 px-4 pb-4">{children}</div>
+    </details>
   );
 }
 
@@ -257,6 +276,7 @@ const STATE_LABELS = { ok: "À jour", stale: "En retard", failed: "En échec" } 
 export function FreshnessPanel({ summary }: { summary: WatchSummary }) {
   return (
     <Panel
+      defaultOpen={false}
       title="Fraîcheur des sources"
       help="Dernière mise à jour réussie de chaque source. Feux : toutes les 30 minutes ; météo : chaque jour ; agrégats : toutes les 10 minutes."
     >

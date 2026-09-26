@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageTabs } from "@/components/layout/page-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,13 +39,14 @@ async function loadProfile(...args: Parameters<typeof getCommuneProfile>) {
   }
 }
 
-// C : fiche d'une commune. Mêmes indicateurs que la vue nationale au grain commune, comparés au
-// département et au pays, puis cultures, couverture terrain, météo et alertes.
+// C : fiche d'une commune. Les quatre chiffres clés de la vue nationale au grain commune, puis un
+// volet à la fois : comparaison au département et au pays, cultures, terrain, météo et alertes.
 export default async function CommuneProfilePage(props: PageProps<"/pilotage/communes/[code]">) {
   const { code } = await props.params;
   if (!/^BJ-[A-Z]{3}-\d{3}$/.test(code)) notFound();
   const user = await requireRole("ADMIN_STATE", { returnTo: `/pilotage/communes/${code}` });
-  const filters = parseDashboardFilters(await props.searchParams);
+  const search = await props.searchParams;
+  const filters = parseDashboardFilters(search);
   // La commune fixe le territoire : un filtre de département resté dans l'adresse est ignoré.
   const scoped = { ...filters, departementCode: undefined };
 
@@ -63,7 +65,7 @@ export default async function CommuneProfilePage(props: PageProps<"/pilotage/com
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={`Département ${commune.departementName}`}
         title={commune.name}
@@ -92,25 +94,63 @@ export default async function CommuneProfilePage(props: PageProps<"/pilotage/com
         />
       </Suspense>
 
-      <DashboardSection id="chiffres" title="Chiffres de la commune">
-        <OverviewTiles
-          overview={{ figures: profile.figures, previous: null, provenance: profile.provenance }}
-          query={query}
-        />
-        <CommuneComparison profile={profile} />
-      </DashboardSection>
+      <OverviewTiles
+        overview={{ figures: profile.figures, previous: null, provenance: profile.provenance }}
+        query={query}
+        only={["producteurs", "exploitations", "declaree", "mesuree"]}
+      />
 
-      <DashboardSection id="cultures" title="Cultures">
-        <CropProduction rows={profile.crops} provenance={profile.provenance} hrefForCrop={null} />
-      </DashboardSection>
-
-      <DashboardSection id="terrain" title="Couverture terrain">
-        <FieldCoverageSection profile={profile} />
-      </DashboardSection>
-
-      <DashboardSection id="meteo" title="Météo et alertes">
-        <WeatherAndAlerts weather={weather} alerts={alerts} />
-      </DashboardSection>
+      <PageTabs
+        label="Volets de la fiche commune"
+        initial={typeof search.onglet === "string" ? search.onglet : null}
+        tabs={[
+          {
+            value: "comparaison",
+            label: "Comparaison",
+            content: (
+              <DashboardSection
+                id="chiffres"
+                title="Chiffres de la commune"
+                description={`Face au département ${commune.departementName} et au pays.`}
+              >
+                <CommuneComparison profile={profile} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "cultures",
+            label: "Cultures",
+            content: (
+              <DashboardSection id="cultures" title="Cultures">
+                <CropProduction
+                  rows={profile.crops}
+                  provenance={profile.provenance}
+                  hrefForCrop={null}
+                />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "terrain",
+            label: "Terrain",
+            content: (
+              <DashboardSection id="terrain" title="Couverture terrain">
+                <FieldCoverageSection profile={profile} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "meteo",
+            label: "Météo et alertes",
+            count: alerts.length,
+            content: (
+              <DashboardSection id="meteo" title="Météo et alertes">
+                <WeatherAndAlerts weather={weather} alerts={alerts} />
+              </DashboardSection>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

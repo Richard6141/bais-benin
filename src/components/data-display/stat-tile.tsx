@@ -52,19 +52,19 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border bg-card p-5 text-card-foreground shadow-card",
+        "flex flex-col gap-1.5 rounded-lg border bg-card px-4 py-3.5 text-card-foreground shadow-card",
         className,
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
         {icon ? <span className="text-muted-foreground [&>svg]:size-4">{icon}</span> : null}
       </div>
       <div className="flex items-baseline gap-1.5">
         <span
           className={cn(
             "font-semibold tracking-tight",
-            wordValue ? "text-xl leading-9 break-words" : "tabular text-3xl",
+            wordValue ? "text-lg leading-8 break-words" : "tabular text-2xl leading-8",
           )}
         >
           {formattedValue}
@@ -73,7 +73,7 @@ export function StatTile({
       </div>
       {trend ? <TrendLine trend={trend} /> : null}
       {(source || reliability) && (
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3">
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5 text-xs">
           {reliability ? (
             <ReliabilityBadge level={reliability} className="max-w-full whitespace-normal" />
           ) : null}

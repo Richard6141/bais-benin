@@ -138,7 +138,7 @@ export function GroupMembersTable({
   return (
     <div className="overflow-x-auto rounded-sm border">
       <Table>
-        <caption className="sr-only">Membres du groupe, dans l&apos;ordre du palmarès</caption>
+        <caption className="sr-only">Membres du groupe, dans l&apos;ordre du classement</caption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-14 text-right">Rang</TableHead>

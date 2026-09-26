@@ -49,6 +49,11 @@ interface SortableTableProps {
   initialSort?: { key: string; direction: SortDirection };
   /** Ajoute une colonne « Rang » recalculée selon le tri courant. */
   ranked?: boolean;
+  /**
+   * Lignes visibles avant « Voir tout » (10 par défaut) ; null pour tout montrer. Les lignes
+   * repliées restent imprimées.
+   */
+  limit?: number | null;
   className?: string;
 }
 
@@ -67,9 +72,11 @@ export function SortableTable({
   footer,
   initialSort,
   ranked = false,
+  limit = 10,
   className,
 }: SortableTableProps) {
   const [sort, setSort] = useState(initialSort ?? null);
+  const [expanded, setExpanded] = useState(false);
   const sorted = useMemo(
     () =>
       sort ? sortRows(rows, (row) => row.cells[sort.key]?.sort ?? null, sort.direction) : [...rows],
@@ -87,8 +94,14 @@ export function SortableTable({
 
   const alignClass = (column: SortableColumn) => (column.align === "right" ? "text-right" : "");
 
-  const renderRow = (row: SortableRow, rank: number | null) => (
-    <TableRow key={row.key} className={cn(row.muted && "text-muted-foreground")}>
+  const foldable = limit !== null && sorted.length > limit;
+  const folded = foldable && !expanded;
+
+  const renderRow = (row: SortableRow, rank: number | null, hidden: boolean) => (
+    <TableRow
+      key={row.key}
+      className={cn(row.muted && "text-muted-foreground", hidden && "hidden print:table-row")}
+    >
       {ranked ? (
         <TableCell className="tabular w-12 text-muted-foreground">{rank ?? ""}</TableCell>
       ) : null}
@@ -114,7 +127,7 @@ export function SortableTable({
     </TableRow>
   );
 
-  return (
+  const table = (
     <Table className={className}>
       <TableCaption className="sr-only">
         {caption}
@@ -165,10 +178,29 @@ export function SortableTable({
         {sorted.map((row, index) => {
           // Rang : seulement pour une ligne classable sur la colonne triée.
           const classable = sort ? row.cells[sort.key]?.sort !== null : true;
-          return renderRow(row, ranked && sort && classable ? index + 1 : null);
+          return renderRow(
+            row,
+            ranked && sort && classable ? index + 1 : null,
+            folded && index >= (limit ?? 0),
+          );
         })}
       </TableBody>
-      {footer ? <TableFooter>{renderRow(footer, null)}</TableFooter> : null}
+      {footer ? <TableFooter>{renderRow(footer, null, false)}</TableFooter> : null}
     </Table>
+  );
+
+  if (!foldable) return table;
+  return (
+    <div className="flex flex-col gap-2">
+      {table}
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+        className="inline-flex min-h-11 items-center self-start rounded-sm px-2 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden"
+      >
+        {expanded ? `Réduire à ${limit} lignes` : `Voir tout (${sorted.length} lignes)`}
+      </button>
+    </div>
   );
 }
