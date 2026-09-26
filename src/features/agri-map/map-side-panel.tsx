@@ -82,7 +82,7 @@ export function MapSidePanel({ stats, selected, cropNames, onClearSelection }: M
                 {selected.communeName}
               </h2>
               <p className="tabular text-xs text-muted-foreground">
-                {selected.communeCode} · {selected.departementCode}
+                {selected.communeCode} ({selected.departementCode})
               </p>
             </div>
             <Button

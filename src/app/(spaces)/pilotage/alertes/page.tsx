@@ -81,7 +81,7 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
         <StatTile
           label="Alertes actives"
           value={bySeverity.CRITICAL + bySeverity.WARNING + bySeverity.WATCH + bySeverity.INFO}
-          source={`${bySeverity.CRITICAL} graves · ${bySeverity.WARNING} alertes · ${bySeverity.WATCH} vigilances · ${bySeverity.INFO} infos`}
+          source={`${bySeverity.CRITICAL} graves, ${bySeverity.WARNING} alertes, ${bySeverity.WATCH} vigilances, ${bySeverity.INFO} infos`}
         />
         <StatTile
           label="Communes en alerte"

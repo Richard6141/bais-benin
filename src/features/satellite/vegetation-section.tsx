@@ -110,7 +110,7 @@ export function VegetationSection({ summary }: { summary: VegetationSummary }) {
               farm: { display: row.farm_code, sort: row.farm_code },
               commune: { display: row.commune_name, sort: row.commune_name },
               crop: {
-                display: `${row.crop_name} · ${SUB_SEASONS[row.sub_season] ?? row.sub_season}`,
+                display: `${row.crop_name} (${SUB_SEASONS[row.sub_season] ?? row.sub_season})`,
                 sort: row.crop_name,
               },
               reason: { display: reasonLabel(row.reason) ?? "—", sort: row.reason },

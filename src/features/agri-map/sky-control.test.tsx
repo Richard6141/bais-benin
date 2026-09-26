@@ -83,9 +83,9 @@ describe("légende de la vue du ciel", () => {
     render(<SkyLegend view={{ layer: "ndvi", period: "2026-05" }} periodLabel="mai 2026" detail />);
     const classes = screen.getAllByRole("listitem");
     expect(classes).toHaveLength(8);
-    expect(classes[0]).toHaveTextContent("≥ 0,7 · couvert dense");
-    expect(classes[7]).toHaveTextContent("< 0,1 · sol nu, eau, bâti");
-    expect(screen.getByText("Sentinel-2, mai 2026 · détail en zoomant")).toBeInTheDocument();
+    expect(classes[0]).toHaveTextContent("≥ 0,7 (couvert dense)");
+    expect(classes[7]).toHaveTextContent("< 0,1 (sol nu, eau, bâti)");
+    expect(screen.getByText("Sentinel-2, mai 2026, détail en zoomant")).toBeInTheDocument();
     expect(screen.getByText("Contains modified Copernicus Sentinel data 2026")).toBeInTheDocument();
   });
 
@@ -99,7 +99,7 @@ describe("légende de la vue du ciel", () => {
     );
     expect(screen.getByText("Image en couleur naturelle")).toBeInTheDocument();
     expect(
-      screen.getByText("Sentinel-2, mai 2026 · détail réservé aux agents et au ministère"),
+      screen.getByText("Sentinel-2, mai 2026, détail réservé aux agents et au ministère"),
     ).toBeInTheDocument();
   });
 });

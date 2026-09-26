@@ -41,6 +41,6 @@ export function formatNdvi(value: number | null): string {
 /** Provenance affichée : mesure Copernicus, ou série synthétique de démonstration. */
 export function vegetationSourceLabel(sourceId: string): string {
   return sourceId === "COPERNICUS_S2"
-    ? "Copernicus Sentinel-2 L2A (API Statistical du CDSE) · Contains modified Copernicus Sentinel data"
+    ? "Copernicus Sentinel-2 L2A (API Statistical du CDSE), Contains modified Copernicus Sentinel data"
     : "Série NDVI synthétique de démonstration (BAIS)";
 }
