@@ -86,8 +86,12 @@ accord couvre les alertes de la commune.
   recopiés. Aucun téléphone, NPI ou code producteur.
 - Retirer son accord supprime ses lignes de tous les palmarès publiés, dans la même transaction.
   La lecture publique ne sert en plus que les lauréats dont l'accord est en cours.
-- Un palmarès retiré par le ministère quitte la page publique ; le ministère le voit toujours,
-  avec la date du retrait.
+- Un palmarès retiré par le ministère quitte la page publique ; le ministère en garde l'en-tête
+  et la date du retrait, mais ses lauréats sont supprimés dans la même transaction (registre des
+  traitements : conservés jusqu'au retrait de l'accord ou du palmarès).
+- Les pages publiques sont servies depuis un cache de 2 minutes au plus ; toute publication, tout
+  retrait et tout changement d'accord l'expirent aussitôt (`src/features/public-ranking/cached.ts`).
+- Chaque accord garde la version du texte accepté (`palmares-2026-09-26`, `whatsapp-2026-09-26`).
 - Journal : `consent.ranking.granted`, `consent.ranking.revoked`, `analytics.ranking.published`,
   `analytics.ranking.withdrawn`.
 

@@ -123,16 +123,23 @@ export async function withdrawRanking(
   now = new Date(),
 ): Promise<WithdrawResult> {
   if (!authorize(actor, "ranking.publish").allowed) return { ok: false, code: "FORBIDDEN" };
-  const updated = await prisma.publishedRanking.updateMany({
-    where: { id, withdrawnAt: null },
-    data: { withdrawnAt: now, withdrawnById: actor.userId },
+  // Les lauréats ne sont conservés que tant que le palmarès est publié (registre des
+  // traitements) : le retrait les supprime ; l'en-tête du palmarès reste pour le ministère.
+  const removed = await prisma.$transaction(async (tx) => {
+    const updated = await tx.publishedRanking.updateMany({
+      where: { id, withdrawnAt: null },
+      data: { withdrawnAt: now, withdrawnById: actor.userId },
+    });
+    if (updated.count === 0) return null;
+    return (await tx.publishedRankingEntry.deleteMany({ where: { rankingId: id } })).count;
   });
-  if (updated.count === 0) return { ok: false, code: "NOT_FOUND" };
+  if (removed === null) return { ok: false, code: "NOT_FOUND" };
   await recordAudit({
     action: "analytics.ranking.withdrawn",
     actorId: actor.userId,
     resourceType: "publishedRanking",
     resourceId: id,
+    details: { laureatesRemoved: removed },
   });
   return { ok: true };
 }

@@ -134,8 +134,11 @@ export function PublishedRankingsList({ rows }: { rows: PublishedRankingRow[] })
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{row.title}</span>
                 <span className="text-muted-foreground">
-                  Publié le {row.publishedOn} par {row.publishedByName} · {row.laureates} lauréat
-                  {row.laureates > 1 ? "s" : ""}
+                  Publié le {row.publishedOn} par {row.publishedByName}
+                  {/* Un palmarès retiré n'a plus de lauréats : ils sont supprimés au retrait. */}
+                  {row.withdrawnOn
+                    ? ""
+                    : ` · ${row.laureates} lauréat${row.laureates > 1 ? "s" : ""}`}
                 </span>
                 {row.withdrawnOn ? (
                   <Badge variant="outline" className="w-fit">

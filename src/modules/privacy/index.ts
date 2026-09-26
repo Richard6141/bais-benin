@@ -8,3 +8,13 @@ export {
   runRetentionPurge,
   type RetentionSummary,
 } from "./retention";
+export {
+  ASSISTANCE_RETENTION_DAYS,
+  FIELD_REPORT_PHOTO_RETENTION_DAYS,
+  FIELD_REPORT_RETENTION_DAYS,
+  purgeFieldReportPhotos,
+  purgeFieldReports,
+  purgeResolvedAssistanceRequests,
+  purgeSatelliteTilesOutsideWindow,
+  purgeWithdrawnRankingEntries,
+} from "./field-retention";

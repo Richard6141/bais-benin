@@ -87,6 +87,10 @@ hors de portée répond comme inexistant (404), en lecture comme en décision.
 `report.reviewed` (décision) dans `audit_log` ; événements `REPORT_SUBMITTED` et
 `REPORT_REVIEWED` dans le fil d'activité de l'exploitation.
 
+Conservation (registre des traitements) : photo 1 an après le dépôt, signalement 3 ans ; demande
+d'assistance 3 ans après sa résolution. Appliquée par `pnpm db:purge`
+(`src/modules/privacy/field-retention.ts`).
+
 ## 8. Détection des foyers (ADR-0015)
 
 Un signalement isolé n'est jamais une alerte. Plusieurs signalements du même type, dans la même

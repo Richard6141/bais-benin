@@ -147,6 +147,8 @@ describe("palmarès public", () => {
     const forMinistry = await listPublishedRankings(ministry);
     expect(forMinistry.find((r) => r.id === publishedId)?.withdrawnAt).not.toBeNull();
     expect(await listPublishedRankings(agent)).toEqual([]);
+    // Les lauréats d'un palmarès retiré ne sont pas conservés.
+    expect(await prisma.publishedRankingEntry.count({ where: { rankingId: publishedId } })).toBe(0);
 
     await prisma.rankingConsent.update({
       where: { farmerId: second.farmerId },
