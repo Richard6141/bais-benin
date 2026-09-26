@@ -28,6 +28,7 @@ const base: IndicatorValues = {
   crop_in: ["MAIZE", "YAM"],
   crop_stage_in: ["GROWING", "SOWN"],
   report_cluster: null,
+  fire_near_parcels: null,
 };
 
 const cond = (indicator: string, op: string | undefined, value: unknown) =>

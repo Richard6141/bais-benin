@@ -71,6 +71,15 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "SENSOR",
   },
   {
+    // Feux actifs en quasi temps réel (ADR-0022) : fichiers publics sans clé.
+    id: "NASA_FIRMS",
+    name: "Feux actifs NASA FIRMS (VIIRS 375 m, MODIS)",
+    organization: "NASA LANCE / FIRMS",
+    url: "https://firms.modaps.eosdis.nasa.gov",
+    licence: "Données ouvertes de la NASA, citation demandée",
+    kind: "SENSOR",
+  },
+  {
     id: "ATDA_TERRAIN",
     name: "Relevés de terrain des agents",
     organization: "Agences Territoriales de Développement Agricole",

@@ -36,6 +36,7 @@ export {
 } from "./ingestion";
 export { MonitoringBusyError, withMonitoringLock } from "./lock";
 export { releaseIfConfirmed, releaseOutbreakAlertsForReport } from "./outbreak-release";
+export { evaluateNewFires } from "./fire-alerts";
 export { evaluateNewReports } from "./report-alerts";
 export { resolveAlert, type ResolveResult } from "./resolve";
 export { seedDefaultRules } from "./rule-catalog";

@@ -2,6 +2,7 @@ import {
   Bug,
   Droplets,
   FileText,
+  Flame,
   PawPrint,
   Sprout,
   Store,
@@ -20,6 +21,7 @@ export type AlertCategory =
   | "PEST"
   | "CROP_DISEASE"
   | "ANIMAL_DISEASE"
+  | "FIRE"
   | "MARKET"
   | "ADMIN";
 
@@ -30,6 +32,7 @@ export const CATEGORY_LABELS: Record<AlertCategory, { label: string; Icon: Lucid
   PEST: { label: "Ravageurs", Icon: Bug },
   CROP_DISEASE: { label: "Maladie des cultures", Icon: Sprout },
   ANIMAL_DISEASE: { label: "Maladie animale", Icon: PawPrint },
+  FIRE: { label: "Feu de brousse", Icon: Flame },
   MARKET: { label: "Marché", Icon: Store },
   ADMIN: { label: "Administration", Icon: FileText },
 };

@@ -148,6 +148,10 @@ const INDICATOR_LABELS: Record<IndicatorCode, { label: string; unit?: string }> 
   crop_in: { label: "Cultures présentes" },
   crop_stage_in: { label: "Stades des cultures" },
   report_cluster: { label: "Producteurs ayant signalé un même problème", unit: "producteurs" },
+  fire_near_parcels: {
+    label: "Exploitations à moins de 1 km d'un feu actif (24 heures)",
+    unit: "exploitations",
+  },
 };
 
 const OPERATOR_TEXT: Record<Operator, string> = {

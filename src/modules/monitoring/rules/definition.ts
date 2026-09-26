@@ -23,6 +23,9 @@ export const NUMERIC_INDICATORS = [
   "observed_days_missing_30d",
   // Regroupement de signalements de terrain (ADR-0015) : seul indicateur paramétré.
   "report_cluster",
+  // Feux actifs (ADR-0022) : exploitations dont une parcelle est à moins de 1 km d'un feu détecté
+  // par satellite dans les dernières 24 heures (confiance nominale ou haute).
+  "fire_near_parcels",
 ] as const;
 
 /** Indicateurs dont la valeur dépend des paramètres de la condition (ADR-0015). */
@@ -139,6 +142,7 @@ export const CATEGORIES = [
   "PEST",
   "CROP_DISEASE",
   "ANIMAL_DISEASE",
+  "FIRE",
   "MARKET",
   "ADMIN",
 ] as const;

@@ -9,6 +9,8 @@ import {
 } from "@/database/sql/weather.sql";
 import { recordAudit } from "@/modules/audit";
 import { addDays, beninToday, isoDate } from "./dates";
+import { farmsNearFiresByCommune } from "@/database/sql/fires.sql";
+import { FIRE_WINDOW_MS, fireAlertProvenance } from "./fire-provenance";
 import { releaseIfConfirmed } from "./outbreak-release";
 import { clusterResolver, computeClusterValues, reportAlertProvenance } from "./report-clusters";
 import {
@@ -17,6 +19,7 @@ import {
   parseRuleDefinition,
   renderMessage,
   SHORT_MESSAGE_MAX,
+  usesFires,
   usesReports,
   usesWeather,
   type IndicatorValues,
@@ -50,6 +53,8 @@ export interface EvaluationOptions {
   communeIds?: readonly string[];
   /** Seulement les règles de regroupement de signalements (évaluation à l'arrivée d'un signalement). */
   reportRulesOnly?: boolean;
+  /** Seulement les règles de feux actifs (évaluation après un passage d'ingestion, ADR-0022). */
+  fireRulesOnly?: boolean;
 }
 
 export interface EvaluationSummary {
@@ -171,7 +176,11 @@ export async function evaluateCommunes(
   };
   const parsedRules = rules
     .map((rule) => ({ rule, definition: parseRuleDefinition(rule.definition) }))
-    .filter(({ definition }) => !options.reportRulesOnly || usesReports(definition));
+    .filter(({ definition }) => !options.reportRulesOnly || usesReports(definition))
+    .filter(({ definition }) => !options.fireRulesOnly || usesFires(definition));
+  const fireValues = parsedRules.some(({ definition }) => usesFires(definition))
+    ? await farmsNearFiresByCommune(ids, new Date(now.getTime() - FIRE_WINDOW_MS))
+    : null;
   const clusterValues = await computeClusterValues(
     parsedRules.map((r) => r.definition),
     ids,
@@ -198,6 +207,8 @@ export async function evaluateCommunes(
       referenceDate,
     );
     if (context.stale) summary.staleCommunes += 1;
+    // Feux actifs : exploitations concernées dans les dernières 24 heures (ADR-0022).
+    if (fireValues) context.indicators.fire_near_parcels = fireValues.get(commune.id) ?? 0;
     for (const { rule, definition } of parsedRules) {
       const result = evaluateRule(
         definition,
@@ -218,7 +229,9 @@ export async function evaluateCommunes(
         dataStale: context.stale,
       });
       if (matched) {
-        const provenance = reportAlertProvenance(definition, clusterValues, commune.id, now);
+        const provenance =
+          reportAlertProvenance(definition, clusterValues, commune.id, now) ??
+          fireAlertProvenance(definition, context.indicators.fire_near_parcels, now);
         triggered.push({
           rule,
           context: provenance ? { ...context, ...provenance } : context,

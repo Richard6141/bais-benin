@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { parseRuleDefinition } from "@/modules/monitoring/rules";
+import { FIRE_ALERT_WINDOW_MS, farmsNearFires } from "@/database/sql/fires.sql";
+import { parseRuleDefinition, usesFires } from "@/modules/monitoring/rules";
 import { cropFilterFromDefinition } from "./crop-filter";
 
 // Plan de diffusion d'une alerte (docs/modules/monitoring-parcours-ux.md §2.D) : destinataires
@@ -52,7 +53,13 @@ export async function planAlertRecipients(
       rule: { select: { definition: true } },
     },
   });
-  const filter = cropFilterFromDefinition(parseRuleDefinition(alert.rule.definition));
+  const definition = parseRuleDefinition(alert.rule.definition);
+  const filter = cropFilterFromDefinition(definition);
+  // Feu de brousse (ADR-0022) : seules les exploitations dont une parcelle est proche d'un feu, et
+  // les agents qui les ont enregistrées (ADR-0014), pas toute la commune.
+  const fireFarms = usesFires(definition)
+    ? await farmsNearFires(alert.communeId, new Date(now.getTime() - FIRE_ALERT_WINDOW_MS))
+    : null;
 
   const campaign = await db.agriculturalCampaign.findFirst({
     where: { status: "OPEN", archivedAt: null },
@@ -76,6 +83,7 @@ export async function planAlertRecipients(
       communeId: alert.communeId,
       archivedAt: null,
       ...(cropWhere ? { parcels: { some: { archivedAt: null, crops: { some: cropWhere } } } } : {}),
+      ...(fireFarms ? { id: { in: fireFarms.map((farm) => farm.farmId) } } : {}),
     },
     select: {
       id: true,
@@ -93,17 +101,19 @@ export async function planAlertRecipients(
     },
   });
 
-  const agents = await db.roleAssignment.findMany({
-    where: {
-      role: "AGENT_AGRICULTURE",
-      revokedAt: null,
-      OR: [
-        { scopeType: "COMMUNE", scopeId: alert.communeId },
-        { scopeType: "DEPARTEMENT", scopeId: alert.commune.departementId },
-      ],
-    },
-    select: { userId: true },
-  });
+  const agents = fireFarms
+    ? fireFarms.flatMap((farm) => (farm.registeredById ? [{ userId: farm.registeredById }] : []))
+    : await db.roleAssignment.findMany({
+        where: {
+          role: "AGENT_AGRICULTURE",
+          revokedAt: null,
+          OR: [
+            { scopeType: "COMMUNE", scopeId: alert.communeId },
+            { scopeType: "DEPARTEMENT", scopeId: alert.commune.departementId },
+          ],
+        },
+        select: { userId: true },
+      });
 
   const planned: PlannedRow[] = [];
   // Foyer en attente de confirmation (ADR-0015) : les agents seulement ; les producteurs sont

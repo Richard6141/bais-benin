@@ -310,6 +310,7 @@ model Commune {
   fieldReports           FieldReport[]
   assistanceRequests     AssistanceRequest[]
   cropAreaEstimates      CropAreaEstimate[]
+  fireDetections         FireDetection[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -818,6 +819,7 @@ enum AlertCategory {
   ADMIN
   CROP_DISEASE
   ANIMAL_DISEASE
+  FIRE
 }
 
 enum RuleTarget {
@@ -1588,4 +1590,64 @@ model CropAreaEstimate {
   @@unique([communeId, campaignId, cropClass])
   @@index([campaignId, cropClass])
   @@map("crop_area_estimate")
+}
+
+// ---------------------------------------------------------------------------
+// Feux actifs en quasi temps réel (NASA FIRMS, ADR-0022)
+// ---------------------------------------------------------------------------
+
+enum FireSensor {
+  VIIRS_SNPP
+  VIIRS_NOAA20
+  VIIRS_NOAA21
+  MODIS
+}
+
+enum FireConfidence {
+  LOW
+  NOMINAL
+  HIGH
+}
+
+// Feu actif vu par satellite sur le territoire du Bénin. Les détections d'un même feu par
+// plusieurs satellites au même passage (375 m, une heure) n'en font qu'une, avec la liste des
+// capteurs. Heure d'acquisition en UTC (affichée à l'heure de Porto-Novo). Donnée publique,
+// sans lien avec une personne.
+model FireDetection {
+  id          String                                 @id @default(uuid(7)) @db.Uuid
+  detectedAt  DateTime                               @map("detected_at")
+  latitude    Decimal                                @db.Decimal(8, 5)
+  longitude   Decimal                                @db.Decimal(8, 5)
+  location    Unsupported("geography(Point, 4326)")?
+  communeId   String                                 @map("commune_id") @db.Uuid
+  commune     Commune                                @relation(fields: [communeId], references: [id])
+  sensors     FireSensor[]
+  confidence  FireConfidence
+  frpMw       Decimal?                               @map("frp_mw") @db.Decimal(9, 2)
+  brightnessK Decimal?                               @map("brightness_k") @db.Decimal(6, 2)
+  daynight    String?
+  // Lignes FIRMS déjà fusionnées (capteur, heure, position) : un fichier relu ne crée rien.
+  sourceKeys  String[]                               @map("source_keys")
+  createdAt   DateTime                               @default(now()) @map("created_at")
+  updatedAt   DateTime                               @updatedAt @map("updated_at")
+
+  @@index([detectedAt])
+  @@index([communeId, detectedAt])
+  @@map("fire_detection")
+}
+
+// Passage de la tâche d'ingestion des feux (toutes les 30 minutes) : fraîcheur de la source.
+model FireIngestionRun {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  startedAt   DateTime        @default(now()) @map("started_at")
+  finishedAt  DateTime?       @map("finished_at")
+  status      IngestionStatus @default(RUNNING)
+  fetched     Int             @default(0)
+  created     Int             @default(0)
+  merged      Int             @default(0)
+  failedFiles String[]        @map("failed_files")
+  error       String?
+
+  @@index([startedAt])
+  @@map("fire_ingestion_run")
 }

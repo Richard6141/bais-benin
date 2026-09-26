@@ -19,6 +19,23 @@ const manifestSchema = z.object({
   ),
 });
 
+// Données des cartes : chaque source reprend la mention exigée ou demandée par son producteur.
+const DATA_CREDITS = [
+  {
+    name: "Feux actifs",
+    credit:
+      "NASA FIRMS (Fire Information for Resource Management System), détections VIIRS 375 m (Suomi NPP, NOAA-20, NOAA-21) et MODIS, distribuées par NASA LANCE.",
+  },
+  {
+    name: "Vue du ciel",
+    credit: "Contient des données Copernicus Sentinel modifiées (Copernicus Data Space Ecosystem).",
+  },
+  {
+    name: "Limites administratives",
+    credit: "geoBoundaries (CC BY 4.0).",
+  },
+] as const;
+
 // Le manifeste est écrit par le script d'optimisation des images ; la page le lit
 // à la demande pour que les crédits suivent toujours les fichiers réellement servis.
 async function loadManifest() {
@@ -57,6 +74,22 @@ export default async function CreditsPage() {
             ))}
           </ul>
         )}
+        <section aria-labelledby="sources-cartes" className="mt-12 flex flex-col gap-3">
+          <h2 id="sources-cartes" className="text-xl font-semibold">
+            Sources des données cartographiques
+          </h2>
+          <ul className="divide-y">
+            {DATA_CREDITS.map((credit) => (
+              <li
+                key={credit.name}
+                className="grid gap-1 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-6"
+              >
+                <span className="font-medium">{credit.name}</span>
+                <span className="text-sm text-muted-foreground">{credit.credit}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
       <SiteFooter />
     </>

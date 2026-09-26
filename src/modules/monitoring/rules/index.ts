@@ -31,7 +31,14 @@ export {
   type IndicatorInput,
   type WeatherDay,
 } from "./indicators";
-export { clusterKey, clusterLabel, clusterParamsOf, usesReports, usesWeather } from "./clusters";
+export {
+  clusterKey,
+  clusterLabel,
+  clusterParamsOf,
+  usesFires,
+  usesReports,
+  usesWeather,
+} from "./clusters";
 export {
   evaluateRule,
   explainTrace,

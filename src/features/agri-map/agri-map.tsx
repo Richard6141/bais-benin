@@ -17,8 +17,11 @@ import {
 import { MapFiltersBar, type FilterOptions } from "./map-filters";
 import { MapLegend, SkyLegend } from "./map-legend";
 import { MapSidePanel } from "./map-side-panel";
+import { FireControl, FireLegend } from "./fire-control";
+import type { FireWindowParam } from "./fire-layer";
 import { ParcelPanel } from "./parcel-panel";
 import { SkyControl } from "./sky-control";
+import { useFires } from "./use-fires";
 import { useImageryCatalog } from "./use-imagery-catalog";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
@@ -105,6 +108,11 @@ export function AgriMap({
     skyParams.layer && skyPeriod && readyCatalog?.imageryAvailable
       ? { layer: skyParams.layer, period: skyPeriod }
       : null;
+  // Feux actifs dans l'adresse aussi : ?feux=24h ou ?feux=7j (ADR-0022).
+  const feuxParam = searchParams.get("feux");
+  const fireWindow: FireWindowParam | null =
+    feuxParam === "24h" || feuxParam === "7j" ? feuxParam : null;
+  const fires = useFires(fireWindow);
   const [showFarms, setShowFarms] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
@@ -136,6 +144,7 @@ export function AgriMap({
       nextCommune: string | null,
       nextSky: SkyParams = skyParams,
       nextParcel: string | null = parcelId,
+      nextFires: FireWindowParam | null = fireWindow,
     ) => {
       const params = filtersToSearchParams(nextFilters);
       if (nextMetric !== "farmCount") params.set("metric", nextMetric);
@@ -143,10 +152,11 @@ export function AgriMap({
       if (nextSky.layer) params.set("ciel", nextSky.layer);
       if (nextSky.layer && nextSky.period) params.set("mois", nextSky.period);
       if (nextParcel) params.set("parcelle", nextParcel);
+      if (nextFires) params.set("feux", nextFires);
       const query = params.toString();
       router.replace((query ? `${pathname}?${query}` : pathname) as Route, { scroll: false });
     },
-    [router, pathname, skyParams, parcelId],
+    [router, pathname, skyParams, parcelId, fireWindow],
   );
 
   const selectParcel = (id: string | null) => {
@@ -193,6 +203,7 @@ export function AgriMap({
             onSelectParcel={selectParcel}
             focusBounds={focusBounds}
             onZoomChange={setZoom}
+            fires={fires}
           />
           {canInspectParcels && zoom !== null && zoom < PARCEL_MIN_ZOOM - 3 ? (
             <p className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border bg-card/95 px-3 py-1.5 text-xs font-medium shadow-raised sm:block">
@@ -213,6 +224,15 @@ export function AgriMap({
                 }
               />
             </div>
+            <div className="pointer-events-auto">
+              <FireControl
+                value={fireWindow}
+                onChange={(next) =>
+                  pushState(filters, metric, selectedCode, skyParams, parcelId, next)
+                }
+              />
+            </div>
+            {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
             {sky ? (
               <SkyLegend
                 view={sky}

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Appelle une route planifiée de l'application : ingest, dispatch, assistant-maintenance,
-# vegetation-checks ou crop-areas.
+# vegetation-checks, crop-areas ou fires.
 # L'environnement (URL, secret) est relu depuis le fichier écrit au démarrage : crond ne
 # transmet pas l'environnement du conteneur aux tâches.
 set -eu
@@ -12,6 +12,7 @@ case "$task" in
   assistant-maintenance) path="/api/v1/assistant/maintenance" ;;
   vegetation-checks) path="/api/v1/satellite/vegetation-checks" ;;
   crop-areas) path="/api/v1/satellite/crop-areas" ;;
+  fires) path="/api/v1/fires/ingest" ;;
   *) echo "Tâche inconnue : $task" >&2; exit 2 ;;
 esac
 

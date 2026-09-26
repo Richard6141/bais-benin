@@ -21,6 +21,12 @@ import {
   OUTLINE_COLOR,
   TILE_URL_TEMPLATE,
 } from "@/features/agri-map/map-config";
+import {
+  FIRE_ATTRIBUTION,
+  hideFireLayer,
+  showFireLayer,
+  type FireCollection,
+} from "@/features/agri-map/fire-layer";
 import { SEVERITY_COLORS } from "./alert-map-colors";
 import type { Severity } from "./monitoring-logic";
 
@@ -49,9 +55,13 @@ function fillColor(): ExpressionSpecification {
 
 interface AlertMapCanvasProps {
   levels: readonly { communeCode: string; severity: Severity }[];
+  /** Carte avec la couche des feux (centre de veille, ADR-0022) : mention NASA FIRMS. */
+  withFires?: boolean;
+  /** Feux actifs au-dessus des communes. */
+  fires?: FireCollection | null;
 }
 
-export function AlertMapCanvas({ levels }: AlertMapCanvasProps) {
+export function AlertMapCanvas({ levels, withFires = false, fires = null }: AlertMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
@@ -73,7 +83,12 @@ export function AlertMapCanvas({ levels }: AlertMapCanvasProps) {
     map.fitBounds(BENIN_BOUNDS, { padding: 16, duration: 0 });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(
-      new AttributionControl({ compact: true, customAttribution: "geoBoundaries (CC BY 4.0)" }),
+      new AttributionControl({
+        compact: true,
+        customAttribution: withFires
+          ? ["geoBoundaries (CC BY 4.0)", FIRE_ATTRIBUTION]
+          : "geoBoundaries (CC BY 4.0)",
+      }),
       "bottom-right",
     );
     mapRef.current = map;
@@ -128,6 +143,13 @@ export function AlertMapCanvas({ levels }: AlertMapCanvasProps) {
       );
     }
   }, [levels, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (fires) showFireLayer(map, fires);
+    else hideFireLayer(map);
+  }, [fires, ready]);
 
   if (!supported) return <MapUnavailable />;
 

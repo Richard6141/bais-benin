@@ -10,7 +10,7 @@ import {
 // paramètres des conditions `report_cluster`, les nommer en français et savoir si une règle lit
 // la météo (seules celles-là sont bloquées par des données météo anciennes).
 
-const NOT_WEATHER: readonly IndicatorCode[] = ["month", "report_cluster"];
+const NOT_WEATHER: readonly IndicatorCode[] = ["month", "report_cluster", "fire_near_parcels"];
 const WEATHER_INDICATORS = NUMERIC_INDICATORS.filter((code) => !NOT_WEATHER.includes(code));
 
 function conditions(node: RuleNode, out: RuleCondition[] = []): RuleCondition[] {
@@ -47,6 +47,11 @@ export function usesWeather(definition: RuleNode): boolean {
 
 export function usesReports(definition: RuleNode): boolean {
   return conditions(definition).some((c) => c.indicator === "report_cluster");
+}
+
+/** Vrai si la règle lit les feux actifs (ADR-0022). */
+export function usesFires(definition: RuleNode): boolean {
+  return conditions(definition).some((c) => c.indicator === "fire_near_parcels");
 }
 
 const TYPE_TEXT: Record<ReportClusterParams["type"], string> = {

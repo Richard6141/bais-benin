@@ -17,6 +17,8 @@ export type AlertCategory =
   | "PEST"
   | "CROP_DISEASE"
   | "ANIMAL_DISEASE"
+  | "FIRE"
+  | "FIRE"
   | "MARKET"
   | "ADMIN";
 
