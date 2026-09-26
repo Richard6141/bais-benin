@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 const NAV = [
   { href: "/", label: "Accueil" },
   { href: "/carte", label: "Carte agricole" },
+  { href: "/palmares", label: "Palmarès" },
   { href: "/#espaces", label: "Les espaces" },
   { href: "/design-system", label: "Design system", desktopOnly: true },
 ] as const;

@@ -19,6 +19,11 @@ export interface ProducerRankingSqlFilters {
   /** Surface minimale (ha) pour classer au rendement : une micro-parcelle fausse le rendement. */
   minAreaHa: number;
   limit: number;
+  /**
+   * Palmarès public : seulement les producteurs qui ont donné leur accord, pris dans l'ordre du
+   * classement complet (leur rang reste celui de ce classement).
+   */
+  consentingOnly?: boolean;
 }
 
 const num = z.coerce.number();
@@ -38,6 +43,7 @@ const rowSchema = z.object({
   area_ha: num,
   production_kg: num,
   all_verified: z.boolean(),
+  public_consent: z.boolean(),
 });
 export type ProducerRankingSqlRow = z.infer<typeof rowSchema>;
 
@@ -96,12 +102,15 @@ export async function readProducerRanking(
     SELECT r.rank, r.eligible_count, r."farmer_id", r.farmer_code,
            fa."first_name", fa."last_name", fa."phone_e164" AS phone,
            c."code" AS commune_code, c."name" AS commune_name, d."name" AS departement_name,
-           r.farm_count, r.area_ha, r.production_kg, r.all_verified
+           r.farm_count, r.area_ha, r.production_kg, r.all_verified,
+           rc."farmer_id" IS NOT NULL AS public_consent
     FROM ranked r
     JOIN "farmer" fa ON fa."id" = r."farmer_id"
     JOIN "commune" c ON c."id" = r."commune_id"
     JOIN "departement" d ON d."id" = c."departement_id"
-    WHERE r.rank <= ${filters.limit}
-    ORDER BY r.rank`;
+    LEFT JOIN "ranking_consent" rc ON rc."farmer_id" = r."farmer_id" AND rc."revoked_at" IS NULL
+    ${filters.consentingOnly ? Prisma.sql`WHERE rc."farmer_id" IS NOT NULL` : Prisma.empty}
+    ORDER BY r.rank
+    LIMIT ${filters.limit}`;
   return rows.map((row) => rowSchema.parse(row));
 }

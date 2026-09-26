@@ -421,6 +421,9 @@ model User {
   assistanceRequests        AssistanceRequest[] @relation("assistanceRequester")
   handledAssistanceRequests AssistanceRequest[] @relation("assistanceHandler")
 
+  publishedRankings PublishedRanking[] @relation("rankingPublisher")
+  withdrawnRankings PublishedRanking[] @relation("rankingWithdrawer")
+
   @@map("user")
 }
 
@@ -574,6 +577,10 @@ model Farmer {
   farms Farm[]
 
   channelConsents ChannelConsent[]
+
+  notifications  FarmerNotification[]
+  rankingConsent RankingConsent?
+  rankingEntries PublishedRankingEntry[]
 
   @@index([communeId])
   @@index([lastName, firstName])
@@ -1421,4 +1428,96 @@ model ParcelVegetationCheck {
   @@unique([parcelId, campaignId, subSeason])
   @@index([campaignId, status])
   @@map("parcel_vegetation_check")
+}
+
+// ---------------------------------------------------------------------------
+// Suivi du producteur sur WhatsApp et palmarès public (docs/modules/suivi-et-palmares.md)
+// ---------------------------------------------------------------------------
+
+enum FarmerNotificationKind {
+  ASSISTANCE_TAKEN
+  ASSISTANCE_RESOLVED
+  REPORT_CONFIRMED
+  REPORT_DISMISSED
+}
+
+// Message de suivi adressé au producteur sur WhatsApp : demande d'assistance prise en charge ou
+// résolue, signalement confirmé ou écarté. Écrit dans la même transaction que le changement de
+// statut, envoyé ensuite, sous réserve de son consentement au moment de l'envoi. Un seul message
+// par événement (type, demande ou signalement).
+model FarmerNotification {
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  farmerId          String                 @map("farmer_id") @db.Uuid
+  farmer            Farmer                 @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  kind              FarmerNotificationKind
+  subjectId         String                 @map("subject_id") @db.Uuid
+  text              String
+  status            DeliveryStatus         @default(PENDING)
+  attempts          Int                    @default(0)
+  nextAttemptAt     DateTime?              @map("next_attempt_at")
+  sentAt            DateTime?              @map("sent_at")
+  providerMessageId String?                @map("provider_message_id")
+  failureReason     String?                @map("failure_reason")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  @@unique([kind, subjectId])
+  @@index([status, nextAttemptAt])
+  @@index([farmerId, createdAt])
+  @@map("farmer_notification")
+}
+
+// Accord du producteur pour figurer dans les palmarès publiés (complément d'ADR-0018), donné et
+// retiré par lui-même depuis son compte. Le retirer l'efface aussitôt des palmarès publiés.
+model RankingConsent {
+  farmerId  String    @id @map("farmer_id") @db.Uuid
+  farmer    Farmer    @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  grantedAt DateTime  @map("granted_at")
+  revokedAt DateTime? @map("revoked_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("ranking_consent")
+}
+
+// Palmarès publié par le ministère : instantané des premiers lauréats consentants pour des
+// critères donnés (culture, campagne, territoire, mesure). Retiré, il quitte la page publique.
+model PublishedRanking {
+  id              String                  @id @default(uuid(7)) @db.Uuid
+  title           String
+  cropCode        String                  @map("crop_code")
+  campaignCode    String                  @map("campaign_code")
+  departementCode String?                 @map("departement_code")
+  communeCode     String?                 @map("commune_code")
+  metric          String
+  verifiedOnly    Boolean                 @map("verified_only")
+  requestedCount  Int                     @map("requested_count")
+  publishedById   String                  @map("published_by_id") @db.Uuid
+  publishedBy     User                    @relation("rankingPublisher", fields: [publishedById], references: [id])
+  publishedAt     DateTime                @default(now()) @map("published_at")
+  withdrawnAt     DateTime?               @map("withdrawn_at")
+  withdrawnById   String?                 @map("withdrawn_by_id") @db.Uuid
+  withdrawnBy     User?                   @relation("rankingWithdrawer", fields: [withdrawnById], references: [id])
+  entries         PublishedRankingEntry[]
+
+  @@index([withdrawnAt, publishedAt])
+  @@map("published_ranking")
+}
+
+// Lauréat d'un palmarès publié, recopié au moment de la publication. Jamais de téléphone ni de
+// NPI : nom, commune, rang dans le classement complet et chiffres de la campagne.
+model PublishedRankingEntry {
+  rankingId       String           @map("ranking_id") @db.Uuid
+  ranking         PublishedRanking @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  rank            Int
+  farmerId        String           @map("farmer_id") @db.Uuid
+  farmer          Farmer           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  displayName     String           @map("display_name")
+  communeName     String           @map("commune_name")
+  departementName String           @map("departement_name")
+  productionT     Decimal          @map("production_t") @db.Decimal(12, 3)
+  areaHa          Decimal          @map("area_ha") @db.Decimal(10, 3)
+
+  @@id([rankingId, rank])
+  @@index([farmerId])
+  @@map("published_ranking_entry")
 }

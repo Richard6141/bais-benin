@@ -96,6 +96,8 @@ export interface ProducerRankingRow {
   productionT: number;
   yieldTPerHa: number | null;
   verified: boolean;
+  /** Accord du producteur pour figurer dans un palmarès public (complément d'ADR-0018). */
+  publicConsent: boolean;
 }
 
 export interface ProducerRanking {
@@ -121,6 +123,7 @@ function toRow(row: ProducerRankingSqlRow, canReadContacts: boolean): ProducerRa
     productionT: row.production_kg / 1000,
     yieldTPerHa: row.area_ha > 0 ? row.production_kg / 1000 / row.area_ha : null,
     verified: row.all_verified,
+    publicConsent: row.public_consent,
   };
 }
 

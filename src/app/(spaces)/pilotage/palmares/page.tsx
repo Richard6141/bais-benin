@@ -7,14 +7,28 @@ import {
   ProducerRankingFilters,
   ProducerRankingTable,
 } from "@/features/dashboard/producer-ranking-view";
+import {
+  PublishRankingForm,
+  PublishedRankingsList,
+} from "@/features/dashboard/ranking-publication";
 import { getProducerRanking } from "@/modules/analytics";
+import { MAX_PUBLISHED_LAUREATES, listPublishedRankings } from "@/modules/public-ranking";
 import { listCampaigns, listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Palmarès des producteurs" };
 
+const shortDate = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Africa/Porto-Novo",
+});
+
 // Palmarès nominatif des producteurs (ADR-0018) : ministère seulement, chaque consultation est
 // journalisée. L'adresse porte les critères, l'export CSV reprend exactement le même classement.
+// Sous le classement : publication d'un palmarès public (lauréats consentants seulement) et
+// retrait des palmarès déjà publiés.
 export default async function ProducerRankingPage(props: PageProps<"/pilotage/palmares">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/palmares" });
   const params = (await props.searchParams) as Record<string, string | string[] | undefined>;
@@ -22,11 +36,12 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
     Object.entries(params).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
   );
 
-  const [ranking, campaigns, crops, departements] = await Promise.all([
+  const [ranking, campaigns, crops, departements, published] = await Promise.all([
     getProducerRanking(user.actor, input),
     listCampaigns(),
     listCrops(),
     listDepartements(),
+    listPublishedRankings(user.actor),
   ]);
   const cropName =
     crops.find((c) => c.code === ranking.filters.cropCode)?.nameFr ?? "cette culture";
@@ -69,6 +84,30 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
         departements={departements}
       />
       <ProducerRankingTable ranking={ranking} cropName={cropName} />
+      {ranking.rows.length > 0 ? (
+        <PublishRankingForm
+          criteria={{
+            cropCode: ranking.filters.cropCode,
+            campaignCode: ranking.filters.campaignCode,
+            departementCode: ranking.filters.departementCode,
+            communeCode: ranking.filters.communeCode,
+            metric: ranking.filters.metric,
+            verifiedOnly: ranking.filters.verifiedOnly,
+          }}
+          consenting={ranking.rows.filter((row) => row.publicConsent).length}
+          max={MAX_PUBLISHED_LAUREATES}
+        />
+      ) : null}
+      <PublishedRankingsList
+        rows={published.map((item) => ({
+          id: item.id,
+          title: item.title,
+          publishedOn: shortDate.format(item.publishedAt),
+          publishedByName: item.publishedByName,
+          withdrawnOn: item.withdrawnAt ? shortDate.format(item.withdrawnAt) : null,
+          laureates: item.laureates,
+        }))}
+      />
     </div>
   );
 }

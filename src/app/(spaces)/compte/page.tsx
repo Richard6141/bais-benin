@@ -4,6 +4,7 @@ import { ReliabilityBadge, type Reliability } from "@/components/data-display/re
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConsentsCard } from "@/features/account/consents-card";
 import { SessionsList } from "@/features/account/sessions-list";
 import { requireUser } from "@/features/auth/session";
 import { auth } from "@/lib/auth/auth";
@@ -31,7 +32,7 @@ export default async function AccountPage() {
       <PageHeader
         eyebrow="Mon compte"
         title={user.name}
-        description="Votre identité et vos appareils connectés."
+        description="Votre identité, vos appareils connectés et vos accords."
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -110,6 +111,8 @@ export default async function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConsentsCard actor={user.actor} />
     </div>
   );
 }

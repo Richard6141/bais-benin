@@ -169,6 +169,7 @@ export function ProducerRankingTable({
             </TableHead>
             <TableHead>Téléphone</TableHead>
             <TableHead>Vérification</TableHead>
+            <TableHead>Palmarès public</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -198,6 +199,9 @@ export function ProducerRankingTable({
                 <Badge variant={row.verified ? "success" : "outline"}>
                   {row.verified ? "Vérifiée" : "Déclarée"}
                 </Badge>
+              </TableCell>
+              <TableCell className="text-sm whitespace-nowrap">
+                {row.publicConsent ? "Accord donné" : "—"}
               </TableCell>
             </TableRow>
           ))}
