@@ -23,3 +23,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0018 | Palmarès nominatif des producteurs, réservé au ministère ; palmarès public des lauréats consentants | acceptée, complétée |
 | 0019 | Radar Sentinel-1 pour la saison des pluies, quand les nuages empêchent Sentinel-2 de conclure | acceptée, complète 0016 |
 | 0020 | Prévision des récoltes par surfaces semées et rendements observés | acceptée |
+| 0022 | Feux actifs NASA FIRMS en quasi temps réel, alertes « feu de brousse » et centre de veille | acceptée |
