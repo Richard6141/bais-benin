@@ -11,6 +11,7 @@ import {
   type CropMapClassCode,
 } from "@/database/sql/crop-areas.sql";
 import { addProcessingUnits, reserveProcessingRequest } from "@/database/sql/satellite.sql";
+import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import {
@@ -83,8 +84,11 @@ export interface CropAreaRunResult {
   campaignCode: string | null;
   computed: number;
   errors: number;
-  /** Unités de traitement annoncées par Copernicus, par commune calculée. */
-  perCommune: { code: string; processingUnits: number | null }[];
+  /**
+   * Unités de traitement annoncées par Copernicus, par commune calculée (radar compris), et part
+   * de rizière vue par le radar quand il est activé.
+   */
+  perCommune: { code: string; processingUnits: number | null; radarRiceShare?: number | null }[];
   processingUnits: number;
   /** Communes restant à calculer ce mois-ci : le lot suivant les reprend. */
   remaining: number;
@@ -150,6 +154,51 @@ export function cropAreaRows(
   });
 }
 
+/** Classes d'où le riz vu par le radar est retiré, dans cet ordre : une rizière sous les nuages
+ * passe d'ordinaire pour une culture annuelle, une jachère ou un bas-fond de savane. */
+const RICE_DONORS = ["ANNUAL", "FALLOW", "NATURAL"] as const;
+
+/**
+ * Riz radar dans les lignes d'une commune (ADR-0026) : la part de riz retenue est la plus grande
+ * de l'optique et du radar ; l'écart est repris sur les cultures annuelles, puis la jachère, puis
+ * la savane, pour que les parts restent cohérentes. Sans mesure radar, les lignes sont rendues
+ * telles quelles.
+ */
+export function withRadarRice(
+  rows: readonly CropAreaRow[],
+  radar: { ricePixels: number; observedPixels: number } | null,
+  communeAreaHa: number,
+): CropAreaRow[] {
+  if (!radar || radar.observedPixels === 0) return [...rows];
+  const radarShare = radar.ricePixels / radar.observedPixels;
+  const shares = new Map(rows.map((row) => [row.cropClass, row.pixelShare]));
+  let missing = Math.max(0, radarShare - (shares.get("RICE") ?? 0));
+  for (const donor of RICE_DONORS) {
+    const available = shares.get(donor) ?? 0;
+    const taken = Math.min(available, missing);
+    shares.set(donor, available - taken);
+    shares.set("RICE", (shares.get("RICE") ?? 0) + taken);
+    missing -= taken;
+  }
+  return rows.map((row) => {
+    const share = shares.get(row.cropClass) ?? row.pixelShare;
+    return {
+      ...row,
+      pixelShare: round4(share),
+      areaHa: share === row.pixelShare ? row.areaHa : round2(share * communeAreaHa),
+      radarRiceShare: row.cropClass === "RICE" ? round4(radarShare) : null,
+    };
+  });
+}
+
+/** Saison du riz lue par le radar : de mai à novembre, la dernière commencée depuis un mois. */
+export function riceRadarSeason(now: Date): { from: Date; to: Date } {
+  const year = now.getUTCMonth() >= 5 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const from = new Date(Date.UTC(year, 4, 1));
+  const end = new Date(Date.UTC(year, 11, 1));
+  return { from, to: end.getTime() < now.getTime() ? end : now };
+}
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -162,6 +211,8 @@ export async function runCropAreaEstimates(options: {
   provider: RemoteSensingProvider;
   limit: number;
   now?: Date;
+  /** Riz par radar Sentinel-1 ; par défaut SATELLITE_RADAR_RICE. */
+  radarRice?: boolean;
 }): Promise<CropAreaRunResult> {
   const now = options.now ?? new Date();
   const result: CropAreaRunResult = {
@@ -190,6 +241,8 @@ export async function runCropAreaEstimates(options: {
   const budget = processingBudget();
   const metered = options.provider.id === "cdse";
   const windowFrom = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);
+  const radarRice = options.radarRice ?? getServerEnv().SATELLITE_RADAR_RICE === "1";
+  const riceSeason = riceRadarSeason(now);
   let consecutiveErrors = 0;
   const started = Date.now();
 
@@ -236,7 +289,38 @@ export async function runCropAreaEstimates(options: {
     if (metered && measure.processingUnits) {
       await addProcessingUnits(periodOf(now), measure.processingUnits);
     }
-    await upsertCropAreas(
+    // Riz radar : une requête de plus, dans la même part. Facultatif : un refus ou un échec laisse
+    // l'estimation optique seule.
+    let radar: { ricePixels: number; observedPixels: number } | null = null;
+    let radarUnits: number | null = null;
+    if (radarRice) {
+      const reservation = metered
+        ? await reserveProcessingRequest(periodOf(now), "STATISTICS", budget, now)
+        : "reserved";
+      if (reservation === "reserved") {
+        try {
+          const rice = await options.provider.riceRadarStatistics({
+            geometry: geometry.data as PolygonGeometry | MultiPolygonGeometry,
+            from: riceSeason.from.toISOString(),
+            to: riceSeason.to.toISOString(),
+            resolutionM: CROP_AREA_RESOLUTION_M,
+            latitude: commune.latitude,
+            timeoutMs: REQUEST_TIMEOUT_MS,
+          });
+          radar = rice;
+          radarUnits = rice.processingUnits;
+          if (metered && rice.processingUnits) {
+            await addProcessingUnits(periodOf(now), rice.processingUnits);
+          }
+        } catch (error) {
+          if (!(error instanceof RemoteSensingProviderError)) throw error;
+          logger.warn({ err: error, commune: commune.code }, "Riz radar indisponible");
+        }
+      } else {
+        result.stopped = reservation;
+      }
+    }
+    const rows = withRadarRice(
       cropAreaRows(measure.classPixels, {
         communeId: commune.id,
         campaignId: campaign.id,
@@ -247,10 +331,24 @@ export async function runCropAreaEstimates(options: {
         reliability: options.provider.provenance.reliability,
         computedAt: now,
       }),
+      radar,
+      commune.area_ha,
     );
+    await upsertCropAreas(rows);
+    const units =
+      measure.processingUnits === null && radarUnits === null
+        ? null
+        : (measure.processingUnits ?? 0) + (radarUnits ?? 0);
     result.computed += 1;
-    result.perCommune.push({ code: commune.code, processingUnits: measure.processingUnits });
-    result.processingUnits += measure.processingUnits ?? 0;
+    result.perCommune.push({
+      code: commune.code,
+      processingUnits: units,
+      ...(radarRice
+        ? { radarRiceShare: rows.find((row) => row.cropClass === "RICE")?.radarRiceShare ?? null }
+        : {}),
+    });
+    result.processingUnits += units ?? 0;
+    if (result.stopped) break;
   }
   result.remaining = await countCommunesForCropAreas(cursor);
   return result;
@@ -391,6 +489,8 @@ export interface CropAreaComparison {
     unclassifiedShare: number;
   })[];
   sources: { sourceId: string; computedAt: Date; resolutionM: number }[];
+  /** Vrai si le riz d'au moins une commune a été complété par le radar Sentinel-1. */
+  radarRice: boolean;
 }
 
 function figures(satelliteHa: number, declaredHa: number): CropAreaFigures {
@@ -526,5 +626,6 @@ export async function getCropAreaComparison(
       }))
       .sort((a, b) => b.gapHa - a.gapHa),
     sources: [...sources.entries()].map(([sourceId, entry]) => ({ sourceId, ...entry })),
+    radarRice: rows.some((row) => row.crop_class === "RICE" && row.radar_rice_share !== null),
   };
 }

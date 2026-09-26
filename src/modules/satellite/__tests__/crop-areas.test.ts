@@ -35,7 +35,8 @@ vi.mock("@/lib/env", () => ({
   }),
 }));
 
-const { cropAreaRows, cropMapClassOf, runCropAreaEstimates } = await import("../crop-areas");
+const { cropAreaRows, cropMapClassOf, riceRadarSeason, runCropAreaEstimates, withRadarRice } =
+  await import("../crop-areas");
 
 const SQUARE = JSON.stringify({
   type: "MultiPolygon",
@@ -202,5 +203,83 @@ describe("passe mensuelle des surfaces", () => {
 
     expect(result.computed).toBe(1);
     expect(quota.reserveProcessingRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("riz complété par le radar", () => {
+  const context = {
+    communeId: "c",
+    campaignId: "k",
+    communeAreaHa: 1000,
+    windowFrom: new Date("2025-10-03"),
+    windowTo: NOW,
+    sourceId: "COPERNICUS_S2",
+    reliability: "ESTIMATED" as const,
+    computedAt: NOW,
+  };
+
+  it("retient la plus grande part de riz et la reprend sur les cultures annuelles", () => {
+    // Optique : 5 % de riz sur 100 pixels ; radar : 12 %.
+    const rows = withRadarRice(
+      cropAreaRows(PIXELS, context),
+      { ricePixels: 12, observedPixels: 100 },
+      1000,
+    );
+    const byClass = new Map(rows.map((row) => [row.cropClass, row]));
+    expect(byClass.get("RICE")).toMatchObject({
+      pixelShare: 0.12,
+      areaHa: 120,
+      radarRiceShare: 0.12,
+    });
+    expect(byClass.get("ANNUAL")).toMatchObject({ pixelShare: 0.43, areaHa: 430 });
+    expect(byClass.get("ANNUAL")?.radarRiceShare).toBeNull();
+    const total = rows.reduce((sum, row) => sum + row.pixelShare, 0);
+    expect(total).toBeCloseTo(1, 4);
+  });
+
+  it("ne réduit jamais le riz vu par l'optique", () => {
+    const rows = withRadarRice(
+      cropAreaRows(PIXELS, context),
+      { ricePixels: 1, observedPixels: 100 },
+      1000,
+    );
+    expect(rows.find((row) => row.cropClass === "RICE")).toMatchObject({
+      pixelShare: 0.05,
+      radarRiceShare: 0.01,
+    });
+  });
+
+  it("lit la saison de mai à novembre, la dernière commencée", () => {
+    expect(riceRadarSeason(NOW)).toEqual({
+      from: new Date("2026-05-01T00:00:00Z"),
+      to: new Date("2026-10-03T05:30:00Z"),
+    });
+    expect(riceRadarSeason(new Date("2027-03-01T00:00:00Z"))).toEqual({
+      from: new Date("2026-05-01T00:00:00Z"),
+      to: new Date("2026-12-01T00:00:00Z"),
+    });
+  });
+
+  it("réserve une requête de plus par commune et additionne ses unités", async () => {
+    vi.clearAllMocks();
+    sql.countCommunesForCropAreas.mockResolvedValue(0);
+    sql.listCommunesForCropAreas.mockResolvedValue([commune("A")]);
+    quota.reserveProcessingRequest.mockResolvedValue("reserved");
+    const source = {
+      ...(provider(async () => ({ classPixels: PIXELS, processingUnits: 12 })) as object),
+      riceRadarStatistics: vi.fn(async () => ({
+        ricePixels: 8,
+        observedPixels: 100,
+        processingUnits: 2,
+      })),
+    } as never;
+    const result = await runCropAreaEstimates({
+      provider: source,
+      limit: 12,
+      now: NOW,
+      radarRice: true,
+    });
+    expect(quota.reserveProcessingRequest).toHaveBeenCalledTimes(2);
+    expect(result.perCommune).toEqual([{ code: "A", processingUnits: 14, radarRiceShare: 0.08 }]);
   });
 });
