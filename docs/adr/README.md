@@ -28,3 +28,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0023 | Carte des cultures : coût mesuré, pixels de 120 m, quatre bandes, douze passages | acceptée, remplace en partie 0021 |
 | 0024 | Groupes de producteurs formés depuis le palmarès, message WhatsApp aux membres consentants | acceptée |
 | 0025 | Carte des cultures : pixels hors contour écartés, un passage par trace et par mois, carte calculée hors requête | acceptée, complète 0021 et 0023 |
+| 0026 | Riz par radar Sentinel-1 dans les surfaces par commune | acceptée, complète 0019, 0021, 0023 et 0025 |
