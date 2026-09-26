@@ -62,6 +62,9 @@ export const ACTIONS = [
   // producteur donne ou retire depuis son compte (palmarès, messages WhatsApp).
   "ranking.publish",
   "consent.manage",
+  // Enquête aréolaire (ADR-0033) : constater l'occupation du sol sur un point tiré, dans les
+  // communes de l'agent.
+  "survey.observe",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -107,6 +110,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     // Publication d'un palmarès public : seulement les lauréats qui ont donné leur accord.
     "ranking.publish": "ALL",
     "consent.manage": "NONE",
+    "survey.observe": "NONE",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -151,6 +155,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.handle": "SCOPE",
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
+    "survey.observe": "SCOPE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -188,6 +193,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "ranking.publish": "NONE",
     // Accords du producteur sur son propre compte : messages WhatsApp, palmarès public.
     "consent.manage": "SELF",
+    "survey.observe": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -224,6 +230,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.handle": "NONE",
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
+    "survey.observe": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -260,5 +267,6 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.handle": "NONE",
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
+    "survey.observe": "NONE",
   },
 };

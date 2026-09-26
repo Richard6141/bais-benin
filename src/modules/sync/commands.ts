@@ -185,6 +185,43 @@ export const assistanceRequestPayload = z
     path: ["communeCode"],
   });
 
+// Constat d'un point d'enquête aréolaire (ADR-0033) : occupation du sol au point même, par
+// l'agent à moins de 50 m (position du téléphone), ou point inaccessible avec sa raison.
+export const SURVEY_LAND_COVERS = [
+  "CROP",
+  "FALLOW",
+  "NATURAL",
+  "WATER",
+  "BUILT",
+  "INACCESSIBLE",
+] as const;
+
+export const surveyPointObservePayload = z
+  .object({
+    id: uuid,
+    pointId: uuid,
+    landCover: z.enum(SURVEY_LAND_COVERS),
+    cropCode: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_]{1,31}$/)
+      .optional(),
+    reason: z.string().trim().min(3).max(200).optional(),
+    observedAt: isoDate,
+    gpsPoint: lngLat.optional(),
+  })
+  .refine((payload) => payload.landCover !== "CROP" || payload.cropCode !== undefined, {
+    message: "Culture attendue",
+    path: ["cropCode"],
+  })
+  .refine((payload) => payload.landCover === "INACCESSIBLE" || payload.gpsPoint !== undefined, {
+    message: "Position attendue",
+    path: ["gpsPoint"],
+  })
+  .refine((payload) => payload.landCover !== "INACCESSIBLE" || payload.reason !== undefined, {
+    message: "Raison attendue",
+    path: ["reason"],
+  });
+
 export const syncPayloadSchemas = {
   "farmer.create": farmerCreatePayload,
   "farm.create": farmCreatePayload,
@@ -196,6 +233,7 @@ export const syncPayloadSchemas = {
   "alert.relay": alertRelayPayload,
   "fieldReport.create": fieldReportCreatePayload,
   "assistance.request": assistanceRequestPayload,
+  "surveyPoint.observe": surveyPointObservePayload,
 } as const;
 
 export type SyncCommandType = keyof typeof syncPayloadSchemas;

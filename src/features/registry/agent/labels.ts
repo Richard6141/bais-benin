@@ -33,6 +33,7 @@ export const COMMAND_LABELS: Record<SyncCommandType, string> = {
   "alert.relay": "Alerte relayée",
   "fieldReport.create": "Signalement de terrain",
   "assistance.request": "Demande d'assistance",
+  "surveyPoint.observe": "Point d'enquête",
 };
 
 export const OUTBOX_STATUS_LABELS = {

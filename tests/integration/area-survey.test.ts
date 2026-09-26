@@ -7,6 +7,7 @@ import {
   listSurveyPoints,
 } from "@/modules/area-survey";
 import { loadActor } from "@/modules/identity";
+import { applySyncBatch } from "@/modules/sync";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 
 // Enquête aréolaire (ADR-0033) sur la vraie base : tirage des points d'une commune pilote,
@@ -16,6 +17,8 @@ const PILOT = "BJ-DON-001";
 const MINISTRY_PHONE = "+2290190000003";
 const AGENT_PHONE = "+2290190000001";
 const AGENT_COMMUNE = "BJ-DON-003";
+const DEVICE = "test-device-enquete";
+const AT = "2026-08-20T10:00:00+01:00";
 
 async function actorForPhone(phone: string) {
   const user = await prisma.user.findFirstOrThrow({
@@ -118,4 +121,71 @@ describe("enquête aréolaire", () => {
     expect(agentPoints.length).toBeGreaterThan(0);
     expect(agentPoints.every((point) => point.code.startsWith(`${AGENT_COMMUNE}-`))).toBe(true);
   }, 120_000);
+
+  it("enregistre le constat de l'agent près du point, et refuse de loin ou hors de ses communes", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const point = await prisma.areaFramePoint.findFirstOrThrow({
+      where: { commune: { code: AGENT_COMMUNE }, campaign: { status: "OPEN" } },
+      select: { id: true, latitude: true, longitude: true },
+      orderBy: { code: "asc" },
+    });
+    const lat = Number(point.latitude);
+    const lng = Number(point.longitude);
+    const observe = (payload: Record<string, unknown>) => {
+      const id = crypto.randomUUID();
+      return applySyncBatch(agent, DEVICE, [
+        {
+          id,
+          type: "surveyPoint.observe",
+          payload: { id, pointId: point.id, observedAt: AT, ...payload },
+          idempotencyKey: `it-${id}`,
+          clientCreatedAt: AT,
+          deviceId: DEVICE,
+        },
+      ]);
+    };
+
+    const [far] = await observe({ landCover: "NATURAL", gpsPoint: [lng, lat + 0.001] });
+    expect(far?.outcome).toBe("REJECTED");
+    expect(far?.error?.code).toBe("TOO_FAR");
+
+    const [near] = await observe({
+      landCover: "CROP",
+      cropCode: "COTTON",
+      gpsPoint: [lng, lat + 0.0001],
+    });
+    expect(near?.outcome).toBe("APPLIED");
+    const stored = await prisma.areaFrameObservation.findUniqueOrThrow({
+      where: { id: near!.entity!.id },
+      select: { landCover: true, distanceM: true, crop: { select: { code: true } } },
+    });
+    expect(stored).toEqual({ landCover: "CROP", distanceM: 11, crop: { code: "COTTON" } });
+
+    const [blocked] = await observe({ landCover: "INACCESSIBLE", reason: "Rivière en crue" });
+    expect(blocked?.outcome).toBe("APPLIED");
+
+    const pilot = await prisma.areaFramePoint.findFirstOrThrow({
+      where: { commune: { code: PILOT } },
+      select: { id: true, latitude: true, longitude: true },
+    });
+    const outsideId = crypto.randomUUID();
+    const [outside] = await applySyncBatch(agent, DEVICE, [
+      {
+        id: outsideId,
+        type: "surveyPoint.observe",
+        payload: {
+          id: outsideId,
+          pointId: pilot.id,
+          observedAt: AT,
+          landCover: "NATURAL",
+          gpsPoint: [Number(pilot.longitude), Number(pilot.latitude)],
+        },
+        idempotencyKey: `it-${outsideId}`,
+        clientCreatedAt: AT,
+        deviceId: DEVICE,
+      },
+    ]);
+    expect(outside?.outcome).toBe("REJECTED");
+    expect(outside?.error?.code).toBe("NOT_FOUND");
+  });
 });
