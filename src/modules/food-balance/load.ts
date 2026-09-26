@@ -20,8 +20,12 @@ import { FOOD_CROPS, annualStapleNeedsKcal, kcalFromProduction } from "./coeffic
 // cultures selon les points où l'agent les a vues. Le registre seul ne fait jamais de bilan : il ne
 // sert qu'à répartir une commune d'enquête dont aucun point n'a vu de culture vivrière.
 
-/** Au-delà de ce coefficient de variation, une surface par sondage ne fait pas un bilan. */
-const MAX_SURVEY_CV = 0.2;
+/**
+ * Sous ce nombre de points où l'agent a vu une culture vivrière, la surface par sondage n'est que
+ * du bruit : la commune n'est pas évaluée. Au-dessus, une surface imprécise (CV de plus de 20 %)
+ * sert quand même, et la commune est « à confirmer » (ADR-0036).
+ */
+const MIN_STAPLE_POINTS = 5;
 
 export interface FoodBalanceView {
   campaignCode: string;
@@ -34,14 +38,27 @@ export interface FoodBalanceView {
 }
 
 function surveyArea(target: TargetEstimate | undefined) {
-  if (!target || target.cv === null || target.cv > MAX_SURVEY_CV) return null;
-  if (target.status === "do-not-cite") return null;
+  if (!target || target.cv === null || target.positives < MIN_STAPLE_POINTS) return null;
   return {
     areaHa: target.areaHa,
     lowHa: Math.max(0, target.areaHa - target.marginHa),
     highHa: target.areaHa + target.marginHa,
     cv: target.cv,
+    positives: target.positives,
+    points: target.points,
   };
+}
+
+/** « 1 point vivrier », « 4 points vivriers ». */
+export function pointsLabel(count: number): string {
+  return count > 1 ? `${count} points vivriers` : `${count} point vivrier`;
+}
+
+/** Raison d'une commune d'enquête dont les points vivriers sont trop peu nombreux. */
+function thinSurvey(targets: readonly TargetEstimate[]): string | undefined {
+  const staples = targets.find((target) => target.target === "STAPLES");
+  if (!staples || staples.positives >= MIN_STAPLE_POINTS) return undefined;
+  return `Enquête : ${pointsLabel(staples.positives)} sur ${staples.points}, trop peu pour une surface`;
 }
 
 /** Vue du ministère ; null hors de la portée nationale ou sans campagne ouverte. */
@@ -164,7 +181,13 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
           areaHa: measured.areaHa * share,
           areaLowHa: measured.lowHa * share,
           areaHighHa: measured.highHa * share,
-          source: { kind: "survey", campaignCode: survey.campaignCode, cv: measured.cv },
+          source: {
+            kind: "survey",
+            campaignCode: survey.campaignCode,
+            cv: measured.cv,
+            positives: measured.positives,
+            points: measured.points,
+          },
           yieldRef: { ...yieldRef, basis: yieldRef.basis },
         });
         continue;
@@ -189,6 +212,7 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
       population: population.get(commune.id) ?? null,
       crops: missing.length === FOOD_CROPS.length ? [] : inputs,
       missingCrops: missing,
+      unavailableReason: thinSurvey(targets),
     });
   });
 

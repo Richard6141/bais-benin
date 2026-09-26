@@ -117,7 +117,14 @@ export function FoodBalanceSection({ view }: { view: FoodBalanceView }) {
                   <Badge variant={STATUS[balance.status].variant}>
                     {STATUS[balance.status].label}
                   </Badge>
-                  {balance.toConfirm ? <Badge variant="watch">À confirmer</Badge> : null}
+                  {balance.toConfirm ? (
+                    <span className="inline-flex items-center gap-0.5">
+                      <Badge variant="watch">À confirmer</Badge>
+                      <HelpTip label={`Pourquoi ${balance.name} est à confirmer`}>
+                        {balance.confirmReasons.join(" ")}
+                      </HelpTip>
+                    </span>
+                  ) : null}
                 </span>
               ),
               sort: STATUS_RANK[balance.status],

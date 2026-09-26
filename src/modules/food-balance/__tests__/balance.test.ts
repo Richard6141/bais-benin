@@ -115,6 +115,52 @@ describe("statut d'une commune", () => {
     expect(partial.toConfirm).toBe(true);
   });
 
+  it("met à confirmer une couverture invraisemblable, au-delà de 300 %", () => {
+    const huge = computeCommuneBalance({
+      code: "BJ-H",
+      name: "Commune H",
+      population: 1000,
+      crops: [crop("MAIZE", 5000), crop("YAM", 500), crop("CASSAVA", 500)],
+      missingCrops: [],
+    });
+    expect(huge.coverage!.central).toBeGreaterThan(3);
+    expect(huge.status).toBe("covered");
+    expect(huge.toConfirm).toBe(true);
+    expect(huge.confirmReasons.join(" ")).toMatch(/Plus de 300 % des besoins/);
+  });
+
+  it("met à confirmer une surface d'enquête imprécise, et dit pourquoi", () => {
+    const loose = {
+      kind: "survey" as const,
+      campaignCode: "2026-2027",
+      cv: 0.35,
+      positives: 7,
+      points: 112,
+    };
+    const balance = computeCommuneBalance({
+      code: "BJ-L",
+      name: "Commune L",
+      population: 100_000,
+      crops: [crop("MAIZE", 20_000, loose), crop("YAM", 2000, loose), crop("CASSAVA", 2000, loose)],
+      missingCrops: [],
+    });
+    expect(balance.toConfirm).toBe(true);
+    expect(balance.confirmReasons.join(" ")).toMatch(/à 35 % près \(7 points vivriers sur 112\)/);
+  });
+
+  it("dit pourquoi une commune d'enquête n'est pas évaluée", () => {
+    const thin = computeCommuneBalance({
+      code: "BJ-T",
+      name: "Commune T",
+      population: 100_000,
+      crops: [],
+      missingCrops: ["MAIZE", "YAM", "CASSAVA"],
+      unavailableReason: "Enquête : 2 points vivriers sur 113, trop peu pour une surface",
+    });
+    expect(thin.status).toBe("not-evaluated");
+    expect(thin.reason).toMatch(/2 points vivriers sur 113/);
+  });
+
   it("n'évalue pas une commune sans surface de toute la commune ni population", () => {
     const noArea = computeCommuneBalance({
       code: "BJ-Y",
