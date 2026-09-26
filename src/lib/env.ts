@@ -84,6 +84,9 @@ const serverSchema = z
     // Plafond mensuel de requêtes de traitement envoyées à CDSE (quota gratuit : 10 000 par
     // mois) : au-delà, BAIS ne sert que son cache jusqu'au mois suivant.
     SATELLITE_MONTHLY_REQUEST_BUDGET: z.coerce.number().int().min(0).max(10000).default(9000),
+    // Part de ce plafond réservée aux propositions de contours de champs (phase 3) : la tâche
+    // quotidienne de confrontation et les images de la carte se partagent le reste.
+    SATELLITE_PROPOSAL_SHARE: z.coerce.number().min(0).max(0.9).default(0.3),
 
     // NPI : chiffrement AES-256-GCM et index HMAC, deux clés distinctes de 32 octets.
     NPI_ENCRYPTION_KEY: base64Key(32, "NPI_ENCRYPTION_KEY"),
