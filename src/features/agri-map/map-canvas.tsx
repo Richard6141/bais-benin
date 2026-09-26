@@ -105,8 +105,8 @@ interface MapCanvasProps {
   onZoomChange?: (zoom: number) => void;
   /** Champs détectés (contours de référence) à partir du zoom 12, non nominatifs. */
   showFields?: boolean;
-  /** Champ touché avant attribution (ADR-0029) : trait vif et épais. */
-  touchedFieldId?: string | null;
+  /** Champs touchés avant attribution (ADR-0029) : trait vif et épais. */
+  touchedFieldIds?: readonly string[];
   /** Un agent touche un champ détecté pour l'attribuer ; absent : la couche n'est pas cliquable. */
   onSelectField?: (id: string) => void;
   /** Feux actifs à afficher au-dessus de tout (ADR-0022) ; null : pas de couche de feux. */
@@ -117,6 +117,8 @@ interface MapCanvasProps {
 // contours des départements, points d'exploitations à partir du zoom 9. La couleur d'une
 // commune vient d'un feature-state posé depuis les statistiques : la tuile reste stable
 // et mise en cache, seules les valeurs changent avec les filtres.
+const NO_FIELDS: readonly string[] = [];
+
 export function MapCanvas({
   statsByCode,
   metric,
@@ -135,7 +137,7 @@ export function MapCanvas({
   onZoomChange,
   fires = null,
   showFields = false,
-  touchedFieldId = null,
+  touchedFieldIds = NO_FIELDS,
   onSelectField,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -600,25 +602,18 @@ export function MapCanvas({
     selectedParcelRef.current = selectedParcelId;
   }, [selectedParcelId, ready]);
 
-  const touchedFieldRef = useRef<string | null>(null);
+  const touchedFieldsRef = useRef<ReadonlySet<string>>(new Set());
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const previous = touchedFieldRef.current;
-    if (previous && previous !== touchedFieldId) {
-      map.setFeatureState(
-        { source: SOURCE_IDS.fields, sourceLayer: "fields", id: previous },
-        { touched: false },
-      );
+    const next = new Set(touchedFieldIds);
+    const source = { source: SOURCE_IDS.fields, sourceLayer: "fields" };
+    for (const id of touchedFieldsRef.current) {
+      if (!next.has(id)) map.setFeatureState({ ...source, id }, { touched: false });
     }
-    if (touchedFieldId) {
-      map.setFeatureState(
-        { source: SOURCE_IDS.fields, sourceLayer: "fields", id: touchedFieldId },
-        { touched: true },
-      );
-    }
-    touchedFieldRef.current = touchedFieldId;
-  }, [touchedFieldId, ready]);
+    for (const id of next) map.setFeatureState({ ...source, id }, { touched: true });
+    touchedFieldsRef.current = next;
+  }, [touchedFieldIds, ready]);
 
   // Cadrage demandé (fiche ouverte depuis un lien) : la parcelle entière, sans trop grossir.
   const focusKey = focusBounds ? focusBounds.join(",") : null;
