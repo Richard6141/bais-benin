@@ -130,10 +130,16 @@ test.describe("tableau de bord réduit, agent et coopérative", () => {
     page,
   }, testInfo) => {
     await openAs(page, testInfo, "agent");
-    // Barre basse pleine sur téléphone : l'entrée passe par l'accueil.
+    // Le tableau de bord est une rubrique rare : sous « Plus », sur ordinateur comme sur téléphone.
+    const mobile = testInfo.project.name === "mobile";
     await page
-      .getByRole("region", { name: "Raccourcis" })
-      .getByRole("link", { name: /Tableau de bord/ })
+      .getByRole("navigation", { name: "Espace agent" })
+      .filter({ visible: true })
+      .getByRole("button", { name: "Plus" })
+      .click();
+    await page
+      .getByRole(mobile ? "dialog" : "menu")
+      .getByRole(mobile ? "link" : "menuitem", { name: "Tableau de bord" })
       .click();
     await page.waitForURL(/\/agent\/tableau-de-bord/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(

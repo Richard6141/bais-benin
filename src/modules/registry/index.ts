@@ -8,6 +8,7 @@ export {
   type FarmListFilters,
   type FarmListItem,
 } from "./farms";
+export { farmPointsOf, type FarmPoint } from "./farm-points";
 export { listCampaigns, listCrops, type CampaignOption, type CropOption } from "./reference";
 export { HARVEST_UNITS, buildReferentiel, type ReferentielBundle } from "./referentiel";
 export {

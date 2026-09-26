@@ -1,18 +1,17 @@
-import { CalendarDays, LandPlot, MessageCircleQuestion } from "lucide-react";
+import { CalendarDays, LandPlot, LifeBuoy, MessageSquareWarning, Wheat } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CropGlyph, type CropCode } from "@/components/data-display/crop-glyph";
-import { ReliabilityBadge, type Reliability } from "@/components/data-display/reliability-badge";
-import { SourceCaption } from "@/components/data-display/source-caption";
-import { StatTile } from "@/components/data-display/stat-tile";
+import { KeyFigures } from "@/components/data-display/key-figures";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/features/auth/session";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
 import { PendingReports } from "@/features/reports/pending-reports";
+import { situationSentence } from "@/lib/text/situation";
+import { listAssistanceForActor } from "@/modules/assistance";
 import { listAlertsForActor } from "@/modules/monitoring";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
@@ -24,14 +23,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   year: "numeric",
 });
 const kgFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
-
-// Statut de vérification de l'exploitation → niveau de fiabilité affiché (docs/08 §1.1).
-const reliabilityOf: Record<FarmDetail["verificationStatus"], Reliability> = {
-  DECLARED: "DECLARED",
-  AGENT_VERIFIED: "AGENT_VERIFIED",
-  FIELD_VERIFIED: "FIELD_VERIFIED",
-  DISPUTED: "DECLARED",
-};
+const haFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 
 function lastHarvest(farm: FarmDetail) {
   const declarations = farm.parcels.flatMap((p) =>
@@ -42,28 +34,42 @@ function lastHarvest(farm: FarmDetail) {
   return declarations.sort((a, b) => b.declaredOn.getTime() - a.declaredOn.getTime())[0] ?? null;
 }
 
-// E1 « Mon exploitation » : une colonne, gros chiffres, pictogrammes, un bouton principal.
+const ACTIONS = [
+  { href: "/agriculteur/recolte", label: "Déclarer ma récolte", icon: Wheat },
+  { href: "/agriculteur/signaler", label: "Signaler un problème", icon: MessageSquareWarning },
+  { href: "/agriculteur/solliciter", label: "Demander de l'aide", icon: LifeBuoy },
+] as const;
+
+// Accueil du producteur, pensé pour un téléphone : la situation du jour en une phrase, l'alerte
+// qui le concerne, trois gestes, puis ses chiffres et sa campagne en bref. Les autres rubriques
+// sont dans la barre du bas.
 export default async function FarmerSpacePage() {
   const user = await requireRole("FARMER");
   const farms = await listOwnFarms(user.id);
   const first = farms[0];
   if (!first) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
         <PageHeader eyebrow="Espace agriculteur" title={`Bonjour, ${user.name}`} />
         <EmptyState
           icon={<LandPlot />}
           title="Votre exploitation n'est pas encore enregistrée"
           description="Votre agent vous enregistrera lors de sa prochaine visite. Vous verrez ensuite ici vos parcelles, vos cultures et vos récoltes."
+          action={
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/agriculteur/solliciter">Demander la visite d&apos;un agent</Link>
+            </Button>
+          }
         />
       </div>
     );
   }
 
-  const [farm, campaigns, alerts] = await Promise.all([
+  const [farm, campaigns, alerts, requests] = await Promise.all([
     getFarmDetail(user.actor, first.id),
     listCampaigns(),
     listAlertsForActor(user.actor, { status: "ACTIVE" }),
+    listAssistanceForActor(user.actor, { limit: 20 }),
   ]);
   if (!farm) return null;
   const openCampaign = campaigns.find((c) => c.status === "OPEN")?.code ?? null;
@@ -76,118 +82,117 @@ export default async function FarmerSpacePage() {
     ).entries(),
   ];
   const harvest = lastHarvest(farm);
-  const reliability = reliabilityOf[farm.verificationStatus];
+  const openRequests = requests.filter((request) => request.status !== "RESOLVED").length;
+  const sentence = situationSentence(
+    null,
+    [
+      {
+        count: alerts.length,
+        one: "alerte en cours pour votre commune",
+        many: "alertes en cours pour votre commune",
+      },
+      { count: openRequests, one: "demande en cours", many: "demandes en cours" },
+    ],
+    `Aucune alerte pour ${farm.commune.name} aujourd'hui.`,
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
       <PageHeader
         eyebrow="Mon exploitation"
         title={farm.name ?? farm.farmer.displayName}
-        description={`${farm.commune.name}${farm.village ? `, ${farm.village}` : ""} (code ${farm.code})`}
+        description={sentence}
       />
+
+      {alerts.length > 0 ? <AlertsTeaser alerts={alerts} /> : null}
+      <PendingReports userId={user.id} />
+
+      <nav aria-label="Actions" className="grid gap-2 sm:grid-cols-3">
+        {ACTIONS.map((action, index) => (
+          <Button
+            key={action.href}
+            asChild
+            variant={index === 0 ? "default" : "outline"}
+            className="h-14 w-full justify-start text-base sm:h-20 sm:flex-col sm:justify-center sm:text-sm"
+          >
+            <Link href={action.href}>
+              <action.icon aria-hidden className="size-5" />
+              {action.label}
+            </Link>
+          </Button>
+        ))}
+      </nav>
+
+      <KeyFigures
+        label="Mon exploitation en chiffres"
+        figures={[
+          {
+            label: "Superficie déclarée",
+            value: haFormatter.format(farm.declaredAreaHa),
+            unit: "ha",
+          },
+          farm.computedAreaHa === null
+            ? { label: "Superficie mesurée", value: "Non mesurée" }
+            : {
+                label: "Superficie mesurée",
+                value: haFormatter.format(farm.computedAreaHa),
+                unit: "ha",
+              },
+        ]}
+        source={`${farm.commune.name}${farm.village ? `, ${farm.village}` : ""}, code ${farm.code}`}
+        sourceDate={dateFormatter.format(farm.provenance.sourceDate)}
+      />
+
+      <section
+        aria-labelledby="campagne-titre"
+        className="flex flex-col gap-3 rounded-lg border bg-card p-4"
+      >
+        <h2 id="campagne-titre" className="text-base font-semibold">
+          {openCampaign ? `Campagne ${openCampaign}` : "Aucune campagne ouverte"}
+        </h2>
+        {cropsThisCampaign.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aucune culture déclarée pour l&apos;instant. Votre agent les enregistre lors de sa
+            visite.
+          </p>
+        ) : (
+          <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Mes cultures cette campagne">
+            {cropsThisCampaign.map(([code, name]) => (
+              <li key={code} className="flex items-center gap-1.5 text-primary">
+                <CropGlyph code={code as CropCode} size={24} />
+                <span className="text-sm font-medium text-foreground">{name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="flex items-center gap-2 border-t pt-3 text-sm">
+          <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          {harvest ? (
+            <span>
+              Dernière récolte :{" "}
+              <span className="font-semibold">
+                {formatHarvestOf(harvest.declaredQuantity, harvest.unit, harvest.cropName)}
+              </span>{" "}
+              le {dateFormatter.format(harvest.declaredOn)} (environ{" "}
+              {kgFormatter.format(harvest.quantityKg)} kg)
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Aucune récolte déclarée pour le moment.</span>
+          )}
+        </p>
+      </section>
+
       {farms.length > 1 ? (
         <p className="text-sm text-muted-foreground">
-          Vous avez {farms.length} exploitations enregistrées ; celle-ci est la première.
+          Vous avez {farms.length} exploitations enregistrées ; l&apos;accueil montre la première.{" "}
+          <Link
+            href="/agriculteur/champs"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Voir tous mes champs
+          </Link>
         </p>
       ) : null}
-
-      <AlertsTeaser alerts={alerts} />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <StatTile
-          label="Superficie déclarée"
-          value={farm.declaredAreaHa}
-          unit="ha"
-          reliability={reliability}
-          source="Registre BAIS"
-          sourceDate={dateFormatter.format(farm.provenance.sourceDate)}
-        />
-        <StatTile
-          label="Superficie mesurée"
-          value={farm.computedAreaHa ?? "Non mesurée"}
-          unit={farm.computedAreaHa === null ? undefined : "ha"}
-          reliability={farm.computedAreaHa === null ? "DECLARED" : "FIELD_VERIFIED"}
-          source={farm.computedAreaHa === null ? "Aucun contour relevé" : "Relevé GPS de l'agent"}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Mes cultures cette campagne</CardTitle>
-          <CardDescription>
-            {openCampaign ? `Campagne ${openCampaign}` : "Aucune campagne ouverte"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {cropsThisCampaign.length === 0 ? (
-            <p className="text-base text-muted-foreground">
-              Aucune culture déclarée pour l&apos;instant. Votre agent peut les ajouter.
-            </p>
-          ) : (
-            <ul className="flex flex-wrap gap-4">
-              {cropsThisCampaign.map(([code, name]) => (
-                <li key={code} className="flex flex-col items-center gap-1 text-primary">
-                  <CropGlyph code={code as CropCode} size={48} />
-                  <span className="text-sm font-medium text-foreground">{name}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Dernière récolte</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {harvest ? (
-            <>
-              <p className="tabular text-3xl font-semibold">
-                {formatHarvestOf(harvest.declaredQuantity, harvest.unit, harvest.cropName)}
-              </p>
-              <p className="flex items-center gap-2 text-base text-muted-foreground">
-                <CalendarDays className="size-4" aria-hidden />
-                {dateFormatter.format(harvest.declaredOn)} (≈{" "}
-                {kgFormatter.format(harvest.quantityKg)} kg)
-              </p>
-            </>
-          ) : (
-            <p className="text-base text-muted-foreground">
-              Aucune récolte déclarée pour le moment.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <PendingReports userId={user.id} />
-      <div className="flex flex-col gap-3">
-        <Button asChild className="h-14 w-full text-base">
-          <Link href="/agriculteur/recolte">Déclarer ma récolte</Link>
-        </Button>
-        <Button asChild variant="outline" className="h-14 w-full text-base">
-          <Link href="/agriculteur/signaler">Signaler un problème sur une parcelle</Link>
-        </Button>
-        <Button asChild variant="outline" className="h-14 w-full text-base">
-          <Link href="/agriculteur/solliciter">Solliciter l&apos;État</Link>
-        </Button>
-        <Button asChild variant="outline" className="h-14 w-full text-base">
-          <Link href="/agriculteur/assistant">
-            <MessageCircleQuestion aria-hidden />
-            Poser une question à l&apos;assistant
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-14 w-full text-base">
-          <Link href="/agriculteur/historique">Mon historique</Link>
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <ReliabilityBadge level={reliability} />
-        <SourceCaption
-          source={farm.provenance.sourceId}
-          date={dateFormatter.format(farm.provenance.sourceDate)}
-        />
-      </div>
     </div>
   );
 }

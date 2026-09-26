@@ -17,7 +17,7 @@ export function AlertsTeaser({ alerts }: { alerts: readonly AlertListItem[] }) {
           ? "Alertes : aucune alerte en cours"
           : `Alertes : ${alerts.length} en cours, ${unread} non lue${unread > 1 ? "s" : ""}`
       }
-      className="flex min-h-16 items-center gap-4 rounded-xl border bg-card p-4 transition-colors outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-16 items-center gap-4 rounded-lg border bg-card p-4 transition-colors outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring"
     >
       {top ? (
         <BellRing aria-hidden className="size-7 shrink-0 text-warning" />

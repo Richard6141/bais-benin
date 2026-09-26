@@ -1,9 +1,8 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ClipboardCheck, Phone } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
-import { CropGlyph, type CropCode, CROP_CODES } from "@/components/data-display/crop-glyph";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { FarmListItem } from "@/modules/registry";
 import { formatDate, formatHa } from "./labels";
 import { VerificationStatusBadge } from "./status-badge";
@@ -15,12 +14,19 @@ interface FarmListProps {
   hrefFor?: (farm: FarmListItem) => string;
 }
 
-function knownCrops(codes: string[]): CropCode[] {
-  return codes.filter((code): code is CropCode => (CROP_CODES as readonly string[]).includes(code));
+function place(farm: FarmListItem): string {
+  return farm.village ? `${farm.village}, ${farm.commune.name}` : farm.commune.name;
 }
 
-// Liste d'exploitations : une carte par ligne, lisible d'une main, mêmes informations
-// sur téléphone et sur grand écran (pas de tableau caché derrière un défilement horizontal).
+function parcels(farm: FarmListItem): string {
+  const count = `${farm.parcelCount} parcelle${farm.parcelCount > 1 ? "s" : ""}`;
+  return `${count}, ${formatHa(farm.computedAreaHa ?? farm.declaredAreaHa)}`;
+}
+
+// Liste compacte des exploitations : une ligne par exploitation, avec le producteur, le village,
+// les parcelles, le statut et la dernière mise à jour, puis les actions directes (appeler,
+// vérifier). Toute la ligne ouvre la fiche ; les actions restent des boutons à part. Sur
+// téléphone, les mêmes informations passent sur trois lignes, sans défilement horizontal.
 export function FarmList({ items, emptyTitle, emptyDescription, hrefFor }: FarmListProps) {
   if (items.length === 0) {
     return (
@@ -31,46 +37,66 @@ export function FarmList({ items, emptyTitle, emptyDescription, hrefFor }: FarmL
     );
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul aria-label="Exploitations" className="flex flex-col divide-y rounded-lg border bg-card">
       {items.map((farm) => {
         const href = (hrefFor ? hrefFor(farm) : `/agent/exploitations/${farm.id}`) as Route;
-        const crops = knownCrops(farm.cropCodes).slice(0, 4);
+        const toVerify =
+          farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED";
         return (
-          <li key={farm.id}>
-            <Card className="p-0">
-              <Link
-                href={href}
-                className="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/60 focus-visible:bg-accent/60"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-semibold break-words">{farm.farmer.displayName}</span>
-                    <VerificationStatusBadge status={farm.verificationStatus} />
-                  </div>
-                  <p className="mt-0.5 text-sm break-words text-muted-foreground">
-                    <span className="font-mono text-xs">{farm.code}</span> ({farm.commune.name}
-                    {farm.village ? `, ${farm.village}` : ""})
-                  </p>
-                  <p className="tabular mt-1 text-sm">
-                    {formatHa(farm.declaredAreaHa)} déclarés
-                    {farm.computedAreaHa !== null
-                      ? `, ${formatHa(farm.computedAreaHa)} mesurés`
-                      : ""}
-                    , {farm.parcelCount} parcelle{farm.parcelCount > 1 ? "s" : ""}
-                  </p>
-                </div>
-                <div className="hidden items-center gap-1 sm:flex" aria-hidden>
-                  {crops.map((code) => (
-                    <CropGlyph key={code} code={code} size={24} />
-                  ))}
-                </div>
-                <div className="hidden text-right text-xs text-muted-foreground lg:block">
-                  <p>Mise à jour</p>
-                  <p>{formatDate(farm.updatedAt)}</p>
-                </div>
-                <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              </Link>
-            </Card>
+          <li
+            key={farm.id}
+            className="relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <Link
+                  href={href}
+                  className="font-semibold break-words text-foreground after:absolute after:inset-0 after:rounded-sm focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                >
+                  {farm.farmer.displayName}
+                </Link>
+                <span className="md:hidden">
+                  <VerificationStatusBadge status={farm.verificationStatus} />
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm break-words text-muted-foreground">
+                <span className="font-mono text-xs">{farm.code}</span>, {place(farm)}
+              </p>
+              <p className="tabular mt-0.5 text-sm text-muted-foreground md:hidden">
+                {parcels(farm)}, mise à jour le {formatDate(farm.updatedAt)}
+              </p>
+            </div>
+            <p className="tabular hidden w-36 shrink-0 text-sm md:block">{parcels(farm)}</p>
+            <div className="hidden w-44 shrink-0 md:block">
+              <VerificationStatusBadge status={farm.verificationStatus} />
+            </div>
+            <p className="tabular hidden w-28 shrink-0 text-xs text-muted-foreground xl:block">
+              Mise à jour le {formatDate(farm.updatedAt)}
+            </p>
+            <div className="relative z-10 flex shrink-0 items-center gap-1">
+              {farm.farmer.phone ? (
+                <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
+                  <a
+                    href={`tel:${farm.farmer.phone}`}
+                    aria-label={`Appeler ${farm.farmer.displayName}`}
+                  >
+                    <Phone aria-hidden />
+                  </a>
+                </Button>
+              ) : null}
+              {toVerify ? (
+                <Button asChild variant="outline" size="sm" className="h-11 md:h-8">
+                  <Link
+                    href={`/agent/verification/${farm.id}` as Route}
+                    aria-label={`Vérifier l'exploitation de ${farm.farmer.displayName}`}
+                  >
+                    <ClipboardCheck aria-hidden />
+                    <span className="hidden sm:inline">Vérifier</span>
+                  </Link>
+                </Button>
+              ) : null}
+              <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+            </div>
           </li>
         );
       })}
