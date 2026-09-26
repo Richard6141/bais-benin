@@ -43,6 +43,7 @@ export default async function MapPage() {
             }}
             canShowFarms={canShowFarms}
             canFilterByStatus={canFilterByStatus(user?.actor ?? null)}
+            canSeeSkyDetail={user !== null}
           />
         </Suspense>
       </main>

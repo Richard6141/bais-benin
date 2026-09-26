@@ -1,4 +1,11 @@
-import { brandColors, choroplethNoData, choroplethScale, reliabilityColors } from "@/styles/tokens";
+import type { ExpressionSpecification } from "maplibre-gl";
+import {
+  brandColors,
+  choroplethNoData,
+  choroplethScale,
+  ndviScale,
+  reliabilityColors,
+} from "@/styles/tokens";
 
 // Réglages partagés de la carte agricole : emprise, fond, couches et couleurs.
 // Le fond de carte est un style MapLibre servi par OpenFreeMap (données OpenStreetMap),
@@ -31,6 +38,51 @@ export const LAYER_IDS = {
   farmPoints: "bais-farm-points",
 } as const;
 
+// Vue du ciel (ADR-0016) : images Sentinel-2 calculées par Copernicus, servies par
+// /api/satellite. Les valeurs doublent celles de modules/satellite (imagery.ts, periods.ts),
+// que le navigateur ne charge pas : ce module-là parle à la base et à Copernicus.
+export type SkyLayer = "couleur-naturelle" | "ndvi";
+
+export interface SkyView {
+  layer: SkyLayer;
+  /** Mois AAAA-MM. */
+  period: string;
+}
+
+export const SKY_LAYERS: Record<SkyLayer, { label: string }> = {
+  "couleur-naturelle": { label: "Image satellite" },
+  ndvi: { label: "Végétation (NDVI)" },
+};
+
+export const SATELLITE_BOUNDS: [number, number, number, number] = [0.6, 5.9, 4.0, 12.5];
+export const SATELLITE_DETAIL_MIN_ZOOM = 9;
+export const SATELLITE_DETAIL_MAX_ZOOM = 13;
+export const SATELLITE_TILE_SIZE = 512;
+
+export const SATELLITE_IDS = {
+  overviewSource: "bais-sat-overview",
+  overviewLayer: "bais-sat-overview-layer",
+  detailSource: "bais-sat-detail",
+  detailLayer: "bais-sat-detail-layer",
+} as const;
+
+export function satelliteImageUrl(view: SkyView, tile: "overview.png" | "{z}/{x}/{y}.png") {
+  return `/api/satellite/${view.layer}/${view.period}/${tile}`;
+}
+
+/** Mention exigée par la licence Copernicus pour toute image dérivée. */
+export function copernicusAttribution(period: string): string {
+  return `Contains modified Copernicus Sentinel data ${period.slice(0, 4)}`;
+}
+
+/** Opacité des communes : pleine sur la carte, nulle sur l'image (survol et clic restent actifs). */
+export const COMMUNE_FILL_OPACITY: ExpressionSpecification = [
+  "case",
+  ["boolean", ["feature-state", "selected"], false],
+  0.9,
+  0.78,
+];
+
 export type MetricKey = "farmCount" | "declaredAreaHa" | "verifiedShare";
 
 export const METRICS: Record<
@@ -56,6 +108,7 @@ export const METRICS: Record<
 };
 
 export const CHOROPLETH_SCALE = choroplethScale;
+export const NDVI_SCALE = ndviScale;
 export const NO_DATA_COLOR = choroplethNoData;
 export const OUTLINE_COLOR = brandColors.ink;
 export const FARM_COLORS = {
