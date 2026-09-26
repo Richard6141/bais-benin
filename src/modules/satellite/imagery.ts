@@ -36,8 +36,11 @@ import { DETAIL_TILE_SIZE, isDetailTileInBenin, overviewSize, rectTouchesOutline
 const MAX_CLOUD_COVER = 80;
 /** Le mois en cours reçoit de nouveaux passages : ses images sont redemandées après ce délai. */
 const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
-/** Carte des cultures : douze mois de série, une semaine de cache suffit (ADR-0021). */
-const CROP_MAP_TTL_MS = 7 * 86_400_000;
+/**
+ * Carte des cultures : douze mois de série, refaite une fois par mois comme les surfaces par
+ * commune (ADR-0022) ; environ 115 unités par image.
+ */
+const CROP_MAP_TTL_MS = 30 * 86_400_000;
 /** Après un échec de Copernicus, pas de nouvel essai (ni de réservation) avant ce délai. */
 const FAILURE_HOLD_MS = 3_600_000;
 

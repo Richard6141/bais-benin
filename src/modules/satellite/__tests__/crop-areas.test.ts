@@ -149,7 +149,7 @@ describe("passe mensuelle des surfaces", () => {
     // Seuils abaissés dans la zone la plus sèche.
     const calls = (source as unknown as { cropAreaStatistics: { mock: { calls: unknown[][] } } })
       .cropAreaStatistics.mock.calls;
-    expect(calls[0]?.[0]).toMatchObject({ zoneOffset: 0.08, resolutionM: 100 });
+    expect(calls[0]?.[0]).toMatchObject({ zoneOffset: 0.08, resolutionM: 120 });
     expect(calls[1]?.[0]).toMatchObject({ zoneOffset: 0 });
     // Curseur : communes non calculées depuis le début du mois.
     expect(sql.listCommunesForCropAreas).toHaveBeenCalledWith(

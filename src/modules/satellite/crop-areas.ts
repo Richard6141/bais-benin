@@ -28,8 +28,11 @@ import { periodOf } from "./periods";
 // mois-ci (le curseur est la date du dernier calcul) et s'arrête net quand la part des statistiques
 // ou le plafond d'unités est atteint. Une estimation, à confirmer par les agents.
 
-/** Un hectare par pixel : assez fin pour des champs d'un hectare en moyenne, dans le quota. */
-export const CROP_AREA_RESOLUTION_M = 100;
+/**
+ * Pixels de 120 m (1,44 ha) : environ 11 unités par commune en moyenne, 870 par passe nationale
+ * (ADR-0022). À 100 m, la passe coûterait 1 250 unités.
+ */
+export const CROP_AREA_RESOLUTION_M = 120;
 /** Douze mois de série : une saison des pluies entière et la contre-saison qui la précède. */
 const WINDOW_DAYS = 365;
 const MAX_CONSECUTIVE_ERRORS = 3;

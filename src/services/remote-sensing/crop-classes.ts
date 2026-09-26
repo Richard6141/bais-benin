@@ -31,6 +31,8 @@ function hexToUnitRgb(hex: string): [number, number, number] {
 
 // Règle de classification, en JavaScript de l'evalscript (ES5 : pas de module, pas d'import).
 // OFFSET abaisse les seuils de végétation dans les zones les plus sèches (ZAE 1 et 2).
+// Quatre bandes seulement (ADR-0022) : chaque bande lue coûte un tiers d'unité de plus. L'eau se
+// lit dans la classe SCL 6 et la submersion des rizières dans l'indice LSWI (B08, B11).
 const CLASSIFY = `
 const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
 function median(values) {
@@ -39,7 +41,8 @@ function median(values) {
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
-// Un passage par mois : celui dont les carreaux sont les moins nuageux.
+// Un passage par mois, celui dont les carreaux sont les moins nuageux, sur les douze derniers
+// mois : chaque passage retenu est facturé (365 jours touchent treize mois calendaires).
 function preProcessScenes(collections) {
   const best = {};
   const orbits = collections.scenes.orbits;
@@ -57,22 +60,28 @@ function preProcessScenes(collections) {
     }
     if (!best[month] || cloud < best[month].cloud) best[month] = { orbit: orbit, cloud: cloud };
   }
-  collections.scenes.orbits = Object.keys(best).sort().map(function (m) { return best[m].orbit; });
+  collections.scenes.orbits = Object.keys(best).sort().slice(-12)
+    .map(function (m) { return best[m].orbit; });
   return collections;
 }
 function classify(samples, scenes) {
   const ndvi = {};
-  const water = {};
+  const flood = {};
   const built = [];
   let valid = 0;
+  let waterSeen = 0;
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i];
     if (s.dataMask === 0 || MASKED.indexOf(s.SCL) !== -1) continue;
-    if (s.B08 + s.B04 <= 0 || s.B03 + s.B11 <= 0 || s.B11 + s.B08 <= 0) continue;
+    if (s.B08 + s.B04 <= 0 || s.B11 + s.B08 <= 0) continue;
     const month = new Date(scenes.orbits[i].dateFrom).getUTCMonth() + 1;
-    ndvi[month] = (s.B08 - s.B04) / (s.B08 + s.B04);
-    water[month] = (s.B03 - s.B11) / (s.B03 + s.B11);
+    const v = (s.B08 - s.B04) / (s.B08 + s.B04);
+    // LSWI : l'eau sous le couvert abaisse le proche infrarouge moins que l'infrarouge moyen.
+    const lswi = (s.B08 - s.B11) / (s.B08 + s.B11);
+    ndvi[month] = v;
+    flood[month] = s.SCL === 6 || lswi + 0.05 >= v;
     built.push((s.B11 - s.B08) / (s.B11 + s.B08));
+    if (s.SCL === 6) waterSeen++;
     valid++;
   }
   if (valid < 4) return 0;
@@ -83,7 +92,6 @@ function classify(samples, scenes) {
   let green = 0;
   const dryValues = [];
   const rainyValues = [];
-  const waterValues = [];
   for (let k = 0; k < months.length; k++) {
     const m = months[k];
     const v = ndvi[m];
@@ -92,7 +100,6 @@ function classify(samples, scenes) {
     if (v >= 0.5 - OFFSET) green++;
     if (m === 12 || m <= 3) dryValues.push(v);
     if (m >= 5 && m <= 10) rainyValues.push(v);
-    waterValues.push(water[m]);
   }
   const dry = dryValues.length > 0 ? median(dryValues) : min;
   const rainy = rainyValues.length > 0 ? median(rainyValues) : max;
@@ -102,13 +109,13 @@ function classify(samples, scenes) {
   // Riz : submersion en début de cycle puis couvert dense dans les trois mois.
   let flooded = false;
   for (let m = 5; m <= 10 && !flooded; m++) {
-    if (water[m] !== undefined && water[m] >= 0.05 && ndvi[m] <= 0.35) {
+    if (flood[m] === true && ndvi[m] <= 0.35) {
       for (let d = 1; d <= 3; d++) {
         if (ndvi[m + d] !== undefined && ndvi[m + d] >= 0.5 - OFFSET) { flooded = true; break; }
       }
     }
   }
-  if (median(waterValues) > 0.1 && max < 0.4) return 8;
+  if (waterSeen >= valid / 2 && max < 0.4) return 8;
   if (median(built) > 0.05 && max < 0.3) return 9;
   if (max < 0.35 - OFFSET) return 6;
   if (flooded) return 1;
@@ -123,7 +130,7 @@ function classify(samples, scenes) {
   return 6;
 }`;
 
-const INPUT = `input: [{ bands: ["B03", "B04", "B08", "B11", "SCL", "dataMask"] }]`;
+const INPUT = `input: [{ bands: ["B04", "B08", "B11", "SCL", "dataMask"] }]`;
 
 /**
  * Source de la règle seule, avec son décalage : les tests l'évaluent dans Node sur des séries de
