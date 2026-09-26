@@ -14,6 +14,18 @@ function mapTileOrigin(): string {
   }
 }
 
+// Imagerie aérienne haute résolution, optionnelle (map-config.ts, HIRES_IMAGERY) : son origine
+// n'est autorisée que si la variable est renseignée.
+function hiresTileOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_HIRES_TILES_URL;
+  if (!raw) return "";
+  try {
+    return ` ${new URL(raw.replace(/\{[^}]+\}/g, "0")).origin}`;
+  } catch {
+    return "";
+  }
+}
+
 const isDev = process.env.NODE_ENV !== "production";
 
 // C6 : CSP raisonnable — pas de nonce par requête (next.config.ts n'a pas accès à une valeur
@@ -24,7 +36,7 @@ const isDev = process.env.NODE_ENV !== "production";
 // production). Testé manuellement : la carte (tuiles vectorielles, style, worker MapLibre
 // auto-hébergé) continue de fonctionner après ce durcissement (docs/rapports/etape-9-production.md).
 function buildCsp(): string {
-  const tileOrigin = mapTileOrigin();
+  const tileOrigin = `${mapTileOrigin()}${hiresTileOrigin()}`;
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,

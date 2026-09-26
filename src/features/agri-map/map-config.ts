@@ -86,6 +86,20 @@ export function satelliteImageUrl(view: SkyView, tile: "overview.png" | "{z}/{x}
   return `/api/satellite/${view.layer}/${view.period}/${tile}`;
 }
 
+// Imagerie aérienne haute résolution, optionnelle : au zoom du champ, Sentinel-2 (10 m) ne donne
+// qu'une dizaine de pixels par parcelle. Un fournisseur sous licence (orthophotos nationales,
+// ArcGIS Location Platform, Mapbox) se branche par deux variables publiques ; sans elles, rien ne
+// change. Elle recouvre l'image Sentinel-2 à partir du zoom 14, sous les limites et les parcelles.
+export const HIRES_IMAGERY = process.env.NEXT_PUBLIC_HIRES_TILES_URL
+  ? {
+      url: process.env.NEXT_PUBLIC_HIRES_TILES_URL,
+      attribution: process.env.NEXT_PUBLIC_HIRES_ATTRIBUTION || "Imagerie aérienne",
+      minZoom: 14,
+      sourceId: "bais-hires",
+      layerId: "bais-hires-layer",
+    }
+  : null;
+
 /** Fenêtre glissante des 60 derniers jours (modules/satellite/periods.ts, ROLLING_PERIOD). */
 export const ROLLING_SKY_PERIOD = "60-jours";
 
