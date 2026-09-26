@@ -5,6 +5,9 @@ import {
   RemoteSensingProviderError,
   type FieldFeatures,
   type FieldFeaturesRequest,
+  type RadarInterval,
+  type RadarStatisticsRequest,
+  type StatisticsResult,
   type ImageryRequest,
   type ImageryResult,
   type PolygonGeometry,
@@ -17,6 +20,7 @@ import {
 import {
   FIELD_FEATURES_EVALSCRIPT,
   NDVI_STATISTICS_EVALSCRIPT,
+  RADAR_STATISTICS_EVALSCRIPT,
   renderEvalscript,
 } from "./evalscripts";
 
@@ -251,6 +255,87 @@ export function decodeFieldFeatures(
   return { width, height, peak, low, swir };
 }
 
+const bandStats = z.object({
+  bands: z.object({
+    B0: z.object({
+      stats: z.object({
+        mean: statValue,
+        sampleCount: z.number(),
+        noDataCount: z.number(),
+      }),
+    }),
+  }),
+});
+
+const radarStatisticsSchema = z.object({
+  data: z.array(
+    z.object({
+      interval: z.object({ from: z.string(), to: z.string() }),
+      outputs: z.object({ rvi: bandStats, vh: bandStats }).optional(),
+    }),
+  ),
+});
+
+/**
+ * Requête radar de l'API Statistical (ADR-0019) : Sentinel-1 GRD en mode IW, double polarisation
+ * VV + VH, rétrodiffusion normalisée au relief (GAMMA0_TERRAIN, orthorectifiée sur le MNT
+ * Copernicus 30 m) et filtre de chatoiement de Lee 3 × 3 ; un seul sens d'orbite.
+ */
+export function buildRadarStatisticsBody(request: RadarStatisticsRequest) {
+  return {
+    input: {
+      bounds: { geometry: projectPolygon(request.geometry), properties: { crs: CRS_3857 } },
+      data: [
+        {
+          type: "sentinel-1-grd",
+          dataFilter: {
+            acquisitionMode: "IW",
+            polarization: "DV",
+            resolution: "HIGH",
+            orbitDirection: request.orbitDirection,
+          },
+          processing: {
+            backCoeff: "GAMMA0_TERRAIN",
+            orthorectify: true,
+            demInstance: "COPERNICUS_30",
+            speckleFilter: { type: "LEE", windowSizeX: 3, windowSizeY: 3 },
+          },
+        },
+      ],
+    },
+    aggregation: {
+      timeRange: { from: request.from, to: request.to },
+      aggregationInterval: { of: `P${request.intervalDays}D` },
+      evalscript: RADAR_STATISTICS_EVALSCRIPT,
+      resx: 10,
+      resy: 10,
+    },
+    calculations: { default: {} },
+  };
+}
+
+export function parseRadarStatistics(payload: unknown): RadarInterval[] {
+  const parsed = radarStatisticsSchema.parse(payload);
+  return parsed.data.map((entry) => {
+    const rvi = entry.outputs?.rvi.bands.B0.stats;
+    const vh = entry.outputs?.vh.bands.B0.stats;
+    const validPixels = rvi ? rvi.sampleCount - rvi.noDataCount : 0;
+    return {
+      from: entry.interval.from,
+      to: entry.interval.to,
+      rviMean: rvi && validPixels > 0 ? rvi.mean : null,
+      vhDbMean: vh && validPixels > 0 ? vh.mean : null,
+      validPixels,
+      maskedPixels: rvi?.noDataCount ?? 0,
+    };
+  });
+}
+
+function spentUnits(response: Response): number | null {
+  const spent = Number(response.headers.get("x-processingunits-spent"));
+  return Number.isFinite(spent) && spent > 0 ? spent : null;
+}
+
 export function parseStatistics(payload: unknown): VegetationInterval[] {
   const parsed = statisticsSchema.parse(payload);
   return parsed.data.map((entry) => {
@@ -370,6 +455,12 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
       licence: "Licence Copernicus : accès libre et gratuit, attribution obligatoire",
       attribution: "Contains modified Copernicus Sentinel data",
     },
+    radarProvenance: {
+      sourceId: "COPERNICUS_S1",
+      reliability: "ESTIMATED",
+      licence: "Licence Copernicus : accès libre et gratuit, attribution obligatoire",
+      attribution: "Contains modified Copernicus Sentinel data",
+    },
 
     async searchScenes(request): Promise<SceneSummary[]> {
       const scenes: SceneSummary[] = [];
@@ -413,13 +504,28 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
       return { image, processingUnits: Number.isFinite(spent) && spent > 0 ? spent : null };
     },
 
-    async vegetationStatistics(request): Promise<VegetationInterval[]> {
+    async vegetationStatistics(request): Promise<StatisticsResult<VegetationInterval>> {
       const response = await processing(
         "/api/v1/statistics",
         buildStatisticsBody(request),
         "application/json",
       );
-      return readResponse("Statistiques CDSE", async () => parseStatistics(await response.json()));
+      const intervals = await readResponse("Statistiques CDSE", async () =>
+        parseStatistics(await response.json()),
+      );
+      return { intervals, processingUnits: spentUnits(response) };
+    },
+
+    async radarStatistics(request): Promise<StatisticsResult<RadarInterval>> {
+      const response = await processing(
+        "/api/v1/statistics",
+        buildRadarStatisticsBody(request),
+        "application/json",
+      );
+      const intervals = await readResponse("Statistiques radar CDSE", async () =>
+        parseRadarStatistics(await response.json()),
+      );
+      return { intervals, processingUnits: spentUnits(response) };
     },
 
     async fieldFeatures(request): Promise<FieldFeatures> {
