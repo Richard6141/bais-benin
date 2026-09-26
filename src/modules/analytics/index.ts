@@ -40,6 +40,14 @@ export {
 } from "./producer-ranking";
 export { getCommuneProfile } from "./commune-profile";
 export {
+  DEFICIT_THRESHOLD_PCT,
+  MIN_HARVESTS_FOR_LEVEL,
+  getHarvestForecast,
+  type Confidence,
+  type ForecastRow,
+  type HarvestForecast,
+} from "./forecast";
+export {
   AGGREGATES_STALE_MS,
   WEATHER_STALE_MS,
   getAnalyticsFreshness,
