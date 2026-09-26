@@ -3,7 +3,7 @@ import { MinistryLogo } from "@/components/brand/ministry-logo";
 
 interface PrintLayoutProps {
   title: string;
-  /** Filtres appliqués, en clair (« Campagne 2025-2026 · Maïs · Tout le pays »). */
+  /** Filtres appliqués, en clair (« Campagne 2025-2026, Maïs, Tout le pays »). */
   scope: string;
   /** Date de la donnée la plus récente, déjà formatée. */
   dataDate: string;

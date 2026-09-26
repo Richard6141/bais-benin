@@ -19,7 +19,12 @@ interface OverviewTilesProps {
   query: string;
   /** Faux hors du pilotage (espace agent) : les tuiles ne mènent pas aux écrans nationaux. */
   linked?: boolean;
+  /** Tuiles à montrer, dans cet ordre (toutes par défaut) : la vue nationale en garde quatre. */
+  only?: readonly TileKey[];
 }
+
+export type TileKey =
+  "producteurs" | "exploitations" | "declaree" | "mesuree" | "verifiee" | "production";
 
 const formatTonnes = (t: number) => `${t >= 100 ? formatInteger(t) : formatDecimal(t)} t`;
 
@@ -34,16 +39,17 @@ function trendAgainst(
   return value === null ? undefined : { value, label: `contre ${campaign}` };
 }
 
-// A2 : six indicateurs clés. Déclaré et mesuré côte à côte, jamais l'un à la place de l'autre.
-// Chaque tuile ouvre l'écran qui détaille son chiffre, avec les mêmes filtres.
-export function OverviewTiles({ overview, query, linked = true }: OverviewTilesProps) {
+// A2 : les indicateurs clés (six au plus, quatre en tête de la vue nationale). Déclaré et mesuré
+// côte à côte, jamais l'un à la place de l'autre. Chaque tuile ouvre l'écran qui détaille son
+// chiffre, avec les mêmes filtres.
+export function OverviewTiles({ overview, query, linked = true, only }: OverviewTilesProps) {
   const { figures, previous, provenance } = overview;
   const masked = figures.masked;
   const against = previous?.masked ? undefined : previous?.campaign.code;
   const base = tileProvenance(provenance);
   const suffix = query ? `?${query}` : "";
 
-  const tiles: Array<{ key: string; href: string; tile: ReactNode }> = [
+  const all: Array<{ key: TileKey; href: string; tile: ReactNode }> = [
     {
       key: "producteurs",
       href: `/pilotage/territoires${suffix}`,
@@ -127,9 +133,17 @@ export function OverviewTiles({ overview, query, linked = true }: OverviewTilesP
       ),
     },
   ];
+  const tiles = only ? only.flatMap((key) => all.filter((tile) => tile.key === key)) : all;
 
   return (
-    <section aria-label="Indicateurs clés" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <section
+      aria-label="Indicateurs clés"
+      className={
+        tiles.length === 4
+          ? "grid grid-cols-2 gap-3 lg:grid-cols-4"
+          : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      }
+    >
       {tiles.map(({ key, href, tile }) =>
         // Valeur masquée : l'explication est un bouton, qui ne peut pas vivre dans un lien.
         masked || !linked ? (
@@ -138,7 +152,7 @@ export function OverviewTiles({ overview, query, linked = true }: OverviewTilesP
           <Link
             key={key}
             href={href as Route}
-            className="rounded-xl transition-shadow hover:shadow-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="rounded-lg transition-shadow hover:shadow-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             {tile}
           </Link>

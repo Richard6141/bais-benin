@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageTabs } from "@/components/layout/page-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgriMap } from "@/features/agri-map/agri-map";
@@ -34,11 +35,14 @@ import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Centre de pilotage" };
 
-// A : vue nationale. Lecture seule ; les filtres sont dans l'adresse, partagés avec la carte.
-// requireRole("ADMIN_STATE") réserve la page au ministère (identifié par NPI, ADR-0012).
+// A : vue nationale. Quatre chiffres clés en tête, puis une vue à la fois (production, campagnes,
+// carte, alertes, qualité) : l'essentiel tient dans un écran, le reste est à un onglet. Les
+// filtres sont dans l'adresse, partagés avec la carte. requireRole("ADMIN_STATE") réserve la page
+// au ministère (identifié par NPI, ADR-0012).
 export default async function NationalDashboardPage(props: PageProps<"/pilotage">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage" });
-  const filters = parseDashboardFilters(await props.searchParams);
+  const search = await props.searchParams;
+  const filters = parseDashboardFilters(search);
   const query = filtersQuery(filters);
   // La comparaison porte sur plusieurs campagnes : toutes les autres dimensions du filtre.
   const withoutCampaign = {
@@ -59,10 +63,12 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
       listDepartements(),
     ]);
   const cropHref = (cropCode: string) =>
-    withQuery("/pilotage", filtersQuery(filters, { cropCode })) + "#production";
+    withQuery("/pilotage", filtersQuery(filters, { cropCode }));
+  const s = alerts.activeBySeverity;
+  const activeAlerts = s.CRITICAL + s.WARNING + s.WATCH + s.INFO;
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Centre de pilotage"
         title="Tableau de bord national"
@@ -79,61 +85,98 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
         />
       </Suspense>
 
-      <OverviewTiles overview={overview} query={query} />
+      <OverviewTiles
+        overview={overview}
+        query={query}
+        only={["producteurs", "exploitations", "declaree", "mesuree"]}
+      />
 
-      <DashboardSection
-        id="production"
-        title="Production par culture"
-        description={`Campagne ${production.campaign.code}. Rendement indicatif : production déclarée rapportée à la superficie récoltée déclarée.`}
-      >
-        <CropProduction
-          rows={production.rows}
-          provenance={production.provenance}
-          hrefForCrop={cropHref}
-        />
-      </DashboardSection>
-
-      <DashboardSection
-        id="campagnes"
-        title="Campagne contre campagne"
-        description="Les cinq cultures principales sur les trois dernières campagnes."
-      >
-        <CampaignBlock data={comparison} />
-      </DashboardSection>
-
-      <DashboardSection
-        id="carte"
-        title="Carte des communes"
-        description="Les filtres de la carte s'appliquent à toute la page. Touchez une commune pour lire ses chiffres."
-      >
-        <div className="h-[75svh] min-h-[480px] overflow-hidden rounded-lg border lg:h-[720px] print:hidden">
-          <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
-            <AgriMap
-              options={{ crops, campaigns, departements }}
-              canShowFarms
-              canFilterByStatus
-              canSeeSkyDetail
-              canInspectParcels
-            />
-          </Suspense>
-        </div>
-      </DashboardSection>
-
-      <DashboardSection
-        id="alertes"
-        title="Alertes en cours"
-        action={
-          <Button asChild variant="outline" className="h-11">
-            <Link href={"/pilotage/alertes" as Route}>Centre d&apos;alertes</Link>
-          </Button>
-        }
-      >
-        <AlertsSummary overview={alerts} />
-      </DashboardSection>
-
-      <DashboardSection id="qualite" title="Qualité des données">
-        <QualityGlance quality={quality} />
-      </DashboardSection>
+      <PageTabs
+        label="Vues du tableau de bord"
+        initial={typeof search.onglet === "string" ? search.onglet : null}
+        tabs={[
+          {
+            value: "production",
+            label: "Production",
+            content: (
+              <DashboardSection
+                id="production"
+                title="Production par culture"
+                description={`Campagne ${production.campaign.code}. Rendement indicatif : production déclarée rapportée à la superficie récoltée déclarée.`}
+              >
+                <CropProduction
+                  rows={production.rows}
+                  provenance={production.provenance}
+                  hrefForCrop={cropHref}
+                />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "campagnes",
+            label: "Campagnes",
+            content: (
+              <DashboardSection
+                id="campagnes"
+                title="Campagne contre campagne"
+                description="Les cinq cultures principales sur les trois dernières campagnes."
+              >
+                <CampaignBlock data={comparison} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "carte",
+            label: "Carte",
+            content: (
+              <DashboardSection
+                id="carte"
+                title="Carte des communes"
+                description="Les filtres de la carte s'appliquent à toute la page. Touchez une commune pour lire ses chiffres."
+              >
+                <div className="h-[75svh] min-h-[480px] overflow-hidden rounded-lg border lg:h-[720px] print:hidden">
+                  <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
+                    <AgriMap
+                      options={{ crops, campaigns, departements }}
+                      canShowFarms
+                      canFilterByStatus
+                      canSeeSkyDetail
+                      canInspectParcels
+                    />
+                  </Suspense>
+                </div>
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "alertes",
+            label: "Alertes",
+            count: activeAlerts,
+            content: (
+              <DashboardSection
+                id="alertes"
+                title="Alertes en cours"
+                action={
+                  <Button asChild variant="outline" className="h-11">
+                    <Link href={"/pilotage/alertes" as Route}>Centre d&apos;alertes</Link>
+                  </Button>
+                }
+              >
+                <AlertsSummary overview={alerts} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "qualite",
+            label: "Qualité",
+            content: (
+              <DashboardSection id="qualite" title="Qualité des données">
+                <QualityGlance quality={quality} />
+              </DashboardSection>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

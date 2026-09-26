@@ -29,7 +29,7 @@ const CRITERIA = [
 const CREATE_ERRORS: Record<string, string> = {
   FORBIDDEN: "Réservé au ministère.",
   INVALID_NAME: "Nom du groupe : de 3 à 120 caractères.",
-  INVALID: "Critères du palmarès invalides : rechargez la page.",
+  INVALID: "Critères du classement invalides : rechargez la page.",
   EMPTY: "Aucun producteur avec ces critères : aucun groupe créé.",
 };
 

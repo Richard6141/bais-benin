@@ -27,7 +27,10 @@ test.describe("tableau de bord national", () => {
       "aria-current",
       "page",
     );
-    await expect(nav.getByRole("link", { name: "Règles d'alerte" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Administration" })).toHaveAttribute(
+      "href",
+      "/pilotage/qualite",
+    );
 
     const tiles = page.getByRole("region", { name: "Indicateurs clés" });
     for (const label of [
@@ -43,6 +46,8 @@ test.describe("tableau de bord national", () => {
     await expect(
       page.getByRole("list", { name: /^(Production déclarée|Superficie cultivée) par culture$/ }),
     ).toBeVisible();
+    // Quatre chiffres clés, puis une vue à la fois : les alertes sont dans leur onglet.
+    await page.getByRole("tab", { name: /^Alertes/ }).click();
     await expect(page.getByRole("heading", { name: "Alertes en cours" })).toBeVisible();
 
     await page.getByLabel("Département").first().click();
@@ -73,12 +78,15 @@ test.describe("tableau de bord national", () => {
     await page.getByRole("table").getByRole("link", { name: "Djougou" }).click();
     await page.waitForURL(/\/pilotage\/communes\/BJ-[A-Z]{3}-\d{3}/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Djougou");
-    for (const title of [
-      "Chiffres de la commune",
-      "Cultures",
-      "Couverture terrain",
-      "Météo et alertes",
-    ]) {
+    // Un volet à la fois : chaque onglet ouvre sa section.
+    await expect(page.getByRole("region", { name: "Indicateurs clés" })).toBeVisible();
+    for (const [tab, title] of [
+      ["Comparaison", "Chiffres de la commune"],
+      ["Cultures", "Cultures"],
+      ["Terrain", "Couverture terrain"],
+      [/^Météo et alertes/, "Météo et alertes"],
+    ] as const) {
+      await page.getByRole("tab", { name: tab }).click();
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
     await expectNoHorizontalScroll(page);
@@ -87,15 +95,18 @@ test.describe("tableau de bord national", () => {
   test("qualité des données, fiche imprimable et export CSV", async ({ page }, testInfo) => {
     await signInAsMinistry(page, testInfo, "/pilotage/qualite");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Qualité des données");
-    await expect(page.getByRole("heading", { name: "Fraîcheur" })).toBeVisible();
+    // Un volet à la fois : les écarts d'abord, la fraîcheur dans son onglet.
     await expect(
       page.getByRole("heading", { name: "Écarts entre déclaré et mesuré" }),
     ).toBeVisible();
     await expect(page.getByRole("list", { name: "Parcelles par tranche d'écart" })).toBeVisible();
+    await page.getByRole("tab", { name: "Fraîcheur" }).click();
+    await expect(page.getByRole("heading", { name: "Fraîcheur" })).toBeVisible();
+    await expect(page).toHaveURL(/onglet=fraicheur/);
 
     await page.goto("/pilotage/fiche");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fiche de pilotage");
-    await expect(page.getByText(/^Campagne \d{4}-\d{4} · /)).toBeVisible();
+    await expect(page.getByText(/^Campagne \d{4}-\d{4}, /)).toBeVisible();
     const print = page.getByRole("button", { name: "Imprimer ou enregistrer en PDF" });
     await expect(print).toBeVisible();
     // À l'impression : ni navigation, ni en-tête, ni commandes.
@@ -128,7 +139,7 @@ test.describe("tableau de bord réduit, agent et coopérative", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Tableau de bord de mon périmètre",
     );
-    await expect(page.getByText(/^Djougou · campagne/)).toBeVisible();
+    await expect(page.getByText(/^Djougou, campagne/)).toBeVisible();
     await expect(page.getByRole("region", { name: "Indicateurs clés" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Déclarations à vérifier" })).toBeVisible();
     // Aucun lien vers les écrans nationaux depuis les tuiles.

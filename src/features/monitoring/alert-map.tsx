@@ -25,7 +25,7 @@ export function AlertMap({ levels, communeNames }: AlertMapProps) {
   );
   return (
     <figure className="flex min-w-0 flex-col gap-2">
-      <div className="relative h-80 overflow-hidden rounded-xl border sm:h-[28rem]">
+      <div className="relative h-80 overflow-hidden rounded-lg border sm:h-[28rem]">
         <AlertMapCanvas levels={levels} />
       </div>
       <figcaption className="flex flex-col gap-2 text-sm">

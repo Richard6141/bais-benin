@@ -48,7 +48,7 @@ const GROUPS = [
   {
     label: "Producteurs",
     entries: [
-      { href: "/pilotage/palmares", label: "Palmarès", match: ["/pilotage/palmares"] },
+      { href: "/pilotage/palmares", label: "Classement", match: ["/pilotage/palmares"] },
       { href: "/pilotage/groupes", label: "Groupes", match: ["/pilotage/groupes"] },
     ],
   },

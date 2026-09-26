@@ -90,7 +90,11 @@ rubriques courantes sont en onglets et les autres dans le menu « Plus ».
    signale les saisies non encore envoyées ; la synchronisation reprend automatiquement au retour
    du réseau.
 6. **Tableau de bord** (`/agent/tableau-de-bord`) : les indicateurs de votre commune uniquement.
+   Quatre chiffres en tête, puis un onglet à la fois : à vérifier, production, écarts, campagnes.
 7. **Alertes** (`/agent/alertes`) : à relayer de vive voix aux producteurs sans téléphone.
+8. **Demandes** (`/agent/demandes`) : une seule boîte pour les demandes d'aide adressées à l'État
+   et les questions transmises depuis l'assistant. Chaque demande dit son origine ; les filtres
+   « À traiter », « En cours » et « Toutes » donnent leur nombre.
 
 **Se déconnecter sur un appareil partagé** : le bouton « Se déconnecter » vide les données mises
 en cache de votre compte sur cet appareil (registre local, pages hors ligne). S'il reste des
@@ -146,7 +150,7 @@ regroupe toutes les rubriques par thème.
 
 - **Situation** : Vue nationale, Veille, Territoires, Alertes, Signalements, Demandes.
 - **Cultures** : État des cultures, Surfaces satellite, Prévisions.
-- **Producteurs** : Palmarès, Groupes.
+- **Producteurs** : Classement, Groupes.
 - **Administration** : Qualité, Règles, Assistant.
 
 Quand vous ouvrez une fiche (une commune, une alerte, une règle), la rubrique d'où elle vient reste
@@ -264,32 +268,33 @@ Le ministère voit les parcelles de tout le pays. Un agent ne voit que les explo
 enregistrées, un producteur que ses champs. Chaque fiche ouverte par le ministère est inscrite au
 journal.
 
-### Palmarès
+### Classement des producteurs
 
-Le **Palmarès** (`/pilotage/palmares`) classe les producteurs d'une culture pour une campagne.
+Le **Classement** (`/pilotage/palmares`) classe les producteurs d'une culture pour une campagne.
+Le mot « palmarès » est réservé à ce qui est publié sur la page publique `/palmares`.
 
 1. Choisissez la culture, la campagne, le département et le classement : « Production totale »
    ou « Rendement à l'hectare » (au moins 0,5 ha). Par défaut, seules les exploitations
    vérifiées comptent.
-2. Choisissez le nombre de producteurs, puis cliquez sur « Afficher le palmarès ».
+2. Choisissez le nombre de producteurs, puis cliquez sur « Afficher le classement ».
 
 Le tableau donne le rang, la commune, la production, le rendement et le téléphone. La colonne
 « Palmarès public » dit qui a accepté d'être nommé publiquement. « Exporter en CSV » donne le même
 tableau pour un tableur. Chaque consultation est inscrite au journal.
 
-**Publier un palmarès.** Sous le tableau, « Publier ce palmarès » met en ligne sur la page publique
+**Publier un palmarès.** Le bouton « Publier », en tête de page, met en ligne sur la page publique
 `/palmares` les lauréats qui ont donné leur accord depuis leur compte. Seuls sont publiés le nom,
 la commune, le rang et la production, jamais le téléphone. Choisissez le nombre de lauréats
 (100 au plus), puis « Publier sur la page publique ». La liste « Palmarès publiés » permet de
-retirer un palmarès. Un producteur qui retire son accord disparaît aussitôt des palmarès publiés.
+retirer un palmarès ; elle a son onglet, à côté du classement. Un producteur qui retire son accord disparaît aussitôt des palmarès publiés.
 
 ### Groupes de producteurs
 
-Un groupe réunit les producteurs d'un palmarès, pour les suivre et leur écrire.
+Un groupe réunit les producteurs d'un classement, pour les suivre et leur écrire.
 
-1. **Former un groupe.** Sous le palmarès affiché, un encadré propose de former un groupe avec
-   ces producteurs et suggère un nom. Modifiez-le si besoin, puis cliquez sur « Créer le
-   groupe ». Le groupe garde les critères du palmarès.
+1. **Former un groupe.** En tête du classement, le bouton « Former un groupe » propose de former
+   un groupe avec les producteurs affichés et suggère un nom. Modifiez-le si besoin, puis cliquez sur « Créer le
+   groupe ». Le groupe garde les critères du classement.
 2. **Retrouver un groupe.** La page **Groupes** (`/pilotage/groupes`) liste les groupes avec leur
    culture, leur zone, leur campagne et leur nombre de membres. Les groupes archivés sont en
    dessous.

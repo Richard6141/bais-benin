@@ -3,20 +3,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
-import { AgentRequests } from "@/features/assistant/agent-requests";
 import { AssistantPanel } from "@/features/assistant/assistant-panel";
 import { agentContext } from "@/features/assistant/suggestion-sources";
 import { listFarmsForActor } from "@/modules/registry";
 
 export const metadata: Metadata = { title: "Assistant agricole" };
 
-const dateFormat = new Intl.DateTimeFormat("fr-FR", {
-  dateStyle: "medium",
-  timeZone: "Africa/Porto-Novo",
-});
-
-// B : l'agent pose une question, pour une exploitation de son périmètre ou en général, et traite
-// les demandes transmises par les producteurs de ses communes.
+// B : l'agent pose une question, pour une exploitation de son périmètre ou en général. Les
+// questions transmises par les producteurs se traitent dans ses demandes (/agent/demandes).
 export default async function AgentAssistantPage(props: PageProps<"/agent/assistant">) {
   const user = await requireRole("AGENT_AGRICULTURE", { returnTo: "/agent/assistant" });
   const params = await props.searchParams;
@@ -31,6 +25,7 @@ export default async function AgentAssistantPage(props: PageProps<"/agent/assist
   }));
   const requested = typeof params.exploitation === "string" ? params.exploitation : null;
   const initialFarmCode = options.some((o) => o.code === requested) ? requested : null;
+  const openQuestions = context.requests.filter((request) => request.status === "OPEN").length;
 
   return (
     <div className="flex min-w-0 flex-col gap-8">
@@ -50,21 +45,19 @@ export default async function AgentAssistantPage(props: PageProps<"/agent/assist
         farms={options}
         initialFarmCode={initialFarmCode}
       />
-      <section aria-labelledby="demandes-titre" className="flex flex-col gap-4">
-        <h2 id="demandes-titre" className="text-xl font-semibold">
+      {/* Les questions transmises par les producteurs sont traitées dans la boîte unique des
+          demandes, avec les demandes d'aide : un seul endroit à surveiller. */}
+      <p className="text-sm text-muted-foreground">
+        {openQuestions > 0
+          ? `${openQuestions} question${openQuestions > 1 ? "s" : ""} de producteur à traiter. `
+          : "Aucune question de producteur à traiter. "}
+        <Link
+          href={"/agent/demandes" as Route}
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
           Demandes des producteurs
-        </h2>
-        <AgentRequests
-          requests={context.requests.map((request) => ({
-            id: request.id,
-            status: request.status,
-            communeName: request.communeName,
-            question: request.question,
-            answer: request.answer,
-            createdAt: dateFormat.format(request.createdAt),
-          }))}
-        />
-      </section>
+        </Link>
+      </p>
     </div>
   );
 }

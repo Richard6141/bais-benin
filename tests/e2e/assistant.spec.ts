@@ -103,7 +103,8 @@ test.describe("assistant, espace agent", () => {
     if ((await answer.getAttribute("data-outcome")) === "ANSWERED") {
       await expect(answer.getByRole("button", { name: /Copier pour le producteur/ })).toBeVisible();
     }
-    await expect(page.getByRole("heading", { name: "Demandes des producteurs" })).toBeVisible();
+    // Les questions des producteurs se traitent dans la boîte unique des demandes.
+    await expect(page.getByRole("link", { name: "Demandes des producteurs" })).toBeVisible();
 
     await page.getByRole("link", { name: "Journal de mes communes" }).click();
     await page.waitForURL(/\/agent\/assistant\/journal/);

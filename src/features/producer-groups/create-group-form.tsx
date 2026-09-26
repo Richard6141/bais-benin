@@ -56,7 +56,7 @@ export function CreateGroupForm({
           Former un groupe avec ces {count} producteurs
         </h2>
         <HelpTip label="Former un groupe">
-          Les producteurs affichés, dans l&apos;ordre du palmarès, deviennent un groupe nommé à
+          Les producteurs affichés, dans l&apos;ordre du classement, deviennent un groupe nommé à
           consulter, exporter et à qui écrire sur WhatsApp. La liste est recalculée par le serveur
           avec ces critères.
         </HelpTip>
