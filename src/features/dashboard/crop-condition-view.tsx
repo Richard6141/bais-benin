@@ -51,7 +51,7 @@ export function ConditionBar({
   );
   return (
     <div
-      className={cn("flex h-2.5 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("flex h-2.5 w-full overflow-hidden rounded-sm bg-muted", className)}
       role="img"
       aria-label={label}
     >
