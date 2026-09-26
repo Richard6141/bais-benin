@@ -10,6 +10,21 @@ Ce document décrit la carte livrée à l'étape 4 : ce qu'elle montre, d'où vi
 - Légende : bornes réelles des classes (quantiles calculés sur les valeurs présentes), jamais des libellés génériques.
 - Mobile : la carte occupe au moins 60 % de l'écran, le panneau passe dessous ; pas de défilement horizontal.
 
+## Vue du ciel (ADR-0016)
+
+- Encadré « Fond de carte » en haut à gauche de la carte : « Carte des communes » (par défaut), « Image satellite » (couleur naturelle) ou « Végétation (NDVI) », puis le mois. Chaque mois affiche son nombre de scènes Sentinel-2 dégagées (moins de 30 % de nuages) sur le pays ; le mois proposé par défaut est le plus récent qui couvre le pays. Le choix vit dans l'adresse : `/carte?ciel=ndvi&mois=2026-05`.
+- Sous le zoom 9, une image d'ensemble du pays (publique) ; au-delà, des tuiles de 512 px jusqu'au zoom 13, pour les comptes connectés seulement. Les communes deviennent transparentes (survol et clic restent actifs), les contours restent visibles, la légende passe aux classes du NDVI ou à la lecture de l'image.
+- Les images sont calculées par Copernicus (API Process), gardées en base (`satellite_tile`) et sur l'appareil (service worker). Un mois révolu n'est jamais redemandé ; le mois en cours l'est au bout de deux jours.
+- Sans compte CDSE configuré (`CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET`), l'encadré propose les mois (catalogue public) mais les fonds satellite restent grisés : « Images satellite en cours de mise en service ».
+- Quota : chaque requête de traitement est décomptée dans `satellite_usage` avant l'appel ; au-delà de `SATELLITE_MONTHLY_REQUEST_BUDGET`, seul le cache est servi.
+
+| Couche | Emplacement | Rôle |
+|---|---|---|
+| Port et adaptateurs | `src/services/ports/remote-sensing-provider.ts`, `src/services/remote-sensing` | STAC public, API Process et Statistical du CDSE, jeton OAuth ; fixture sans réseau |
+| Domaine | `src/modules/satellite` | périodes, découpage, cache et garde-fou de quota |
+| Routes | `src/app/api/v1/satellite/periods/route.ts`, `src/app/api/satellite/[layer]/[period]/[...tile]/route.ts` | catalogue des mois ; image d'ensemble et tuiles PNG |
+| Interface | `src/features/agri-map/sky-control.tsx`, `map-legend.tsx` (`SkyLegend`), `map-canvas.tsx` | choix du fond et du mois, légende, couches raster sous les limites |
+
 ## Architecture
 
 | Couche | Emplacement | Rôle |
@@ -46,4 +61,4 @@ pnpm exec playwright test tests/e2e/map.spec.ts
 
 ## Évolutions prévues
 
-Couche des alertes (étape 6), couches raster satellites (`RasterLayer`), agrégation par arrondissement, restriction des points par périmètre, style de fond auto-hébergé.
+Couche des alertes (étape 6), confrontation déclaration / satellite par parcelle (NDVI de saison, ADR-0016), Sentinel-1 radar pour la saison des pluies, agrégation par arrondissement, restriction des points par périmètre, style de fond auto-hébergé.

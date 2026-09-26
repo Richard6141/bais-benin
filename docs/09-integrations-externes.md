@@ -97,10 +97,10 @@ interface IdentityVerificationProvider {
 |---|---|---|
 | MAEP / DSA | Statistiques officielles de production, référentiels de cultures | `DataSource = MAEP_DSA`, import par lots dans `analytics` |
 | INStaD | Population rurale, enquêtes agricoles | pondération du dataset, comparaisons |
-| Copernicus Sentinel-2 | NDVI, détection de stress, vérification de parcelles | `RasterLayer`, port `RemoteSensingProvider` |
+| Copernicus Sentinel-2 | NDVI, détection de stress, vérification de parcelles | Port `RemoteSensingProvider` (`src/services/ports`), adaptateurs CDSE et fixture (`src/services/remote-sensing`), module `satellite` : branché pour la vue du ciel (ADR-0016) |
 | IGN Bénin | Référentiel géographique national | remplacement des géométries geoBoundaries |
 | Institutions financières | Historique de production consenti | API partenaires OAuth2 sur `/api/v1`, consentement par agriculteur |
 
 ## 7. Variables d'environnement prévues
 
-`DATABASE_URL`, `AUTH_SECRET`, `NPI_HASH_KEY`, `NPI_ENCRYPTION_KEY`, `MESSAGING_PRIMARY_CHANNEL`, `WAPY_API_URL`, `WAPY_API_KEY`, `WAPY_WEBHOOK_SECRET`, `WEATHER_PROVIDER` (`open-meteo` ou `fixture`), `AI_PROVIDER` (`gateway` ou `fixture`), `AI_GATEWAY_API_KEY`, `AI_MODEL`, `IDENTITY_VERIFICATION_PROVIDER` (`anip-stub` ou `anip`), `TILES_BASE_URL`, `CRON_SECRET`. Toutes documentées dans `.env.example` et validées au démarrage.
+`DATABASE_URL`, `AUTH_SECRET`, `NPI_HASH_KEY`, `NPI_ENCRYPTION_KEY`, `MESSAGING_PRIMARY_CHANNEL`, `WAPY_API_URL`, `WAPY_API_KEY`, `WAPY_WEBHOOK_SECRET`, `WEATHER_PROVIDER` (`open-meteo` ou `fixture`), `AI_PROVIDER` (`gateway` ou `fixture`), `AI_GATEWAY_API_KEY`, `AI_MODEL`, `IDENTITY_VERIFICATION_PROVIDER` (`anip-stub` ou `anip`), `TILES_BASE_URL`, `CRON_SECRET`, `SATELLITE_PROVIDER` (`cdse` ou `fixture`), `CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET`, `SATELLITE_MONTHLY_REQUEST_BUDGET`. Toutes documentées dans `.env.example` et validées au démarrage.

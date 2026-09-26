@@ -32,6 +32,15 @@ Pourquoi CC BY-SA et non CC BY ou CC0 : après recherche sur Wikimedia Commons (
 
 Chaque base existe en deux fichiers : `<base>-1600.webp` et `<base>-800.webp`. Les dimensions exactes sont dans `public/images/manifest.json`.
 
+## Imagerie satellite de la carte
+
+Les images de la vue du ciel (`/carte`, fond « Image satellite » ou « Végétation (NDVI) ») ne sont pas des fichiers du dépôt : elles sont calculées à la demande par le Copernicus Data Space Ecosystem à partir des scènes Sentinel-2 L2A, puis gardées en cache (ADR-0016).
+
+- **Source** : programme Copernicus de l'Union européenne, satellites Sentinel-2 de l'Agence spatiale européenne, via https://dataspace.copernicus.eu.
+- **Licence** : accès libre, complet et gratuit aux données Sentinel (règlement délégué (UE) n° 1159/2013), réutilisation y compris commerciale.
+- **Attribution obligatoire** : « Contains modified Copernicus Sentinel data [année] » sur toute image ou valeur dérivée. La carte l'affiche dans son contrôle d'attribution et dans la légende de la vue du ciel ; la même mention accompagnera les NDVI par parcelle.
+- **Modifications** : mosaïque de la scène la moins nuageuse du mois, gain de luminosité (couleur naturelle), indice de végétation classé en huit couleurs avec nuages et ombres masqués (NDVI).
+
 ## Sujets non couverts
 
 - **Agent de terrain avec smartphone ou tablette au champ** : aucune photographie ouest-africaine sous licence compatible et sans visage en gros plan n'a été trouvée. Une prise de vue propre au projet (agent ATDA de dos, téléphone en main, avec consentement écrit) est à prévoir ; en attendant, la vue aérienne et la photo du producteur au manioc servent aux écrans « terrain ».
