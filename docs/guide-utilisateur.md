@@ -121,9 +121,174 @@ sans changer d'adresse ni de connexion.
 Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le compte ministère est
 ouvert par l'administration, jamais par la connexion elle-même. Une session ministère dure 12 heures au plus.
 
-La navigation du centre de pilotage est groupée en quatre thèmes (Situation, Cultures et
-satellite, Producteurs, Administration) ; chaque thème ouvre ses rubriques en dessous, sans
-défilement caché.
+### Se repérer dans le pilotage
+
+Le pilotage est rangé en quatre thèmes. Choisissez d'abord un thème, puis une rubrique dans la
+ligne qui s'affiche dessous.
+
+- **Situation** : Vue nationale, Veille, Territoires, Alertes, Signalements, Demandes.
+- **Cultures et satellite** : État des cultures, Surfaces satellite, Prévisions.
+- **Producteurs** : Palmarès, Groupes.
+- **Administration** : Qualité, Règles, Assistant.
+
+Quand vous ouvrez une fiche (une commune, une alerte, une règle), la rubrique d'où elle vient reste
+allumée.
+
+### Centre de veille
+
+La page **Veille** (`/pilotage/veille`) montre la situation du pays en temps réel. Elle se met à
+jour seule chaque minute, sans recharger la page. L'heure de la dernière mise à jour est affichée
+en haut, à l'heure de Porto-Novo.
+
+- En haut, quatre chiffres : les feux détectés en 24 heures, les alertes actives, les foyers à
+  confirmer et les demandes d'aide reçues en 24 heures.
+- Au centre, la carte. Les communes sont colorées selon leur alerte la plus grave. Les feux
+  apparaissent en points. Les boutons « 24 heures » et « 7 jours » changent la période des feux.
+- À gauche, « Parcelles exposées aux feux » : les communes où un feu est passé à moins de 1 km de
+  parcelles enregistrées, avec le nombre de producteurs touchés. Puis « État des cultures » : les
+  trois cultures les plus en difficulté. Puis « Fraîcheur des sources » : si les feux, la météo et
+  les chiffres du tableau de bord sont à jour.
+- À droite, « Alertes actives », « Foyers à confirmer » et « Signalements groupés » (plusieurs
+  signalements du même problème dans une même commune cette semaine).
+
+Pour les demandes d'aide, la page ne donne que des nombres. Le détail d'une demande reste aux
+agents de la commune. Chaque bloc a une aide « ? ».
+
+### Feux actifs sur la carte
+
+Sur la carte (`/carte`), le réglage **Feux actifs** affiche les feux vus par les satellites de la
+NASA : « Masqués », « Dernières 24 heures » ou « 7 derniers jours ». Les feux sont mis à jour
+toutes les 30 minutes.
+
+- La couleur du point dit la force du feu : jaune pour un feu faible, orange pour un feu moyen,
+  rouge foncé pour un feu fort.
+- Un clic sur un point donne l'heure de détection (heure de Porto-Novo), la commune, les
+  satellites qui l'ont vu, la confiance et la puissance.
+- La légende indique combien de feux ont été détectés au Bénin sur la période.
+
+Quand un feu est détecté à moins de 1 km d'une parcelle enregistrée, une alerte « Feu de brousse »
+est levée. Elle prévient les producteurs concernés, s'ils ont donné leur accord, et les agents qui
+ont enregistré leurs exploitations. Une détection par satellite n'est pas un constat : un brûlis
+volontaire ou une fumée d'usine peuvent aussi être vus.
+
+### État des cultures
+
+La page **État des cultures** (`/pilotage/etat-des-cultures`) dit comment pousse la végétation
+sur les parcelles contrôlées par satellite, pour la campagne en cours.
+
+- Chaque parcelle contrôlée est comparée aux parcelles de la même culture dans la même zone. Elle
+  est classée « Bon », « Moyen » ou « Faible ». « À vérifier » signale une végétation sans rapport
+  avec la culture déclarée : un agent doit passer voir.
+- Les parts sont calculées sur la surface. Une parcelle cachée par les nuages, ou dont la saison
+  n'est pas finie, n'est pas encore jugée.
+- Cliquez sur une culture pour voir sa répartition par département. Un département de moins de
+  5 parcelles observées n'est pas détaillé, pour qu'on ne puisse pas reconnaître un producteur.
+- Tant que le calcul mensuel ne tourne pas avec le compte Copernicus du ministère, un bandeau
+  prévient que les résultats sont des données de démonstration.
+- L'encadré « Méthode » explique le calcul en quelques lignes.
+
+### Surfaces par satellite
+
+La page **Surfaces satellite** (`/pilotage/cultures`) compare les surfaces cultivées vues par
+satellite à celles déclarées au registre, pour la campagne en cours.
+
+> **Attention.** La page affiche « Surfaces en cours de calibrage, probablement surestimées : à ne
+> pas citer ». Tant que cet avertissement est là, ces chiffres servent à orienter le travail des
+> agents. Ils ne doivent être ni publiés ni cités.
+
+- Filtrez par culture et par département.
+- Quatre chiffres : la surface « Vue par satellite », la surface « Déclarée au registre », le
+  « Taux d'enrôlement » (la part de la surface vue qui est déclarée) et la surface « À
+  enregistrer » (vue mais pas encore déclarée).
+- Le tableau « Communes où envoyer les agents en premier » classe les communes selon l'écart entre
+  ce qui est vu et ce qui est déclaré. Un clic ouvre la fiche de la commune.
+- La section « Précision de la carte » dit combien de parcelles vérifiées sont bien reconnues.
+- Les surfaces sont recalculées une fois par mois, pendant les huit premiers jours.
+- Le bouton « Carte des cultures » ouvre la carte correspondante.
+
+### Carte des cultures
+
+Sur la carte (`/carte`), choisissez « Carte des cultures » dans le réglage **Fond de carte**.
+
+- Chaque carré d'environ 400 m prend la couleur de ce qu'il porte : maïs et cultures annuelles,
+  coton, riz, cultures pérennes, maraîchage, jachère et sol nu, forêt et savane, eau, bâti.
+- La carte est déduite de la végétation des 12 derniers mois, vue par le satellite Sentinel-2. Un
+  champ plus petit qu'un carré n'apparaît pas.
+- Elle porte deux mentions : « En cours de calibrage, à ne pas citer » et « Estimation satellite,
+  à confirmer ». Les agents confirment sur le terrain.
+- Elle est calculée une fois par mois et visible par tous, même sans connexion. Tant qu'elle
+  n'est pas prête, la légende l'indique (« Carte en préparation »).
+
+### Fiche d'une parcelle depuis la carte
+
+1. Sur la carte, rapprochez-vous d'un village : les champs apparaissent. Sur un grand écran, un
+   message vous y invite tant que vous êtes trop loin.
+2. Cliquez sur un champ. Sa fiche s'ouvre à côté de la carte. L'adresse de la page garde la
+   parcelle : vous pouvez envoyer le lien à un collègue.
+
+La fiche montre :
+
+- le producteur, son exploitation, sa commune et l'état de vérification ; le téléphone s'affiche
+  seulement pour les comptes qui ont le droit de contacter le producteur ;
+- les superficies déclarée et mesurée, et le mode d'arrosage ;
+- la culture de la campagne en cours, son stade et la date de semis ;
+- les rendements des campagnes passées, comparés aux autres parcelles de la commune (à partir de
+  5 parcelles comparables) ;
+- la « Vue du satellite » : « Cohérente avec la déclaration », « À vérifier sur le terrain »,
+  « Trop de nuages pour conclure » ou « Saison en cours », avec la courbe de végétation. « À
+  vérifier » demande une visite. Ce n'est jamais une sanction ;
+- les signalements faits sur la parcelle.
+
+Si le contour recouvre une autre parcelle, la fiche le signale : doublon, erreur de relevé ou
+conflit foncier, à vérifier sur place.
+
+Le ministère voit les parcelles de tout le pays. Un agent ne voit que les exploitations qu'il a
+enregistrées, un producteur que ses champs. Chaque fiche ouverte par le ministère est inscrite au
+journal.
+
+### Palmarès
+
+Le **Palmarès** (`/pilotage/palmares`) classe les producteurs d'une culture pour une campagne.
+
+1. Choisissez la culture, la campagne, le département et le classement : « Production totale »
+   ou « Rendement à l'hectare » (au moins 0,5 ha). Par défaut, seules les exploitations
+   vérifiées comptent.
+2. Choisissez le nombre de producteurs, puis cliquez sur « Afficher le palmarès ».
+
+Le tableau donne le rang, la commune, la production, le rendement et le téléphone. La colonne
+« Palmarès public » dit qui a accepté d'être nommé publiquement. « Exporter en CSV » donne le même
+tableau pour un tableur. Chaque consultation est inscrite au journal.
+
+**Publier un palmarès.** Sous le tableau, « Publier ce palmarès » met en ligne sur la page publique
+`/palmares` les lauréats qui ont donné leur accord depuis leur compte. Seuls sont publiés le nom,
+la commune, le rang et la production, jamais le téléphone. Choisissez le nombre de lauréats
+(100 au plus), puis « Publier sur la page publique ». La liste « Palmarès publiés » permet de
+retirer un palmarès. Un producteur qui retire son accord disparaît aussitôt des palmarès publiés.
+
+### Groupes de producteurs
+
+Un groupe réunit les producteurs d'un palmarès, pour les suivre et leur écrire.
+
+1. **Former un groupe.** Sous le palmarès affiché, un encadré propose de former un groupe avec
+   ces producteurs et suggère un nom. Modifiez-le si besoin, puis cliquez sur « Créer le
+   groupe ». Le groupe garde les critères du palmarès.
+2. **Retrouver un groupe.** La page **Groupes** (`/pilotage/groupes`) liste les groupes avec leur
+   culture, leur zone, leur campagne et leur nombre de membres. Les groupes archivés sont en
+   dessous.
+3. **Consulter.** La fiche du groupe donne le nombre de membres, la production totale, le
+   rendement moyen et la part des membres qui acceptent les messages WhatsApp. Le tableau des
+   membres a un lien « Voir le champ » vers la carte.
+4. **Exporter.** « Exporter (CSV) » donne la liste des membres avec leur téléphone, pour un
+   tableur. Chaque export est inscrit au journal.
+5. **Écrire aux membres.** Seuls les membres qui ont donné leur accord WhatsApp reçoivent le
+   message : la page dit combien avant l'envoi. Le message fait 500 caractères au plus, sans lien
+   ni adresse e-mail. Il part du numéro officiel, signé « BAIS, ministère de l'Agriculture », et
+   jamais entre 21 h et 6 h. Le même message ne peut pas être renvoyé au même groupe dans les
+   10 minutes. La liste « Messages envoyés » montre ce qui est parti, en attente ou non envoyé.
+6. **Archiver.** « Archiver le groupe » le garde consultable, mais il ne peut plus recevoir de
+   message.
+
+### Autres rubriques
 
 1. **Vue nationale** (`/pilotage`) : six indicateurs avec provenance et fiabilité (producteurs,
    exploitations, superficies déclarée et relevée, part vérifiée, production déclarée), carte des
@@ -142,8 +307,8 @@ défilement caché.
    présentation hors écran.
 
 **Secret statistique** : toute case résumant moins de cinq exploitations est masquée (« secret
-statistique »), y compris sur la carte publique `/carte` et l'API `/api/v1/territory/stats` — pas
-seulement dans les écrans réservés au ministère.
+statistique »), y compris sur la carte publique `/carte` et l'API `/api/v1/territory/stats`, et
+pas seulement dans les écrans réservés au ministère.
 
 Captures : [vue nationale, desktop](rapports/captures/etape-7/pilotage-national-desktop.png) et
 [mobile](rapports/captures/etape-7/pilotage-national-mobile.png),
