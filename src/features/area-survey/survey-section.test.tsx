@@ -13,6 +13,7 @@ function estimate(target: string, overrides: Partial<TargetEstimate> = {}): Targ
     marginHa: 3_920,
     cv: 0.04,
     points: 560,
+    positives: 200,
     method: "regression",
     gain: 1.8,
     mapHa: 61_000,

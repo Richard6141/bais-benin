@@ -84,6 +84,18 @@ describe("surfaces par sondage", () => {
     expect(maize.marginHa).toBeGreaterThan(0);
   });
 
+  it("réunit céréales, racines et tubercules pour le bilan alimentaire", () => {
+    const points = commune("A").map((entry, index) =>
+      index >= 95 ? { ...entry, crop_code: "YAM" } : entry,
+    );
+    const staples = estimateSurvey(points, shares("A")).communes[0]!.targets.find(
+      (entry) => entry.target === "STAPLES",
+    )!;
+    // 30 points de maïs et 5 d'igname : tous comptent.
+    expect(staples.positives).toBe(35);
+    expect(staples.mapShared).toBe(true);
+  });
+
   it("revient à l'estimateur direct quand le radar a corrigé la carte", () => {
     const survey = estimateSurvey(commune("A"), shares("A", true));
     const maize = survey.communes[0]!.targets.find((entry) => entry.target === "MAIZE")!;
@@ -116,10 +128,12 @@ describe("surfaces par sondage", () => {
   });
 
   it("ne cite qu'un chiffre précis sur assez de points", () => {
-    expect(citationStatus(0.08, 120)).toBe("cite");
-    expect(citationStatus(0.15, 120)).toBe("indicative");
-    expect(citationStatus(0.3, 120)).toBe("do-not-cite");
-    expect(citationStatus(0.05, 20)).toBe("do-not-cite");
-    expect(citationStatus(null, 120)).toBe("do-not-cite");
+    expect(citationStatus(0.08, 120, 40)).toBe("cite");
+    expect(citationStatus(0.15, 120, 40)).toBe("indicative");
+    expect(citationStatus(0.3, 120, 40)).toBe("do-not-cite");
+    expect(citationStatus(0.05, 20, 10)).toBe("do-not-cite");
+    expect(citationStatus(null, 120, 40)).toBe("do-not-cite");
+    // Deux points de riz que la carte voit aussi : marge nulle, jamais citée.
+    expect(citationStatus(0, 120, 2)).toBe("do-not-cite");
   });
 });

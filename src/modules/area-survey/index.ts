@@ -19,6 +19,8 @@ export {
   CV_INDICATIVE,
   MAX_NON_RESPONSE,
   MIN_POINTS_TO_CITE,
+  MIN_POSITIVES_TO_CITE,
+  STAPLE_GROUPS,
   SURVEY_TARGETS,
   citationStatus,
   estimateSurvey,

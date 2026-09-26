@@ -20,7 +20,9 @@ const STATUS: Record<CitationStatus, { label: string; variant: "success" | "watc
   };
 
 export function targetLabel(target: string): string {
-  return target === "CULTIVATED" ? "Terres cultivées" : cropGroupLabel(target);
+  if (target === "CULTIVATED") return "Terres cultivées";
+  if (target === "STAPLES") return "Céréales, racines et tubercules";
+  return cropGroupLabel(target);
 }
 
 function Heading({ title, help, children }: { title: string; help: string; children: ReactNode }) {
