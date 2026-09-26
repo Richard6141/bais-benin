@@ -172,7 +172,7 @@ L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, san
 - **Ministère** (`/pilotage/cultures`, « Surfaces par satellite ») : surfaces vues par culture et par département face aux surfaces déclarées au registre.
   - Taux d'enrôlement = surface déclarée rapportée à la surface vue. Il n'est pas calculé sous 50 ha vus.
   - Classement des communes au plus gros écart en hectares, où envoyer les agents en premier.
-  - Part non classée par commune (nuages persistants).
+  - Mois de pluie vus par commune : mois de mai à octobre vus sans nuage, en moyenne par pixel (sur 6). C'est la vraie mesure de l'incertitude, bien plus parlante que la part non classée, presque toujours nulle.
   - Toujours affiché avec « Estimation satellite, à confirmer ».
 - **Correspondance registre et classes** : riz et coton ont leur classe. Anacarde, palmier à huile, karité, plantain et ananas vont en cultures pérennes. Tomate, piment, gombo et oignon vont en maraîchage. Toutes les autres cultures du registre vont en cultures annuelles (`cropMapClassOf`).
 - **Précision** (`/pilotage/cultures`, section « Précision de la carte ») : la même classification est appliquée, en pixels de 10 m, sur le contour des parcelles des exploitations vérifiées.

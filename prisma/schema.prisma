@@ -1668,6 +1668,9 @@ model CropAreaEstimate {
   // Part de la commune reconnue comme rizière par le radar Sentinel-1 (ADR-0026), sur la ligne
   // RICE seulement ; null sans radar. La surface de riz retenue est la plus grande des deux.
   radarRiceShare    Decimal?             @map("radar_rice_share") @db.Decimal(6, 4)
+  // Mois de mai à octobre vus sans nuage, en moyenne par pixel (0 à 6), le même pour toutes les
+  // lignes d'une commune : ce que la règle a pu lire de la saison des pluies.
+  rainyMonthsSeen   Decimal?             @map("rainy_months_seen") @db.Decimal(4, 2)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])

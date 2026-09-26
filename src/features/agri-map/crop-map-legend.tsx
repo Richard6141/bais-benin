@@ -35,7 +35,7 @@ export function CropMapLegend() {
       <div className="flex items-center gap-1">
         <p className="font-medium">Carte des cultures</p>
         <HelpTip label="Carte des cultures">
-          Chaque pixel d&apos;environ 400 m est classé d&apos;après la courbe de végétation de ses
+          Chaque pixel d&apos;environ 500 m est classé d&apos;après la courbe de végétation de ses
           12 derniers mois, vue par Sentinel-2 : levée et pic de la saison des pluies, verdure en
           saison sèche, submersion des rizières. Une parcelle isolée plus petite qu&apos;un pixel
           n&apos;apparaît pas. Les agents confirment sur le terrain.
