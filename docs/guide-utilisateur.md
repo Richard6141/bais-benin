@@ -224,7 +224,17 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   enregistrer » (vue mais pas encore déclarée).
 - Le tableau « Communes où envoyer les agents en premier » classe les communes selon l'écart entre
   ce qui est vu et ce qui est déclaré. Un clic ouvre la fiche de la commune.
-- La section « Précision de la carte » dit combien de parcelles vérifiées sont bien reconnues.
+- La page a quatre onglets : « Surfaces », « Précision de la carte », « Par parcelle » et
+  « Surfaces par parcelle ». L'onglet ouvert reste dans l'adresse.
+- L'onglet « Précision de la carte » dit combien de parcelles vérifiées sont bien reconnues.
+- L'onglet « Par parcelle » concerne les communes pilotes, où la culture est mesurée sur le contour
+  de chaque parcelle :
+  - la précision « Sur une commune nouvelle » : chaque commune est jugée par un modèle qui ne l'a
+    jamais vue, avec sa marge d'erreur. C'est ce chiffre qu'il faut citer ;
+  - l'accord avec les déclarations, culture par culture ;
+  - les « Désaccords à vérifier » : un clic sur une parcelle l'ouvre sur la carte.
+- L'onglet « Surfaces par parcelle » donne les surfaces par culture de ces parcelles. Il les met
+  face à la carte des pixels de la commune.
 - Les surfaces sont recalculées une fois par mois, pendant les huit premiers jours.
 - Le bouton « Carte des cultures » ouvre la carte correspondante.
 
