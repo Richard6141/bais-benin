@@ -65,6 +65,8 @@ export const ACTIONS = [
   // Enquête aréolaire (ADR-0033) : constater l'occupation du sol sur un point tiré, dans les
   // communes de l'agent.
   "survey.observe",
+  // Statistiques agricoles officielles (ADR-0034) : importer les chiffres de la DSA ou de FAOSTAT.
+  "stats.import",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -111,6 +113,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "ranking.publish": "ALL",
     "consent.manage": "NONE",
     "survey.observe": "NONE",
+    "stats.import": "ALL",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -156,6 +159,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
     "survey.observe": "SCOPE",
+    "stats.import": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -194,6 +198,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     // Accords du producteur sur son propre compte : messages WhatsApp, palmarès public.
     "consent.manage": "SELF",
     "survey.observe": "NONE",
+    "stats.import": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -231,6 +236,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
     "survey.observe": "NONE",
+    "stats.import": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -268,5 +274,6 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "ranking.publish": "NONE",
     "consent.manage": "NONE",
     "survey.observe": "NONE",
+    "stats.import": "NONE",
   },
 };
