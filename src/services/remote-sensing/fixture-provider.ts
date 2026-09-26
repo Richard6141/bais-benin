@@ -1,3 +1,4 @@
+import { syntheticParcelSeries } from "./fixture-parcel-series";
 import type {
   RadarInterval,
   RemoteSensingProvider,
@@ -213,6 +214,13 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
 
     // Répartition synthétique des classes, proportionnelle à la surface de la géométrie :
     // cultures annuelles, savane et jachère dominent ; coton au nord seulement.
+    async parcelSeries(request) {
+      return {
+        ...syntheticParcelSeries(request, demoVigour(request.demoKeys)),
+        processingUnits: null,
+      };
+    },
+
     // Riz de démonstration : 1 à 3 % de la commune au sud, moins au nord, toujours un peu plus
     // que ce que l'optique retient (rizières de bas-fond sous les nuages).
     async riceRadarStatistics(request) {

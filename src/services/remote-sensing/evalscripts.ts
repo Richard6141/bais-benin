@@ -211,3 +211,53 @@ function evaluatePixel(s) {
   const ndvi = valid ? (s.B08 - s.B04) / (s.B08 + s.B04) : NaN;
   return { ndvi: [ndvi], dataMask: [valid ? 1 : 0] };
 }`;
+
+/**
+ * Série Sentinel-2 d'une parcelle pour le modèle de culture (ADR-0030) : NDVI (B04, B08) et NDMI
+ * (B08, B11, humidité du couvert et submersion des rizières), nuages, ombres et neige écartés.
+ * Moyenne sur le contour, une valeur par décade (API Statistical).
+ */
+export const PARCEL_S2_EVALSCRIPT = `//VERSION=3
+const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
+function setup() {
+  return {
+    input: [{ bands: ["B04", "B08", "B11", "SCL", "dataMask"] }],
+    output: [
+      { id: "ndvi", bands: 1, sampleType: "FLOAT32" },
+      { id: "ndmi", bands: 1, sampleType: "FLOAT32" },
+      { id: "dataMask", bands: 1 }
+    ]
+  };
+}
+function evaluatePixel(s) {
+  const valid = s.dataMask === 1 && !MASKED.includes(s.SCL) && s.B08 + s.B04 > 0 && s.B08 + s.B11 > 0;
+  return {
+    ndvi: [valid ? (s.B08 - s.B04) / (s.B08 + s.B04) : NaN],
+    ndmi: [valid ? (s.B08 - s.B11) / (s.B08 + s.B11) : NaN],
+    dataMask: [valid ? 1 : 0]
+  };
+}`;
+
+/**
+ * Série Sentinel-1 d'une parcelle (ADR-0030) : rétrodiffusion VV et VH en décibels, moyenne sur le
+ * contour. Le radar voit à travers les nuages de pleine saison.
+ */
+export const PARCEL_S1_EVALSCRIPT = `//VERSION=3
+function setup() {
+  return {
+    input: [{ bands: ["VV", "VH", "dataMask"] }],
+    output: [
+      { id: "vv", bands: 1, sampleType: "FLOAT32" },
+      { id: "vh", bands: 1, sampleType: "FLOAT32" },
+      { id: "dataMask", bands: 1 }
+    ]
+  };
+}
+function evaluatePixel(s) {
+  const valid = s.dataMask === 1 && s.VV > 0 && s.VH > 0;
+  return {
+    vv: [valid ? (10 * Math.log(s.VV)) / Math.LN10 : NaN],
+    vh: [valid ? (10 * Math.log(s.VH)) / Math.LN10 : NaN],
+    dataMask: [valid ? 1 : 0]
+  };
+}`;

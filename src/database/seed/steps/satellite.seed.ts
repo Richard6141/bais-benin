@@ -1,7 +1,9 @@
 import { prisma } from "@/database/client";
 import { getServerEnv } from "@/lib/env";
 import {
+  collectParcelSeries,
   runCropClassChecks,
+  trainAndPredictCrops,
   runVegetationChecks,
   writeDemoCropAreaEstimates,
   type VegetationRunResult,
@@ -49,4 +51,19 @@ export async function seedCropClassChecks(): Promise<number | null> {
     limit: DEMO_ACCURACY_PARCELS,
   });
   return result.checked;
+}
+
+// Cultures par parcelle de démonstration (ADR-0030) : séries synthétiques des parcelles des
+// communes pilotes, puis un premier modèle entraîné sur leurs parcelles vérifiées. Mêmes gardes ;
+// une série réelle n'est jamais effacée, la démonstration seule est refaite.
+export async function seedParcelCrops(): Promise<number | null> {
+  if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
+  await prisma.parcelCropPrediction.deleteMany({ where: { sourceId: "BAIS_SEED" } });
+  await prisma.parcelSignature.deleteMany({ where: { sourceId: "BAIS_SEED" } });
+  const series = await collectParcelSeries({
+    provider: createFixtureRemoteSensingProvider(),
+    limit: 5000,
+  });
+  await trainAndPredictCrops();
+  return series.read;
 }

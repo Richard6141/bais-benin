@@ -13,5 +13,9 @@
 0 6 1-8 * * /usr/local/bin/call-app.sh crop-map
 # Précision de la carte des cultures sur les parcelles vérifiées : le 9 à 7 h 30 à Porto-Novo.
 30 6 9 * * /usr/local/bin/call-app.sh crop-accuracy
+# Séries des parcelles des communes pilotes (cultures par parcelle) : du 10 au 14 à 8 h 00.
+0 7 10-14 * * /usr/local/bin/call-app.sh parcel-series
+# Entraînement du modèle de culture et mesure des parcelles, sans Copernicus : le 15 à 9 h 00.
+0 8 15 * * /usr/local/bin/call-app.sh crop-model
 # Feux actifs NASA FIRMS (ADR-0022) : ingestion et alertes « feu de brousse », toutes les 30 minutes.
 */30 * * * * /usr/local/bin/call-app.sh fires

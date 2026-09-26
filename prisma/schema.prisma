@@ -215,6 +215,9 @@ model DataSource {
   vegetationChecks    ParcelVegetationCheck[]
   cropAreaEstimates   CropAreaEstimate[]
   cropClassChecks     ParcelCropClassCheck[]
+  parcelSignatures    ParcelSignature[]
+  cropModels          CropModel[]
+  cropPredictions     ParcelCropPrediction[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -350,6 +353,7 @@ model Crop {
   vegetationChecks ParcelVegetationCheck[]
   producerGroups   ProducerGroup[]
   cropClassChecks  ParcelCropClassCheck[]
+  cropPredictions  ParcelCropPrediction[]
 
   @@map("crop")
 }
@@ -376,6 +380,9 @@ model AgriculturalCampaign {
   cropAreaEstimates CropAreaEstimate[]
   producerGroups    ProducerGroup[]
   cropClassChecks   ParcelCropClassCheck[]
+  parcelSignatures  ParcelSignature[]
+  cropModels        CropModel[]
+  cropPredictions   ParcelCropPrediction[]
 
   @@map("agricultural_campaign")
 }
@@ -677,6 +684,8 @@ model Parcel {
   crops            ParcelCrop[]
   vegetationChecks ParcelVegetationCheck[]
   cropClassChecks  ParcelCropClassCheck[]
+  signatures       ParcelSignature[]
+  cropPredictions  ParcelCropPrediction[]
   verifications    FarmVerification[]
   fieldReports     FieldReport[]
 
@@ -1781,4 +1790,101 @@ model ParcelCropClassCheck {
   @@unique([parcelId, campaignId])
   @@index([campaignId, declaredClass])
   @@map("parcel_crop_class_check")
+}
+
+// ---------------------------------------------------------------------------
+// Cultures par parcelle (ADR-0030) : séries satellite de chaque parcelle, modèle entraîné sur les
+// parcelles vérifiées par les agents, culture mesurée avec sa confiance.
+// ---------------------------------------------------------------------------
+
+// Séries Sentinel-2 (NDVI, NDMI par décade) et Sentinel-1 (VV, VH par pas de 12 jours) agrégées sur
+// le contour de la parcelle, de janvier de l'année de campagne à la date lue, et variables tirées
+// de ces séries. Complétées mois après mois : seul le nouveau morceau est demandé à Copernicus.
+model ParcelSignature {
+  id              String               @id @default(uuid(7)) @db.Uuid
+  parcelId        String               @map("parcel_id") @db.Uuid
+  parcel          Parcel               @relation(fields: [parcelId], references: [id])
+  campaignId      String               @map("campaign_id") @db.Uuid
+  campaign        AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  windowFrom      DateTime             @map("window_from") @db.Date
+  observedUntil   DateTime             @map("observed_until") @db.Date
+  s2Series        Json                 @map("s2_series")
+  s1Series        Json                 @map("s1_series")
+  // Variables du modèle, par nom ; recalculées à chaque complément de série.
+  features        Json
+  featureVersion  Int                  @map("feature_version")
+  // Unités de traitement Copernicus dépensées pour cette parcelle, tous compléments compris.
+  processingUnits Decimal?             @map("processing_units") @db.Decimal(8, 3)
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([parcelId, campaignId])
+  @@index([campaignId])
+  @@map("parcel_signature")
+}
+
+// Modèle de classification entraîné sur les parcelles vérifiées (forêt aléatoire, ADR-0030). Chaque
+// entraînement donne une nouvelle version ; les arbres sont gardés en JSON.
+model CropModel {
+  id              String               @id @default(uuid(7)) @db.Uuid
+  version         Int                  @unique
+  campaignId      String               @map("campaign_id") @db.Uuid
+  campaign        AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  algorithm       String
+  featureVersion  Int                  @map("feature_version")
+  classes         String[]
+  featureNames    String[]             @map("feature_names")
+  params          Json
+  model           Json
+  trainingParcels Int                  @map("training_parcels")
+  // Précision estimée : hors sac (lot 1), validation croisée spatiale par commune (lot 3).
+  metrics         Json
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  trainedAt   DateTime    @default(now()) @map("trained_at")
+
+  predictions ParcelCropPrediction[]
+
+  @@map("crop_model")
+}
+
+enum PredictionAgreement {
+  AGREES
+  DIFFERS
+  UNCERTAIN
+}
+
+// Culture mesurée d'une parcelle pour la campagne : classe du modèle, confiance (part des arbres qui
+// la votent), écart avec la culture déclarée.
+model ParcelCropPrediction {
+  id            String               @id @default(uuid(7)) @db.Uuid
+  parcelId      String               @map("parcel_id") @db.Uuid
+  parcel        Parcel               @relation(fields: [parcelId], references: [id])
+  campaignId    String               @map("campaign_id") @db.Uuid
+  campaign      AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  modelId       String               @map("model_id") @db.Uuid
+  model         CropModel            @relation(fields: [modelId], references: [id])
+  cropGroup     String               @map("crop_group")
+  // Culture du registre quand la classe n'en contient qu'une (maïs, riz, coton, soja).
+  cropId        String?              @map("crop_id") @db.Uuid
+  crop          Crop?                @relation(fields: [cropId], references: [id])
+  confidence    Decimal              @db.Decimal(4, 3)
+  probabilities Json
+  declaredGroup String?              @map("declared_group")
+  agreement     PredictionAgreement
+  observedUntil DateTime             @map("observed_until") @db.Date
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([parcelId, campaignId])
+  @@index([campaignId, agreement])
+  @@map("parcel_crop_prediction")
 }

@@ -104,6 +104,17 @@ const serverSchema = z
     // Riz par radar Sentinel-1 dans les surfaces par commune (ADR-0026) : environ 2 unités de
     // plus par commune. Désactivé tant qu'une mesure réelle n'a pas validé la règle.
     SATELLITE_RADAR_RICE: z.enum(["0", "1"]).default("0"),
+    // Communes pilotes des cultures par parcelle (ADR-0030) : seules leurs parcelles sont lues
+    // par satellite, en attendant l'échantillon aréolaire. Codes séparés par des virgules.
+    CROP_MODEL_PILOT_COMMUNES: z
+      .string()
+      .default("BJ-BOR-008,BJ-ATA-008,BJ-DON-001,BJ-COL-004,BJ-ALI-006")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
     // Tuiles détaillées absentes du cache qu'un même compte peut faire calculer par mois.
     SATELLITE_TILE_MISSES_PER_ACCOUNT: z.coerce.number().int().min(0).default(400),
 

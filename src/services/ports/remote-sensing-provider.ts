@@ -154,6 +154,30 @@ export interface CropAreaRequest {
   expectedClass?: number;
 }
 
+/** Séries satellite d'une parcelle pour le modèle de culture (ADR-0030). */
+export interface ParcelSeriesRequest {
+  geometry: PolygonGeometry;
+  from: string;
+  to: string;
+  /** Latitude moyenne, pour convertir 10 m au sol en unités Web Mercator. */
+  latitude: number;
+  timeoutMs?: number;
+  /** Classe de culture déclarée, pour la seule fixture ; jamais envoyée à Copernicus. */
+  expectedGroup?: string;
+  /** Clés de la démonstration, pour la seule fixture. */
+  demoKeys?: { commune: string; parcel: string };
+  /** Parcelle d'une exploitation vérifiée, pour la seule fixture : la culture déclarée est vraie. */
+  verified?: boolean;
+}
+
+export interface ParcelSeriesResult {
+  /** Une valeur par décade : NDVI, NDMI, part des pixels vus sans nuage (0 à 1). */
+  s2: { from: string; to: string; ndvi: number | null; ndmi: number | null; valid: number }[];
+  /** Une valeur par pas de 12 jours, en décibels. */
+  s1: { from: string; to: string; vv: number | null; vh: number | null }[];
+  processingUnits: number | null;
+}
+
 /** Riz vu par le radar Sentinel-1 sur une commune (ADR-0026). */
 export interface RiceRadarRequest {
   geometry: PolygonGeometry | MultiPolygonGeometry;
@@ -249,6 +273,7 @@ export interface RemoteSensingProvider {
   radarStatistics(request: RadarStatisticsRequest): Promise<StatisticsResult<RadarInterval>>;
   cropAreaStatistics(request: CropAreaRequest): Promise<CropAreaResult>;
   riceRadarStatistics(request: RiceRadarRequest): Promise<RiceRadarResult>;
+  parcelSeries(request: ParcelSeriesRequest): Promise<ParcelSeriesResult>;
   fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
 }
 
