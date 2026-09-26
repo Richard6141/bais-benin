@@ -47,9 +47,89 @@ function evaluatePixel(s) {
 }`;
 }
 
-/** Script de rendu d'une couche d'image. */
-export function renderEvalscript(layer: ImageryLayer): string {
-  return layer === "TRUE_COLOR" ? TRUE_COLOR : ndviRenderScript();
+/** Passages retenus pour la mosaïque sans nuages : chacun ajoute son coût en unités. */
+export const CLOUD_FREE_PASSES = 3;
+
+// Mosaïque sans nuages (mosaïque par orbite) : ne garde que les passages les moins nuageux, puis
+// prend pour chaque pixel le plus récent de ces passages où il est dégagé (les échantillons
+// arrivent du plus récent au plus ancien).
+const CLEAR_PICK = `
+const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
+const PASSES = ${CLOUD_FREE_PASSES};
+function orbitCloud(orbit) {
+  const tiles = orbit.tiles || [];
+  if (tiles.length === 0) return 50;
+  let sum = 0;
+  for (let t = 0; t < tiles.length; t++) {
+    sum += typeof tiles[t].cloudCoverage === "number" ? tiles[t].cloudCoverage : 50;
+  }
+  return sum / tiles.length;
+}
+function preProcessScenes(collections) {
+  const orbits = collections.scenes.orbits;
+  const kept = orbits.slice().sort(function (a, b) { return orbitCloud(a) - orbitCloud(b); })
+    .slice(0, PASSES);
+  collections.scenes.orbits = orbits.filter(function (orbit) { return kept.indexOf(orbit) >= 0; });
+  return collections;
+}
+function clearSample(samples) {
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.dataMask === 1 && MASKED.indexOf(s.SCL) < 0) return s;
+  }
+  return null;
+}`;
+
+// Couleur naturelle sans nuages ; un pixel couvert à chaque passage garde le plus récent, nuage
+// compris, plutôt qu'un trou dans l'image.
+const TRUE_COLOR_CLOUD_FREE = `//VERSION=3
+${CLEAR_PICK}
+function setup() {
+  return {
+    input: [{ bands: ["B02", "B03", "B04", "SCL", "dataMask"] }],
+    output: { bands: 4, sampleType: "AUTO" },
+    mosaicking: "ORBIT"
+  };
+}
+function evaluatePixel(samples) {
+  let s = clearSample(samples);
+  if (!s) {
+    for (let i = 0; i < samples.length && !s; i++) if (samples[i].dataMask === 1) s = samples[i];
+  }
+  if (!s) return [0, 0, 0, 0];
+  return [2.5 * s.B04, 2.5 * s.B03, 2.5 * s.B02, 1];
+}`;
+
+function ndviCloudFreeScript(): string {
+  const classes = ndviScale.map((entry) => ({
+    max: entry.max,
+    rgb: hexToUnitRgb(entry.color),
+  }));
+  return `//VERSION=3
+${CLEAR_PICK}
+const CLASSES = ${JSON.stringify(classes)};
+function setup() {
+  return {
+    input: [{ bands: ["B04", "B08", "SCL", "dataMask"] }],
+    output: { bands: 4, sampleType: "AUTO" },
+    mosaicking: "ORBIT"
+  };
+}
+function evaluatePixel(samples) {
+  const s = clearSample(samples);
+  if (!s) return [0, 0, 0, 0];
+  const ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+  for (const c of CLASSES) {
+    if (c.max === null || ndvi < c.max) return [c.rgb[0], c.rgb[1], c.rgb[2], 1];
+  }
+  return [0, 0, 0, 0];
+}`;
+}
+
+/** Script de rendu d'une couche d'image ; `cloudFree` : mosaïque sans nuages par pixel. */
+export function renderEvalscript(layer: ImageryLayer, cloudFree = false): string {
+  if (layer === "TRUE_COLOR") return cloudFree ? TRUE_COLOR_CLOUD_FREE : TRUE_COLOR;
+  return cloudFree ? ndviCloudFreeScript() : ndviRenderScript();
 }
 
 /**

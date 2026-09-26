@@ -56,6 +56,11 @@ export interface ImageryRequest {
   to: string;
   /** Scènes plus nuageuses ignorées, en pour cent. */
   maxCloudCover: number;
+  /**
+   * Mosaïque sans nuages : chaque pixel pris au passage le plus récent où il est dégagé, parmi
+   * les passages les moins nuageux de la période (fenêtre glissante des 60 jours).
+   */
+  cloudFree?: boolean;
 }
 
 export interface ImageryResult {

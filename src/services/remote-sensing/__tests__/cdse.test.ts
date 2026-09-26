@@ -259,6 +259,82 @@ describe("scripts d'évaluation", () => {
   });
 });
 
+describe("mosaïque sans nuages des 60 derniers jours", () => {
+  type Sample = {
+    B02: number;
+    B03: number;
+    B04: number;
+    B08: number;
+    SCL: number;
+    dataMask: number;
+  };
+  interface CloudFree {
+    evaluatePixel: (samples: Sample[]) => number[];
+    preProcessScenes: (collections: {
+      scenes: { orbits: { dateFrom: string; tiles: { cloudCoverage: number }[] }[] };
+    }) => { scenes: { orbits: { dateFrom: string }[] } };
+  }
+  // Évalue notre propre script constant, sans aucune donnée extérieure : test seulement.
+  const run = (layer: "TRUE_COLOR" | "NDVI"): CloudFree =>
+    new Function(`${renderEvalscript(layer, true)}; return { evaluatePixel, preProcessScenes };`)();
+  const sample = (value: number, scl: number): Sample => ({
+    B02: value,
+    B03: value,
+    B04: value,
+    B08: value * 3,
+    SCL: scl,
+    dataMask: 1,
+  });
+
+  it("prend chaque pixel au passage le plus récent où il est dégagé", () => {
+    const cloudy = sample(0.4, 9);
+    const clear = sample(0.1, 4);
+    expect(run("TRUE_COLOR").evaluatePixel([cloudy, clear])).toEqual([0.25, 0.25, 0.25, 1]);
+    // Couvert à chaque passage : le plus récent, nuage compris, plutôt qu'un trou.
+    expect(run("TRUE_COLOR").evaluatePixel([cloudy, sample(0.3, 8)])).toEqual([1, 1, 1, 1]);
+    expect(run("NDVI").evaluatePixel([cloudy, sample(0.3, 8)])).toEqual([0, 0, 0, 0]);
+    expect(run("NDVI").evaluatePixel([cloudy, clear])[3]).toBe(1);
+  });
+
+  it("ne garde que les trois passages les moins nuageux, dans leur ordre", () => {
+    const orbit = (day: string, cloudCoverage: number) => ({
+      dateFrom: `2026-09-${day}T10:00:00Z`,
+      tiles: [{ cloudCoverage }],
+    });
+    const result = run("TRUE_COLOR").preProcessScenes({
+      scenes: {
+        orbits: [
+          orbit("25", 90),
+          orbit("20", 15),
+          orbit("15", 60),
+          orbit("10", 5),
+          orbit("05", 30),
+        ],
+      },
+    });
+    expect(result.scenes.orbits.map((entry) => entry.dateFrom.slice(8, 10))).toEqual([
+      "20",
+      "10",
+      "05",
+    ]);
+  });
+
+  it("demande tous les passages de la fenêtre au lieu de la scène la moins nuageuse", () => {
+    const body = buildProcessBody({
+      layer: "TRUE_COLOR",
+      envelope: [10, 20, 30, 40],
+      width: 512,
+      height: 512,
+      from: "2026-07-28T00:00:00Z",
+      to: "2026-09-26T00:00:00Z",
+      maxCloudCover: 80,
+      cloudFree: true,
+    });
+    expect(body.input.data[0]?.dataFilter).not.toHaveProperty("mosaickingOrder");
+    expect(body.evalscript).toContain('mosaicking: "ORBIT"');
+  });
+});
+
 describe("variables de délimitation des champs", () => {
   it("demandent tous les passages de la période, nuages très couverts écartés", () => {
     const body = buildFieldFeaturesBody({
