@@ -21,3 +21,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0015 | Détection des foyers par regroupement de signalements, dans le moteur de règles | acceptée, corrigée |
 | 0016 | Vue du ciel : Sentinel-2 depuis le Copernicus Data Space Ecosystem, calcul côté Copernicus | acceptée |
 | 0018 | Palmarès nominatif des producteurs, réservé au ministère ; palmarès public des lauréats consentants | acceptée, complétée |
+| 0019 | Radar Sentinel-1 pour la saison des pluies, quand les nuages empêchent Sentinel-2 de conclure | acceptée, complète 0016 |
