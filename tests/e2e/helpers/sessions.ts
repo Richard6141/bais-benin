@@ -52,7 +52,7 @@ export async function savePhoneSession(baseURL: string, project: string, persona
         const page = await context.newPage();
         await page.goto("/connexion");
         await page.getByLabel("Votre NPI", { exact: true }).fill(account.npi);
-        await page.getByLabel("Votre téléphone").fill(account.digits);
+        await page.getByLabel("Votre téléphone", { exact: true }).fill(account.digits);
         await page.getByRole("button", { name: "Recevoir mon code sur WhatsApp" }).click();
         await expect(page.getByText(/Code reçu sur WhatsApp au \+229/)).toBeVisible({
           timeout: 20_000,
