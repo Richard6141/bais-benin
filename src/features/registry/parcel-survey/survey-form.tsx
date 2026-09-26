@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAgentDatabase } from "@/lib/offline/db";
 import { estimatePolygonAreaHa } from "@/lib/geo/polygon-area";
+import { ringsOverlap, selfIntersects } from "@/lib/geo/ring-checks";
 import { useSync } from "@/lib/offline/use-sync";
 import { browserCaptureCorner, type CornerCaptureFunction } from "./corner-capture";
 import { areaGapPercent } from "@/modules/sync/handlers/geometry";
@@ -22,6 +23,11 @@ interface SurveyFormProps {
   parcel: { id: string; code: string; declaredAreaHa: number; version: number };
   /** Injectable pour les tests ; par défaut la moyenne de plusieurs lectures du navigateur. */
   captureCorner?: CornerCaptureFunction;
+  /** Contours déjà relevés des autres parcelles de l'exploitation, pour signaler un recouvrement. */
+  otherContours?: ReadonlyArray<{
+    code: string;
+    ring: ReadonlyArray<{ lng: number; lat: number }>;
+  }>;
 }
 
 const areaFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 3 });
@@ -34,29 +40,40 @@ export function SurveyForm({
   farm,
   parcel,
   captureCorner = browserCaptureCorner,
+  otherContours = [],
 }: SurveyFormProps) {
   const sync = useSync(userId);
   const [corners, setCorners] = useState<GeoPosition[]>([]);
   const [capturing, setCapturing] = useState(false);
   const [sampleCount, setSampleCount] = useState(0);
+  const [liveAccuracyM, setLiveAccuracyM] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const areaHa = corners.length >= MIN_SURVEY_CORNERS ? estimatePolygonAreaHa(corners) : null;
   const gapPercent = areaHa === null ? null : areaGapPercent(parcel.declaredAreaHa, areaHa);
+  const crossing = selfIntersects(corners);
+  const overlapping =
+    corners.length >= MIN_SURVEY_CORNERS
+      ? otherContours.filter((other) => ringsOverlap(corners, other.ring))
+      : [];
 
   async function markCorner() {
     setError(null);
     setCapturing(true);
     setSampleCount(0);
     try {
-      const position = await captureCorner((count) => setSampleCount(count));
+      const position = await captureCorner((count, accuracyM) => {
+        setSampleCount(count);
+        setLiveAccuracyM(accuracyM ?? null);
+      });
       setCorners((current) => [...current, position]);
     } catch (cause) {
       setError(describeLocateError(cause));
     } finally {
       setCapturing(false);
       setSampleCount(0);
+      setLiveAccuracyM(null);
     }
   }
 
@@ -127,6 +144,8 @@ export function SurveyForm({
               : `Marquer ce coin (${corners.length})`}
           </Button>
 
+          {capturing ? <GpsPrecisionHint accuracyM={liveAccuracyM} /> : null}
+
           {corners.length > 0 ? (
             <ul className="flex flex-col gap-2" aria-label="Coins relevés">
               {corners.map((corner, index) => (
@@ -164,6 +183,26 @@ export function SurveyForm({
             </p>
           ) : null}
 
+          {crossing ? (
+            <Alert variant="critical" role="alert">
+              <AlertTitle>Le contour se croise</AlertTitle>
+              <AlertDescription>
+                Deux côtés se coupent. Retirez le coin fautif ou reprenez les coins dans
+                l&apos;ordre du tour.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {overlapping.length > 0 ? (
+            <Alert variant="warning" role="alert">
+              <AlertTitle>Recouvre une autre parcelle</AlertTitle>
+              <AlertDescription>
+                Ce contour recouvre la parcelle {overlapping.map((other) => other.code).join(", ")}{" "}
+                de la même exploitation. Vérifiez les coins avant de terminer.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {error ? (
             <Alert variant="critical" role="alert">
               <AlertTitle>Impossible de relever ce coin</AlertTitle>
@@ -180,7 +219,7 @@ export function SurveyForm({
           </Button>
           <Button
             className="h-12 flex-1"
-            disabled={corners.length < MIN_SURVEY_CORNERS}
+            disabled={corners.length < MIN_SURVEY_CORNERS || crossing}
             onClick={() => void submit()}
           >
             Terminer le relevé
