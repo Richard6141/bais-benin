@@ -25,6 +25,8 @@ export interface SceneSearchRequest {
   limit: number;
   /** Scènes plus nuageuses écartées dès le catalogue, en pour cent. */
   maxCloudCover?: number;
+  /** Délai de chaque page du catalogue, en millisecondes (30 s par défaut). */
+  timeoutMs?: number;
 }
 
 /** Scène Sentinel-2 L2A trouvée dans le catalogue. */

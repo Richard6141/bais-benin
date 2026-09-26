@@ -656,6 +656,7 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
             body: JSON.stringify(body),
           },
           "Catalogue STAC",
+          request.timeoutMs,
         );
         const page = await readResponse("Catalogue STAC", async () =>
           stacPageSchema.parse(await response.json()),
