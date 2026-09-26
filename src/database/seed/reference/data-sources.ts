@@ -62,6 +62,15 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "SENSOR",
   },
   {
+    id: "COPERNICUS_S1",
+    name: "Copernicus Sentinel-1 GRD (radar) — Copernicus Data Space Ecosystem",
+    organization: "Commission européenne et Agence spatiale européenne (programme Copernicus)",
+    url: "https://dataspace.copernicus.eu",
+    licence:
+      "Licence Copernicus (accès libre et gratuit) — « Contains modified Copernicus Sentinel data »",
+    kind: "SENSOR",
+  },
+  {
     id: "ATDA_TERRAIN",
     name: "Relevés de terrain des agents",
     organization: "Agences Territoriales de Développement Agricole",
