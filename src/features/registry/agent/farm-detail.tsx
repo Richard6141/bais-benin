@@ -1,4 +1,11 @@
-import { ClipboardCheck, MapPin, MapPinned, MessageCircleQuestion, Phone } from "lucide-react";
+import {
+  ClipboardCheck,
+  MapPin,
+  MapPinned,
+  MessageCircleQuestion,
+  Phone,
+  TriangleAlert,
+} from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import {
@@ -13,7 +20,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { FarmDetail } from "@/modules/registry";
+import type { FarmDetail, ParcelOverlapFlag } from "@/modules/registry";
 import { EventTimeline, summarizeEvent } from "./event-timeline";
 import { FarmOutbox } from "./farm-outbox";
 import {
@@ -200,6 +207,25 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
                         ? ` · ${formatHa(parcel.computedAreaHa)} mesurés`
                         : ""}
                     </p>
+                    {parcel.overlaps.length > 0 ? (
+                      <div
+                        role="note"
+                        className="flex flex-col gap-1 rounded-sm border border-l-4 border-l-[var(--watch)] bg-muted/50 px-3 py-2 text-sm"
+                      >
+                        <p className="flex items-center gap-2 font-semibold">
+                          <TriangleAlert className="size-4 text-[var(--watch)]" aria-hidden />
+                          Contour à vérifier : recouvre une autre parcelle
+                        </p>
+                        <ul className="flex flex-col gap-0.5 text-muted-foreground">
+                          {parcel.overlaps.map((overlap, index) => (
+                            <li key={index}>
+                              {overlapLabel(overlap)} · {formatHa(overlap.overlapHa)} en commun (
+                              {Math.round(overlap.overlapShare * 100)} % de la plus petite)
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     <Button asChild variant="outline" size="sm" className="self-start">
                       <Link
                         href={
@@ -273,4 +299,12 @@ function Item({ label, value }: { label: string; value: string }) {
       <dd className="font-medium">{value}</dd>
     </div>
   );
+}
+
+// Doublon interne, parcelle nommée (même exploitation ou exploitation que l'agent a aussi
+// enregistrée), ou parcelle d'une autre exploitation que l'agent ne peut pas lire (ADR-0014).
+function overlapLabel(overlap: ParcelOverlapFlag): string {
+  if (overlap.kind === "SAME_FARM") return `Même exploitation, parcelle ${overlap.otherParcelCode}`;
+  if (overlap.otherParcelCode) return `Parcelle ${overlap.otherParcelCode}`;
+  return "Parcelle d'une autre exploitation";
 }
