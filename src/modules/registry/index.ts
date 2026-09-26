@@ -24,3 +24,12 @@ export {
   type HarvestUnitCode,
 } from "./harvest";
 export { scopedCommuneIds, scopedCommunes, type CommuneScope, type ScopedCommune } from "./scope";
+export {
+  OVERLAP_LIST_LIMIT,
+  farmParcelOverlaps,
+  listParcelOverlaps,
+  type OverlapKind,
+  type ParcelOverlapFlag,
+  type ParcelOverlapList,
+  type ParcelOverlapPair,
+} from "./parcel-overlaps";

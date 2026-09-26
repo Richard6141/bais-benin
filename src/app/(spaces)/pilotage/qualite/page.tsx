@@ -13,19 +13,22 @@ import {
   FreshnessSection,
   GapsSection,
 } from "@/features/dashboard/quality-sections";
+import { ParcelOverlapsSection } from "@/features/dashboard/parcel-overlaps-section";
 import { getDataQuality } from "@/modules/analytics";
+import { listParcelOverlaps } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Qualité des données" };
 
 // D : qualité du registre, pour juger d'un chiffre avant de le citer. Des comptes et des
-// communes seulement : aucun nom de producteur ni d'agent.
+// communes, plus les codes des parcelles qui se recouvrent : aucun nom de producteur ni d'agent.
 export default async function DataQualityPage(props: PageProps<"/pilotage/qualite">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/qualite" });
   const { departementCode } = parseDashboardFilters(await props.searchParams);
-  const [quality, departements] = await Promise.all([
+  const [quality, departements, overlaps] = await Promise.all([
     getDataQuality(user.actor, { departementCode }),
     listDepartements(),
+    listParcelOverlaps(user.actor, { departementCode }),
   ]);
 
   return (
@@ -67,6 +70,16 @@ export default async function DataQualityPage(props: PageProps<"/pilotage/qualit
       >
         <AgeingSection ageing={quality.ageing} />
       </DashboardSection>
+
+      {overlaps ? (
+        <DashboardSection
+          id="chevauchements"
+          title="Chevauchements de parcelles"
+          description="Contours relevés qui se recouvrent : doublon, erreur de relevé ou conflit foncier, à vérifier sur place."
+        >
+          <ParcelOverlapsSection overlaps={overlaps} />
+        </DashboardSection>
+      ) : null}
 
       {quality.coverage ? (
         <DashboardSection

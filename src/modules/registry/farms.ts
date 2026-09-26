@@ -1,6 +1,7 @@
 import { prisma } from "@/database/client";
 import type { Prisma } from "@/generated/prisma/client";
 import { authorize, scopeFilter, type Actor } from "@/modules/authorization";
+import { farmParcelOverlaps, type ParcelOverlapFlag } from "./parcel-overlaps";
 
 // Lectures du registre. Le périmètre de l'acteur est traduit en clause Prisma avant
 // la requête : aucune ligne hors périmètre ne quitte la base (docs/06 §3).
@@ -155,6 +156,8 @@ export interface FarmDetail extends FarmListItem {
     declaredAreaHa: number;
     computedAreaHa: number | null;
     captureMethod: string;
+    /** Recouvrements avec d'autres parcelles (doublon, erreur de relevé, conflit foncier). */
+    overlaps: ParcelOverlapFlag[];
     centroid: { lng: number; lat: number } | null;
     crops: Array<{
       id: string;
@@ -260,6 +263,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
     communeId: row.communeId,
   });
   if (!decision.allowed) return null;
+  const overlaps = await farmParcelOverlaps(actor, farmId);
 
   const points = await prisma.$queryRaw<{ id: string; kind: string; lng: number; lat: number }[]>`
     SELECT "id", 'farm' AS kind, ST_X("location"::geometry) AS lng, ST_Y("location"::geometry) AS lat
@@ -282,6 +286,7 @@ export async function getFarmDetail(actor: Actor, farmId: string): Promise<FarmD
       declaredAreaHa: Number(parcel.declaredAreaHa),
       computedAreaHa: parcel.computedAreaHa === null ? null : Number(parcel.computedAreaHa),
       captureMethod: parcel.captureMethod,
+      overlaps: overlaps.get(parcel.id) ?? [],
       centroid: parcelPoints.has(parcel.id)
         ? { lng: parcelPoints.get(parcel.id)!.lng, lat: parcelPoints.get(parcel.id)!.lat }
         : null,
