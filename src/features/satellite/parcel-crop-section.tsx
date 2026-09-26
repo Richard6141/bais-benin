@@ -3,7 +3,8 @@ import { SortableTable } from "@/components/data-display/sortable-table";
 import { SourceCaption } from "@/components/data-display/source-caption";
 import { StatTile } from "@/components/data-display/stat-tile";
 import { HelpTip } from "@/components/forms/help-tip";
-import { cropGroupLabel, type ParcelCropOverview } from "@/modules/satellite";
+import type { ParcelCropOverview } from "@/modules/satellite";
+import { cropGroupLabel } from "@/modules/satellite/crop-groups";
 import { cropClassLabel } from "./crop-area-section";
 
 const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
@@ -54,7 +55,7 @@ export function ParcelCropSection({ overview }: { overview: ParcelCropOverview }
             wordValue={!accuracy || accuracy.accuracy === null}
             source={
               interval
-                ? `Marge ${percent.format(interval.low)} à ${percent.format(interval.high)}`
+                ? `Validation par commune, marge ${percent.format(interval.low)} à ${percent.format(interval.high)}`
                 : "Validation croisée par commune"
             }
             reliability="ESTIMATED"
