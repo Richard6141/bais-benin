@@ -6,6 +6,8 @@ import {
 import {
   buildFieldFeaturesBody,
   buildProcessBody,
+  buildRadarStatisticsBody,
+  parseRadarStatistics,
   decodeFieldFeatures,
   buildStacSearchBody,
   buildStatisticsBody,
@@ -320,5 +322,97 @@ describe("réponses illisibles de Copernicus", () => {
       .searchScenes({ bbox: BENIN, from: "a", to: "b", limit: 1 })
       .catch((error: unknown) => error);
     expect(scenes).toBeInstanceOf(RemoteSensingProviderError);
+  });
+});
+
+describe("radar Sentinel-1", () => {
+  const geometry = {
+    type: "Polygon" as const,
+    coordinates: [
+      [
+        [0, 0],
+        [0.001, 0],
+        [0.001, 0.001],
+        [0, 0],
+      ],
+    ],
+  };
+
+  it("demande le GRD en double polarisation, normalisé au relief, sur une seule orbite", () => {
+    const body = buildRadarStatisticsBody({
+      geometry,
+      from: "2026-06-01T00:00:00Z",
+      to: "2026-09-26T00:00:00Z",
+      intervalDays: 12,
+      orbitDirection: "DESCENDING",
+    });
+    const data = body.input.data[0];
+    expect(data?.type).toBe("sentinel-1-grd");
+    expect(data?.dataFilter).toEqual({
+      acquisitionMode: "IW",
+      polarization: "DV",
+      resolution: "HIGH",
+      orbitDirection: "DESCENDING",
+    });
+    expect(data?.processing).toMatchObject({
+      backCoeff: "GAMMA0_TERRAIN",
+      orthorectify: true,
+      demInstance: "COPERNICUS_30",
+      speckleFilter: { type: "LEE", windowSizeX: 3, windowSizeY: 3 },
+    });
+    expect(body.aggregation.aggregationInterval.of).toBe("P12D");
+    expect(body.aggregation.evalscript).toContain("4 * s.VH");
+  });
+
+  it("lit le RVI et la rétrodiffusion VH, et rien pour un pas sans passage", () => {
+    const intervals = parseRadarStatistics({
+      data: [
+        {
+          interval: { from: "2026-07-01T00:00:00Z", to: "2026-07-13T00:00:00Z" },
+          outputs: {
+            rvi: { bands: { B0: { stats: { mean: 0.48, sampleCount: 120, noDataCount: 0 } } } },
+            vh: { bands: { B0: { stats: { mean: -15.2, sampleCount: 120, noDataCount: 0 } } } },
+          },
+        },
+        {
+          interval: { from: "2026-07-13T00:00:00Z", to: "2026-07-25T00:00:00Z" },
+          outputs: {
+            rvi: { bands: { B0: { stats: { mean: "NaN", sampleCount: 120, noDataCount: 120 } } } },
+            vh: { bands: { B0: { stats: { mean: "NaN", sampleCount: 120, noDataCount: 120 } } } },
+          },
+        },
+      ],
+    });
+    expect(intervals[0]).toMatchObject({ rviMean: 0.48, vhDbMean: -15.2, validPixels: 120 });
+    expect(intervals[1]).toMatchObject({ rviMean: null, validPixels: 0 });
+  });
+
+  it("renvoie les unités de traitement décomptées par Copernicus", async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      String(url).includes("openid-connect")
+        ? Response.json({ access_token: "jeton", expires_in: 600 })
+        : Response.json({ data: [] }, { headers: { "x-processingunits-spent": "0.42" } }),
+    );
+    const provider = createCdseProvider({
+      clientId: "client",
+      clientSecret: "secret",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const radar = await provider.radarStatistics({
+      geometry,
+      from: "2026-06-01T00:00:00Z",
+      to: "2026-09-26T00:00:00Z",
+      intervalDays: 12,
+      orbitDirection: "DESCENDING",
+    });
+    expect(radar.processingUnits).toBeCloseTo(0.42);
+    const optical = await provider.vegetationStatistics({
+      geometry,
+      from: "2026-06-01T00:00:00Z",
+      to: "2026-09-26T00:00:00Z",
+      intervalDays: 10,
+    });
+    expect(optical.processingUnits).toBeCloseTo(0.42);
+    expect(provider.radarProvenance.sourceId).toBe("COPERNICUS_S1");
   });
 });

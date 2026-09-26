@@ -1,7 +1,9 @@
 import type {
+  RadarInterval,
   RemoteSensingProvider,
   SceneSummary,
   VegetationInterval,
+  VegetationStatisticsRequest,
 } from "@/services/ports/remote-sensing-provider";
 
 // Adaptateur fixture : séries NDVI synthétiques et déterministes, sans réseau ni compte, pour la
@@ -50,6 +52,37 @@ function dayOfYear(date: Date): number {
   return Math.floor((date.getTime() - start) / DAY_MS) + 1;
 }
 
+/** Pixels de 10 m de la parcelle (surface approchée de l'anneau en WGS84). */
+function parcelPixels(ring: number[][]): number {
+  if (ring.length < 4) return 0;
+  const lat = ring.reduce((sum, point) => sum + (point[1] ?? 0), 0) / ring.length;
+  const mx = 111_320 * Math.cos((lat * Math.PI) / 180);
+  let twice = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const [x1, y1] = ring[i] as [number, number];
+    const [x2, y2] = ring[i + 1] as [number, number];
+    twice += x1 * mx * (y2 * 111_320) - x2 * mx * (y1 * 111_320);
+  }
+  return Math.max(1, Math.round(Math.abs(twice) / 2 / 100));
+}
+
+/**
+ * Couvert synthétique d'une culture annuelle à une date : autour de la période de pic de la
+ * culture quand l'appelant la donne, sinon selon le régime des pluies de la latitude.
+ */
+function seasonalCover(
+  latitude: number,
+  date: Date,
+  expectedPeak: { from: string; to: string } | undefined,
+): number {
+  if (!expectedPeak) return seasonalNdvi(latitude, dayOfYear(date));
+  const from = Date.parse(expectedPeak.from);
+  const to = Date.parse(expectedPeak.to);
+  const middle = new Date((from + to) / 2);
+  const width = Math.max(25, (to - from) / DAY_MS / 2);
+  return 0.2 + 0.5 * bump(dayOfYear(date), dayOfYear(middle), width);
+}
+
 export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
   return {
     id: "fixture",
@@ -59,6 +92,12 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       reliability: "SYNTHETIC",
       licence: "Données synthétiques de démonstration",
       attribution: "Série NDVI synthétique (démonstration BAIS)",
+    },
+    radarProvenance: {
+      sourceId: "BAIS_SEED",
+      reliability: "SYNTHETIC",
+      licence: "Données synthétiques de démonstration",
+      attribution: "Série radar synthétique (démonstration BAIS)",
     },
 
     async searchScenes(request): Promise<SceneSummary[]> {
@@ -113,35 +152,72 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       return { width, height, peak, low, swir, processingUnits: null };
     },
 
-    async vegetationStatistics(request): Promise<VegetationInterval[]> {
+    async vegetationStatistics(request) {
+      return { intervals: syntheticNdvi(request), processingUnits: null };
+    },
+
+    // Radar : pas de nuage. Même régime saisonnier que le NDVI, en indice RVI (0,2 au sol nu,
+    // 0,5 à 0,6 en plein couvert), une parcelle sur huit restée nue, comme pour l'optique.
+    async radarStatistics(request) {
       const ring = request.geometry.coordinates[0] ?? [];
       const latitude =
         ring.reduce((sum, point) => sum + (point[1] ?? 0), 0) / Math.max(1, ring.length);
       const seed = hashString(JSON.stringify(ring));
       const bare = seed % 8 === 0;
-      const intervals: VegetationInterval[] = [];
+      const pixels = parcelPixels(ring);
+      const intervals: RadarInterval[] = [];
       const step = request.intervalDays * DAY_MS;
       for (let time = Date.parse(request.from); time < Date.parse(request.to); time += step) {
         const index = intervals.length;
         const middle = new Date(time + step / 2);
-        // Un intervalle sur cinq entièrement nuageux, comme en pleine saison des pluies.
-        const cloudy = noise(seed, index) < 0.2;
-        const expected = bare
-          ? 0.16
+        const cover = bare
+          ? 0.2
           : request.expectedCover === "PERMANENT"
-            ? 0.56
-            : seasonalNdvi(latitude, dayOfYear(middle));
-        const value = expected + (noise(seed, index + 100) - 0.5) * 0.06;
+            ? 0.55
+            : 0.2 + (seasonalCover(latitude, middle, request.expectedPeak) - 0.2) * 0.7;
+        const rvi = Number((cover + (noise(seed, index + 200) - 0.5) * 0.04).toFixed(3));
         intervals.push({
           from: new Date(time).toISOString(),
           to: new Date(Math.min(time + step, Date.parse(request.to))).toISOString(),
-          ndviMean: cloudy ? null : Number(value.toFixed(3)),
-          ndviStdDev: cloudy ? null : 0.05,
-          validPixels: cloudy ? 0 : 120,
-          maskedPixels: cloudy ? 120 : 0,
+          rviMean: rvi,
+          vhDbMean: Number((-22 + rvi * 14).toFixed(2)),
+          validPixels: pixels,
+          maskedPixels: 0,
         });
       }
-      return intervals;
+      return { intervals, processingUnits: null };
     },
   };
+}
+
+/** Série NDVI synthétique d'une parcelle : régime des pluies, nuages, parcelle nue une fois sur huit. */
+function syntheticNdvi(request: VegetationStatisticsRequest): VegetationInterval[] {
+  const ring = request.geometry.coordinates[0] ?? [];
+  const latitude = ring.reduce((sum, point) => sum + (point[1] ?? 0), 0) / Math.max(1, ring.length);
+  const seed = hashString(JSON.stringify(ring));
+  const bare = seed % 8 === 0;
+  const pixels = parcelPixels(ring);
+  const intervals: VegetationInterval[] = [];
+  const step = request.intervalDays * DAY_MS;
+  for (let time = Date.parse(request.from); time < Date.parse(request.to); time += step) {
+    const index = intervals.length;
+    const middle = new Date(time + step / 2);
+    // Un intervalle sur cinq entièrement nuageux, comme en pleine saison des pluies.
+    const cloudy = noise(seed, index) < 0.2;
+    const expected = bare
+      ? 0.16
+      : request.expectedCover === "PERMANENT"
+        ? 0.56
+        : seasonalCover(latitude, middle, request.expectedPeak);
+    const value = expected + (noise(seed, index + 100) - 0.5) * 0.06;
+    intervals.push({
+      from: new Date(time).toISOString(),
+      to: new Date(Math.min(time + step, Date.parse(request.to))).toISOString(),
+      ndviMean: cloudy ? null : Number(value.toFixed(3)),
+      ndviStdDev: cloudy ? null : 0.05,
+      validPixels: cloudy ? 0 : pixels,
+      maskedPixels: cloudy ? pixels : 0,
+    });
+  }
+  return intervals;
 }

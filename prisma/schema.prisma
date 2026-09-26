@@ -1433,6 +1433,10 @@ model ParcelVegetationCheck {
   windowFrom     DateTime              @map("window_from") @db.Date
   windowTo       DateTime              @map("window_to") @db.Date
   series         Json
+  // Capteur qui a tranché : S2 (NDVI, source principale) ou S1 (radar, seulement quand les
+  // nuages ont empêché Sentinel-2 de conclure, ADR-0019). La série radar est gardée à part.
+  sensor         String                @default("S2")
+  radarSeries    Json?                 @map("radar_series")
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])

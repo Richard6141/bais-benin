@@ -38,8 +38,8 @@ describe("fournisseur de télédétection fixture", () => {
     const first = await provider.vegetationStatistics(request);
     const second = await provider.vegetationStatistics(request);
     expect(first).toEqual(second);
-    expect(first).toHaveLength(19);
-    expect(first.some((interval) => interval.ndviMean === null)).toBe(true);
+    expect(first.intervals).toHaveLength(19);
+    expect(first.intervals.some((interval) => interval.ndviMean === null)).toBe(true);
     expect(
       await provider.renderImage({
         layer: "NDVI",
@@ -51,6 +51,26 @@ describe("fournisseur de télédétection fixture", () => {
         maxCloudCover: 80,
       }),
     ).toBeNull();
+  });
+});
+
+describe("radar synthétique", () => {
+  it("monte avec la saison au nord et reste plat sur un couvert permanent", async () => {
+    const provider = createFixtureRemoteSensingProvider();
+    const request = {
+      geometry: square(2.1, 10.3),
+      from: "2026-02-01T00:00:00.000Z",
+      to: "2026-10-31T00:00:00.000Z",
+      intervalDays: 12,
+      orbitDirection: "DESCENDING" as const,
+    };
+    const seasonal = await provider.radarStatistics(request);
+    const values = seasonal.intervals.map((interval) => interval.rviMean ?? 0);
+    expect(Math.max(...values) - Math.min(...values)).toBeGreaterThan(0.2);
+    expect(seasonal.intervals.every((interval) => interval.validPixels > 0)).toBe(true);
+    const permanent = await provider.radarStatistics({ ...request, expectedCover: "PERMANENT" });
+    const flat = permanent.intervals.map((interval) => interval.rviMean ?? 0);
+    expect(Math.max(...flat) - Math.min(...flat)).toBeLessThan(0.05);
   });
 });
 

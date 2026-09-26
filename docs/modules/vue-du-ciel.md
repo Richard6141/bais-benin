@@ -48,6 +48,11 @@ Seuils abaissés de 0,08 dans la zone de l'extrême nord (ZAE 1) et de 0,04 dans
    - **Trop de nuages** : moins de deux décades visibles sur la période de pic (moins de trois pour une plantation) ;
    - **À vérifier** : pic trop bas (`LOW_PEAK`), couvert dense sans cycle, comme une jachère arborée déclarée en maïs (`NO_CYCLE`), ou plantation au couvert trop faible (`LOW_COVER`).
 
+Deux cas particuliers :
+
+- **Maraîchage** (tomate, gombo, piment, oignon) : cycle court et pic bref, souvent entre deux passages. Un seul pas de 10 jours au-dessus du seuil suffit (0,30), cherché aussi un pas avant et après la période de pic. Une production échelonnée toute l'année (tomate au sud) n'a pas de saison : le pic peut tomber n'importe quand dans la campagne, et rien n'est signalé avant la fin de celle-ci.
+- **Petites parcelles** : sous 40 pixels de 10 m (0,4 ha), pas de verdict (« trop peu de données »), plutôt que de lire le sol nu voisin comme une culture absente.
+
 Un « à vérifier » appelle une visite : association de cultures, semis tardif, petite parcelle ou contour imprécis peuvent l'expliquer. Il ne conclut jamais à une fausse déclaration. Les seuils sont prudents et seront recalés sur les visites de terrain.
 
 ## Calcul et quota
@@ -78,6 +83,24 @@ S'y ajoutent, en amont :
 - **Échecs** : un échec de Copernicus est gardé une heure (l'image périmée est resservie, ou la zone reste vide) au lieu d'être redemandé aussitôt.
 - **Réponses illisibles** : une réponse illisible (JSON, schéma, image) devient un échec du fournisseur, jamais une erreur 500 après réservation.
 - Table `parcel_vegetation_check` : une ligne par parcelle, campagne et sous-saison, avec la série par décade (audit), le pic, le plancher, le seuil comparé, la source et la fiabilité (`ESTIMATED` pour Copernicus, `SYNTHETIC` pour la fixture).
+
+## Radar Sentinel-1 en saison des pluies (ADR-0019)
+
+Quand les nuages empêchent Sentinel-2 de conclure (« trop de nuages »), la confrontation peut demander l'indice de végétation radar de Sentinel-1 :
+
+- RVI = 4·VH / (VV + VH), par pas de 12 jours ;
+- mode IW, rétrodiffusion normalisée au relief, orbite descendante ;
+- même règle que le NDVI, avec des seuils propres au RVI (à calibrer).
+
+Le verdict porte alors le capteur `S1` et la source `COPERNICUS_S1`, et la série radar est gardée à part. Sentinel-2 reste la source principale.
+
+Mise en service :
+
+1. `SATELLITE_RADAR_FALLBACK=0` au départ.
+2. Mesurer le coût réel : `curl -X POST -H "Authorization: Bearer $CRON_SECRET" "https://…/api/v1/satellite/radar-calibration?limit=20"`. La commande renvoie les unités de traitement consommées par requête radar, sur une parcelle d'au moins 0,5 ha par commune et les 120 derniers jours. Chaque requête compte dans la part des statistiques.
+3. Rapporter la moyenne au plafond de `SATELLITE_MONTHLY_UNIT_BUDGET`, puis passer `SATELLITE_RADAR_FALLBACK=1`.
+
+Les unités de traitement des statistiques, optiques comme radar, sont désormais comptées dans le plafond mensuel ; seules celles des images l'étaient.
 
 ## Délimitation assistée des champs (phase 3)
 

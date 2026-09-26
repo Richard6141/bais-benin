@@ -29,7 +29,16 @@ export interface CropProfileInput {
 }
 
 export type ExpectedProfile =
-  | { kind: "SEASONAL"; minPeak: number; minAmplitude: number }
+  | {
+      kind: "SEASONAL";
+      minPeak: number;
+      minAmplitude: number;
+      /**
+       * Cycle court (maraîchage) : pic bref, souvent entre deux passages. Un seul pas au-dessus du
+       * seuil suffit, cherché aussi un pas avant et après la période de pic.
+       */
+      shortCycle?: boolean;
+    }
   | { kind: "PERMANENT"; minMedian: number };
 
 // Pic minimal attendu en saison et amplitude minimale entre sol nu et plein couvert.
@@ -39,7 +48,8 @@ const SEASONAL_THRESHOLDS: Record<CropCategoryCode, { minPeak: number; minAmplit
   LEGUME: { minPeak: 0.4, minAmplitude: 0.12 },
   CASH_CROP: { minPeak: 0.45, minAmplitude: 0.15 },
   OILSEED: { minPeak: 0.4, minAmplitude: 0.12 },
-  VEGETABLE: { minPeak: 0.35, minAmplitude: 0.1 },
+  // Petites planches maraîchères, souvent mêlées de sol nu dans le pixel de 10 m.
+  VEGETABLE: { minPeak: 0.3, minAmplitude: 0.08 },
   FRUIT: { minPeak: 0.4, minAmplitude: 0.1 },
 };
 
@@ -61,7 +71,16 @@ export function expectedProfile(crop: CropProfileInput, zoneCode: string | null)
     kind: "SEASONAL",
     minPeak: round(thresholds.minPeak - offset),
     minAmplitude: thresholds.minAmplitude,
+    ...(crop.category === "VEGETABLE" ? { shortCycle: true } : {}),
   };
+}
+
+/** Semis ou récolte étalés sur (presque) toute l'année : production échelonnée, sans saison. */
+function isYearRound(calendar: CropCalendarInput): boolean {
+  const span = ([start, end]: readonly [Month, Month]) => ((end - start + 12) % 12) + 1;
+  return (
+    (calendar.sowing !== undefined && span(calendar.sowing) >= 11) || span(calendar.harvest) >= 11
+  );
 }
 
 export interface SeasonWindow {
@@ -112,6 +131,13 @@ export function seasonWindow(
     crop.calendar.south ??
     crop.calendar.north;
   if (!calendar?.sowing) return null;
+  // Production échelonnée (tomate au sud : semis et récolte toute l'année) : pas de saison
+  // définie ; le pic peut tomber n'importe quand dans la campagne, du 1er avril au 31 mars.
+  if (isYearRound(calendar)) {
+    const from = monthStart(startYear, 4);
+    const to = monthEnd(startYear + 1, 3);
+    return { from, to, peakFrom: from, peakTo: to };
+  }
   const [sowingStart, sowingEnd] = calendar.sowing;
   const [harvestStart, harvestEnd] = calendar.harvest;
   const harvestYear = (month: Month) => (month < sowingStart ? startYear + 1 : startYear);
@@ -138,10 +164,15 @@ export interface VegetationVerdict {
   validIntervals: number;
   /** Seuil comparé à `peak`. */
   expected: number;
+  /** Parcelle trop petite pour des pixels de 10 m : aucun capteur ne conclura. */
+  tooSmall?: boolean;
 }
 
 // Une décade ne compte que si assez de pixels de 10 m ont échappé aux nuages.
 const MIN_VALID_PIXELS = 3;
+/** Sous 40 pixels de 10 m (0,4 ha), la parcelle est trop mêlée à ses bords pour conclure. */
+export const MIN_PARCEL_PIXELS = 40;
+const DECADE_MS = 10 * 86_400_000;
 const MIN_PEAK_INTERVALS = 2;
 const MIN_PERMANENT_INTERVALS = 3;
 
@@ -191,10 +222,29 @@ export function evaluateVegetation(
     };
   }
 
+  // Taille de la parcelle en pixels (visibles et masqués d'un même pas) : trop petite, on ne
+  // conclut pas, plutôt que de lire le sol nu voisin comme une culture absente.
+  const parcelPixels = Math.max(0, ...series.map((i) => i.validPixels + i.maskedPixels));
+  if (parcelPixels > 0 && parcelPixels < MIN_PARCEL_PIXELS) {
+    return {
+      status: "INSUFFICIENT_DATA",
+      reason: null,
+      peak: null,
+      base,
+      validIntervals: valid.length,
+      expected: profile.minPeak,
+      tooSmall: true,
+    };
+  }
+  // Cycle court : le pic bref peut tomber juste avant ou après la période prévue.
+  const margin = profile.shortCycle ? DECADE_MS : 0;
   const inPeak = valid.filter((interval) => {
     const middle = (Date.parse(interval.from) + Date.parse(interval.to)) / 2;
-    return middle >= window.peakFrom.getTime() && middle <= window.peakTo.getTime();
+    return (
+      middle >= window.peakFrom.getTime() - margin && middle <= window.peakTo.getTime() + margin
+    );
   });
+  const minPeakIntervals = profile.shortCycle ? 1 : MIN_PEAK_INTERVALS;
   const peak = inPeak.length > 0 ? round3(Math.max(...inPeak.map((i) => i.ndviMean))) : null;
   const verdict = (status: VegetationCheckStatus, reason: VegetationCheckReason | null) => ({
     status,
@@ -215,8 +265,70 @@ export function evaluateVegetation(
     return verdict("CONSISTENT", null);
   }
   if (!peakOver) return verdict("PENDING", null);
-  if (inPeak.length < MIN_PEAK_INTERVALS || peak === null)
-    return verdict("INSUFFICIENT_DATA", null);
+  if (inPeak.length < minPeakIntervals || peak === null) return verdict("INSUFFICIENT_DATA", null);
   if (peak < profile.minPeak) return verdict("TO_VERIFY", "LOW_PEAK");
   return verdict("TO_VERIFY", "NO_CYCLE");
+}
+
+// --- Radar Sentinel-1 (ADR-0019) ---------------------------------------------------------------
+// Indice de végétation radar RVI = 4·VH / (VV + VH) : de 0,2 environ au sol nu à 0,5 ou 0,6 en
+// plein couvert. Valeurs de départ tirées de la littérature (céréales et coton : +0,15 à +0,25
+// entre semis et pic), À CALIBRER sur le pilote terrain et une saison des pluies complète.
+const RADAR_THRESHOLDS: Record<CropCategoryCode, { minPeak: number; minAmplitude: number }> = {
+  CEREAL: { minPeak: 0.4, minAmplitude: 0.15 },
+  CASH_CROP: { minPeak: 0.4, minAmplitude: 0.15 },
+  ROOT_TUBER: { minPeak: 0.38, minAmplitude: 0.12 },
+  LEGUME: { minPeak: 0.35, minAmplitude: 0.1 },
+  OILSEED: { minPeak: 0.35, minAmplitude: 0.1 },
+  VEGETABLE: { minPeak: 0.3, minAmplitude: 0.08 },
+  FRUIT: { minPeak: 0.35, minAmplitude: 0.08 },
+};
+const RADAR_PERMANENT_MIN_MEDIAN = 0.4;
+
+/** Profil radar attendu : mêmes formes que le NDVI, seuils propres au RVI. */
+export function expectedRadarProfile(
+  crop: CropProfileInput,
+  zoneCode: string | null,
+): ExpectedProfile {
+  const offset = zoneCode ? (ZONE_OFFSETS[zoneCode] ?? 0) / 2 : 0;
+  const round = (value: number) => Math.round(value * 100) / 100;
+  if (crop.cycle !== "ANNUAL") {
+    return { kind: "PERMANENT", minMedian: round(RADAR_PERMANENT_MIN_MEDIAN - offset) };
+  }
+  const thresholds = RADAR_THRESHOLDS[crop.category];
+  return {
+    kind: "SEASONAL",
+    minPeak: round(thresholds.minPeak - offset),
+    minAmplitude: thresholds.minAmplitude,
+    ...(crop.category === "VEGETABLE" ? { shortCycle: true } : {}),
+  };
+}
+
+export interface RadarSample {
+  from: string;
+  to: string;
+  rviMean: number | null;
+  validPixels: number;
+}
+
+/** Juge une série RVI de parcelle ; même règle que le NDVI (pic, amplitude, couvert durable). */
+export function evaluateRadar(
+  series: readonly RadarSample[],
+  profile: ExpectedProfile,
+  window: SeasonWindow,
+  now: Date,
+): VegetationVerdict {
+  return evaluateVegetation(
+    series.map((interval) => ({
+      from: interval.from,
+      to: interval.to,
+      ndviMean: interval.rviMean,
+      ndviStdDev: null,
+      validPixels: interval.validPixels,
+      maskedPixels: 0,
+    })),
+    profile,
+    window,
+    now,
+  );
 }

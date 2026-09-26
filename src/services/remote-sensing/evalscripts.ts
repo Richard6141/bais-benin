@@ -87,6 +87,31 @@ function evaluatePixel(samples) {
 }`;
 
 /**
+ * Script radar de l'API Statistical (Sentinel-1, ADR-0019) : indice de végétation radar
+ * RVI = 4·VH / (VV + VH) en puissances linéaires, et rétrodiffusion VH en dB. Le radar voit à
+ * travers les nuages : seuls les pixels sans donnée (bord de fauchée, ombre radar) sont écartés.
+ */
+export const RADAR_STATISTICS_EVALSCRIPT = `//VERSION=3
+function setup() {
+  return {
+    input: [{ bands: ["VV", "VH", "dataMask"] }],
+    output: [
+      { id: "rvi", bands: 1, sampleType: "FLOAT32" },
+      { id: "vh", bands: 1, sampleType: "FLOAT32" },
+      { id: "dataMask", bands: 1 }
+    ]
+  };
+}
+function evaluatePixel(s) {
+  const valid = s.dataMask === 1 && s.VV > 0 && s.VH > 0;
+  return {
+    rvi: [valid ? (4 * s.VH) / (s.VV + s.VH) : NaN],
+    vh: [valid ? (10 * Math.log(s.VH)) / Math.LN10 : NaN],
+    dataMask: [valid ? 1 : 0]
+  };
+}`;
+
+/**
  * Script de l'API Statistical : NDVI en flottant et masque des pixels retenus. Les pixels
  * nuageux (SCL) sortent du calcul au lieu de tirer la moyenne vers le bas.
  */

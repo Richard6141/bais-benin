@@ -41,3 +41,9 @@ export {
   type ProposedContour,
 } from "./field-proposals";
 export { segmentField, type CandidateLevel, type FeatureGrid } from "./field-segmentation";
+export {
+  measureRadarCost,
+  type RadarCalibrationEntry,
+  type RadarCalibrationResult,
+} from "./radar-calibration";
+export { evaluateRadar, expectedRadarProfile } from "./crop-profiles";

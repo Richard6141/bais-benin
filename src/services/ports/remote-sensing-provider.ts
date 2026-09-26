@@ -77,6 +77,42 @@ export interface VegetationStatisticsRequest {
    * fournisseur mesure et l'ignore.
    */
   expectedCover?: "SEASONAL" | "PERMANENT";
+  /** Période où le couvert doit culminer, pour la seule fixture. */
+  expectedPeak?: { from: string; to: string };
+}
+
+/** Sens d'orbite Sentinel-1 : une parcelle est toujours vue dans le même, pour comparer. */
+export type OrbitDirection = "ASCENDING" | "DESCENDING";
+
+export interface RadarStatisticsRequest {
+  geometry: PolygonGeometry;
+  from: string;
+  to: string;
+  /** Pas d'agrégation en jours (12 : un passage par orbite). */
+  intervalDays: number;
+  orbitDirection: OrbitDirection;
+  /** Couvert attendu, pour la seule fixture (comme pour le NDVI). */
+  expectedCover?: "SEASONAL" | "PERMANENT";
+  /** Période où le couvert doit culminer, pour la seule fixture. */
+  expectedPeak?: { from: string; to: string };
+}
+
+/** Indice de végétation radar d'une géométrie sur un intervalle (Sentinel-1, ADR-0019). */
+export interface RadarInterval {
+  from: string;
+  to: string;
+  /** RVI = 4·VH / (VV + VH), puissances linéaires ; de 0 (sol nu) à 1 (couvert dense). */
+  rviMean: number | null;
+  /** Rétrodiffusion VH moyenne, en dB. */
+  vhDbMean: number | null;
+  validPixels: number;
+  maskedPixels: number;
+}
+
+/** Série statistique et unités de traitement décomptées par le fournisseur. */
+export interface StatisticsResult<T> {
+  intervals: T[];
+  processingUnits: number | null;
 }
 
 /** NDVI moyen d'une géométrie sur un intervalle, pixels nuageux exclus. */
@@ -114,7 +150,7 @@ export interface FieldFeatures {
 }
 
 export interface RemoteSensingProvenance {
-  sourceId: "COPERNICUS_S2" | "BAIS_SEED";
+  sourceId: "COPERNICUS_S2" | "COPERNICUS_S1" | "BAIS_SEED";
   /** Mesure satellitaire interprétée (ESTIMATED) ou série synthétique (SYNTHETIC). */
   reliability: "ESTIMATED" | "SYNTHETIC";
   licence: string;
@@ -125,12 +161,17 @@ export interface RemoteSensingProvenance {
 export interface RemoteSensingProvider {
   readonly id: RemoteSensingProviderId;
   readonly provenance: RemoteSensingProvenance;
+  /** Provenance des mesures radar (Sentinel-1). */
+  readonly radarProvenance: RemoteSensingProvenance;
   /** Vrai si les API de traitement sont utilisables (compte configuré pour CDSE). */
   readonly canProcess: boolean;
   searchScenes(request: SceneSearchRequest): Promise<SceneSummary[]>;
   /** Image de l'emprise ; null si le fournisseur ne produit pas d'image (fixture). */
   renderImage(request: ImageryRequest): Promise<ImageryResult | null>;
-  vegetationStatistics(request: VegetationStatisticsRequest): Promise<VegetationInterval[]>;
+  vegetationStatistics(
+    request: VegetationStatisticsRequest,
+  ): Promise<StatisticsResult<VegetationInterval>>;
+  radarStatistics(request: RadarStatisticsRequest): Promise<StatisticsResult<RadarInterval>>;
   fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
 }
 

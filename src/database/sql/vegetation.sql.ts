@@ -92,6 +92,9 @@ export interface VegetationCheckRow {
   windowFrom: Date;
   windowTo: Date;
   series: unknown;
+  /** Capteur qui a tranché (S2 par défaut ; S1 : radar, ADR-0019) et série radar éventuelle. */
+  sensor?: "S2" | "S1";
+  radarSeries?: unknown;
   sourceId: string;
   reliability: "ESTIMATED" | "SYNTHETIC";
 }
@@ -101,12 +104,14 @@ export async function upsertVegetationCheck(row: VegetationCheckRow): Promise<vo
     INSERT INTO "parcel_vegetation_check" (
       "id", "parcel_id", "campaign_id", "sub_season", "crop_id", "status", "reason", "peak_ndvi",
       "base_ndvi", "expected_ndvi", "valid_intervals", "window_from", "window_to", "series",
-      "source_id", "reliability", "computed_at"
+      "sensor", "radar_series", "source_id", "reliability", "computed_at"
     ) VALUES (
       gen_random_uuid(), ${row.parcelId}::uuid, ${row.campaignId}::uuid,
       ${row.subSeason}::"SubSeason", ${row.cropId}::uuid, ${row.status}::"VegetationCheckStatus",
       ${row.reason}, ${row.peakNdvi}, ${row.baseNdvi}, ${row.expectedNdvi}, ${row.validIntervals},
       ${row.windowFrom}::date, ${row.windowTo}::date, ${JSON.stringify(row.series)}::jsonb,
+      ${row.sensor ?? "S2"},
+      ${row.radarSeries === undefined ? null : JSON.stringify(row.radarSeries)}::jsonb,
       ${row.sourceId}, ${row.reliability}::"Reliability", now()
     )
     ON CONFLICT ("parcel_id", "campaign_id", "sub_season") DO UPDATE SET
@@ -114,7 +119,8 @@ export async function upsertVegetationCheck(row: VegetationCheckRow): Promise<vo
       "peak_ndvi" = EXCLUDED."peak_ndvi", "base_ndvi" = EXCLUDED."base_ndvi",
       "expected_ndvi" = EXCLUDED."expected_ndvi", "valid_intervals" = EXCLUDED."valid_intervals",
       "window_from" = EXCLUDED."window_from", "window_to" = EXCLUDED."window_to",
-      "series" = EXCLUDED."series", "source_id" = EXCLUDED."source_id",
+      "series" = EXCLUDED."series", "sensor" = EXCLUDED."sensor",
+      "radar_series" = EXCLUDED."radar_series", "source_id" = EXCLUDED."source_id",
       "reliability" = EXCLUDED."reliability", "computed_at" = now()`;
 }
 
@@ -293,4 +299,31 @@ export async function flaggedFarmsInScope(
      ORDER BY flagged_parcels DESC, f."code"
      LIMIT ${limit}`;
   return rows.map((row) => flaggedFarmSchema.parse(row));
+}
+
+const calibrationParcelSchema = z.object({
+  parcel_code: z.string(),
+  area_ha: z.coerce.number(),
+  geometry: z.string(),
+});
+
+/**
+ * Échantillon de parcelles pour mesurer le coût du radar (ADR-0019) : une par commune, d'au
+ * moins 0,5 ha, pour couvrir des reliefs et des régimes de pluies différents.
+ */
+export async function sampleParcelsForCalibration(limit: number) {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT parcel_code, area_ha, geometry FROM (
+      SELECT DISTINCT ON (f."commune_id")
+             p."code" AS parcel_code, ST_Area(p."geom") / 10000 AS area_ha,
+             ST_AsGeoJSON(p."geom"::geometry, 6) AS geometry
+        FROM "parcel" p
+        JOIN "farm" f ON f."id" = p."farm_id"
+       WHERE p."archived_at" IS NULL AND f."archived_at" IS NULL AND p."geom" IS NOT NULL
+         AND ST_Area(p."geom") >= 5000
+       ORDER BY f."commune_id", p."id"
+    ) one_per_commune
+     ORDER BY parcel_code
+     LIMIT ${limit}`;
+  return rows.map((row) => calibrationParcelSchema.parse(row));
 }

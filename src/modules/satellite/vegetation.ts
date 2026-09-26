@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/database/client";
-import { reserveProcessingRequest } from "@/database/sql/satellite.sql";
+import { addProcessingUnits, reserveProcessingRequest } from "@/database/sql/satellite.sql";
 import {
   flaggedFarmsInScope,
   listVegetationCandidates,
@@ -9,6 +9,7 @@ import {
   vegetationSummary,
   type FarmScopeParams,
 } from "@/database/sql/vegetation.sql";
+import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { authorize, scopeFilter, type Actor } from "@/modules/authorization";
 import {
@@ -17,10 +18,13 @@ import {
   type RemoteSensingProvider,
 } from "@/services/ports/remote-sensing-provider";
 import {
+  evaluateRadar,
   evaluateVegetation,
   expectedProfile,
+  expectedRadarProfile,
   seasonWindow,
   type VegetationCheckStatus,
+  type VegetationVerdict,
 } from "./crop-profiles";
 import { processingBudget } from "./imagery";
 import { periodOf } from "./periods";
@@ -44,6 +48,9 @@ const geometrySchema = z.object({
 
 /** Une valeur par décade : assez fin pour voir la levée, assez large pour passer les nuages. */
 const INTERVAL_DAYS = 10;
+/** Radar : une valeur par pas de 12 jours, un passage par orbite ; toujours le même sens. */
+const RADAR_INTERVAL_DAYS = 12;
+const RADAR_ORBIT = "DESCENDING" as const;
 /** Échecs de Copernicus d'affilée au-delà desquels le lot quotidien s'arrête. */
 const MAX_CONSECUTIVE_ERRORS = 5;
 /** Une saison encore en cours ou masquée par les nuages est réexaminée après ce délai. */
@@ -56,6 +63,8 @@ export interface VegetationRunResult {
   skipped: number;
   errors: number;
   budgetExhausted: boolean;
+  /** Parcelles tranchées par le radar, faute de Sentinel-2 sous les nuages (ADR-0019). */
+  radarDecided: number;
   /** Arrêt du lot : limite par minute atteinte ou Copernicus injoignable plusieurs fois de suite. */
   interrupted: "throttled" | "provider-unavailable" | null;
 }
@@ -65,8 +74,11 @@ export async function runVegetationChecks(options: {
   limit: number;
   now?: Date;
   campaignCode?: string;
+  /** Radar quand Sentinel-2 n'a pas pu conclure ; par défaut SATELLITE_RADAR_FALLBACK. */
+  radarFallback?: boolean;
 }): Promise<VegetationRunResult> {
   const now = options.now ?? new Date();
+  const radarFallback = options.radarFallback ?? getServerEnv().SATELLITE_RADAR_FALLBACK === "1";
   const result: VegetationRunResult = {
     campaignCode: null,
     examined: 0,
@@ -74,6 +86,7 @@ export async function runVegetationChecks(options: {
     skipped: 0,
     errors: 0,
     budgetExhausted: false,
+    radarDecided: 0,
     interrupted: null,
   };
   const campaign = await prisma.agriculturalCampaign.findFirst({
@@ -127,6 +140,7 @@ export async function runVegetationChecks(options: {
     }
     const to = window.to.getTime() < now.getTime() ? window.to : now;
     const profile = expectedProfile(crop, candidate.zone_code);
+    const expectedPeak = { from: window.peakFrom.toISOString(), to: window.peakTo.toISOString() };
     let series;
     try {
       series = await options.provider.vegetationStatistics({
@@ -135,6 +149,7 @@ export async function runVegetationChecks(options: {
         to: to.toISOString(),
         intervalDays: INTERVAL_DAYS,
         expectedCover: profile.kind,
+        expectedPeak,
       });
     } catch (error) {
       if (!(error instanceof RemoteSensingProviderError)) throw error;
@@ -150,7 +165,67 @@ export async function runVegetationChecks(options: {
       continue;
     }
     consecutiveErrors = 0;
-    const verdict = evaluateVegetation(series, profile, window, now);
+    if (metered && series.processingUnits) {
+      await addProcessingUnits(periodOf(now), series.processingUnits);
+    }
+    let verdict: VegetationVerdict = evaluateVegetation(series.intervals, profile, window, now);
+    let decidedBy: "S2" | "S1" = "S2";
+    let radarSeries: unknown;
+
+    // Radar Sentinel-1 : seulement quand les nuages ont empêché Sentinel-2 de conclure. Sentinel-2
+    // reste la source principale ; le radar a sa propre réservation, dans la même part.
+    // Parcelle trop petite pour 10 m : le radar ne conclurait pas davantage, pas de requête.
+    if (radarFallback && verdict.status === "INSUFFICIENT_DATA" && !verdict.tooSmall) {
+      const reservation = metered
+        ? await reserveProcessingRequest(periodOf(now), "STATISTICS", budget, now)
+        : "reserved";
+      if (reservation === "reserved") {
+        try {
+          const radar = await options.provider.radarStatistics({
+            geometry: geometry.data as PolygonGeometry,
+            from: window.from.toISOString(),
+            to: to.toISOString(),
+            intervalDays: RADAR_INTERVAL_DAYS,
+            orbitDirection: RADAR_ORBIT,
+            expectedCover: profile.kind,
+            expectedPeak,
+          });
+          if (metered && radar.processingUnits) {
+            await addProcessingUnits(periodOf(now), radar.processingUnits);
+          }
+          radarSeries = radar.intervals.map((interval) => ({
+            from: interval.from.slice(0, 10),
+            to: interval.to.slice(0, 10),
+            rvi: interval.rviMean,
+            vhDb: interval.vhDbMean,
+            valid: interval.validPixels,
+          }));
+          const radarVerdict = evaluateRadar(
+            radar.intervals,
+            expectedRadarProfile(crop, candidate.zone_code),
+            window,
+            now,
+          );
+          if (radarVerdict.status !== "INSUFFICIENT_DATA") {
+            verdict = radarVerdict;
+            decidedBy = "S1";
+            result.radarDecided += 1;
+          }
+        } catch (error) {
+          if (!(error instanceof RemoteSensingProviderError)) throw error;
+          logger.warn(
+            { err: error, parcel: candidate.parcel_code },
+            "Radar de parcelle indisponible",
+          );
+        }
+      } else if (reservation === "throttled") {
+        result.interrupted = "throttled";
+      } else {
+        result.budgetExhausted = true;
+      }
+    }
+    const provenance =
+      decidedBy === "S1" ? options.provider.radarProvenance : options.provider.provenance;
     await upsertVegetationCheck({
       parcelId: candidate.parcel_id,
       campaignId: campaign.id,
@@ -164,17 +239,20 @@ export async function runVegetationChecks(options: {
       validIntervals: verdict.validIntervals,
       windowFrom: window.from,
       windowTo: to,
-      series: series.map((interval) => ({
+      series: series.intervals.map((interval) => ({
         from: interval.from.slice(0, 10),
         to: interval.to.slice(0, 10),
         ndvi: interval.ndviMean,
         valid: interval.validPixels,
       })),
-      sourceId: options.provider.provenance.sourceId,
-      reliability: options.provider.provenance.reliability,
+      sensor: decidedBy,
+      radarSeries,
+      sourceId: provenance.sourceId,
+      reliability: provenance.reliability,
     });
     result.examined += 1;
     result.byStatus[verdict.status] += 1;
+    if (result.interrupted || result.budgetExhausted) break;
   }
   return result;
 }

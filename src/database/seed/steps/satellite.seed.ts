@@ -1,3 +1,4 @@
+import { prisma } from "@/database/client";
 import { getServerEnv } from "@/lib/env";
 import { runVegetationChecks, type VegetationRunResult } from "@/modules/satellite";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
@@ -12,6 +13,9 @@ const DEMO_PARCELS = 3000;
 
 export async function seedVegetationChecks(): Promise<VegetationRunResult | null> {
   if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
+  // Les verdicts de démonstration sont recalculés à chaque seed, pour suivre les règles du jour ;
+  // une mesure réelle de Copernicus n'est jamais effacée.
+  await prisma.parcelVegetationCheck.deleteMany({ where: { sourceId: "BAIS_SEED" } });
   return runVegetationChecks({
     provider: createFixtureRemoteSensingProvider(),
     limit: DEMO_PARCELS,
