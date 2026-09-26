@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FireWindowParam } from "@/features/agri-map/fire-layer";
 import { useFires } from "@/features/agri-map/use-fires";
+import { LiveActivityFeed } from "@/features/live/live-activity-feed";
 import type { WatchSummary } from "@/modules/watch";
 import {
   AlertsPanel,
@@ -89,6 +90,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
+          <LiveActivityFeed />
           <ExposurePanel summary={summary} window={window === "24h" ? "24h" : "7d"} />
           <CropConditionPanel summary={summary} />
           <FreshnessPanel summary={summary} />
