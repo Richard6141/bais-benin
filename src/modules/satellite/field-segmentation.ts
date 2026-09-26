@@ -45,8 +45,13 @@ const LEVELS: { level: CandidateLevel; threshold: number }[] = [
 export const MIN_FIELD_M2 = 5000;
 /** Champ le plus grand proposé : 20 ha. Au-delà, plusieurs champs se sont fondus. */
 export const MAX_FIELD_M2 = 200_000;
-/** Tolérance de simplification du contour, en pixels (7 m à 10 m par pixel). */
-const SIMPLIFY_PX = 0.7;
+/** Tolérance de simplification de départ, en pixels (15 m à 10 m par pixel). */
+const SIMPLIFY_PX = 1.5;
+/**
+ * Sommets au plus : au-delà, les poignées se chevauchent au doigt sur un téléphone. La
+ * tolérance augmente jusqu'à tenir sous ce plafond.
+ */
+export const MAX_VERTICES = 12;
 // Poids de la réflectance SWIR, plus resserrée que le NDVI, dans la distance entre pixels.
 const SWIR_WEIGHT = 2;
 
@@ -274,6 +279,21 @@ function simplifyLine(points: [number, number][], tolerance: number): [number, n
   return [...left.slice(0, -1), ...right];
 }
 
+/** Simplifie jusqu'à tenir sous `maxVertices` sommets (anneau fermé : un point de plus). */
+export function simplifyToLimit(
+  ring: [number, number][],
+  tolerance: number,
+  maxVertices: number,
+): [number, number][] {
+  let current = simplifyRing(ring, tolerance);
+  let step = tolerance;
+  while (current.length - 1 > maxVertices && step < 20) {
+    step += 0.5;
+    current = simplifyRing(ring, step);
+  }
+  return current;
+}
+
 /** Simplifie un anneau fermé en le coupant à son point le plus éloigné du départ. */
 export function simplifyRing(ring: [number, number][], tolerance: number): [number, number][] {
   const open = ring.slice(0, -1);
@@ -372,11 +392,12 @@ export function segmentField(
     if (pixelCount > maxPixels) continue;
     // Même région qu'au niveau précédent : pas de doublon.
     if (candidates.some((c) => Math.abs(c.pixelCount - pixelCount) <= pixelCount * 0.03)) continue;
-    const ring = simplifyRing(traceOutline(mask, width, height), SIMPLIFY_PX);
+    const ring = simplifyToLimit(traceOutline(mask, width, height), SIMPLIFY_PX, MAX_VERTICES);
     const area = ringArea(ring);
     const perimeter = ringPerimeter(ring);
     const compactness = perimeter > 0 ? (4 * Math.PI * area) / perimeter ** 2 : 0;
-    const contrast = Math.min(1, edgeContrast(grid, mask) / (threshold * 3));
+    // Un bord deux fois plus marqué que le seuil de croissance est déjà un bord net.
+    const contrast = Math.min(1, edgeContrast(grid, mask) / (threshold * 2));
     const edge = touchesBorder(mask, width, height);
     const score =
       (0.6 * contrast + 0.4 * Math.min(1, compactness / (Math.PI / 4))) * (edge ? 0.5 : 1);

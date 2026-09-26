@@ -28,8 +28,20 @@ import { LEVEL_COLORS } from "./satellite-contour-logic";
 
 setWorkerUrl("/vendor/maplibre-gl-worker.mjs");
 
+/** Emprise de la fenêtre analysée (640 m autour du point), pour cadrer la carte dessus. */
+export function windowBounds(point: { lng: number; lat: number }, halfMeters = 320) {
+  const dLat = halfMeters / 111_320;
+  const dLng = halfMeters / (111_320 * Math.cos((point.lat * Math.PI) / 180));
+  return [
+    [point.lng - dLng, point.lat - dLat],
+    [point.lng + dLng, point.lat + dLat],
+  ] as [[number, number], [number, number]];
+}
+
 interface SatelliteContourMapProps {
   center: { lng: number; lat: number };
+  /** Point de la dernière proposition : la carte se cale sur sa fenêtre. */
+  framedOn?: { lng: number; lat: number } | null;
   point: { lng: number; lat: number } | null;
   candidates: readonly ProposedContour[];
   selected: CandidateLevel | null;
@@ -37,6 +49,8 @@ interface SatelliteContourMapProps {
   ring: [number, number][] | null;
   onPoint: (point: { lng: number; lat: number }) => void;
   onMoveVertex: (index: number, to: [number, number]) => void;
+  /** Une partie de l'image satellite n'a pas pu être chargée. */
+  onImageryMissing?: () => void;
 }
 
 const SOURCE = "bais-field-candidates";
@@ -46,12 +60,14 @@ const EDIT_SOURCE = "bais-field-edit";
 // la vue du ciel), point désigné, candidats en couleur, et sommets déplaçables du contour choisi.
 export function SatelliteContourMap({
   center,
+  framedOn = null,
   point,
   candidates,
   selected,
   ring,
   onPoint,
   onMoveVertex,
+  onImageryMissing,
 }: SatelliteContourMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -61,18 +77,21 @@ export function SatelliteContourMap({
   const [ready, setReady] = useState(false);
   const onPointRef = useRef(onPoint);
   const onMoveRef = useRef(onMoveVertex);
+  const onMissingRef = useRef(onImageryMissing);
   useEffect(() => {
     onPointRef.current = onPoint;
     onMoveRef.current = onMoveVertex;
-  }, [onPoint, onMoveVertex]);
+    onMissingRef.current = onImageryMissing;
+  }, [onPoint, onMoveVertex, onImageryMissing]);
 
   useEffect(() => {
     if (!supported || !containerRef.current || mapRef.current) return;
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE_URL,
-      center: [center.lng, center.lat],
-      zoom: 15,
+      // Cadrée sur la fenêtre analysée : l'image satellite remplit la vue.
+      bounds: windowBounds(center),
+      fitBoundsOptions: { padding: 16 },
       maxZoom: 17,
       attributionControl: false,
     });
@@ -123,6 +142,10 @@ export function SatelliteContourMap({
         source: EDIT_SOURCE,
         paint: { "line-color": "#ffffff", "line-width": 3 },
       });
+      // Tuile satellite refusée ou injoignable : la vue garderait une bande vide sans le dire.
+      map.on("error", (event) => {
+        if ((event as { sourceId?: string }).sourceId === "bais-sat") onMissingRef.current?.();
+      });
       map.on("click", (event: MapMouseEvent) => {
         onPointRef.current({ lng: event.lngLat.lng, lat: event.lngLat.lat });
       });
@@ -136,6 +159,13 @@ export function SatelliteContourMap({
     // La carte n'est construite qu'une fois ; le reste passe par les effets suivants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Après une proposition, la carte se cale sur la fenêtre analysée autour du point.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !framedOn) return;
+    map.fitBounds(windowBounds(framedOn), { padding: 16, duration: 300 });
+  }, [framedOn, ready]);
 
   // Point désigné par l'agent.
   useEffect(() => {
@@ -174,9 +204,13 @@ export function SatelliteContourMap({
     });
     for (const marker of vertexMarkers.current) marker.remove();
     vertexMarkers.current = (ring ?? []).slice(0, -1).map((vertex, index) => {
+      // Zone tactile de 44 px autour d'un repère de 16 px : maniable au doigt.
       const element = document.createElement("div");
-      element.className = "size-4 rounded-full border-2 border-white bg-primary shadow-raised";
+      element.className = "grid size-11 cursor-grab place-items-center";
       element.setAttribute("aria-label", `Sommet ${index + 1}`);
+      const dot = document.createElement("span");
+      dot.className = "size-4 rounded-full border-2 border-white bg-primary shadow-raised";
+      element.appendChild(dot);
       const marker = new Marker({ element, draggable: true }).setLngLat(vertex).addTo(map);
       marker.on("dragend", () => {
         const { lng, lat } = marker.getLngLat();

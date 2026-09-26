@@ -19,6 +19,7 @@ import { areaGapPercent } from "@/modules/sync/handlers/geometry";
 import {
   LEVEL_COLORS,
   LEVEL_LABELS,
+  confidenceLabel,
   moveVertex,
   recommendedCandidate,
   removeVertex,
@@ -62,6 +63,7 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
   const [selected, setSelected] = useState<CandidateLevel | null>(null);
   const [ring, setRing] = useState<[number, number][] | null>(null);
   const [saved, setSaved] = useState(false);
+  const [imageryMissing, setImageryMissing] = useState(false);
 
   function choose(candidate: ProposedContour | null) {
     setSelected(candidate?.level ?? null);
@@ -177,6 +179,8 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
           <SatelliteContourMap
             center={start}
             point={point}
+            framedOn={proposal ? { lng: proposal.point.lon, lat: proposal.point.lat } : null}
+            onImageryMissing={() => setImageryMissing(true)}
             candidates={proposal?.candidates ?? []}
             selected={selected}
             ring={ring}
@@ -195,6 +199,12 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
             <Satellite aria-hidden />
             {loading ? "Calcul en cours…" : proposal ? "Proposer à nouveau" : "Proposer un contour"}
           </Button>
+          {imageryMissing ? (
+            <p className="text-sm text-muted-foreground">
+              Une partie de l&apos;image satellite n&apos;a pas pu être chargée : le fond de carte
+              reste visible autour. Les contours proposés, eux, sont calculés à part.
+            </p>
+          ) : null}
           {!sync.online ? (
             <p className="text-sm text-muted-foreground">
               Pas de réseau : la proposition satellite demande une connexion. Le relevé à pied reste
@@ -232,8 +242,9 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
                     <Label htmlFor={`contour-${candidate.level}`} className="flex-1 font-normal">
                       <span className="font-medium">{LEVEL_LABELS[candidate.level]}</span>
                       <span className="tabular block text-sm text-muted-foreground">
-                        {areaFormatter.format(candidate.areaHa)} ha · confiance{" "}
-                        {percent.format(candidate.confidence)}
+                        {areaFormatter.format(candidate.areaHa)} ha ·{" "}
+                        {confidenceLabel(candidate.confidence)} (
+                        {percent.format(candidate.confidence)})
                         {candidate.touchesEdge ? " · déborde de l'image, à vérifier" : ""}
                       </span>
                     </Label>
