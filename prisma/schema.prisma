@@ -268,7 +268,8 @@ model Departement {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  communes Commune[]
+  communes       Commune[]
+  producerGroups ProducerGroup[]
 
   @@map("departement")
 }
@@ -345,6 +346,7 @@ model Crop {
 
   parcelCrops      ParcelCrop[]
   vegetationChecks ParcelVegetationCheck[]
+  producerGroups   ProducerGroup[]
 
   @@map("crop")
 }
@@ -369,6 +371,7 @@ model AgriculturalCampaign {
   parcelCrops       ParcelCrop[]
   vegetationChecks  ParcelVegetationCheck[]
   cropAreaEstimates CropAreaEstimate[]
+  producerGroups    ProducerGroup[]
 
   @@map("agricultural_campaign")
 }
@@ -428,6 +431,9 @@ model User {
 
   publishedRankings PublishedRanking[] @relation("rankingPublisher")
   withdrawnRankings PublishedRanking[] @relation("rankingWithdrawer")
+
+  createdProducerGroups ProducerGroup[]        @relation("producerGroupCreator")
+  producerGroupMessages ProducerGroupMessage[] @relation("producerGroupMessageSender")
 
   @@map("user")
 }
@@ -586,6 +592,7 @@ model Farmer {
   notifications  FarmerNotification[]
   rankingConsent RankingConsent?
   rankingEntries PublishedRankingEntry[]
+  producerGroups ProducerGroupMember[]
 
   @@index([communeId])
   @@index([lastName, firstName])
@@ -1462,12 +1469,15 @@ enum FarmerNotificationKind {
   ASSISTANCE_RESOLVED
   REPORT_CONFIRMED
   REPORT_DISMISSED
+  // Message du ministère aux membres d'un groupe de producteurs (ADR-0024).
+  GROUP_MESSAGE
 }
 
 // Message de suivi adressé au producteur sur WhatsApp : demande d'assistance prise en charge ou
 // résolue, signalement confirmé ou écarté. Écrit dans la même transaction que le changement de
 // statut, envoyé ensuite, sous réserve de son consentement au moment de l'envoi. Un seul message
-// par événement (type, demande ou signalement).
+// par événement (type, demande ou signalement). Pour un message de groupe, l'événement est le
+// couple (message, producteur) : `subject_id` est un UUID v5 dérivé des deux (ADR-0024).
 model FarmerNotification {
   id                String                 @id @default(uuid(7)) @db.Uuid
   farmerId          String                 @map("farmer_id") @db.Uuid
@@ -1545,6 +1555,73 @@ model PublishedRankingEntry {
   @@id([rankingId, rank])
   @@index([farmerId])
   @@map("published_ranking_entry")
+}
+
+// ---------------------------------------------------------------------------
+// Groupes de producteurs (ADR-0024)
+// ---------------------------------------------------------------------------
+
+// Groupe formé par le ministère à partir du palmarès : « les 100 meilleurs producteurs de coton
+// du Borgou, campagne 2024-2025 ». Les membres sont recalculés côté serveur avec les critères
+// enregistrés, jamais repris d'une liste envoyée par le navigateur. Archivé, le groupe reste
+// consultable mais ne reçoit plus de message.
+model ProducerGroup {
+  id            String                 @id @default(uuid(7)) @db.Uuid
+  name          String
+  cropId        String                 @map("crop_id") @db.Uuid
+  crop          Crop                   @relation(fields: [cropId], references: [id])
+  campaignId    String                 @map("campaign_id") @db.Uuid
+  campaign      AgriculturalCampaign   @relation(fields: [campaignId], references: [id])
+  departementId String?                @map("departement_id") @db.Uuid
+  departement   Departement?           @relation(fields: [departementId], references: [id])
+  // Critères du palmarès utilisés (culture, campagne, territoire, mesure, vérification, nombre).
+  criteria      Json
+  createdById   String                 @map("created_by_id") @db.Uuid
+  createdBy     User                   @relation("producerGroupCreator", fields: [createdById], references: [id])
+  createdAt     DateTime               @default(now()) @map("created_at")
+  archivedAt    DateTime?              @map("archived_at")
+  members       ProducerGroupMember[]
+  messages      ProducerGroupMessage[]
+
+  @@index([archivedAt, createdAt])
+  @@map("producer_group")
+}
+
+// Membre d'un groupe, avec ses chiffres de la campagne au moment de la formation du groupe.
+model ProducerGroupMember {
+  groupId     String        @map("group_id") @db.Uuid
+  group       ProducerGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  farmerId    String        @map("farmer_id") @db.Uuid
+  farmer      Farmer        @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  // Rang dans le palmarès complet, au moment de la formation.
+  rank        Int
+  // Nul si la surface cultivée est nulle.
+  yieldTPerHa Decimal?      @map("yield_t_per_ha") @db.Decimal(8, 3)
+  producedKg  Decimal       @map("produced_kg") @db.Decimal(14, 2)
+  areaHa      Decimal       @map("area_ha") @db.Decimal(10, 3)
+  // Toutes ses exploitations comptées étaient vérifiées (agent ou terrain).
+  verified    Boolean
+
+  @@id([groupId, farmerId])
+  @@unique([groupId, rank])
+  @@index([farmerId])
+  @@map("producer_group_member")
+}
+
+// Message WhatsApp adressé par le ministère aux membres d'un groupe. Une notification
+// GROUP_MESSAGE est mise en file par membre consentant ; `recipients` en garde le nombre.
+model ProducerGroupMessage {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  groupId    String        @map("group_id") @db.Uuid
+  group      ProducerGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  text       String
+  recipients Int
+  sentById   String        @map("sent_by_id") @db.Uuid
+  sentBy     User          @relation("producerGroupMessageSender", fields: [sentById], references: [id])
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([groupId, createdAt])
+  @@map("producer_group_message")
 }
 
 // Classes de la carte des cultures par satellite (ADR-0021).
