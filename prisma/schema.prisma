@@ -214,6 +214,7 @@ model DataSource {
   weatherObservations WeatherObservation[]
   vegetationChecks    ParcelVegetationCheck[]
   cropAreaEstimates   CropAreaEstimate[]
+  cropClassChecks     ParcelCropClassCheck[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -348,6 +349,7 @@ model Crop {
   parcelCrops      ParcelCrop[]
   vegetationChecks ParcelVegetationCheck[]
   producerGroups   ProducerGroup[]
+  cropClassChecks  ParcelCropClassCheck[]
 
   @@map("crop")
 }
@@ -373,6 +375,7 @@ model AgriculturalCampaign {
   vegetationChecks  ParcelVegetationCheck[]
   cropAreaEstimates CropAreaEstimate[]
   producerGroups    ProducerGroup[]
+  cropClassChecks   ParcelCropClassCheck[]
 
   @@map("agricultural_campaign")
 }
@@ -673,6 +676,7 @@ model Parcel {
 
   crops            ParcelCrop[]
   vegetationChecks ParcelVegetationCheck[]
+  cropClassChecks  ParcelCropClassCheck[]
   verifications    FarmVerification[]
   fieldReports     FieldReport[]
 
@@ -1730,4 +1734,37 @@ model FireIngestionRun {
 
   @@index([startedAt])
   @@map("fire_ingestion_run")
+}
+
+// Précision de la carte des cultures (ADR-0021) : classe vue par satellite sur une parcelle d'une
+// exploitation vérifiée, face à sa culture principale déclarée. Même classification que la carte,
+// en pixels de 10 m sur le contour de la parcelle ; la classe retenue est la plus fréquente. Ces
+// lignes forment la matrice de confusion affichée au ministère.
+model ParcelCropClassCheck {
+  id                 String               @id @default(uuid(7)) @db.Uuid
+  parcelId           String               @map("parcel_id") @db.Uuid
+  parcel             Parcel               @relation(fields: [parcelId], references: [id])
+  campaignId         String               @map("campaign_id") @db.Uuid
+  campaign           AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  cropId             String               @map("crop_id") @db.Uuid
+  crop               Crop                 @relation(fields: [cropId], references: [id])
+  declaredClass      CropMapClass         @map("declared_class")
+  // UNCLASSIFIED : trop peu de pixels classés sur la parcelle (nuages, parcelle trop petite).
+  observedClass      CropMapClass         @map("observed_class")
+  // Pixels par code de classe (0 à 9).
+  classPixels        Json                 @map("class_pixels")
+  classifiedPixels   Int                  @map("classified_pixels")
+  // Statut de l'exploitation au moment du contrôle : la vérité terrain vient d'une visite.
+  verificationStatus VerificationStatus   @map("verification_status")
+  windowFrom         DateTime             @map("window_from") @db.Date
+  windowTo           DateTime             @map("window_to") @db.Date
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([parcelId, campaignId])
+  @@index([campaignId, declaredClass])
+  @@map("parcel_crop_class_check")
 }

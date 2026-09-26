@@ -156,11 +156,16 @@ Tant que le pilote n'a pas eu lieu, la délimitation assistée sert de point de 
 L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, sans envoyer d'agent. Les agents ne font plus que vérifier là où l'écart avec le registre est le plus fort.
 
 - **Classification par pixel**, calculée par Copernicus : un passage par mois sur les 12 derniers mois, le moins nuageux. La courbe de végétation de chaque pixel le range dans l'une de ces classes : riz, maïs et cultures annuelles, coton, cultures pérennes, maraîchage, jachère et sol nu, forêt et savane, eau, bâti. Règles et seuils dans `src/services/remote-sensing/crop-classes.ts`.
-- **Carte** : fond « Carte des cultures » sur `/carte` (`?ciel=cultures`). C'est une image d'ensemble du pays, d'environ 400 m par pixel, placée sous les limites et les parcelles, sans tuiles détaillées. Elle coûte environ 115 PU et reste 30 jours en cache.
+- **Carte** : fond « Carte des cultures » sur `/carte` (`?ciel=cultures`), placé sous les limites et les parcelles, sans tuiles détaillées. Elle est faite de quatre quarts du pays, d'environ 400 m par pixel (ADR-0025) :
+  - la commande `POST /api/v1/satellite/crop-map`, planifiée du 1er au 8 du mois, les calcule hors de toute requête de visiteur, et `?force=1` refait tout ;
+  - les quarts restent en cache jusqu'au mois suivant, pour 120 à 300 PU au total ;
+  - la route publique ne sert que le cache, et la légende affiche « Carte en préparation » tant qu'aucun quart n'est prêt.
 - **Surfaces par commune** : `POST /api/v1/satellite/crop-areas?limit=12`, planifiée du 1er au 8 de chaque mois.
   - Chaque commune reçoit un histogramme des classes par l'API Statistical, en pixels de 120 m.
   - Chaque lot reprend les communes pas encore calculées ce mois-ci, puis s'arrête net quand la part des statistiques ou le plafond d'unités est atteint.
-  - Coût : environ 11 PU par commune en moyenne, 870 PU par passe nationale. La formule est dans ADR-0023.
+  - Seuls les pixels du contour comptent, et chaque mois garde un passage par trace Sentinel-2 (ADR-0025).
+  - Coût : environ 14 PU par commune en moyenne, 1 100 PU par passe nationale. La formule est dans ADR-0023.
+  - Une estimation faite avec une méthode antérieure (`method_version`) est refaite au lot suivant.
   - Résultats dans la table `crop_area_estimate`.
 - **Ministère** (`/pilotage/cultures`, « Surfaces par satellite ») : surfaces vues par culture et par département face aux surfaces déclarées au registre.
   - Taux d'enrôlement = surface déclarée rapportée à la surface vue. Il n'est pas calculé sous 50 ha vus.
@@ -168,11 +173,17 @@ L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, san
   - Part non classée par commune (nuages persistants).
   - Toujours affiché avec « Estimation satellite, à confirmer ».
 - **Correspondance registre et classes** : riz et coton ont leur classe. Anacarde, palmier à huile, karité, plantain et ananas vont en cultures pérennes. Tomate, piment, gombo et oignon vont en maraîchage. Toutes les autres cultures du registre vont en cultures annuelles (`cropMapClassOf`).
-- **Limites** : un champ isolé plus petit qu'un pixel n'apparaît pas. Les seuils sont des valeurs de départ, à confronter aux parcelles vérifiées par les agents (matrice de confusion, étape suivante).
+- **Précision** (`/pilotage/cultures`, section « Précision de la carte ») : la même classification est appliquée, en pixels de 10 m, sur le contour des parcelles des exploitations vérifiées.
+  - La classe la plus fréquente de la parcelle est comparée à sa culture principale déclarée ; sous 20 pixels classés, la parcelle est comptée « sans classe dominante ».
+  - La page donne la précision globale, puis par culture : part des parcelles reconnues, part de la classe qui cultive vraiment cette culture, et confusion principale. Elle montre aussi la matrice de confusion complète.
+  - Aucun taux n'est affiché sous 10 parcelles.
+  - Commande `POST /api/v1/satellite/crop-accuracy?limit=300`, le 9 de chaque mois : les parcelles jamais contrôlées passent d'abord, puis les contrôles les plus anciens. Environ 0,16 PU par parcelle.
+  - Résultats dans la table `parcel_crop_class_check`.
+- **Limites** : un champ isolé plus petit qu'un pixel n'apparaît pas sur la carte. Les seuils sont des valeurs de départ, à recaler d'après la matrice de confusion.
 
 ## Démonstration sans compte
 
-Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE. Avec `SATELLITE_PROVIDER=fixture`, les propositions de contours dessinent un champ rectangulaire synthétique de 1 à 4 ha autour du point, pour montrer l'écran sans compte. Le seed écrit aussi des surfaces par satellite de démonstration, déduites des surfaces déclarées avec un taux d'enrôlement propre à chaque commune (entre 25 et 95 %). Une mesure réelle n'est jamais écrasée, et la passe mensuelle réelle remplace ces lignes.
+Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE. Avec `SATELLITE_PROVIDER=fixture`, les propositions de contours dessinent un champ rectangulaire synthétique de 1 à 4 ha autour du point, pour montrer l'écran sans compte. Le seed écrit aussi des surfaces par satellite de démonstration, déduites des surfaces déclarées avec un taux d'enrôlement propre à chaque commune (entre 25 et 95 %). Une mesure réelle n'est jamais écrasée, et la passe mensuelle réelle remplace ces lignes. Il contrôle enfin 1 500 parcelles vérifiées avec la fixture, qui retrouve la culture déclarée quatre fois sur cinq, pour montrer une matrice de confusion.
 
 ## Vérifier
 
@@ -182,4 +193,6 @@ pnpm exec vitest run --project integration tests/integration/satellite.test.ts t
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/vegetation-checks?limit=20"
 pnpm exec vitest run --project integration tests/integration/crop-areas.test.ts tests/integration/satellite-route.test.ts
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/crop-areas?limit=2"
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/crop-map"
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/crop-accuracy?limit=20"
 ```

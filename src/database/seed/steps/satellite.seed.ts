@@ -1,6 +1,7 @@
 import { prisma } from "@/database/client";
 import { getServerEnv } from "@/lib/env";
 import {
+  runCropClassChecks,
   runVegetationChecks,
   writeDemoCropAreaEstimates,
   type VegetationRunResult,
@@ -32,4 +33,20 @@ export async function seedVegetationChecks(): Promise<VegetationRunResult | null
 export async function seedCropAreaEstimates(): Promise<number | null> {
   if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
   return writeDemoCropAreaEstimates();
+}
+
+/** Parcelles vérifiées contrôlées en démonstration : assez pour une matrice lisible. */
+const DEMO_ACCURACY_PARCELS = 1500;
+
+// Précision de la carte des cultures de démonstration : classes tirées par la fixture autour de
+// la culture déclarée (quatre fois sur cinq la bonne), pour que le ministère voie une matrice de
+// confusion dès l'installation. Mêmes gardes ; les contrôles réels ne sont jamais effacés.
+export async function seedCropClassChecks(): Promise<number | null> {
+  if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
+  await prisma.parcelCropClassCheck.deleteMany({ where: { sourceId: "BAIS_SEED" } });
+  const result = await runCropClassChecks({
+    provider: createFixtureRemoteSensingProvider(),
+    limit: DEMO_ACCURACY_PARCELS,
+  });
+  return result.checked;
 }

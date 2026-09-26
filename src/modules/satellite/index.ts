@@ -69,3 +69,13 @@ export {
   type CropAreaRunResult,
   type CultivatedClass,
 } from "./crop-areas";
+export {
+  MIN_PARCELS_FOR_RATE,
+  confusionMatrix,
+  getCropMapAccuracy,
+  majorityClass,
+  runCropClassChecks,
+  type CropClassAccuracy,
+  type CropClassCheckRunResult,
+  type CropMapAccuracy,
+} from "./crop-accuracy";

@@ -3,7 +3,9 @@ import { prisma } from "@/database/client";
 import { loadActor } from "@/modules/identity";
 import {
   getCropAreaComparison,
+  getCropMapAccuracy,
   runCropAreaEstimates,
+  runCropClassChecks,
   writeDemoCropAreaEstimates,
 } from "@/modules/satellite";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
@@ -95,4 +97,22 @@ describe("surfaces des cultures par commune", () => {
     expect(cotton?.byClass).toHaveLength(1);
     expect(cotton?.departements.map((entry) => entry.code)).toEqual(["BJ-AL"]);
   }, 60_000);
+
+  it("mesure la précision de la carte sur les parcelles vérifiées, pour le ministère", async () => {
+    const run = await runCropClassChecks({
+      provider: createFixtureRemoteSensingProvider(),
+      limit: 150,
+    });
+    expect(run.checked).toBe(150);
+    const agent = await actorForPhone(AGENT_PHONE);
+    expect(await getCropMapAccuracy(agent)).toBeNull();
+    const accuracy = await getCropMapAccuracy(await actorForPhone(MINISTRY_PHONE));
+    expect(accuracy!.checked).toBeGreaterThan(100);
+    expect(accuracy!.overallAccuracy).toBeGreaterThan(0.6);
+    expect(accuracy!.overallAccuracy).toBeLessThan(0.95);
+    const checked = await prisma.parcelCropClassCheck.findFirstOrThrow({
+      select: { verificationStatus: true, classifiedPixels: true },
+    });
+    expect(["AGENT_VERIFIED", "FIELD_VERIFIED"]).toContain(checked.verificationStatus);
+  }, 120_000);
 });

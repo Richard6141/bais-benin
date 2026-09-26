@@ -145,6 +145,11 @@ export interface CropAreaRequest {
   zoneOffset: number;
   /** Délai de la requête, en millisecondes (30 s par défaut). */
   timeoutMs?: number;
+  /**
+   * Code de la classe déclarée d'une parcelle (matrice de confusion) : indice pour la fixture
+   * seulement, jamais envoyé à Copernicus.
+   */
+  expectedClass?: number;
 }
 
 export interface CropAreaResult {
