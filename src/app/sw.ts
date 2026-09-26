@@ -36,6 +36,15 @@ function isSpacePath(pathname: string): boolean {
   return OFFLINE_SPACES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+// Espaces authentifiés sans mode hors ligne (même liste que proxy.ts, moins agent et agriculteur).
+const ONLINE_ONLY_SPACES = ["/pilotage", "/compte", "/commune", "/cooperative", "/acheteur"];
+
+function isAccountPath(pathname: string): boolean {
+  return ONLINE_ONLY_SPACES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 function isNeverCached(pathname: string): boolean {
   return (
     pathname.startsWith("/api/auth") ||
@@ -44,7 +53,9 @@ function isNeverCached(pathname: string): boolean {
   );
 }
 
-const okOnly = new CacheableResponsePlugin({ statuses: [0, 200] });
+// 200 seulement (B2) : le statut 0 couvre aussi les redirections opaques, qu'un cache resservirait
+// (vers /connexion ou vers l'espace d'un autre compte). Toutes les règles sont de même origine.
+const okOnly = new CacheableResponsePlugin({ statuses: [200] });
 
 const runtimeCaching: RuntimeCaching[] = [
   {
@@ -128,7 +139,15 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
   {
-    // Autres pages du site : réseau d'abord, cache court.
+    // Pages authentifiées sans usage hors ligne (ministère, compte, coopérative, acheteur) :
+    // jamais en cache. Elles portent des données nominatives (palmarès, signalements, demandes)
+    // qu'un appareil partagé ne doit pas resservir au compte suivant ; hors réseau, page de repli.
+    matcher: ({ sameOrigin, request, url }) =>
+      sameOrigin && request.mode === "navigate" && isAccountPath(url.pathname),
+    handler: new NetworkOnly({ networkTimeoutSeconds: 30 }),
+  },
+  {
+    // Autres pages du site (publiques) : réseau d'abord, cache court.
     matcher: ({ sameOrigin, request, url }) =>
       sameOrigin && request.mode === "navigate" && !url.pathname.startsWith("/api/"),
     handler: new NetworkFirst({

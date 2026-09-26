@@ -13,7 +13,14 @@ import { outboxCounts } from "@/lib/offline/outbox";
 // connecte après un agent A ne doit jamais pouvoir lire les données de A restées en cache
 // (ou dans IndexedDB) après sa déconnexion : on les vide explicitement ici plutôt que
 // d'attendre leur expiration naturelle.
-const ACCOUNT_SCOPED_CACHES = ["bais-registry-data", "bais-spaces-pages", "bais-spaces-rsc"];
+// « bais-pages » : copies des pages du ministère et du compte mises en cache avant qu'elles ne
+// passent en NetworkOnly (sw.ts).
+const ACCOUNT_SCOPED_CACHES = [
+  "bais-registry-data",
+  "bais-spaces-pages",
+  "bais-spaces-rsc",
+  "bais-pages",
+];
 
 async function clearAccountScopedCaches(): Promise<void> {
   if (typeof caches === "undefined") return;
