@@ -158,13 +158,14 @@ L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, san
 - **Classification par pixel**, calculée par Copernicus : un passage par mois sur les 12 derniers mois, le moins nuageux. La courbe de végétation de chaque pixel le range dans l'une de ces classes : riz, maïs et cultures annuelles, coton, cultures pérennes, maraîchage, jachère et sol nu, forêt et savane, eau, bâti. Règles et seuils dans `src/services/remote-sensing/crop-classes.ts`.
 - **Carte** : fond « Carte des cultures » sur `/carte` (`?ciel=cultures`), placé sous les limites et les parcelles, sans tuiles détaillées. Elle est faite de quatre quarts du pays, d'environ 400 m par pixel (ADR-0025) :
   - la commande `POST /api/v1/satellite/crop-map`, planifiée du 1er au 8 du mois, les calcule hors de toute requête de visiteur, et `?force=1` refait tout ;
-  - les quarts restent en cache jusqu'au mois suivant, pour 120 à 300 PU au total ;
+  - la carte fait 800 px de large (environ 470 m par pixel) et reste en cache deux mois, pour environ 240 PU par calcul (ADR-0028) ;
   - la route publique ne sert que le cache, et la légende affiche « Carte en préparation » tant qu'aucun quart n'est prêt.
 - **Surfaces par commune** : `POST /api/v1/satellite/crop-areas?limit=12`, planifiée du 1er au 8 de chaque mois.
   - Chaque commune reçoit un histogramme des classes par l'API Statistical, en pixels de 120 m.
   - Chaque lot reprend les communes pas encore calculées ce mois-ci, puis s'arrête net quand la part des statistiques ou le plafond d'unités est atteint.
   - Seuls les pixels du contour comptent, et chaque mois garde un passage par trace Sentinel-2 (ADR-0025).
-  - Coût : environ 14 PU par commune en moyenne, 1 100 PU par passe nationale. La formule est dans ADR-0023.
+  - Chaque mois, la moitié des communes est refaite : deux moitiés de coût égal alternent, et chaque commune l'est tous les deux mois (ADR-0028).
+  - Coût mesuré : environ 1 970 PU pour les 77 communes, deux à trois passages par mois étant lus (Sentinel-2A, 2B et 2C), soit environ 985 PU par mois. La formule est dans ADR-0023.
   - Une estimation faite avec une méthode antérieure (`method_version`) est refaite au lot suivant.
   - Riz par radar Sentinel-1 (ADR-0026), avec `SATELLITE_RADAR_RICE=1` : une requête de plus par commune, environ 2 PU. Le radar reconnaît la rizière à l'eau libre du repiquage puis à la montée du couvert, sous les nuages. La part de riz retenue est la plus grande de l'optique et du radar, reprise sur les cultures annuelles, la jachère puis la savane. La page le signale.
   - Résultats dans la table `crop_area_estimate`.
@@ -178,7 +179,7 @@ L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, san
   - La classe la plus fréquente de la parcelle est comparée à sa culture principale déclarée ; sous 20 pixels classés, la parcelle est comptée « sans classe dominante ».
   - La page donne la précision globale, puis par culture : part des parcelles reconnues, part de la classe qui cultive vraiment cette culture, et confusion principale. Elle montre aussi la matrice de confusion complète.
   - Aucun taux n'est affiché sous 10 parcelles.
-  - Commande `POST /api/v1/satellite/crop-accuracy?limit=300`, le 9 de chaque mois : les parcelles jamais contrôlées passent d'abord, puis les contrôles les plus anciens. Environ 0,16 PU par parcelle.
+  - Commande `POST /api/v1/satellite/crop-accuracy?limit=150`, le 9 de chaque mois : les parcelles jamais contrôlées passent d'abord, puis les contrôles les plus anciens. Environ 0,36 PU par parcelle.
   - Résultats dans la table `parcel_crop_class_check`.
 - **Limites** : un champ isolé plus petit qu'un pixel n'apparaît pas sur la carte. Les seuils sont des valeurs de départ, à recaler d'après la matrice de confusion.
 

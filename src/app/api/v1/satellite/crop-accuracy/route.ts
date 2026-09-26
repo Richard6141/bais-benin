@@ -9,10 +9,11 @@ export const maxDuration = 300;
 
 // Précision de la carte des cultures (ADR-0021) : classe vue par satellite sur un lot de
 // parcelles d'exploitations vérifiées, pour la matrice de confusion. Une fois par mois, après la
-// passe des communes ; environ 0,16 unité par parcelle, dans la part des statistiques. Les
-// parcelles jamais contrôlées passent d'abord, puis les contrôles les plus anciens.
+// passe des communes : 150 parcelles, environ 0,36 unité chacune (deux à trois passages par mois,
+// ADR-0028), dans la part des statistiques. Les parcelles jamais contrôlées passent d'abord, puis
+// les contrôles les plus anciens.
 const querySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).default(300),
+  limit: z.coerce.number().int().min(1).max(1000).default(150),
 });
 
 export async function POST(request: NextRequest) {

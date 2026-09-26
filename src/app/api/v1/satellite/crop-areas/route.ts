@@ -10,8 +10,8 @@ export const maxDuration = 300;
 // Surfaces des cultures par commune (ADR-0021) : passe mensuelle, en lots. Chaque appel calcule
 // au plus `limit` communes pas encore faites ce mois-ci et s'arrête net quand la part des
 // statistiques ou le plafond d'unités est atteint ; l'appel suivant reprend où il s'est arrêté.
-// Planifiée les huit premiers jours du mois : les 77 communes tiennent en huit lots de 12, et les
-// appels suivants, une fois la passe finie, ne consomment rien.
+// Planifiée les huit premiers jours du mois. Chaque mois, la moitié des communes est refaite
+// (ADR-0028), soit une quarantaine en quatre lots de 12 ; les appels suivants ne consomment rien.
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(77).default(12),
 });

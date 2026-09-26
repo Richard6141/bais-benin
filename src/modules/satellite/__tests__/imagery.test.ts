@@ -181,7 +181,7 @@ describe("carte des cultures en quatre quarts", () => {
     expect(sql.reserveProcessingRequest).not.toHaveBeenCalled();
   });
 
-  it("calcule chaque quart absent avec un long délai, en cache jusqu'au mois suivant", async () => {
+  it("calcule chaque quart absent avec un long délai, en cache deux mois", async () => {
     sql.findCachedImage.mockResolvedValue(null);
     sql.reserveProcessingRequest.mockResolvedValue("reserved");
     provider.renderImage.mockResolvedValue({ image: new Uint8Array([1]), processingUnits: 52 });
@@ -194,14 +194,14 @@ describe("carte des cultures en quatre quarts", () => {
     ]);
     expect(result?.processingUnits).toBe(208);
     const request = provider.renderImage.mock.calls[0]?.[0];
-    expect(request).toMatchObject({ layer: "CROP_CLASSES", width: 500 });
+    expect(request).toMatchObject({ layer: "CROP_CLASSES", width: 400 });
     expect(request.timeoutMs).toBeGreaterThan(60_000);
     expect(sql.storeCachedImage).toHaveBeenCalledWith(
       "CROP_CLASSES",
       "12-mois",
       "crop-m3:q0",
       new Uint8Array([1]),
-      new Date("2026-10-01T00:00:00Z"),
+      new Date("2026-11-01T00:00:00Z"),
     );
   });
 

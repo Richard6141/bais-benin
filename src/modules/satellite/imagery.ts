@@ -244,6 +244,11 @@ const CROP_MAP_CACHE_KEY = "crop-m3";
 const CROP_MAP_QUARTER_TIMEOUT_MS = 200_000;
 /** Temps de calcul d'un appel, sous la limite de 300 s de la route ; l'appel suivant reprend. */
 const CROP_MAP_RUN_BUDGET_MS = 250_000;
+/**
+ * Largeur de la carte entière, en pixels (environ 470 m par pixel) : 800 au lieu des 1 000 de la
+ * vue du ciel, soit 36 % d'unités en moins (ADR-0028).
+ */
+const CROP_MAP_WIDTH = 800;
 
 function cropMapTileKey(index: number): string {
   return `${CROP_MAP_CACHE_KEY}:q${index}`;
@@ -284,9 +289,9 @@ export interface CropMapRenderResult {
   remaining: number;
 }
 
-/** Début du mois suivant (UTC) : la carte est refaite une fois par mois. */
-function nextMonthStart(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+/** Début du mois d'après le suivant (UTC) : la carte est refaite tous les deux mois. */
+function cropMapExpiry(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1));
 }
 
 /**
@@ -300,7 +305,9 @@ export async function renderCropMap(
   if (!provider.canProcess) return null;
   const now = options.now ?? new Date();
   const started = Date.now();
-  const { width, height } = overviewSize();
+  const overview = overviewSize();
+  const width = CROP_MAP_WIDTH;
+  const height = Math.round((overview.height * CROP_MAP_WIDTH) / overview.width);
   const { from, to } = periodRange(CROP_MAP_PERIOD, now);
   const month = periodOf(now);
   const clip = (await countryOutline()) ?? undefined;
@@ -349,7 +356,7 @@ export async function renderCropMap(
           CROP_MAP_PERIOD,
           tileKey,
           rendered.image,
-          nextMonthStart(now),
+          cropMapExpiry(now),
         );
       }
       result.quarters.push({

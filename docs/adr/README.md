@@ -30,3 +30,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0025 | Carte des cultures : pixels hors contour écartés, un passage par trace et par mois, carte calculée hors requête | acceptée, complète 0021 et 0023 |
 | 0026 | Riz par radar Sentinel-1 dans les surfaces par commune | acceptée, complète 0019, 0021, 0023 et 0025 |
 | 0027 | Carte des cultures : règle plus sévère pour « cultivé », avertissement tant qu'elle n'est pas calée | acceptée, complète 0021, 0023 et 0025 |
+| 0028 | Carte des cultures : moins de 1 200 PU par mois, communes refaites tous les deux mois, carte à 800 px | acceptée, complète 0023 et 0025 |
