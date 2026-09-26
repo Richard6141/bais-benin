@@ -101,9 +101,22 @@ export async function departementTile(z: number, x: number, y: number): Promise<
  * Tuile des exploitations (points) : attributs code, verification_status, commune_id.
  * Prévue pour l'étape 5 ; tant que la table est vide, elle renvoie null.
  */
-// Périmètre des points : `null` = sans restriction (usage interne, tests) ; une liste
-// d'identifiants de communes restreint la tuile à ces communes (agent) ; vide = rien.
-export type FarmTileScope = string[] | null;
+// Périmètre des exploitations servies dans une tuile : `null` = sans restriction (ministère,
+// usage interne) ; une liste d'identifiants de communes (vide = rien) ; `registeredBy` = celles
+// que l'agent a enregistrées (ADR-0014) ; `ownerUserId` = celles du producteur connecté.
+export type FarmTileScope = string[] | null | { registeredBy: string } | { ownerUserId: string };
+
+function isEmptyScope(scope: FarmTileScope): boolean {
+  return Array.isArray(scope) && scope.length === 0;
+}
+
+function farmScopeClause(scope: FarmTileScope): Prisma.Sql {
+  if (scope === null) return Prisma.empty;
+  if (Array.isArray(scope)) return Prisma.sql`AND f."commune_id" = ANY(${scope}::uuid[])`;
+  if ("registeredBy" in scope)
+    return Prisma.sql`AND f."registered_by_id" = ${scope.registeredBy}::uuid`;
+  return Prisma.sql`AND EXISTS (SELECT 1 FROM "farmer" fo WHERE fo."id" = f."farmer_id" AND fo."user_id" = ${scope.ownerUserId}::uuid)`;
+}
 
 export async function farmPointsTile(
   z: number,
@@ -112,9 +125,8 @@ export async function farmPointsTile(
   scope: FarmTileScope = null,
 ): Promise<Buffer | null> {
   assertTile(z, x, y);
-  if (scope !== null && scope.length === 0) return null;
-  const scopeClause =
-    scope === null ? Prisma.empty : Prisma.sql`AND f."commune_id" = ANY(${scope}::uuid[])`;
+  if (isEmptyScope(scope)) return null;
+  const scopeClause = farmScopeClause(scope);
   const rows = await prisma.$queryRaw<unknown[]>`
     WITH bounds AS (
       SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
@@ -136,6 +148,67 @@ export async function farmPointsTile(
         ${scopeClause}
     )
     SELECT ST_AsMVT(q, 'farms', ${EXTENT}::int, 'geom') AS tile
+    FROM q
+    WHERE q.geom IS NOT NULL`;
+  return toBuffer(rows);
+}
+
+export const PARCEL_TILE_MIN_ZOOM = 12;
+
+/**
+ * Tuile des parcelles (polygones) aux zooms rapprochés, dans le périmètre de l'acteur : id, code,
+ * culture principale de la campagne la plus récente où la parcelle est cultivée (code et couleur),
+ * dernier verdict satellite (ADR-0016).
+ */
+export async function parcelPolygonsTile(
+  z: number,
+  x: number,
+  y: number,
+  scope: FarmTileScope = null,
+): Promise<Buffer | null> {
+  assertTile(z, x, y);
+  if (z < PARCEL_TILE_MIN_ZOOM || isEmptyScope(scope)) return null;
+  const scopeClause = farmScopeClause(scope);
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH bounds AS (
+      SELECT ST_TileEnvelope(${z}::int, ${x}::int, ${y}::int) AS env
+    ),
+    q AS (
+      SELECT
+        p."id"::text AS id,
+        p."code",
+        crop.code AS crop,
+        crop.color AS color,
+        check_.status AS vegetation,
+        ST_AsMVTGeom(
+          ST_Transform(p."geom"::geometry, 3857),
+          bounds.env, ${EXTENT}::int, ${BUFFER}::int, true
+        ) AS geom
+      FROM "parcel" p
+      JOIN "farm" f ON f."id" = p."farm_id" AND f."archived_at" IS NULL
+      CROSS JOIN bounds
+      LEFT JOIN LATERAL (
+        SELECT cr."code" AS code, cr."color_hex" AS color
+        FROM "parcel_crop" pc
+        JOIN "crop" cr ON cr."id" = pc."crop_id"
+        JOIN "agricultural_campaign" ac ON ac."id" = pc."campaign_id"
+        WHERE pc."parcel_id" = p."id" AND pc."archived_at" IS NULL AND ac."status" <> 'PLANNED'
+        ORDER BY ac."start_year" DESC, pc."area_ha" DESC
+        LIMIT 1
+      ) crop ON true
+      LEFT JOIN LATERAL (
+        SELECT v."status"::text AS status
+        FROM "parcel_vegetation_check" v
+        WHERE v."parcel_id" = p."id"
+        ORDER BY v."computed_at" DESC
+        LIMIT 1
+      ) check_ ON true
+      WHERE p."archived_at" IS NULL
+        AND p."geom" IS NOT NULL
+        AND p."geom" && ST_Transform(bounds.env, 4326)::geography
+        ${scopeClause}
+    )
+    SELECT ST_AsMVT(q, 'parcels', ${EXTENT}::int, 'geom') AS tile
     FROM q
     WHERE q.geom IS NOT NULL`;
   return toBuffer(rows);

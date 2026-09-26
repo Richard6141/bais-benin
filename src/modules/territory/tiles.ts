@@ -2,10 +2,11 @@ import {
   communeTile,
   departementTile,
   farmPointsTile,
+  parcelPolygonsTile,
   type FarmTileScope,
 } from "@/database/sql/tiles.sql";
 
-export type TileLayerName = "communes" | "departements" | "farms";
+export type TileLayerName = "communes" | "departements" | "farms" | "parcels";
 export type { FarmTileScope };
 
 export interface RenderTileOptions {
@@ -24,5 +25,6 @@ export function renderTile(
   options: RenderTileOptions = {},
 ) {
   if (layer === "farms") return farmPointsTile(z, x, y, options.farmScope ?? null);
+  if (layer === "parcels") return parcelPolygonsTile(z, x, y, options.farmScope ?? null);
   return layer === "communes" ? communeTile(z, x, y) : departementTile(z, x, y);
 }

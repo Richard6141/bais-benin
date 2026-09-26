@@ -5,6 +5,7 @@ import {
   choroplethScale,
   ndviScale,
   reliabilityColors,
+  semanticColors,
 } from "@/styles/tokens";
 
 // Réglages partagés de la carte agricole : emprise, fond, couches et couleurs.
@@ -21,13 +22,14 @@ export const INITIAL_ZOOM = 6.2;
 export const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/positron";
 
-export const TILE_URL_TEMPLATE = (layer: "communes" | "departements" | "farms") =>
+export const TILE_URL_TEMPLATE = (layer: "communes" | "departements" | "farms" | "parcels") =>
   `/api/tiles/${layer}/{z}/{x}/{y}.pbf`;
 
 export const SOURCE_IDS = {
   communes: "bais-communes",
   departements: "bais-departements",
   farms: "bais-farms",
+  parcels: "bais-parcels",
 } as const;
 
 export const LAYER_IDS = {
@@ -36,6 +38,20 @@ export const LAYER_IDS = {
   communeHover: "bais-commune-hover",
   departementLine: "bais-departement-line",
   farmPoints: "bais-farm-points",
+  parcelFill: "bais-parcel-fill",
+  parcelLine: "bais-parcel-line",
+} as const;
+
+/** Les parcelles apparaissent à partir de ce zoom (tuiles servies dès 12). */
+export const PARCEL_MIN_ZOOM = 12;
+
+// Parcelles : remplies de la couleur de leur culture principale (gris si aucune n'est déclarée),
+// bordées de latérite quand le satellite demande une visite, d'encre quand elles sont ouvertes.
+export const PARCEL_COLORS = {
+  noCrop: "#9aa3ad",
+  outline: brandColors.paper,
+  toVerify: semanticColors.warning,
+  selected: brandColors.ink,
 } as const;
 
 // Vue du ciel (ADR-0016) : images Sentinel-2 calculées par Copernicus, servies par

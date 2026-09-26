@@ -33,3 +33,10 @@ export {
   type ParcelOverlapList,
   type ParcelOverlapPair,
 } from "./parcel-overlaps";
+export {
+  MIN_YIELD_PEERS,
+  getParcelInspection,
+  type ParcelInspection,
+  type ParcelInspectionCrop,
+  type ParcelInspectionVegetation,
+} from "./parcel-inspection";

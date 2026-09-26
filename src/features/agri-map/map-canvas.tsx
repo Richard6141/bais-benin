@@ -29,6 +29,8 @@ import {
   LAYER_IDS,
   MAP_STYLE_URL,
   OUTLINE_COLOR,
+  PARCEL_COLORS,
+  PARCEL_MIN_ZOOM,
   SATELLITE_BOUNDS,
   SATELLITE_DETAIL_MAX_ZOOM,
   SATELLITE_DETAIL_MIN_ZOOM,
@@ -84,6 +86,14 @@ interface MapCanvasProps {
   sky?: SkyView | null;
   /** Tuiles détaillées aux zooms rapprochés (comptes connectés seulement). */
   skyDetail?: boolean;
+  /** Contours des parcelles à partir du zoom 12, cliquables (comptes qui lisent le registre). */
+  showParcels?: boolean;
+  selectedParcelId?: string | null;
+  onSelectParcel?: (id: string | null) => void;
+  /** Emprise à cadrer (fiche parcelle ouverte depuis un lien) : [ouest, sud, est, nord]. */
+  focusBounds?: [number, number, number, number] | null;
+  /** Niveau de zoom après chaque déplacement (invite à se rapprocher pour voir les champs). */
+  onZoomChange?: (zoom: number) => void;
 }
 
 // Carte MapLibre : fond OpenStreetMap, communes en choroplèthe alimentée par les agrégats,
@@ -100,6 +110,11 @@ export function MapCanvas({
   onReady,
   sky = null,
   skyDetail = false,
+  showParcels = false,
+  selectedParcelId = null,
+  onSelectParcel,
+  focusBounds = null,
+  onZoomChange,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -109,6 +124,12 @@ export function MapCanvas({
   const hoveredRef = useRef<string | null>(null);
   // Passe à vrai quand les sources et couches existent : les effets de peinture attendent ce signal.
   const [ready, setReady] = useState(false);
+  // Les gestionnaires de la carte sont posés une fois, au chargement : ils lisent les rappels
+  // courants par cette référence plutôt que ceux du premier rendu.
+  const callbacksRef = useRef({ onSelectCommune, onSelectParcel, onZoomChange });
+  useEffect(() => {
+    callbacksRef.current = { onSelectCommune, onSelectParcel, onZoomChange };
+  }, [onSelectCommune, onSelectParcel, onZoomChange]);
 
   useEffect(() => {
     if (!supported || !containerRef.current || mapRef.current) return;
@@ -151,6 +172,13 @@ export function MapCanvas({
         minzoom: 4,
         maxzoom: 12,
         promoteId: "code",
+      });
+      map.addSource(SOURCE_IDS.parcels, {
+        type: "vector",
+        tiles: [`${window.location.origin}${TILE_URL_TEMPLATE("parcels")}`],
+        minzoom: PARCEL_MIN_ZOOM,
+        maxzoom: 14,
+        promoteId: "id",
       });
       map.addSource(SOURCE_IDS.farms, {
         type: "vector",
@@ -200,6 +228,51 @@ export function MapCanvas({
         source: SOURCE_IDS.departements,
         "source-layer": "departements",
         paint: { "line-color": OUTLINE_COLOR, "line-width": 1.4, "line-opacity": 0.7 },
+      });
+      map.addLayer({
+        id: LAYER_IDS.parcelFill,
+        type: "fill",
+        source: SOURCE_IDS.parcels,
+        "source-layer": "parcels",
+        minzoom: PARCEL_MIN_ZOOM,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": ["coalesce", ["get", "color"], PARCEL_COLORS.noCrop],
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            0.6,
+            ["boolean", ["feature-state", "hover"], false],
+            0.5,
+            0.38,
+          ],
+        },
+      });
+      map.addLayer({
+        id: LAYER_IDS.parcelLine,
+        type: "line",
+        source: SOURCE_IDS.parcels,
+        "source-layer": "parcels",
+        minzoom: PARCEL_MIN_ZOOM,
+        layout: { visibility: "none", "line-join": "round" },
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            PARCEL_COLORS.selected,
+            ["==", ["get", "vegetation"], "TO_VERIFY"],
+            PARCEL_COLORS.toVerify,
+            PARCEL_COLORS.outline,
+          ],
+          "line-width": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            3,
+            ["==", ["get", "vegetation"], "TO_VERIFY"],
+            2,
+            1.2,
+          ],
+        },
       });
       map.addLayer({
         id: LAYER_IDS.farmPoints,
@@ -263,10 +336,52 @@ export function MapCanvas({
         onHoverCommune(null);
       });
       map.on("click", LAYER_IDS.communeFill, (event: MapLayerMouseEvent) => {
+        // Un clic sur une parcelle ouvre sa fiche, pas celle de la commune qui la contient.
+        if (
+          map.getLayoutProperty(LAYER_IDS.parcelFill, "visibility") === "visible" &&
+          map.queryRenderedFeatures(event.point, { layers: [LAYER_IDS.parcelFill] }).length > 0
+        ) {
+          return;
+        }
         const feature = event.features?.[0];
         const code = typeof feature?.id === "string" ? feature.id : null;
-        onSelectCommune(code);
+        callbacksRef.current.onSelectCommune(code);
       });
+      map.on("click", LAYER_IDS.parcelFill, (event: MapLayerMouseEvent) => {
+        const feature = event.features?.[0];
+        const id = typeof feature?.id === "string" ? feature.id : null;
+        if (id) callbacksRef.current.onSelectParcel?.(id);
+      });
+      let hoveredParcel: string | null = null;
+      map.on("mousemove", LAYER_IDS.parcelFill, (event: MapLayerMouseEvent) => {
+        const feature = event.features?.[0];
+        const id = typeof feature?.id === "string" ? feature.id : null;
+        if (hoveredParcel && hoveredParcel !== id) {
+          map.setFeatureState(
+            { source: SOURCE_IDS.parcels, sourceLayer: "parcels", id: hoveredParcel },
+            { hover: false },
+          );
+        }
+        if (id) {
+          map.setFeatureState(
+            { source: SOURCE_IDS.parcels, sourceLayer: "parcels", id },
+            { hover: true },
+          );
+        }
+        hoveredParcel = id;
+      });
+      map.on("mouseleave", LAYER_IDS.parcelFill, () => {
+        if (hoveredParcel) {
+          map.setFeatureState(
+            { source: SOURCE_IDS.parcels, sourceLayer: "parcels", id: hoveredParcel },
+            { hover: false },
+          );
+        }
+        hoveredParcel = null;
+      });
+
+      map.on("zoomend", () => callbacksRef.current.onZoomChange?.(map.getZoom()));
+      callbacksRef.current.onZoomChange?.(map.getZoom());
 
       setReady(true);
       onReady?.();
@@ -318,6 +433,50 @@ export function MapCanvas({
     if (!map || !ready) return;
     map.setLayoutProperty(LAYER_IDS.farmPoints, "visibility", showFarms ? "visible" : "none");
   }, [showFarms, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const visibility = showParcels ? "visible" : "none";
+    map.setLayoutProperty(LAYER_IDS.parcelFill, "visibility", visibility);
+    map.setLayoutProperty(LAYER_IDS.parcelLine, "visibility", visibility);
+  }, [showParcels, ready]);
+
+  const selectedParcelRef = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const previous = selectedParcelRef.current;
+    if (previous && previous !== selectedParcelId) {
+      map.setFeatureState(
+        { source: SOURCE_IDS.parcels, sourceLayer: "parcels", id: previous },
+        { selected: false },
+      );
+    }
+    if (selectedParcelId) {
+      map.setFeatureState(
+        { source: SOURCE_IDS.parcels, sourceLayer: "parcels", id: selectedParcelId },
+        { selected: true },
+      );
+    }
+    selectedParcelRef.current = selectedParcelId;
+  }, [selectedParcelId, ready]);
+
+  // Cadrage demandé (fiche ouverte depuis un lien) : la parcelle entière, sans dépasser le zoom 16.
+  const focusKey = focusBounds ? focusBounds.join(",") : null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !focusBounds) return;
+    map.fitBounds(
+      [
+        [focusBounds[0], focusBounds[1]],
+        [focusBounds[2], focusBounds[3]],
+      ],
+      { padding: 80, maxZoom: 16, duration: 900 },
+    );
+    // focusKey résume l'emprise : le tableau change d'identité à chaque rendu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, ready]);
 
   // Vue du ciel : image d'ensemble du pays aux petits zooms, tuiles de 512 px au-delà, sous les
   // limites administratives. Les communes deviennent transparentes (survol et clic gardés) pour
