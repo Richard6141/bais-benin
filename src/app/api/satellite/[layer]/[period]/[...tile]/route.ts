@@ -16,20 +16,19 @@ export const dynamic = "force-dynamic";
 // Images de la vue du ciel (ADR-0016), calculées par Copernicus et gardées en cache :
 // - /api/satellite/{couche}/{AAAA-MM|60-jours}/overview.png : image d'ensemble du pays, publique ;
 // - /api/satellite/{couche}/{AAAA-MM|60-jours}/{z}/{x}/{y}.png : tuile de 512 px, réservée aux
-//   comptes connectés, pour qu'un robot anonyme ne vide pas le quota mensuel du compte CDSE.
+//   agents et au ministère (revue R2 : producteurs, coopératives et acheteurs n'ont que l'image
+//   d'ensemble), avec un plafond mensuel par compte sur les tuiles à calculer (imagery.ts).
 
 const LAYERS = { "couleur-naturelle": "TRUE_COLOR", ndvi: "NDVI" } as const;
 
 // Image d'ensemble publique : 60 demandes par adresse et par tranche de 5 minutes, bien au-delà
 // d'une navigation normale (24 images au plus, gardées ensuite par le navigateur).
 const OVERVIEW_RATE_LIMIT = { windowSeconds: 300, max: 60 };
-// Tuiles détaillées, par compte : une tuile absente du cache consomme une unité du quota mensuel
-// du compte CDSE, partagé par tout le pays. Plafonds larges pour un usage réel (la copie du
-// navigateur se revalide), assez bas pour qu'un seul compte ne vide pas le quota en une journée.
-const TILE_RATE_LIMITS = [
-  { windowSeconds: 3600, max: 1000 },
-  { windowSeconds: 86_400, max: 3000 },
-] as const;
+// Rôles qui voient les tuiles détaillées.
+const DETAIL_ROLES = new Set(["AGENT_AGRICULTURE", "ADMIN_STATE"]);
+// Garde-fou de charge sur la base, par compte : les tuiles déjà en cache ne coûtent rien au
+// quota Copernicus (le plafond qui compte est celui des tuiles à calculer, dans imagery.ts).
+const TILE_FLOOD_LIMIT = { windowSeconds: 3600, max: 5000 };
 
 const tileSchema = z.tuple([
   z.coerce.number().int().min(0).max(22),
@@ -68,6 +67,19 @@ function respond(outcome: ImageryOutcome, visibility: "public" | "private"): Nex
     case "budget-exhausted":
       return NextResponse.json(
         { error: "Quota mensuel d'imagerie atteint, réessayez le mois prochain" },
+        { status: 429 },
+      );
+    case "throttled":
+      return NextResponse.json(
+        { error: "Copernicus très sollicité, réessayez dans une minute" },
+        { status: 429, headers: { "Retry-After": "60" } },
+      );
+    case "account-limit":
+      return NextResponse.json(
+        {
+          error:
+            "Plafond mensuel d'images nouvelles atteint pour ce compte ; les zones déjà vues restent disponibles",
+        },
         { status: 429 },
       );
     case "unavailable":
@@ -112,14 +124,21 @@ export async function GET(request: NextRequest, context: { params: Promise<Image
       { status: 401 },
     );
   }
-  for (const [index, rule] of TILE_RATE_LIMITS.entries()) {
-    if (!(await consumeRateLimit(`satellite-tile-${index}:${api.userId}`, rule))) {
-      return NextResponse.json(
-        { error: "Trop d'images détaillées demandées, réessayez plus tard" },
-        { status: 429, headers: { "Retry-After": String(rule.windowSeconds) } },
-      );
-    }
+  if (!api.actor.grants.some((grant) => DETAIL_ROLES.has(grant.role))) {
+    return NextResponse.json(
+      { error: "Image détaillée réservée aux agents et au ministère" },
+      { status: 403 },
+    );
+  }
+  if (!(await consumeRateLimit(`satellite-tile:${api.userId}`, TILE_FLOOD_LIMIT))) {
+    return NextResponse.json(
+      { error: "Trop d'images détaillées demandées, réessayez plus tard" },
+      { status: 429, headers: { "Retry-After": String(TILE_FLOOD_LIMIT.windowSeconds) } },
+    );
   }
   const [z, x, y] = parsed.data;
-  return respond(await getDetailTile(layer, period, z, x, y), "private");
+  return respond(
+    await getDetailTile(layer, period, z, x, y, { requesterId: api.userId }),
+    "private",
+  );
 }

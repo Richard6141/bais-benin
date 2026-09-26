@@ -25,7 +25,7 @@ interface AgriMapProps {
   canShowFarms: boolean;
   /** Filtre par statut de vérification (adresse) : ministère seulement, refusé par l'API sinon. */
   canFilterByStatus: boolean;
-  /** Tuiles satellite détaillées : comptes connectés seulement (quota Copernicus, ADR-0016). */
+  /** Tuiles satellite détaillées : agents et ministère seulement (quota Copernicus, revue R2). */
   canSeeSkyDetail: boolean;
 }
 

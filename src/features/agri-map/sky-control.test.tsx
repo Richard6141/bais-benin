@@ -89,7 +89,7 @@ describe("légende de la vue du ciel", () => {
     expect(screen.getByText("Contains modified Copernicus Sentinel data 2026")).toBeInTheDocument();
   });
 
-  it("invite à se connecter pour l'image détaillée", () => {
+  it("dit que l'image détaillée est réservée aux agents et au ministère", () => {
     render(
       <SkyLegend
         view={{ layer: "couleur-naturelle", period: "2026-05" }}
@@ -99,7 +99,7 @@ describe("légende de la vue du ciel", () => {
     );
     expect(screen.getByText("Image en couleur naturelle")).toBeInTheDocument();
     expect(
-      screen.getByText("Sentinel-2, mai 2026 · connectez-vous pour le détail"),
+      screen.getByText("Sentinel-2, mai 2026 · détail réservé aux agents et au ministère"),
     ).toBeInTheDocument();
   });
 });
