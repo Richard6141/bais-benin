@@ -17,11 +17,15 @@ La plateforme sait déjà prévoir une production (ADR-0020). Mais cette prévis
 
 Surface de la culture dans **toute la commune** × rendement de référence de l'ADR-0020 (celui des deux dernières campagnes closes, commune, département, pays ou rendement type). La surface vient, dans cet ordre :
 
-1. **Enquête aréolaire** (ADR-0033) : dans les communes d'enquête, la surface estimée du groupe de cultures, avec sa marge, si elle est au moins indicative (CV de 20 % au plus). Le groupe est réparti entre ses cultures (sorgho et mil ; igname, manioc et patate douce) selon leurs parts déclarées au registre dans la commune.
+1. **Enquête aréolaire** (ADR-0033) : dans les communes d'enquête, la surface estimée des **céréales, racines et tubercules réunies**, avec sa marge, si elle est au moins indicative (CV de 20 % au plus). Elle est répartie entre les cultures selon les points où l'agent les a vues dans la commune ; à défaut de tels points, selon leurs parts déclarées au registre.
+   - Pourquoi réunies : avec 120 points par commune, chaque culture seule a un CV de 20 à 50 %. Réunies, elles en ont environ 10 %. Filtrer culture par culture ne laissait qu'une ou deux cultures par commune, et un bilan fait du seul riz annonçait un déficit qui n'existait pas.
+   - La nouvelle cible « Céréales, racines et tubercules » apparaît aussi dans l'onglet Sondage.
 2. **Statistiques officielles** (ADR-0034) : sinon, la dernière surface DSA connue pour la commune et la culture, avec sa campagne.
 3. **Sinon, la commune n'est pas évaluée.** Le registre seul ne sert jamais de production communale.
 
 La marge de la surface par sondage se reporte sur la production et sur le bilan.
+
+Correction de l'ADR-0033, apparue sur la démonstration : une culture vue sur deux ou trois points que la carte voit aussi donne une variance nulle, donc un CV nul et un chiffre « à citer ». Désormais, **au moins 10 points où la culture est vue** sont exigés avant de citer ou d'utiliser une surface par sondage.
 
 ### 2. Cultures retenues
 
