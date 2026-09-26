@@ -1,8 +1,15 @@
-# Image de production Next.js (sortie standalone), non root.
+# Images de production Next.js (sortie standalone), non root.
+#
+# Deux cibles publiées :
+# - runner (par défaut) : l'application seule, sans sources ni outils ;
+# - tools : sources, dépendances et client Prisma, pour les tâches ponctuelles du déploiement
+#   (prisma migrate deploy, seed de démonstration). Jamais exposée, lancée puis supprimée.
 
 FROM node:22-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+# Pas de crochets Git dans une image : husky n'a rien à installer.
+ENV HUSKY=0
 RUN corepack enable
 
 FROM base AS deps
@@ -10,6 +17,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
+# postinstall copie le worker de MapLibre dans public/vendor : le script doit être présent.
+COPY scripts/copy-maplibre-worker.mjs ./scripts/copy-maplibre-worker.mjs
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
@@ -20,6 +29,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # DATABASE_URL n'est pas nécessaire au build : le client Prisma est généré
 # à partir du schéma, la connexion n'a lieu qu'à l'exécution.
 RUN pnpm db:generate && pnpm build
+
+FROM base AS tools
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm db:generate
+# Aucune commande par défaut utile : le déploiement passe la sienne (migrations, seed).
+CMD ["pnpm", "exec", "prisma", "migrate", "status"]
 
 FROM node:22-alpine AS runner
 WORKDIR /app

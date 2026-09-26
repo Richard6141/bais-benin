@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Une nouvelle proposition (pull request) annule la vérification précédente ; un envoi sur une
+# branche ne l'annule jamais, pour ne pas couper un déploiement en cours.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 env:
   NEXT_TELEMETRY_DISABLED: 1
+  IMAGE_BASE: ghcr.io/richard6141/bais-benin
 
 jobs:
   quality:
@@ -126,3 +132,89 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  # Images du serveur de démonstration (docs/deploiement-demo.md), construites ici et jamais sur
+  # le serveur : application, outils (migrations, seed) et planificateur, étiquetés par SHA et
+  # publiés en privé sur GHCR. Seulement pour un envoi sur develop dont la CI est passée.
+  images:
+    name: Images Docker (GHCR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    needs: [quality, integration]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Application
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: runner
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/app:${{ github.sha }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+      - name: Outils (migrations, seed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: tools
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/tools:${{ github.sha }}
+          cache-from: |
+            type=gha,scope=app
+            type=gha,scope=tools
+          cache-to: type=gha,mode=max,scope=tools
+      - name: Planificateur
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/scheduler
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/scheduler:${{ github.sha }}
+
+  # Déploiement par SSH : la clé dédiée ne peut lancer que /opt/bais/deploy.sh (commande forcée).
+  # Le jeton GHCR éphémère du job passe par l'entrée standard, jamais en argument. Un seul
+  # déploiement à la fois ; deploy.sh revient seul à l'image précédente si la santé échoue.
+  deploy:
+    name: Déploiement de démonstration
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    needs: [images]
+    timeout-minutes: 20
+    environment:
+      name: demo
+      url: https://bais.51-210-108-173.sslip.io
+    concurrency:
+      group: deploy-demo
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Déployer sur le serveur de démonstration
+        env:
+          DEPLOY_HOST: ${{ secrets.BAIS_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.BAIS_DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.BAIS_DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.BAIS_DEPLOY_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/bais_deploy
+          chmod 600 ~/.ssh/bais_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/bais_deploy \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "deploy ${{ github.sha }} ${{ github.repository_owner }}"
+      - name: Vérifier l'adresse publique
+        run: curl -fsS --retry 5 --retry-delay 10 https://bais.51-210-108-173.sslip.io/api/health

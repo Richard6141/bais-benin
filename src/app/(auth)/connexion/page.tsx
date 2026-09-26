@@ -50,7 +50,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/connexion
       )
     : DEMO_SIGN_IN_ACCOUNTS;
   const demo =
-    env.APP_ENV !== "production" && env.OTP_DEMO_CODE
+    env.APP_ENV !== "production" && env.OTP_DEMO_CODE && env.DEMO_SIGNIN_PANEL !== "0"
       ? { accounts, code: env.OTP_DEMO_CODE }
       : null;
 

@@ -17,8 +17,12 @@ umask 077
   printf "CRON_SECRET='%s'\n" "$CRON_SECRET"
   printf "APP_INTERNAL_URL='%s'\n" "$APP_INTERNAL_URL"
   printf "SCHEDULER_TIMEOUT_SECONDS='%s'\n" "${SCHEDULER_TIMEOUT_SECONDS:-900}"
+  printf "SCHEDULER_DISABLED='%s'\n" "${SCHEDULER_DISABLED:-}"
 } > /run/scheduler/env
 
 cp /etc/crontabs/root.template /etc/crontabs/root
 echo "Planificateur prêt : ingestion à 04:00 UTC, envoi toutes les 10 minutes vers ${APP_INTERNAL_URL}"
+if [ -n "${SCHEDULER_DISABLED:-}" ]; then
+  echo "Tâches désactivées : ${SCHEDULER_DISABLED}"
+fi
 exec crond -f -l 6 -L /dev/stdout

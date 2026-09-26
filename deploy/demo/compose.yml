@@ -1,0 +1,82 @@
+# Serveur de démonstration de BAIS (docs/deploiement-demo.md). Copié dans /opt/bais/compose.yml.
+#
+# Isolation sur un serveur partagé : projet « bais », réseau et volume propres, aucun port public
+# (l'application écoute sur 127.0.0.1:3100 derrière le nginx de l'hôte, la base n'est pas publiée),
+# limites de mémoire et de processeur sur chaque conteneur, journaux en rotation.
+#
+# Deux fichiers d'environnement, lisibles par leur seul propriétaire (chmod 600) :
+# - .env : variables du compose (mot de passe PostgreSQL, secret du planificateur, IMAGE_TAG) ;
+# - app.env : environnement de l'application.
+# IMAGE_TAG (SHA du commit) est fixé par deploy.sh à chaque déploiement.
+
+name: bais
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    # PostGIS 16 et pgvector (docker/db/Dockerfile), construite une fois sur le serveur.
+    build:
+      context: ./db
+    image: bais-db:pg16
+    container_name: bais-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bais
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}
+      POSTGRES_DB: bais
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    shm_size: 256m
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bais -d bais"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+  app:
+    image: ghcr.io/richard6141/bais-benin/app:${IMAGE_TAG:?IMAGE_TAG est obligatoire}
+    container_name: bais-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: app.env
+    ports:
+      - "127.0.0.1:3100:3000"
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test:
+        ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+
+  scheduler:
+    image: ghcr.io/richard6141/bais-benin/scheduler:${IMAGE_TAG:?IMAGE_TAG est obligatoire}
+    container_name: bais-scheduler
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET est obligatoire}
+      APP_INTERNAL_URL: http://app:3000
+      SCHEDULER_TIMEOUT_SECONDS: "900"
+      # Passes satellite coûteuses désactivées sur la démonstration, jusqu'à validation.
+      SCHEDULER_DISABLED: ${SCHEDULER_DISABLED:-crop-areas crop-map crop-accuracy parcel-series survey-frame}
+    cpus: 0.25
+    mem_limit: 64m
+    logging: *logging
+
+volumes:
+  db-data:
