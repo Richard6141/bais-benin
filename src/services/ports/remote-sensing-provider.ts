@@ -38,10 +38,18 @@ export interface SceneSummary {
   gridCode: string | null;
 }
 
+/** Contour en EPSG:3857 (mètres) : les pixels hors contour sortent sans donnée (transparents). */
+export interface ClipGeometry {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: number[][][] | number[][][][];
+}
+
 export interface ImageryRequest {
   layer: ImageryLayer;
   /** Emprise demandée en EPSG:3857, pour se caler sur les tuiles de la carte. */
   envelope: Envelope3857;
+  /** Découpe sur la frontière du pays, dans le même système que l'emprise. */
+  clip?: ClipGeometry;
   width: number;
   height: number;
   from: string;

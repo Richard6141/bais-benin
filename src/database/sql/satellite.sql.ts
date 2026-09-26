@@ -67,6 +67,27 @@ export async function reserveProcessingRequest(
   return rows.length > 0;
 }
 
+const outlineSchema = z.object({
+  type: z.enum(["Polygon", "MultiPolygon"]),
+  coordinates: z.array(z.unknown()),
+});
+
+/**
+ * Frontière du Bénin en EPSG:3857 : union des communes simplifiée à environ 500 m (quelques
+ * centaines de sommets), coordonnées arrondies au mètre. Sert à découper les images satellite.
+ */
+export async function readCountryOutline3857(): Promise<z.infer<typeof outlineSchema> | null> {
+  const rows = await prisma.$queryRaw<{ geojson: string | null }[]>`
+    SELECT ST_AsGeoJSON(
+             ST_Transform(ST_SimplifyPreserveTopology(ST_Union("geom"::geometry), 0.005), 3857),
+             0
+           ) AS geojson
+      FROM "commune"
+     WHERE "archived_at" IS NULL AND "geom" IS NOT NULL`;
+  const geojson = rows[0]?.geojson;
+  return geojson ? outlineSchema.parse(JSON.parse(geojson)) : null;
+}
+
 export async function addProcessingUnits(month: string, units: number): Promise<void> {
   if (!(units > 0)) return;
   await prisma.$executeRaw`

@@ -151,6 +151,28 @@ describe("adaptateur Copernicus Data Space Ecosystem", () => {
       properties: { crs: "http://www.opengis.net/def/crs/EPSG/0/3857" },
     });
     expect(body.input.data[0]?.dataFilter.mosaickingOrder).toBe("leastCC");
+    const clip = {
+      type: "Polygon" as const,
+      coordinates: [
+        [
+          [10, 20],
+          [30, 20],
+          [30, 40],
+          [10, 20],
+        ],
+      ],
+    };
+    const clipped = buildProcessBody({
+      layer: "NDVI",
+      envelope: [10, 20, 30, 40],
+      clip,
+      width: 512,
+      height: 512,
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-31T23:59:59Z",
+      maxCloudCover: 80,
+    });
+    expect(clipped.input.bounds).toMatchObject({ bbox: [10, 20, 30, 40], geometry: clip });
     expect(body.output.responses[0]?.format.type).toBe("image/png");
     expect(body.evalscript).toContain("B08");
   });

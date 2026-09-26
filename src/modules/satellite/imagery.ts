@@ -1,6 +1,7 @@
 import {
   addProcessingUnits,
   findCachedImage,
+  readCountryOutline3857,
   reserveProcessingRequest,
   storeCachedImage,
   type SatelliteLayerCode,
@@ -10,6 +11,7 @@ import { bboxToEnvelope3857, tileToEnvelope3857 } from "@/lib/geo/tile-math";
 import { logger } from "@/lib/logger";
 import {
   RemoteSensingProviderError,
+  type ClipGeometry,
   type RemoteSensingProvider,
 } from "@/services/ports/remote-sensing-provider";
 import { getRemoteSensingProvider } from "@/services/remote-sensing";
@@ -39,6 +41,22 @@ export type ImageryOutcome =
   | { status: "budget-exhausted" }
   | { status: "unavailable" };
 
+// Version des images en cache : v2 découpe sur la frontière du pays (les images v1, sur le
+// rectangle entier, restent en base mais ne sont plus servies).
+const CACHE_VERSION = "v2";
+
+// Frontière du pays, lue une fois par processus (union des communes simplifiée).
+let outline: Promise<ClipGeometry | null> | null = null;
+function countryOutline(): Promise<ClipGeometry | null> {
+  outline ??= readCountryOutline3857()
+    .then((geometry) => geometry as ClipGeometry | null)
+    .catch((error: unknown) => {
+      outline = null;
+      throw error;
+    });
+  return outline;
+}
+
 // Deux demandes simultanées de la même tuile (plusieurs visiteurs) : un seul appel Copernicus.
 const inflight = new Map<string, Promise<ImageryOutcome>>();
 
@@ -56,7 +74,8 @@ async function renderCached(
   provider: RemoteSensingProvider,
   now: Date,
 ): Promise<ImageryOutcome> {
-  const cached = await findCachedImage(target.layer, target.period, target.tileKey);
+  const tileKey = `${CACHE_VERSION}:${target.tileKey}`;
+  const cached = await findCachedImage(target.layer, target.period, tileKey);
   const fresh = cached && (cached.expiresAt === null || cached.expiresAt.getTime() > now.getTime());
   const fromCache = (entry: NonNullable<typeof cached>): ImageryOutcome =>
     entry.image
@@ -73,9 +92,11 @@ async function renderCached(
   }
   const { from, to } = periodRange(target.period, now);
   try {
+    const clip = (await countryOutline()) ?? undefined;
     const result = await provider.renderImage({
       layer: target.layer,
       envelope: target.envelope,
+      clip,
       width: target.width,
       height: target.height,
       from,
@@ -85,13 +106,7 @@ async function renderCached(
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
     const permanent = !isCurrentPeriod(target.period, now);
     const expiresAt = permanent ? null : new Date(now.getTime() + CURRENT_PERIOD_TTL_MS);
-    await storeCachedImage(
-      target.layer,
-      target.period,
-      target.tileKey,
-      result?.image ?? null,
-      expiresAt,
-    );
+    await storeCachedImage(target.layer, target.period, tileKey, result?.image ?? null, expiresAt);
     return result ? { status: "ok", image: result.image, permanent } : { status: "empty" };
   } catch (error) {
     if (!(error instanceof RemoteSensingProviderError)) throw error;
