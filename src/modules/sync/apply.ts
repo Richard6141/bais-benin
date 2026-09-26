@@ -5,6 +5,7 @@ import { recordAudit } from "@/modules/audit";
 import { authorize, type Actor } from "@/modules/authorization";
 import { parseSyncCommand, type SyncCommand, type SyncOutcome } from "./commands";
 import { syncHandlers } from "./handlers";
+import { storedPayload } from "./stored-payload";
 import type {
   BatchContext,
   Db,
@@ -63,7 +64,7 @@ async function persistCommand(
     deviceId,
     userId,
     commandType: command.type,
-    payload: command.payload as Prisma.InputJsonValue,
+    payload: storedPayload(command),
     clientCreatedAt: new Date(command.clientCreatedAt),
     appliedAt,
     outcome: result.outcome,

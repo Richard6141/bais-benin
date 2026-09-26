@@ -5,6 +5,10 @@ import { idConflict, rejected, type CommandTarget, type SyncHandler } from "./ty
 // producteur la dépose pour son exploitation, ou pour lui-même et sa commune s'il n'a pas encore
 // d'exploitation enregistrée. Elle est routée vers les agents de cette commune.
 
+// Par compte et par 24 heures : largement assez pour un producteur, trop peu pour saturer une
+// commune.
+const MAX_REQUESTS_PER_DAY = 10;
+
 export const assistanceRequest: SyncHandler<"assistance.request"> = {
   async target(command, db, actor) {
     const { farmId, communeCode } = command.payload;
@@ -57,6 +61,16 @@ export const assistanceRequest: SyncHandler<"assistance.request"> = {
         outcome: "DUPLICATE",
         entity: { type: "assistanceRequest", id: existing.id, version: 1 },
       };
+    }
+    // Les agents de la commune lisent chaque demande : un compte ne doit pas pouvoir les noyer.
+    const recent = await db.assistanceRequest.count({
+      where: {
+        requesterId: context.actor.userId,
+        createdAt: { gte: new Date(context.now.getTime() - 24 * 60 * 60 * 1000) },
+      },
+    });
+    if (recent >= MAX_REQUESTS_PER_DAY) {
+      return rejected("RATE_LIMITED", "Trop de demandes envoyées en 24 heures");
     }
 
     await db.assistanceRequest.create({

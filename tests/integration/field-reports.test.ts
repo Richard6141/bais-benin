@@ -13,7 +13,8 @@ import { applySyncBatch } from "@/modules/sync";
 const AGENT_PHONE = "+2290190000001";
 const FARMER_PHONE = "+2290190000002";
 const DEVICE = "test-device-reports";
-const AT = "2026-09-26T08:00:00+01:00";
+// Une heure avant l'exécution : une date d'observation de plus de 60 jours est refusée.
+const AT = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 const ids = {
   farmer: "019284a0-0000-7000-8000-00000000d001",
   farm: "019284a0-0000-7000-8000-00000000d002",
@@ -21,6 +22,9 @@ const ids = {
   byFarmer: "019284a0-0000-7000-8000-00000000d102",
   foreign: "019284a0-0000-7000-8000-00000000d103",
   outside: "019284a0-0000-7000-8000-00000000d104",
+  far: "019284a0-0000-7000-8000-00000000d105",
+  ahead: "019284a0-0000-7000-8000-00000000d106",
+  capped: "019284a0-0000-7000-8000-00000000d107",
 };
 
 function command(id: string, type: string, payload: unknown) {
@@ -79,6 +83,7 @@ describe("signalements de terrain", () => {
       where: { subjectId: { in: Object.values(ids) } },
     });
     await prisma.fieldReport.deleteMany({ where: { id: { in: Object.values(ids) } } });
+    await prisma.fieldReport.deleteMany({ where: { farmId: ids.farm } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
     await prisma.farmEvent.deleteMany({ where: { farmId: ids.farm } });
     await prisma.farm.deleteMany({ where: { id: ids.farm } });
@@ -148,13 +153,17 @@ describe("signalements de terrain", () => {
       where: { farmer: { userId: farmer.userId }, archivedAt: null },
       select: { id: true },
     });
+    // Point relevé à un kilomètre environ de l'exploitation.
+    const [farmPoint] = await prisma.$queryRaw<{ lon: number; lat: number }[]>`
+      SELECT ST_X("location"::geometry) AS lon, ST_Y("location"::geometry) AS lat
+      FROM "farm" WHERE "id" = ${own.id}::uuid`;
     const [result, outside] = await applySyncBatch(farmer, "test-device-reports-farmer", [
       command(ids.byFarmer, "fieldReport.create", {
         id: ids.byFarmer,
         farmId: own.id,
         type: "ANIMAL_DISEASE",
         description: "Deux chèvres fiévreuses depuis hier",
-        gps: { point: [1.668, 9.705], accuracyM: 12 },
+        gps: { point: [farmPoint!.lon + 0.007, farmPoint!.lat + 0.007], accuracyM: 12 },
         observedAt: AT,
       }),
       command(ids.outside, "fieldReport.create", {
@@ -230,5 +239,69 @@ describe("signalements de terrain", () => {
       status: "CONFIRMED",
       review: { note: "Chenilles vues sur place" },
     });
+  });
+
+  it("ignore un point loin de l'exploitation, refuse une date à venir, sans photo au journal", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const [far, ahead] = await applySyncBatch(agent, DEVICE, [
+      command(ids.far, "fieldReport.create", {
+        id: ids.far,
+        farmId: ids.farm,
+        type: "PEST",
+        description: "Point relevé à Cotonou, loin de Djougou",
+        gps: { point: [2.42, 6.37] },
+        observedAt: AT,
+      }),
+      command(ids.ahead, "fieldReport.create", {
+        id: ids.ahead,
+        farmId: ids.farm,
+        type: "PEST",
+        description: "Date d'observation dans trois jours",
+        observedAt: future,
+      }),
+    ]);
+    // Le signalement est gardé, placé sur l'exploitation et non à Cotonou.
+    expect(far?.outcome).toBe("APPLIED");
+    const placed = await prisma.fieldReport.findUniqueOrThrow({ where: { id: ids.far } });
+    expect(placed).toMatchObject({ locationSource: "FARM", gpsAccuracyM: null });
+    expect(ahead).toMatchObject({ outcome: "REJECTED", error: { code: "INVALID_DATE" } });
+
+    // La photo envoyée avec EXIF n'est pas recopiée dans le journal des commandes.
+    const stored = await prisma.syncCommand.findUniqueOrThrow({
+      where: { idempotencyKey: `rep-${ids.byAgent}` },
+    });
+    expect(stored.payload).toMatchObject({ photo: { contentType: "image/jpeg", omitted: true } });
+    expect(JSON.stringify(stored.payload)).not.toContain("dataBase64");
+  });
+
+  it("plafonne les signalements d'un compte sur 24 heures", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farm = await prisma.farm.findUniqueOrThrow({ where: { id: ids.farm } });
+    const already = await prisma.fieldReport.count({
+      where: { reportedById: agent.userId, createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+    });
+    await prisma.fieldReport.createMany({
+      data: Array.from({ length: Math.max(0, 20 - already) }, () => ({
+        id: crypto.randomUUID(),
+        farmId: ids.farm,
+        communeId: farm.communeId,
+        type: "OTHER" as const,
+        description: "Signalement de remplissage du plafond",
+        locationSource: "NONE",
+        observedAt: new Date(),
+        reportedById: agent.userId,
+      })),
+    });
+    const [capped] = await applySyncBatch(agent, DEVICE, [
+      command(ids.capped, "fieldReport.create", {
+        id: ids.capped,
+        farmId: ids.farm,
+        type: "PEST",
+        description: "Signalement de trop dans la journée",
+        observedAt: AT,
+      }),
+    ]);
+    expect(capped).toMatchObject({ outcome: "REJECTED", error: { code: "RATE_LIMITED" } });
   });
 });
