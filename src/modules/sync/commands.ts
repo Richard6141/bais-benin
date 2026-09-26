@@ -56,7 +56,8 @@ export const parcelCreatePayload = z.object({
 export const parcelGeometrySetPayload = z.object({
   parcelId: uuid,
   geometry: polygon,
-  captureMethod: z.enum(["GPS_WALK", "MAP_DRAW"]),
+  // SATELLITE_ASSISTED : contour proposé depuis l'image Sentinel-2, corrigé et validé par l'agent.
+  captureMethod: z.enum(["GPS_WALK", "MAP_DRAW", "SATELLITE_ASSISTED"]),
   gpsAccuracyM: z.number().min(0).max(5000).optional(),
   expectedVersion: z.number().int().min(1),
 });
