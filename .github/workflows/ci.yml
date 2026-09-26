@@ -74,10 +74,17 @@ jobs:
       - run: pnpm db:generate
       # L'image de service n'a que PostGIS ; la migration de l'assistant exige aussi pgvector,
       # comme l'image docker/db utilisée en local et sur le serveur.
+      # L'installation met aussi à jour les bibliothèques de PostgreSQL : le serveur est redémarré
+      # pour charger les mêmes versions que ses extensions (pg_trgm, postgis).
       - name: Ajouter pgvector au service de base
-        run: >-
-          docker exec ${{ job.services.db.id }} sh -c
-          "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
+        run: |
+          docker exec ${{ job.services.db.id }} sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
+          docker restart ${{ job.services.db.id }}
+          for attempt in $(seq 1 30); do
+            docker exec ${{ job.services.db.id }} pg_isready -U bais && exit 0
+            sleep 2
+          done
+          exit 1
       - run: pnpm db:migrate
       - run: pnpm test:integration
 
@@ -135,10 +142,17 @@ jobs:
       - run: pnpm db:generate
       # L'image de service n'a que PostGIS ; la migration de l'assistant exige aussi pgvector,
       # comme l'image docker/db utilisée en local et sur le serveur.
+      # L'installation met aussi à jour les bibliothèques de PostgreSQL : le serveur est redémarré
+      # pour charger les mêmes versions que ses extensions (pg_trgm, postgis).
       - name: Ajouter pgvector au service de base
-        run: >-
-          docker exec ${{ job.services.db.id }} sh -c
-          "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
+        run: |
+          docker exec ${{ job.services.db.id }} sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
+          docker restart ${{ job.services.db.id }}
+          for attempt in $(seq 1 30); do
+            docker exec ${{ job.services.db.id }} pg_isready -U bais && exit 0
+            sleep 2
+          done
+          exit 1
       - run: pnpm db:migrate
       - run: pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
