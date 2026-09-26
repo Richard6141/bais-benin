@@ -38,8 +38,9 @@ Espace pensé pour un téléphone d'entrée de gamme, en réseau intermittent.
 champs, vos alertes et le signalement d'un problème ; le bouton « Plus » ouvre toutes les autres
 rubriques. Sur ordinateur, les mêmes rubriques sont en onglets en haut de la page.
 
-1. **Accueil** (`/agriculteur`) : vos exploitations, un raccourci vers la déclaration de récolte
-   et vos alertes actives.
+1. **Accueil** (`/agriculteur`) : une phrase dit la situation du jour (alertes de votre commune,
+   demandes en cours), puis trois gestes : déclarer une récolte, signaler un problème, demander
+   de l'aide. Suivent vos surfaces et votre campagne en bref.
 2. **Mes champs** (`/agriculteur/champs`) : chaque parcelle, sa surface déclarée et mesurée, ce
    qui y pousse cette campagne, et un bouton qui l'ouvre sur la carte.
 3. **Déclarer une récolte** : choisissez la culture proposée pour la campagne en cours (les
@@ -72,6 +73,11 @@ exploitations, enregistrer, à vérifier. Le bouton « Plus » ouvre les autres 
 signalements, demandes, tableau de bord, assistant, synchronisation). Sur ordinateur, les
 rubriques courantes sont en onglets et les autres dans le menu « Plus ».
 
+**L'accueil** (`/agent`) dit la situation de votre commune en une phrase, puis « À faire
+maintenant » : les alertes à relayer, les signalements à constater, les demandes à traiter, les
+exploitations à vérifier, chacune avec son nombre et un lien direct. Suivent vos chiffres, les
+dernières mises à jour et le fil d'activité en direct.
+
 1. **Premier lancement** (`/agent/premier-lancement`) : télécharge le référentiel (communes,
    cultures, campagnes) et vos exploitations assignées pour un usage hors ligne. À faire une fois,
    en réseau, avant une tournée de terrain.
@@ -98,7 +104,7 @@ rubriques courantes sont en onglets et les autres dans le menu « Plus ».
 
 **Se déconnecter sur un appareil partagé** : le bouton « Se déconnecter » vide les données mises
 en cache de votre compte sur cet appareil (registre local, pages hors ligne). S'il reste des
-saisies non envoyées dans la file d'attente, un message le signale avant de continuer — elles
+saisies non envoyées dans la file d'attente, un message le signale avant de continuer, car elles
 seraient perdues.
 
 Captures : [accueil agent, desktop](rapports/captures/etape-5/agent-accueil-desktop.png),
@@ -120,8 +126,9 @@ exploitations de vos membres, avec le même seuil de confidentialité que le pil
 
 À ce jour, le registre ne relie pas encore les exploitations aux organisations coopératives :
 l'espace l'indique explicitement (« Votre organisation n'est pas encore rattachée à des
-exploitations ») plutôt que d'afficher des zéros trompeurs. Cette liaison est prévue dans une
-étape ultérieure.
+exploitations ») plutôt que d'afficher des zéros trompeurs. En attendant, il propose la carte de
+la production de votre zone et la vérification de l'attestation d'un membre. Cette liaison est
+prévue dans une étape ultérieure.
 
 Capture : [espace coopérative, état vide](rapports/captures/etape-7/cooperative-desktop.png).
 
@@ -129,11 +136,11 @@ Capture : [espace coopérative, état vide](rapports/captures/etape-7/cooperativ
 
 ## Acheteur
 
-L'espace acheteur (`/acheteur`) présente aujourd'hui les trois usages prévus — rechercher des
-productions vérifiées par produit, zone et volume ; s'appuyer sur le badge de vérification
-terrain ; publier une demande d'achat — comme un accueil d'orientation. Le module de mise en
-relation (marché) n'est pas encore construit ; cet espace sera complété dans une étape ultérieure
-sans changer d'adresse ni de connexion.
+L'espace acheteur (`/acheteur`) propose ce qui existe aujourd'hui : voir sur la carte où se
+cultive un produit, vérifier l'attestation d'un producteur (`/verifier`) et consulter le palmarès
+publié. La recherche de récoltes vérifiées par volume et les demandes d'achat ne sont pas encore
+construites ; l'espace le dit, sans les promettre. Il sera complété sans changer d'adresse ni de
+connexion.
 
 ---
 
@@ -143,6 +150,11 @@ Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le compt
 ouvert par l'administration, jamais par la connexion elle-même. Une session ministère dure 12 heures au plus.
 
 ### Se repérer dans le pilotage
+
+L'accueil du pilotage (`/pilotage`) commence par la situation du jour en une phrase (alertes
+graves, feux, foyers à confirmer, demandes en attente) et « À faire maintenant », à côté du fil
+d'activité en direct. Le bouton « Salle de situation » ouvre la veille en plein écran. Suivent
+quatre chiffres clés et les onglets Production, Campagnes, Carte, Alertes et Qualité.
 
 Le pilotage est rangé en quatre thèmes. Choisissez d'abord un thème, puis une rubrique dans la
 ligne qui s'affiche dessous. Sur téléphone et tablette, une seule liste « Rubrique du pilotage »

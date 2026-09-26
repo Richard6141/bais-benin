@@ -1,6 +1,8 @@
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { MonitorPlay } from "lucide-react";
+import { ActionList } from "@/components/layout/action-list";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageTabs } from "@/components/layout/page-tabs";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import {
   DashboardSection,
   QualityGlance,
 } from "@/features/dashboard/national-sections";
+import { ministryMoment } from "@/features/dashboard/ministry-moment";
 import { OverviewTiles } from "@/features/dashboard/overview-tiles";
 import { DemoDataBanner, formatDataDate } from "@/features/dashboard/provenance";
 import {
@@ -29,13 +32,16 @@ import {
   getDashboardOverview,
   getDataQuality,
 } from "@/modules/analytics";
+import { LiveActivityFeed } from "@/features/live/live-activity-feed";
 import { getMonitoringOverview } from "@/modules/monitoring";
 import { listCampaigns, listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
+import { getWatchSummary } from "@/modules/watch";
 
 export const metadata: Metadata = { title: "Centre de pilotage" };
 
-// A : vue nationale. Quatre chiffres clés en tête, puis une vue à la fois (production, campagnes,
+// A : accueil du ministère. La situation du jour en une phrase, les actions du moment et le fil
+// d'activité en direct, puis quatre chiffres clés et une vue à la fois (production, campagnes,
 // carte, alertes, qualité) : l'essentiel tient dans un écran, le reste est à un onglet. Les
 // filtres sont dans l'adresse, partagés avec la carte. requireRole("ADMIN_STATE") réserve la page
 // au ministère (identifié par NPI, ADR-0012).
@@ -51,7 +57,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
     verificationStatus: filters.verificationStatus,
   };
 
-  const [overview, production, comparison, quality, alerts, campaigns, crops, departements] =
+  const [overview, production, comparison, quality, alerts, campaigns, crops, departements, watch] =
     await Promise.all([
       getDashboardOverview(user.actor, filters),
       getCropProduction(user.actor, filters),
@@ -61,7 +67,9 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
       listCampaigns(),
       listCrops(),
       listDepartements(),
+      getWatchSummary(user.actor),
     ]);
+  const moment = ministryMoment(watch);
   const cropHref = (cropCode: string) =>
     withQuery("/pilotage", filtersQuery(filters, { cropCode }));
   const s = alerts.activeBySeverity;
@@ -72,10 +80,28 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
       <PageHeader
         eyebrow="Centre de pilotage"
         title="Tableau de bord national"
-        description={`Campagne ${overview.campaign.code}, données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
-        actions={<ExportActions query={query} />}
+        description={`${moment.sentence} Campagne ${overview.campaign.code}, données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
+        actions={
+          <>
+            <Button asChild variant="outline" className="h-11">
+              <Link href={"/salle-de-situation" as Route}>
+                <MonitorPlay aria-hidden />
+                Salle de situation
+              </Link>
+            </Button>
+            <ExportActions query={query} />
+          </>
+        }
       />
       <DemoDataBanner provenance={overview.provenance} />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <ActionList
+          actions={moment.actions}
+          idle="Rien d'urgent : aucune alerte grave, aucun feu, aucune demande en attente."
+        />
+        <LiveActivityFeed maxItems={6} />
+      </div>
       <Suspense fallback={<Skeleton className="h-16 w-full" />}>
         <DashboardFiltersBar
           campaigns={campaigns}

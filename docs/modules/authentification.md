@@ -28,7 +28,7 @@ L'authentification repose sur better-auth 1.7.6 avec sessions en base PostgreSQL
 | `src/app/(auth)/acces-refuse/page.tsx` | Page d'accès refusé |
 | `src/app/(spaces)/compte/page.tsx` | Page Compte : téléphone, rôles, NPI masqué et son statut, appareils connectés |
 | `src/app/(spaces)/compte/securite/page.tsx` | Ancienne adresse, redirigée vers `/compte` |
-| `src/features/auth/*` | `sign-in-form` (les deux écrans de connexion), `demo-accounts-panel` (comptes de démonstration sous le formulaire), `actions.ts` (action serveur `prepareSignIn`), `session.ts` (lecture de session et gardes), `api-actor.ts`, `sign-out-button`, `session-identity-guard`, `space-header`, `space-welcome`, `safe-next-path.ts` |
+| `src/features/auth/*` | `sign-in-form` (les deux écrans de connexion), `demo-accounts-panel` (comptes de démonstration sous le formulaire), `actions.ts` (action serveur `prepareSignIn`), `session.ts` (lecture de session et gardes), `api-actor.ts`, `sign-out-button`, `session-identity-guard`, `space-header`, `safe-next-path.ts` |
 | `src/features/account/sessions-list.tsx` | Appareils connectés et déconnexion à distance |
 | `src/modules/authorization/*` | Matrice de permissions (`policies.matrix.ts`), moteur de décision (`authorize.ts`), filtre de périmètre pour les listes |
 | `src/modules/identity/*` | Chargement de l'acteur et de ses affectations (`roles.ts`) ; contrôle de forme, liaison à la connexion, résumé et révélation du NPI (`npi.ts`) |

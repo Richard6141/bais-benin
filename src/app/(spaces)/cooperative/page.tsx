@@ -1,6 +1,7 @@
-import { Link2Off } from "lucide-react";
-import type { Metadata } from "next";
+import { FileSearch, Link2Off, MapPinned } from "lucide-react";
+import type { Metadata, Route } from "next";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { ActionList } from "@/components/layout/action-list";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireRole } from "@/features/auth/session";
 import { CropProduction } from "@/features/dashboard/crop-production";
@@ -38,7 +39,7 @@ export default async function CooperativeSpacePage() {
   const data = await loadFigures(user.actor);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Espace coopérative"
         title={`Bienvenue, ${user.name}`}
@@ -47,7 +48,12 @@ export default async function CooperativeSpacePage() {
       {data ? (
         <>
           <DemoDataBanner provenance={data.overview.provenance} />
-          <OverviewTiles overview={data.overview} query="" linked={false} />
+          <OverviewTiles
+            overview={data.overview}
+            query=""
+            linked={false}
+            only={["producteurs", "exploitations", "declaree", "production"]}
+          />
           <DashboardSection id="production" title="Production par culture">
             <CropProduction
               rows={data.production.rows}
@@ -63,6 +69,25 @@ export default async function CooperativeSpacePage() {
           description="Dès que les exploitations de vos membres seront reliées à la coopérative dans le registre, leurs indicateurs et leur production agrégée apparaîtront ici, sans jamais détailler un producteur."
         />
       )}
+      <ActionList
+        title="Ce que vous pouvez faire aujourd'hui"
+        idle=""
+        actions={[
+          {
+            href: "/carte?metric=declaredAreaHa" as Route,
+            icon: MapPinned,
+            title: "Voir la production de votre zone",
+            detail:
+              "La carte agricole, filtrée par culture : surfaces et exploitations par commune.",
+          },
+          {
+            href: "/verifier" as Route,
+            icon: FileSearch,
+            title: "Vérifier l'attestation d'un membre",
+            detail: "Le numéro inscrit sur l'attestation dit si elle est authentique et à jour.",
+          },
+        ]}
+      />
     </div>
   );
 }
