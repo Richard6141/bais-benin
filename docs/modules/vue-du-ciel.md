@@ -52,9 +52,31 @@ Un « à vérifier » appelle une visite : association de cultures, semis tardif
 
 ## Calcul et quota
 
-- Tâche planifiée `POST /api/v1/satellite/vegetation-checks` (Vercel Cron et `docker/scheduler`, chaque jour à 6 h à Porto-Novo, `Authorization: Bearer CRON_SECRET`) : 150 parcelles par jour (`?limit=` jusqu'à 1 000), soit environ 4 500 requêtes Statistical par mois, la moitié de `SATELLITE_MONTHLY_REQUEST_BUDGET`. Répond 503 tant que le compte CDSE n'est pas configuré.
+- Tâche planifiée `POST /api/v1/satellite/vegetation-checks` (Vercel Cron et `docker/scheduler`, chaque jour à 6 h à Porto-Novo, `Authorization: Bearer CRON_SECRET`) : 150 parcelles par jour (`?limit=` jusqu'à 1 000), soit environ 4 500 requêtes Statistical par mois, la part des statistiques (`SATELLITE_STATISTICS_SHARE`, 50 %). Répond 503 tant que le compte CDSE n'est pas configuré.
 - Ordre : parcelles jamais examinées ou portant un verdict synthétique, les exploitations enregistrées par un agent d'abord ; puis réexamen, dix jours après, des saisons en cours ou trop nuageuses.
-- Chaque requête réserve sa place sous le plafond mensuel avant l'appel (même garde-fou que les images) ; au-delà, la tâche s'arrête et reprend le mois suivant.
+- Chaque requête réserve sa place dans la part des statistiques avant l'appel ; part ou unités de traitement épuisées, la tâche s'arrête et reprend le mois suivant. Elle s'arrête aussi à la limite par minute, ou après cinq échecs de Copernicus d'affilée, et reprend au lot suivant.
+
+### Garde-fous du compte CDSE (revue de sécurité R2)
+
+Chaque appel aux API de traitement passe d'abord par `reserveProcessingRequest` (`src/database/sql/satellite.sql.ts`). Une seule requête SQL y vérifie trois conditions, puis compte l'appel :
+
+| Garde-fou | Réglage | Défaut |
+|---|---|---|
+| Part des propositions de contours | `SATELLITE_PROPOSAL_SHARE` × plafond mensuel | 30 % de 9 000 |
+| Part des statistiques de la confrontation | `SATELLITE_STATISTICS_SHARE` × plafond mensuel | 50 % de 9 000 |
+| Part des images de la carte | le reste | 20 % de 9 000 |
+| Unités de traitement du mois | `SATELLITE_MONTHLY_UNIT_BUDGET` | 9 000 PU (quota : 10 000) |
+| Requêtes par minute, tous usages | `SATELLITE_REQUESTS_PER_MINUTE` | 250 (Copernicus : 300) |
+
+Les parts sont étanches : aucune ne prend la place d'une autre. Un refus dit sa cause (part épuisée, unités épuisées, minute pleine), et l'appelant répond en conséquence.
+
+S'y ajoutent, en amont :
+
+- **Tuiles détaillées** : réservées aux agents et au ministère. Les producteurs, coopératives et acheteurs n'ont que l'image d'ensemble.
+- **Plafond par compte** : il porte sur les seules tuiles à calculer, `SATELLITE_TILE_MISSES_PER_ACCOUNT` par mois (400 par défaut). Revoir une zone déjà en cache ne coûte rien et n'est pas compté. Un plafond large de 5 000 demandes par heure et par compte protège seulement la base.
+- **Frontière** : une tuile qui ne touche pas le contour réel du pays (pas seulement son rectangle) ne réserve rien.
+- **Échecs** : un échec de Copernicus est gardé une heure (l'image périmée est resservie, ou la zone reste vide) au lieu d'être redemandé aussitôt.
+- **Réponses illisibles** : une réponse illisible (JSON, schéma, image) devient un échec du fournisseur, jamais une erreur 500 après réservation.
 - Table `parcel_vegetation_check` : une ligne par parcelle, campagne et sous-saison, avec la série par décade (audit), le pic, le plancher, le seuil comparé, la source et la fiabilité (`ESTIMATED` pour Copernicus, `SYNTHETIC` pour la fixture).
 
 ## Délimitation assistée des champs (phase 3)

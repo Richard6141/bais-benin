@@ -111,7 +111,26 @@ S'y ajoutent deux copies de données personnelles sans nécessité : la photo br
 
   La première garde la rapidité de détection ; la seconde attend l'ANIP.
 
-### R2 — Élevée (déploiement) : quota Copernicus, reste du P2 (session « vue du ciel »)
+### R2 — Élevée (déploiement) : quota Copernicus, reste du P2 (session « vue du ciel ») — **corrigé**
+
+Correction livrée, détaillée dans `docs/modules/vue-du-ciel.md` (« Garde-fous du compte CDSE ») :
+
+- plafond par compte sur les seules tuiles à calculer (400 par mois), le plafond sur toutes les demandes ne servant plus qu'à protéger la base ;
+- tuiles détaillées réservées aux agents et au ministère ;
+- aucune réservation hors du contour réel du pays ;
+- trois parts étanches (images, statistiques, propositions) ;
+- échecs gardés une heure ;
+- limite de 250 requêtes par minute ;
+- plafond de 9 000 unités de traitement par mois ;
+- réponses illisibles converties en échec du fournisseur ; le lot quotidien s'arrête après cinq échecs d'affilée au lieu de réserver dans le vide.
+
+Tests :
+
+- `tests/integration/satellite.test.ts` : parts sous concurrence, unités, minute, échec gardé ;
+- `src/modules/satellite/__tests__/imagery.test.ts` : hors contour, plafond par compte, échec, limite par minute ;
+- `src/services/remote-sensing/__tests__/cdse.test.ts` : réponses illisibles.
+
+Constat d'origine :
 - Plafonner par compte les seules tuiles **absentes du cache** et par mois, plutôt que toutes les demandes. Il faut pour cela un point d'accroche dans `imagery.ts`, juste avant `reserveProcessingRequest`.
 - Réserver les tuiles détaillées aux agents et au ministère, ou à leur territoire (décision produit).
 - Ne pas réserver d'unité pour une tuile hors du contour du pays. `isDetailTileInBenin` ne teste que le rectangle, dont plus de la moitié est hors du Bénin. Le contour existe déjà (`countryOutline()`).
