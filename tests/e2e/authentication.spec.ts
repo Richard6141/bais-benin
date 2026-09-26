@@ -11,9 +11,8 @@ const DEMO_CODE = process.env.OTP_DEMO_CODE ?? "246810";
 
 async function fillIdentity(page: Page, npi: string, digits: string) {
   await page.goto("/connexion");
-  // « Votre NPI » est aussi la fin du libellé du numéro : correspondance exacte.
   await page.getByLabel("Votre NPI", { exact: true }).fill(npi);
-  await page.getByLabel("Numéro de téléphone relié à votre NPI").fill(digits);
+  await page.getByLabel("Votre téléphone").fill(digits);
   await page.getByRole("button", { name: "Recevoir mon code sur WhatsApp" }).click();
 }
 
@@ -95,7 +94,7 @@ test.describe("connexion par NPI et code WhatsApp", () => {
       PHONE_ACCOUNTS.ministry.npi,
     );
     // Le numéro est affiché groupé par deux chiffres : on compare les seuls chiffres.
-    const phone = page.getByLabel("Numéro de téléphone relié à votre NPI");
+    const phone = page.getByLabel("Votre téléphone");
     await expect
       .poll(async () => (await phone.inputValue()).replace(/\D/g, ""))
       .toBe(PHONE_ACCOUNTS.ministry.digits);

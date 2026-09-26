@@ -24,9 +24,8 @@ function npiFor(phoneDigits) {
 /** Premier écran : NPI et numéro, puis attente de l'écran du code. */
 export async function requestDemoCode(page, baseUrl, phoneDigits) {
   await page.goto(`${baseUrl}/connexion`);
-  // « Votre NPI » est aussi la fin du libellé du numéro : correspondance exacte.
   await page.getByLabel("Votre NPI", { exact: true }).fill(npiFor(phoneDigits));
-  await page.getByLabel("Numéro de téléphone relié à votre NPI").fill(phoneDigits);
+  await page.getByLabel("Votre téléphone").fill(phoneDigits);
   await page.getByRole("button", { name: "Recevoir mon code sur WhatsApp" }).click();
   await page.getByText(/Code reçu sur WhatsApp au \+229/).waitFor();
 }

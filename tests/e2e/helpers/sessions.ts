@@ -51,9 +51,8 @@ export async function savePhoneSession(baseURL: string, project: string, persona
       try {
         const page = await context.newPage();
         await page.goto("/connexion");
-        // « Votre NPI » est aussi la fin du libellé du numéro : correspondance exacte.
         await page.getByLabel("Votre NPI", { exact: true }).fill(account.npi);
-        await page.getByLabel("Numéro de téléphone relié à votre NPI").fill(account.digits);
+        await page.getByLabel("Votre téléphone").fill(account.digits);
         await page.getByRole("button", { name: "Recevoir mon code sur WhatsApp" }).click();
         await expect(page.getByText(/Code reçu sur WhatsApp au \+229/)).toBeVisible({
           timeout: 20_000,

@@ -128,7 +128,7 @@ export function ReportForm({ userId, farms, cropNames }: ReportFormProps) {
 
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
