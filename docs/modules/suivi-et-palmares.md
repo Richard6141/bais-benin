@@ -59,3 +59,53 @@ accord couvre les alertes de la commune.
 | `src/modules/assistance/handle.ts`, `src/modules/reports/review.ts` | Mise en file avec le changement de statut |
 | `src/features/account/` | Carte « Mes accords » de la page Mon compte |
 | `tests/integration/farmer-notifications.test.ts` | Accord, envoi, pas de doublon, retrait, motif |
+
+## 2. Palmarès public (complément d'ADR-0018)
+
+### Parcours
+
+- **Producteur** : Mon compte → Mes accords → « Palmarès public ». Il y lit ce qui sera publié
+  (nom, commune, rang, production ; jamais le téléphone) et la date de son accord ; il le donne
+  ou le retire d'un bouton.
+- **Ministère** (`/pilotage/palmares`) : le classement nominatif indique, pour chaque producteur,
+  si son accord est donné. Sous le classement, « Publier ce palmarès » reprend les critères
+  affichés (culture, campagne, territoire, mesure, vérification) et le nombre de lauréats voulu
+  (1 à 100). La liste « Palmarès publiés » permet de retirer un palmarès.
+- **Public** (`/palmares`, lien « Palmarès » de l'en-tête) : palmarès publiés, trois premiers
+  lauréats de chacun ; `/palmares/[id]` donne la liste complète.
+
+### Règles
+
+- Seuls les producteurs dont l'accord est en cours sont publiés, pris dans l'ordre du classement
+  complet : le rang publié est leur vrai rang. Un rang absent est celui d'un producteur qui n'a
+  pas donné son accord, jamais nommé.
+- La publication est un instantané : nom, commune, département, rang, production et surface
+  recopiés. Aucun téléphone, NPI ou code producteur.
+- Retirer son accord supprime ses lignes de tous les palmarès publiés, dans la même transaction.
+  La lecture publique ne sert en plus que les lauréats dont l'accord est en cours.
+- Un palmarès retiré par le ministère quitte la page publique ; le ministère le voit toujours,
+  avec la date du retrait.
+- Journal : `consent.ranking.granted`, `consent.ranking.revoked`, `analytics.ranking.published`,
+  `analytics.ranking.withdrawn`.
+
+### Droits
+
+| Action | ADMIN_STATE | AGENT_AGRICULTURE | FARMER | COOPERATIVE | BUYER |
+|---|---|---|---|---|---|
+| `ranking.read` | ALL | NONE | NONE | NONE | NONE |
+| `ranking.publish` | ALL | NONE | NONE | NONE | NONE |
+| `consent.manage` | NONE | NONE | SELF | NONE | NONE |
+
+La page publique ne demande aucun droit : elle ne sert que ce que les producteurs ont accepté de
+rendre public.
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| migration `20260926110000_public_rankings` | Tables `ranking_consent`, `published_ranking`, `published_ranking_entry` |
+| `src/database/sql/producer-ranking.sql.ts` | Accord de chaque producteur, filtre « consentants seulement » |
+| `src/modules/public-ranking/` | Accord, publication, retrait, lecture publique |
+| `src/features/dashboard/ranking-publication*.ts(x)` | Publication et retrait sur `/pilotage/palmares` |
+| `src/app/(public)/palmares/`, `src/features/public-ranking/` | Pages publiques |
+| `tests/integration/public-ranking.test.ts` | Droits, consentants seulement, rang conservé, retraits |

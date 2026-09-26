@@ -1,6 +1,6 @@
 # ADR-0018 — Palmarès nominatif des producteurs, réservé au ministère
 
-- Statut : acceptée
+- Statut : acceptée, complétée le 2026-09-26 (palmarès public)
 - Date : 2026-09-26
 - Décideurs : Utilisateur (ministère), Sécurité, Backend/Data
 
@@ -36,15 +36,35 @@ déclaration de récolte ; production et palmarès auraient été vides.
   récoltes des deux dernières campagnes closes (rendement type de la culture × aléa de la parcelle
   × savoir-faire du producteur, stable d'une année sur l'autre × effet commune-année).
 
-## Suite prévue
-
-Palmarès public : publication, par le ministère, des seuls lauréats ayant donné leur accord
-(consentement recueilli par le producteur lui-même depuis son compte). Fera l'objet d'un complément
-à cette ADR.
-
 ## Conséquences
 
 - Les chiffres de production du pilotage (tableau de bord, territoires, fiches communes) ne sont
   plus vides sur le jeu de démonstration.
 - Tout nouveau rôle devra se voir refuser `ranking.read` explicitement ; la matrice générée par les
   tests le vérifie pour les rôles existants.
+
+## Complément du 2026-09-26 : palmarès public
+
+Décideurs : chef d'équipe, Sécurité, Backend/Data.
+
+- **Accord du producteur** : donné ou retiré par lui-même depuis son compte (Mon compte → Mes
+  accords), daté (`ranking_consent`), droit `consent.manage` en portée `SELF`, journalisé
+  (`consent.ranking.granted`, `consent.ranking.revoked`). Personne d'autre ne peut le donner pour
+  lui : ni l'agent, ni le ministère.
+- **Publication** : nouveau droit `ranking.publish`, au seul `ADMIN_STATE`. Depuis
+  `/pilotage/palmares`, avec les critères affichés, le ministère publie les N premiers lauréats
+  consentants (100 au plus). C'est un instantané (`published_ranking`,
+  `published_ranking_entry`) : nom, commune, département, rang, production et surface de la
+  campagne. Ni téléphone, ni NPI, ni code producteur. Journalisé (`analytics.ranking.published`).
+- **Rang** : celui du classement complet, pas un rang recalculé parmi les consentants. Un rang
+  absent est celui d'un producteur qui n'a pas donné son accord ; il n'est jamais nommé. Ainsi
+  « 3ᵉ producteur de coton du Borgou » reste vrai.
+- **Retrait de l'accord** : ses lignes sont supprimées de tous les palmarès publiés dans la même
+  transaction, et la lecture publique ne sert que les lauréats dont l'accord est en cours (double
+  garde, en cas de publication concurrente du retrait).
+- **Retrait par le ministère** : le palmarès quitte la page publique (`withdrawn_at`), reste
+  visible au ministère avec la date du retrait. Journalisé (`analytics.ranking.withdrawn`).
+- **Page publique** `/palmares`, sans connexion : palmarès non retirés, trois premiers lauréats
+  de chacun, et page de détail `/palmares/[id]`. Un palmarès dont plus aucun lauréat n'a gardé son
+  accord répond comme introuvable.
+- **Pilotage** : le classement nominatif indique, pour chaque producteur, si son accord est donné.
