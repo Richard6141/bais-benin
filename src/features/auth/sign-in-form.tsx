@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CountdownText } from "@/components/forms/countdown-text";
+import { HelpTip } from "@/components/forms/help-tip";
 import { OtpInput } from "@/components/forms/otp-input";
 import { PhoneField } from "@/components/forms/phone-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -158,10 +159,16 @@ export function SignInForm({ nextPath, demo }: SignInFormProps) {
           void sendCode();
         }}
       >
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="npi" className="text-base">
-            Votre NPI
-          </Label>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="npi" className="text-base">
+              Votre NPI
+            </Label>
+            <HelpTip label="Votre NPI">
+              Numéro personnel d&apos;identification, inscrit sur votre carte d&apos;identité ou
+              votre certificat d&apos;identification personnelle (CIP).
+            </HelpTip>
+          </div>
           <Input
             id="npi"
             inputMode="numeric"
@@ -171,27 +178,19 @@ export function SignInForm({ nextPath, demo }: SignInFormProps) {
             className="tabular text-base tracking-wide"
             value={npi}
             onChange={(event) => setNpi(event.target.value.replace(/\D/g, "").slice(0, 13))}
-            aria-describedby="npi-aide"
             autoFocus
           />
-          <p id="npi-aide" className="text-sm text-muted-foreground">
-            Numéro personnel d&apos;identification, inscrit sur votre carte d&apos;identité ou votre
-            certificat d&apos;identification personnelle (CIP).
-          </p>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="telephone" className="text-base">
-            Numéro de téléphone relié à votre NPI
-          </Label>
-          <PhoneField
-            id="telephone"
-            value={digits}
-            onChange={setDigits}
-            aria-describedby="telephone-aide"
-          />
-          <p id="telephone-aide" className="text-sm text-muted-foreground">
-            Le code de connexion vous est envoyé sur WhatsApp à ce numéro.
-          </p>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="telephone" className="text-base">
+              Votre téléphone
+            </Label>
+            <HelpTip label="Votre téléphone">
+              Relié à votre NPI. Le code de connexion vous est envoyé sur WhatsApp à ce numéro.
+            </HelpTip>
+          </div>
+          <PhoneField id="telephone" value={digits} onChange={setDigits} />
         </div>
         {error ? <ErrorNotice message={error} /> : null}
         <Button

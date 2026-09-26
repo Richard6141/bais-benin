@@ -42,7 +42,7 @@ export function StepShell({
         </h2>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </header>
-      <div className="flex flex-col gap-4">{children}</div>
+      <div className="flex flex-col gap-3">{children}</div>
       {/* Sur téléphone, la barre d'action se pose au-dessus de la navigation basse de l'espace agent. */}
       <footer className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2 border-t bg-background/95 p-4 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <Button

@@ -84,7 +84,7 @@ export function RequestForm({
 
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
