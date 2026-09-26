@@ -3,6 +3,7 @@ import { prisma } from "@/database/client";
 import {
   communesWithMeasuredCropAreas,
   countCommunesForCropAreas,
+  cropAreaEstimates,
   declaredAreasByCrop,
   listCommunesForCropAreas,
   upsertCropAreas,
@@ -11,6 +12,7 @@ import {
 } from "@/database/sql/crop-areas.sql";
 import { addProcessingUnits, reserveProcessingRequest } from "@/database/sql/satellite.sql";
 import { logger } from "@/lib/logger";
+import { scopeFilter, type Actor } from "@/modules/authorization";
 import {
   RemoteSensingProviderError,
   type MultiPolygonGeometry,
@@ -28,8 +30,11 @@ import { periodOf } from "./periods";
 // mois-ci (le curseur est la date du dernier calcul) et s'arrête net quand la part des statistiques
 // ou le plafond d'unités est atteint. Une estimation, à confirmer par les agents.
 
-/** Un hectare par pixel : assez fin pour des champs d'un hectare en moyenne, dans le quota. */
-export const CROP_AREA_RESOLUTION_M = 100;
+/**
+ * Pixels de 120 m (1,44 ha) : environ 11 unités par commune en moyenne, 870 par passe nationale
+ * (ADR-0023). À 100 m, la passe coûterait 1 250 unités.
+ */
+export const CROP_AREA_RESOLUTION_M = 120;
 /** Douze mois de série : une saison des pluies entière et la contre-saison qui la précède. */
 const WINDOW_DAYS = 365;
 const MAX_CONSECUTIVE_ERRORS = 3;
@@ -335,4 +340,170 @@ function hash(value: string): number {
   let result = 0;
   for (const char of value) result = (result * 31 + char.charCodeAt(0)) >>> 0;
   return result;
+}
+
+// --- Vue du ministère : satellite face au registre (ADR-0021, étape 5) ----------------------------
+
+/** En dessous, la surface vue par satellite est trop petite pour qu'un taux ait un sens. */
+const MIN_SATELLITE_HA_FOR_RATE = 50;
+
+export interface CropAreaFigures {
+  satelliteHa: number;
+  declaredHa: number;
+  /** Surface déclarée rapportée à la surface vue ; null quand le satellite voit trop peu. */
+  enrolmentRate: number | null;
+  /** Surface vue mais pas encore enregistrée, en hectares (jamais négative). */
+  gapHa: number;
+}
+
+export interface CropAreaComparison {
+  campaignCode: string;
+  cropClass: CultivatedClass | null;
+  totals: CropAreaFigures & { communes: number; estimatedCommunes: number };
+  byClass: (CropAreaFigures & { cropClass: CultivatedClass })[];
+  departements: (CropAreaFigures & { code: string; name: string })[];
+  /** Communes au plus gros écart d'abord : où envoyer les agents. */
+  communes: (CropAreaFigures & {
+    code: string;
+    name: string;
+    departementName: string;
+    unclassifiedShare: number;
+  })[];
+  sources: { sourceId: string; computedAt: Date; resolutionM: number }[];
+}
+
+function figures(satelliteHa: number, declaredHa: number): CropAreaFigures {
+  const round = (value: number) => Math.round(value);
+  return {
+    satelliteHa: round(satelliteHa),
+    declaredHa: round(declaredHa),
+    enrolmentRate: satelliteHa >= MIN_SATELLITE_HA_FOR_RATE ? declaredHa / satelliteHa : null,
+    gapHa: round(Math.max(0, satelliteHa - declaredHa)),
+  };
+}
+
+/**
+ * Surfaces vues par satellite par culture et par zone, face aux surfaces déclarées au registre,
+ * pour la campagne ouverte : taux d'enrôlement et communes au plus gros écart. Ministère
+ * seulement (portée nationale sur le registre) ; des hectares par commune, aucun producteur.
+ */
+export async function getCropAreaComparison(
+  actor: Actor,
+  filters: { departementCode?: string; cropClass?: string } = {},
+): Promise<CropAreaComparison | null> {
+  if (scopeFilter(actor, "farm.read").kind !== "all") return null;
+  const campaign = await prisma.agriculturalCampaign.findFirst({
+    where: { status: "OPEN" },
+    select: { id: true, code: true },
+  });
+  if (!campaign) return null;
+  const cropClass = (CULTIVATED_CLASSES as readonly string[]).includes(filters.cropClass ?? "")
+    ? (filters.cropClass as CultivatedClass)
+    : null;
+  const classes: readonly CultivatedClass[] = cropClass ? [cropClass] : CULTIVATED_CLASSES;
+
+  const [estimates, declared] = await Promise.all([
+    cropAreaEstimates(campaign.id),
+    declaredAreasByCrop(campaign.id),
+  ]);
+  const rows = filters.departementCode
+    ? estimates.filter((row) => row.departement_code === filters.departementCode)
+    : estimates;
+
+  const declaredBy = new Map<string, number>();
+  for (const row of declared) {
+    const key = `${row.commune_id}:${cropMapClassOf(row.crop_code)}`;
+    declaredBy.set(key, (declaredBy.get(key) ?? 0) + row.area_ha);
+  }
+
+  interface CommuneAccumulator {
+    code: string;
+    name: string;
+    departementCode: string;
+    departementName: string;
+    satellite: number;
+    declared: number;
+    unclassifiedShare: number;
+  }
+  const communes = new Map<string, CommuneAccumulator>();
+  const byClass = new Map<CultivatedClass, { satellite: number; declared: number }>(
+    classes.map((key) => [key, { satellite: 0, declared: 0 }]),
+  );
+  const sources = new Map<string, { computedAt: Date; resolutionM: number }>();
+
+  for (const row of rows) {
+    const known = sources.get(row.source_id);
+    if (!known || row.computed_at > known.computedAt) {
+      sources.set(row.source_id, { computedAt: row.computed_at, resolutionM: row.resolution_m });
+    }
+    const commune = communes.get(row.commune_id) ?? {
+      code: row.commune_code,
+      name: row.commune_name,
+      departementCode: row.departement_code,
+      departementName: row.departement_name,
+      satellite: 0,
+      declared: 0,
+      unclassifiedShare: row.unclassified_share,
+    };
+    communes.set(row.commune_id, commune);
+    const key = row.crop_class as CultivatedClass;
+    const total = byClass.get(key);
+    if (!total) continue;
+    const declaredHa = declaredBy.get(`${row.commune_id}:${key}`) ?? 0;
+    commune.satellite += row.area_ha;
+    commune.declared += declaredHa;
+    total.satellite += row.area_ha;
+    total.declared += declaredHa;
+  }
+
+  const departements = new Map<string, { name: string; satellite: number; declared: number }>();
+  for (const commune of communes.values()) {
+    const entry = departements.get(commune.departementCode) ?? {
+      name: commune.departementName,
+      satellite: 0,
+      declared: 0,
+    };
+    entry.satellite += commune.satellite;
+    entry.declared += commune.declared;
+    departements.set(commune.departementCode, entry);
+  }
+
+  const satellite = [...byClass.values()].reduce((sum, entry) => sum + entry.satellite, 0);
+  const declaredTotal = [...byClass.values()].reduce((sum, entry) => sum + entry.declared, 0);
+  const communeCount = await prisma.commune.count({
+    where: {
+      archivedAt: null,
+      ...(filters.departementCode ? { departement: { code: filters.departementCode } } : {}),
+    },
+  });
+  return {
+    campaignCode: campaign.code,
+    cropClass,
+    totals: {
+      ...figures(satellite, declaredTotal),
+      communes: communeCount,
+      estimatedCommunes: communes.size,
+    },
+    byClass: [...byClass.entries()].map(([key, entry]) => ({
+      cropClass: key,
+      ...figures(entry.satellite, entry.declared),
+    })),
+    departements: [...departements.entries()]
+      .map(([code, entry]) => ({
+        code,
+        name: entry.name,
+        ...figures(entry.satellite, entry.declared),
+      }))
+      .sort((a, b) => b.gapHa - a.gapHa),
+    communes: [...communes.values()]
+      .map((commune) => ({
+        code: commune.code,
+        name: commune.name,
+        departementName: commune.departementName,
+        unclassifiedShare: commune.unclassifiedShare,
+        ...figures(commune.satellite, commune.declared),
+      }))
+      .sort((a, b) => b.gapHa - a.gapHa),
+    sources: [...sources.entries()].map(([sourceId, entry]) => ({ sourceId, ...entry })),
+  };
 }

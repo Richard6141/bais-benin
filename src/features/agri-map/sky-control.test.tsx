@@ -60,7 +60,7 @@ describe("choix du fond de carte", () => {
       />,
     );
     expect(screen.getByLabelText("Fond de carte")).toHaveTextContent("Végétation (NDVI)");
-    expect(screen.getByLabelText("Mois")).toHaveTextContent("mai 2026, 255 scènes dégagées");
+    expect(screen.getByLabelText("Mois")).toHaveTextContent("Mai 2026, 255 scènes dégagées");
     expect(screen.queryByText(/mise en service/)).not.toBeInTheDocument();
   });
 
@@ -87,6 +87,19 @@ describe("légende de la vue du ciel", () => {
     expect(classes[7]).toHaveTextContent("< 0,1 (sol nu, eau, bâti)");
     expect(screen.getByText("Sentinel-2, mai 2026, détail en zoomant")).toBeInTheDocument();
     expect(screen.getByText("Contains modified Copernicus Sentinel data 2026")).toBeInTheDocument();
+  });
+
+  it("résume la mosaïque sans nuages en une ligne, le détail dans l'aide", () => {
+    render(
+      <SkyLegend
+        view={{ layer: "couleur-naturelle", period: "60-jours" }}
+        periodLabel="60 derniers jours"
+        detail
+      />,
+    );
+    expect(screen.getByText("Mosaïque sans nuages des 60 derniers jours")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aide : Mosaïque sans nuages" })).toBeInTheDocument();
+    expect(screen.queryByText(/moins nuageuse du mois/)).not.toBeInTheDocument();
   });
 
   it("dit que l'image détaillée est réservée aux agents et au ministère", () => {

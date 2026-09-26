@@ -13,7 +13,6 @@ interface Classifier {
 }
 
 interface Sample {
-  B03: number;
   B04: number;
   B08: number;
   B11: number;
@@ -28,20 +27,23 @@ function classifier(offset = 0): Classifier {
 
 interface Month {
   ndvi: number;
-  water?: number;
+  /** Pixel classé eau (SCL 6) à ce passage. */
+  water?: boolean;
+  /** Indice d'humidité LSWI = (B08 - B11) / (B08 + B11). */
+  lswi?: number;
   built?: number;
 }
 
 // Mois 10 à 12 de l'année précédente, puis janvier à septembre : douze passages, un par mois.
 const ORDER = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-/** Réflectances cohérentes avec les indices voulus (NDVI, MNDWI, indice de bâti). */
-function sample({ ndvi, water = -0.3, built }: Month): Sample {
+/** Réflectances cohérentes avec les indices voulus (NDVI, LSWI, indice de bâti). */
+function sample({ ndvi, water = false, lswi = 0, built }: Month): Sample {
   const b08 = built === undefined ? 0.3 : 0.1;
   const b04 = (b08 * (1 - ndvi)) / (1 + ndvi);
-  const b11 = built === undefined ? 0.2 : (b08 * (1 + built)) / (1 - built);
-  const b03 = (b11 * (1 + water)) / (1 - water);
-  return { B03: b03, B04: b04, B08: b08, B11: b11, SCL: 4, dataMask: 1 };
+  const b11 =
+    built === undefined ? (b08 * (1 - lswi)) / (1 + lswi) : (b08 * (1 + built)) / (1 - built);
+  return { B04: b04, B08: b08, B11: b11, SCL: water ? 6 : 4, dataMask: 1 };
 }
 
 function pixel(profile: (month: number) => Month, months = ORDER) {
@@ -62,12 +64,15 @@ const dry = (month: number) => month === 12 || month <= 3;
 describe("classification phénologique d'un pixel", () => {
   it("reconnaît le riz à la submersion suivie d'un couvert dense", () => {
     const rice: Record<number, Month> = {
-      6: { ndvi: 0.2, water: 0.12 },
+      6: { ndvi: 0.2, lswi: 0.4 },
       7: { ndvi: 0.6 },
       8: { ndvi: 0.72 },
       9: { ndvi: 0.6 },
     };
     expect(classOf((m) => rice[m] ?? { ndvi: 0.2 })).toBe(CROP_CLASS_CODES.RICE);
+    // Rizière encore en eau libre au repiquage.
+    const flooded: Record<number, Month> = { ...rice, 6: { ndvi: 0.05, water: true } };
+    expect(classOf((m) => flooded[m] ?? { ndvi: 0.2 })).toBe(CROP_CLASS_CODES.RICE);
   });
 
   it("classe le maïs du sud et celui du nord en cultures annuelles", () => {
@@ -96,7 +101,10 @@ describe("classification phénologique d'un pixel", () => {
 
   it("reconnaît la jachère, l'eau et le bâti", () => {
     expect(classOf(() => ({ ndvi: 0.25 }))).toBe(CROP_CLASS_CODES.FALLOW);
-    expect(classOf(() => ({ ndvi: 0.02, water: 0.4 }))).toBe(CROP_CLASS_CODES.WATER);
+    expect(classOf(() => ({ ndvi: 0.02, water: true }))).toBe(CROP_CLASS_CODES.WATER);
+    // Plan d'eau de saison des pluies seulement : pas une retenue permanente.
+    const seasonal = (m: number) => ({ ndvi: 0.25, water: m === 8 || m === 9 });
+    expect(classOf(seasonal)).toBe(CROP_CLASS_CODES.FALLOW);
     expect(classOf(() => ({ ndvi: 0.1, built: 0.3 }))).toBe(CROP_CLASS_CODES.BUILT);
   });
 
@@ -110,6 +118,34 @@ describe("classification phénologique d'un pixel", () => {
     const profile = (m: number) => ({ ndvi: sparse[m] ?? 0.18 });
     expect(classOf(profile, 0)).toBe(CROP_CLASS_CODES.FALLOW);
     expect(classOf(profile, 0.08)).toBe(CROP_CLASS_CODES.ANNUAL);
+  });
+
+  it("ne garde que les douze derniers mois, chaque passage étant facturé", () => {
+    const months = [
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+    ];
+    const result = classifier().preProcessScenes({
+      scenes: {
+        orbits: months.map((month) => ({
+          dateFrom: `${month}-10T10:00:00Z`,
+          tiles: [{ cloudCoverage: 10 }],
+        })),
+      },
+    });
+    expect(result.scenes.orbits).toHaveLength(12);
+    expect(result.scenes.orbits[0]?.dateFrom).toBe("2025-10-10T10:00:00Z");
   });
 
   it("ne garde qu'un passage par mois, le moins nuageux", () => {

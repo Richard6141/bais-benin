@@ -2,7 +2,9 @@ export { getImageryCatalog, type ImageryCatalog } from "./catalog";
 export { getDetailTile, getOverviewImage, type ImageryOutcome } from "./imagery";
 export {
   BENIN_IMAGERY_BBOX,
+  CROP_MAP_PERIOD,
   defaultPeriod,
+  isOfferedFor,
   isOfferedPeriod,
   isPeriod,
   periodLabel,
@@ -51,8 +53,11 @@ export {
   CROP_AREA_RESOLUTION_M,
   CULTIVATED_CLASSES,
   cropMapClassOf,
+  getCropAreaComparison,
   runCropAreaEstimates,
   writeDemoCropAreaEstimates,
+  type CropAreaComparison,
+  type CropAreaFigures,
   type CropAreaRunResult,
   type CultivatedClass,
 } from "./crop-areas";

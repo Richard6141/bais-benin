@@ -1,6 +1,11 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
-import { runCropAreaEstimates, writeDemoCropAreaEstimates } from "@/modules/satellite";
+import { loadActor } from "@/modules/identity";
+import {
+  getCropAreaComparison,
+  runCropAreaEstimates,
+  writeDemoCropAreaEstimates,
+} from "@/modules/satellite";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 
 // Surfaces des cultures par commune (ADR-0021) sur la vraie base : curseur de la passe mensuelle
@@ -8,6 +13,16 @@ import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 // lointain, pour que toutes les estimations existantes comptent comme anciennes.
 
 const LATER = new Date("2099-03-10T05:30:00Z");
+const AGENT_PHONE = "+2290190000001";
+const MINISTRY_PHONE = "+2290190000003";
+
+async function actorForPhone(phone: string) {
+  const user = await prisma.user.findFirstOrThrow({
+    where: { phoneNumber: phone },
+    select: { id: true },
+  });
+  return loadActor(user.id);
+}
 
 describe("surfaces des cultures par commune", () => {
   afterAll(async () => {
@@ -48,5 +63,36 @@ describe("surfaces des cultures par commune", () => {
     });
     expect(communes).toBeGreaterThan(70);
     expect(annual).toBe(communes);
+  }, 60_000);
+
+  it("compare au registre pour le ministère seulement, communes au plus gros écart d'abord", async () => {
+    await writeDemoCropAreaEstimates();
+    const agent = await actorForPhone(AGENT_PHONE);
+    expect(await getCropAreaComparison(agent)).toBeNull();
+
+    const ministry = await actorForPhone(MINISTRY_PHONE);
+    const comparison = await getCropAreaComparison(ministry);
+    expect(comparison).not.toBeNull();
+    const { totals, communes, byClass } = comparison!;
+    expect(totals.estimatedCommunes).toBeGreaterThan(70);
+    expect(totals.declaredHa).toBeGreaterThan(0);
+    expect(totals.enrolmentRate).toBeGreaterThan(0);
+    expect(totals.enrolmentRate).toBeLessThan(1);
+    expect(byClass.map((entry) => entry.cropClass)).toEqual([
+      "RICE",
+      "ANNUAL",
+      "COTTON",
+      "PERENNIAL",
+      "GARDEN",
+    ]);
+    const gaps = communes.map((commune) => commune.gapHa);
+    expect(gaps).toEqual([...gaps].sort((a, b) => b - a));
+
+    const cotton = await getCropAreaComparison(ministry, {
+      cropClass: "COTTON",
+      departementCode: "BJ-AL",
+    });
+    expect(cotton?.byClass).toHaveLength(1);
+    expect(cotton?.departements.map((entry) => entry.code)).toEqual(["BJ-AL"]);
   }, 60_000);
 });

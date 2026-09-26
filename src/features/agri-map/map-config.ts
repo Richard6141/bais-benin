@@ -3,6 +3,7 @@ import {
   brandColors,
   choroplethNoData,
   choroplethScale,
+  cropMapColors,
   ndviScale,
   reliabilityColors,
   semanticColors,
@@ -102,6 +103,39 @@ export const HIRES_IMAGERY = process.env.NEXT_PUBLIC_HIRES_TILES_URL
 
 /** Fenêtre glissante des 60 derniers jours (modules/satellite/periods.ts, ROLLING_PERIOD). */
 export const ROLLING_SKY_PERIOD = "60-jours";
+
+// Carte des cultures par satellite (ADR-0021) : classification phénologique des 12 derniers
+// mois, calculée par Copernicus, en image d'ensemble du pays seulement (environ 380 m par pixel).
+// Même fenêtre que modules/satellite (periods.ts, CROP_MAP_PERIOD).
+export const CROP_MAP_LAYER = "cultures";
+/** Fond de carte choisi : communes (null), vue du ciel, ou carte des cultures. */
+export type BaseLayer = SkyLayer | typeof CROP_MAP_LAYER;
+export const CROP_MAP_PERIOD = "12-mois";
+export const CROP_MAP_URL = `/api/satellite/${CROP_MAP_LAYER}/${CROP_MAP_PERIOD}/overview.png`;
+
+export const CROP_MAP_IDS = {
+  source: "bais-crop-map",
+  layer: "bais-crop-map-layer",
+} as const;
+
+/** Classes de la légende, cultures d'abord ; l'absence de classe reste transparente. */
+export const CROP_MAP_CLASSES = [
+  { key: "ANNUAL", label: "Maïs et cultures annuelles", color: cropMapColors.ANNUAL },
+  { key: "COTTON", label: "Coton", color: cropMapColors.COTTON },
+  { key: "RICE", label: "Riz", color: cropMapColors.RICE },
+  { key: "PERENNIAL", label: "Cultures pérennes", color: cropMapColors.PERENNIAL },
+  { key: "GARDEN", label: "Maraîchage", color: cropMapColors.GARDEN },
+  { key: "FALLOW", label: "Jachère et sol nu", color: cropMapColors.FALLOW },
+  { key: "NATURAL", label: "Forêt et savane", color: cropMapColors.NATURAL },
+  { key: "WATER", label: "Eau", color: cropMapColors.WATER },
+  { key: "BUILT", label: "Bâti", color: cropMapColors.BUILT },
+] as const;
+
+/** Mention Copernicus de la carte des cultures : sa série couvre deux années civiles. */
+export function cropMapAttribution(now = new Date()): string {
+  const year = now.getFullYear();
+  return `Contains modified Copernicus Sentinel data ${year - 1}-${year}`;
+}
 
 /** Mention exigée par la licence Copernicus pour toute image dérivée. */
 export function copernicusAttribution(period: string, now = new Date()): string {

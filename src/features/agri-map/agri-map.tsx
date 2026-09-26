@@ -6,11 +6,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HoveredCommune } from "./map-canvas";
+import { CropMapLegend } from "./crop-map-legend";
 import {
+  CROP_MAP_LAYER,
   METRICS,
   PARCEL_MIN_ZOOM,
   SKY_LAYERS,
   quantileBreaks,
+  type BaseLayer,
   type MetricKey,
   type SkyLayer,
 } from "./map-config";
@@ -45,17 +48,17 @@ interface AgriMapProps {
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
-const SKY_KEYS = Object.keys(SKY_LAYERS) as SkyLayer[];
+const BASE_KEYS: BaseLayer[] = [...(Object.keys(SKY_LAYERS) as SkyLayer[]), CROP_MAP_LAYER];
 
 interface SkyParams {
-  layer: SkyLayer | null;
+  layer: BaseLayer | null;
   period: string | null;
 }
 
 function readSky(params: URLSearchParams): SkyParams {
   const layer = params.get("ciel");
   return {
-    layer: SKY_KEYS.includes(layer as SkyLayer) ? (layer as SkyLayer) : null,
+    layer: BASE_KEYS.includes(layer as BaseLayer) ? (layer as BaseLayer) : null,
     period: params.get("mois"),
   };
 }
@@ -104,15 +107,18 @@ export function AgriMap({
     readyCatalog?.periods.find((entry) => entry.period === skyParams.period) ??
     readyCatalog?.periods.find((entry) => entry.period === readyCatalog.defaultPeriod);
   const skyPeriod = skyPeriodEntry?.period ?? null;
+  const skyLayer = skyParams.layer === CROP_MAP_LAYER ? null : skyParams.layer;
   const sky =
-    skyParams.layer && skyPeriod && readyCatalog?.imageryAvailable
-      ? { layer: skyParams.layer, period: skyPeriod }
+    skyLayer && skyPeriod && readyCatalog?.imageryAvailable
+      ? { layer: skyLayer, period: skyPeriod }
       : null;
   // Feux actifs dans l'adresse aussi : ?feux=24h ou ?feux=7j (ADR-0022).
   const feuxParam = searchParams.get("feux");
   const fireWindow: FireWindowParam | null =
     feuxParam === "24h" || feuxParam === "7j" ? feuxParam : null;
   const fires = useFires(fireWindow);
+  // Carte des cultures (ADR-0021) : ?ciel=cultures, sans mois (les 12 derniers).
+  const cropMap = skyParams.layer === CROP_MAP_LAYER && readyCatalog?.imageryAvailable === true;
   const [showFarms, setShowFarms] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
@@ -198,6 +204,7 @@ export function AgriMap({
             onHoverCommune={setHovered}
             sky={sky}
             skyDetail={canSeeSkyDetail}
+            cropMap={cropMap}
             showParcels={canInspectParcels}
             selectedParcelId={parcelId}
             onSelectParcel={selectParcel}
@@ -233,7 +240,9 @@ export function AgriMap({
               />
             </div>
             {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
-            {sky ? (
+            {cropMap ? (
+              <CropMapLegend />
+            ) : sky ? (
               <SkyLegend
                 view={sky}
                 periodLabel={skyPeriodEntry?.label ?? sky.period}

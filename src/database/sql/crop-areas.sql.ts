@@ -165,6 +165,7 @@ const estimateSchema = z.object({
   crop_class: z.string(),
   area_ha: z.coerce.number(),
   unclassified_share: z.coerce.number(),
+  resolution_m: z.coerce.number(),
   source_id: z.string(),
   computed_at: z.date(),
 });
@@ -175,7 +176,7 @@ export async function cropAreaEstimates(campaignId: string) {
     SELECT e."commune_id", c."code" AS commune_code, c."name" AS commune_name,
            d."code" AS departement_code, d."name" AS departement_name,
            e."crop_class"::text AS crop_class, e."area_ha", e."unclassified_share",
-           e."source_id", e."computed_at"
+           e."resolution_m", e."source_id", e."computed_at"
       FROM "crop_area_estimate" e
       JOIN "commune" c ON c."id" = e."commune_id"
       JOIN "departement" d ON d."id" = c."departement_id"

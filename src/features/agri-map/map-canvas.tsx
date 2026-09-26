@@ -23,6 +23,8 @@ import {
   BENIN_CENTER,
   CHOROPLETH_SCALE,
   COMMUNE_FILL_OPACITY,
+  CROP_MAP_IDS,
+  CROP_MAP_URL,
   NO_DATA_COLOR,
   FARM_COLORS,
   HIRES_IMAGERY,
@@ -41,6 +43,7 @@ import {
   TILE_URL_TEMPLATE,
   classIndex,
   copernicusAttribution,
+  cropMapAttribution,
   quantileBreaks,
   satelliteImageUrl,
   type MetricKey,
@@ -86,6 +89,8 @@ interface MapCanvasProps {
   onReady?: () => void;
   /** Image satellite sous les limites ; null : carte des communes seule. */
   sky?: SkyView | null;
+  /** Carte des cultures par satellite sous les limites et les parcelles (ADR-0021). */
+  cropMap?: boolean;
   /** Tuiles détaillées aux zooms rapprochés (comptes connectés seulement). */
   skyDetail?: boolean;
   /** Contours des parcelles à partir du zoom 12, cliquables (comptes qui lisent le registre). */
@@ -114,6 +119,7 @@ export function MapCanvas({
   onReady,
   sky = null,
   skyDetail = false,
+  cropMap = false,
   showParcels = false,
   selectedParcelId = null,
   onSelectParcel,
@@ -125,13 +131,16 @@ export function MapCanvas({
   const mapRef = useRef<MapLibreMap | null>(null);
   const attributionRef = useRef<AttributionControl | null>(null);
   // Mentions propres aux couches affichées (Copernicus, NASA FIRMS), réunies dans un contrôle.
-  const extrasRef = useRef<{ sky: string | null; fires: string | null }>({
+  const extrasRef = useRef<{ sky: string | null; crops: string | null; fires: string | null }>({
     sky: null,
+    crops: null,
     fires: null,
   });
   const refreshAttribution = (map: MapLibreMap) => {
-    const { sky: skyMention, fires: fireMention } = extrasRef.current;
-    const extras = [skyMention, fireMention].filter((mention): mention is string => !!mention);
+    const { sky: skyMention, crops: cropMention, fires: fireMention } = extrasRef.current;
+    const extras = [skyMention, cropMention, fireMention].filter(
+      (mention): mention is string => !!mention,
+    );
     attributionRef.current = swapAttribution(map, attributionRef.current, extras);
   };
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
@@ -603,6 +612,50 @@ export function MapCanvas({
       refreshAttribution(map);
     }
   }, [fires, ready]);
+  // Carte des cultures : une image d'ensemble du pays, sous les limites et les parcelles, pixels
+  // nets (classes, pas de dégradé). Déclarée après la vue du ciel, qui remet les communes en
+  // couleur quand elle se retire : cet effet les rend transparentes ensuite.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !cropMap) return;
+    const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
+    map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", 0);
+    map.addSource(CROP_MAP_IDS.source, {
+      type: "image",
+      url: CROP_MAP_URL,
+      coordinates: [
+        [minLon, maxLat],
+        [maxLon, maxLat],
+        [maxLon, minLat],
+        [minLon, minLat],
+      ],
+    });
+    map.addLayer(
+      {
+        id: CROP_MAP_IDS.layer,
+        type: "raster",
+        source: CROP_MAP_IDS.source,
+        paint: {
+          "raster-fade-duration": 0,
+          "raster-resampling": "nearest",
+          "raster-opacity": 0.85,
+        },
+      },
+      LAYER_IDS.communeFill,
+    );
+    extrasRef.current.crops = cropMapAttribution();
+    refreshAttribution(map);
+    return () => {
+      const current = mapRef.current;
+      if (!current) return;
+      if (current.getLayer(CROP_MAP_IDS.layer)) current.removeLayer(CROP_MAP_IDS.layer);
+      if (current.getSource(CROP_MAP_IDS.source)) current.removeSource(CROP_MAP_IDS.source);
+      current.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", COMMUNE_FILL_OPACITY);
+      extrasRef.current.crops = null;
+      refreshAttribution(current);
+    };
+    // refreshAttribution ne lit que des références : la carte n'est recréée qu'avec cropMap.
+  }, [cropMap, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
