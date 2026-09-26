@@ -29,6 +29,13 @@ describe("requêtes de séries de parcelle", () => {
     latitude: 9.1,
   });
 
+  it("rend des entiers sur 16 bits : une sortie en flottant est facturée double", () => {
+    for (const body of [bodies.s2, bodies.s1]) {
+      expect(body.aggregation.evalscript).not.toContain("FLOAT32");
+      expect(body.aggregation.evalscript).toContain('sampleType: "UINT16"');
+    }
+  });
+
   it("demande Sentinel-2 par décade, la scène la moins nuageuse d'abord", () => {
     expect(bodies.s2.aggregation.aggregationInterval.of).toBe("P10D");
     expect(bodies.s2.input.data[0]?.dataFilter).toEqual({ mosaickingOrder: "leastCC" });
@@ -50,7 +57,7 @@ describe("requêtes de séries de parcelle", () => {
       data: [
         {
           interval: { from: "2026-07-01", to: "2026-07-11" },
-          outputs: { ndvi: stats(0.6, 120, 20), ndmi: stats(0.3, 120, 20) },
+          outputs: { ndvi: stats(16_000, 120, 20), ndmi: stats(13_000, 120, 20) },
         },
         {
           interval: { from: "2026-07-11", to: "2026-07-21" },
@@ -58,12 +65,13 @@ describe("requêtes de séries de parcelle", () => {
         },
         {
           interval: { from: "2026-07-21", to: "2026-07-31" },
-          outputs: { ndvi: stats(0.65, 120, 70), ndmi: stats(0.35, 120, 70) },
+          outputs: { ndvi: stats(16_500, 120, 70), ndmi: stats(13_500, 120, 70) },
         },
       ],
     });
     expect(s2.map((entry) => entry.valid)).toEqual([1, 0, 0.5]);
-    expect(s2[1]?.ndvi).toBeNull();
+    expect(s2.map((entry) => entry.ndvi)).toEqual([0.6, null, 0.65]);
+    expect(s2[0]?.ndmi).toBe(0.3);
   });
 
   it("lit VV et VH en décibels, rien sur un pas sans donnée", () => {
@@ -71,7 +79,7 @@ describe("requêtes de séries de parcelle", () => {
       data: [
         {
           interval: { from: "2026-07-01", to: "2026-07-13" },
-          outputs: { vv: stats(-11.2, 90, 0), vh: stats(-17.5, 90, 0) },
+          outputs: { vv: stats(3880, 90, 0), vh: stats(3250, 90, 0) },
         },
         {
           interval: { from: "2026-07-13", to: "2026-07-25" },

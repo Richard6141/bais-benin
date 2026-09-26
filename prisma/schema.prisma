@@ -219,6 +219,7 @@ model DataSource {
   cropModels          CropModel[]
   cropPredictions     ParcelCropPrediction[]
   referenceFields     ReferenceField[]
+  cropObservations    ParcelCropObservation[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -356,6 +357,7 @@ model Crop {
   producerGroups   ProducerGroup[]
   cropClassChecks  ParcelCropClassCheck[]
   cropPredictions  ParcelCropPrediction[]
+  cropObservations ParcelCropObservation[]
 
   @@map("crop")
 }
@@ -385,6 +387,7 @@ model AgriculturalCampaign {
   parcelSignatures  ParcelSignature[]
   cropModels        CropModel[]
   cropPredictions   ParcelCropPrediction[]
+  cropObservations  ParcelCropObservation[]
 
   @@map("agricultural_campaign")
 }
@@ -691,6 +694,7 @@ model Parcel {
   cropClassChecks  ParcelCropClassCheck[]
   signatures       ParcelSignature[]
   cropPredictions  ParcelCropPrediction[]
+  cropObservations ParcelCropObservation[]
   verifications    FarmVerification[]
   fieldReports     FieldReport[]
 
@@ -772,6 +776,8 @@ model FarmVerification {
   gpsPoint          Unsupported("geography(Point, 4326)")? @map("gps_point")
   agentId           String?                                @map("agent_id") @db.Uuid
   agent             User?                                  @relation(fields: [agentId], references: [id])
+  // Cultures constatées sur place, parcelle par parcelle (ADR-0030, lot 2).
+  cropObservations  ParcelCropObservation[]
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -1806,20 +1812,22 @@ model ParcelCropClassCheck {
 // le contour de la parcelle, de janvier de l'année de campagne à la date lue, et variables tirées
 // de ces séries. Complétées mois après mois : seul le nouveau morceau est demandé à Copernicus.
 model ParcelSignature {
-  id              String               @id @default(uuid(7)) @db.Uuid
-  parcelId        String               @map("parcel_id") @db.Uuid
-  parcel          Parcel               @relation(fields: [parcelId], references: [id])
-  campaignId      String               @map("campaign_id") @db.Uuid
-  campaign        AgriculturalCampaign @relation(fields: [campaignId], references: [id])
-  windowFrom      DateTime             @map("window_from") @db.Date
-  observedUntil   DateTime             @map("observed_until") @db.Date
-  s2Series        Json                 @map("s2_series")
-  s1Series        Json                 @map("s1_series")
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  parcelId            String               @map("parcel_id") @db.Uuid
+  parcel              Parcel               @relation(fields: [parcelId], references: [id])
+  campaignId          String               @map("campaign_id") @db.Uuid
+  campaign            AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  windowFrom          DateTime             @map("window_from") @db.Date
+  observedUntil       DateTime             @map("observed_until") @db.Date
+  s2Series            Json                 @map("s2_series")
+  s1Series            Json                 @map("s1_series")
   // Variables du modèle, par nom ; recalculées à chaque complément de série.
-  features        Json
-  featureVersion  Int                  @map("feature_version")
+  features            Json
+  featureVersion      Int                  @map("feature_version")
   // Unités de traitement Copernicus dépensées pour cette parcelle, tous compléments compris.
-  processingUnits Decimal?             @map("processing_units") @db.Decimal(8, 3)
+  processingUnits     Decimal?             @map("processing_units") @db.Decimal(8, 3)
+  // Unités de la dernière lecture seule : la somme sur le mois tient le plafond de la tâche.
+  lastProcessingUnits Decimal?             @map("last_processing_units") @db.Decimal(8, 3)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])
@@ -1934,4 +1942,29 @@ model FarmAttestation {
 
   @@index([farmId, issuedAt])
   @@map("farm_attestation")
+}
+
+// Culture constatée par l'agent sur une parcelle lors d'une visite de terrain : la meilleure
+// étiquette pour le modèle de culture, qui compte plus qu'une déclaration vérifiée au bureau.
+// Distincte de la déclaration, pour garder l'écart entre ce qui est déclaré et ce qui est vu.
+model ParcelCropObservation {
+  id             String               @id @default(uuid(7)) @db.Uuid
+  parcelId       String               @map("parcel_id") @db.Uuid
+  parcel         Parcel               @relation(fields: [parcelId], references: [id])
+  campaignId     String               @map("campaign_id") @db.Uuid
+  campaign       AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  cropId         String               @map("crop_id") @db.Uuid
+  crop           Crop                 @relation(fields: [cropId], references: [id])
+  verificationId String               @map("verification_id") @db.Uuid
+  verification   FarmVerification     @relation(fields: [verificationId], references: [id])
+  observedAt     DateTime             @map("observed_at")
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@unique([verificationId, parcelId])
+  @@index([parcelId, campaignId, observedAt])
+  @@map("parcel_crop_observation")
 }

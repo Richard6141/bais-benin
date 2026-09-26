@@ -90,11 +90,19 @@ export {
 } from "./crop-groups";
 export {
   MIN_CLASS_SAMPLES,
-  UNCERTAIN_BELOW,
   collectParcelSeries,
   getParcelCropPrediction,
+  listCropVisitPriorities,
   trainAndPredictCrops,
+  type CropVisitPriority,
   type ModelRunResult,
   type ParcelCropPrediction,
   type SeriesRunResult,
 } from "./parcel-crops";
+export {
+  FIELD_VISIT_WEIGHT,
+  UNCERTAIN_BELOW,
+  cropDoubtReason,
+  trainingLabel,
+  visitPriority,
+} from "./parcel-crop-rules";

@@ -33,3 +33,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0028 | Carte des cultures : moins de 1 200 PU par mois, communes refaites tous les deux mois, carte à 800 px | acceptée, complète 0023 et 0025 |
 | 0029 | Contours de champs de référence (Fields of The World), import filtré et mesure de qualité | acceptée, complète 0016 |
 | 0030 | Culture de chaque parcelle, mesurée par satellite et apprise des parcelles vérifiées (forêt aléatoire) | acceptée, complète 0016, 0019 et 0021 |
+| 0031 | Cultures par parcelle : culture constatée à la visite, apprentissage actif, coût mesuré des séries | acceptée, complète 0030 |

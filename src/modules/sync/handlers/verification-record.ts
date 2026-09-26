@@ -25,6 +25,39 @@ export const verificationRecord: SyncHandler<"verification.record"> = {
         return rejected("NOT_FOUND", "Parcelle inconnue pour cette exploitation", "parcelId");
     }
 
+    // Cultures constatées : vérifiées avant toute écriture, car un rejet ne défait pas la
+    // transaction. Une visite rejetée n'en donne pas : l'exploitation n'a pas été reconnue.
+    const wanted = payload.outcome !== "REJECTED" ? (payload.observedCrops ?? []) : [];
+    let observations: { parcelId: string; cropId: string }[] = [];
+    let campaign: { id: string } | null = null;
+    if (wanted.length > 0) {
+      const [openCampaign, parcels, crops] = await Promise.all([
+        db.agriculturalCampaign.findFirst({ where: { status: "OPEN" }, select: { id: true } }),
+        db.parcel.findMany({
+          where: {
+            id: { in: wanted.map((entry) => entry.parcelId) },
+            farmId: farm.id,
+            archivedAt: null,
+          },
+          select: { id: true },
+        }),
+        db.crop.findMany({
+          where: { code: { in: wanted.map((entry) => entry.cropCode) } },
+          select: { id: true, code: true },
+        }),
+      ]);
+      const parcelIds = new Set(parcels.map((parcel) => parcel.id));
+      const cropIds = new Map(crops.map((crop) => [crop.code, crop.id]));
+      if (wanted.some((entry) => !parcelIds.has(entry.parcelId) || !cropIds.has(entry.cropCode))) {
+        return rejected("NOT_FOUND", "Parcelle ou culture inconnue", "observedCrops");
+      }
+      campaign = openCampaign;
+      observations = wanted.map((entry) => ({
+        parcelId: entry.parcelId,
+        cropId: cropIds.get(entry.cropCode)!,
+      }));
+    }
+
     const existing = await db.farmVerification.findUnique({
       where: { id: payload.id },
       select: { id: true, farmId: true },
@@ -58,6 +91,24 @@ export const verificationRecord: SyncHandler<"verification.record"> = {
       await writeVerificationPoint(db, verification.id, payload.gpsPoint);
     }
 
+    // Cultures constatées, parcelle par parcelle, pour la campagne ouverte (vérifiées plus haut).
+    let observedCrops = 0;
+    if (observations.length > 0 && campaign) {
+      const created = await db.parcelCropObservation.createMany({
+        data: observations.map((entry) => ({
+          parcelId: entry.parcelId,
+          campaignId: campaign.id,
+          cropId: entry.cropId,
+          verificationId: verification.id,
+          observedAt: new Date(payload.visitedAt),
+          sourceId: FIELD_SOURCE_ID,
+          reliability: "FIELD_VERIFIED" as const,
+        })),
+        skipDuplicates: true,
+      });
+      observedCrops = created.count;
+    }
+
     const confirmed = payload.outcome === "CONFIRMED" || payload.outcome === "CORRECTED";
     const updated = await db.farm.update({
       where: { id: farm.id },
@@ -85,6 +136,7 @@ export const verificationRecord: SyncHandler<"verification.record"> = {
         status: updated.verificationStatus,
         identityConfirmed: payload.identityConfirmed,
         correctedDeclaredAreaHa: payload.correctedDeclaredAreaHa ?? null,
+        observedCrops,
       },
       audit: {
         action: "registry.farm.verified",

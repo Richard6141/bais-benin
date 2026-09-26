@@ -64,7 +64,20 @@ describe("forêt aléatoire", () => {
     expect(predictClass(restored, train.X[5]!)).toEqual(predictClass(first, train.X[5]!));
   });
 
+  it("donne plus de poids aux exemples les plus sûrs", () => {
+    // Deux étiquettes contradictoires pour le même point : le poids tranche.
+    const X = [[0.5], [0.5], [0.5], [0.9], [0.1]];
+    const labels = ["A", "B", "B", "A", "B"];
+    const params = { ...PARAMS, balanced: false, trees: 50 };
+    const light = trainRandomForest(X, labels, ["x"], params).model;
+    const heavy = trainRandomForest(X, labels, ["x"], params, [10, 1, 1, 1, 1]).model;
+    expect(predictProbabilities(heavy, [0.5])[0]!).toBeGreaterThan(
+      predictProbabilities(light, [0.5])[0]!,
+    );
+  });
+
   it("refuse des données incohérentes", () => {
     expect(() => trainRandomForest([[1]], ["A", "B"], ["x"], PARAMS)).toThrow(RangeError);
+    expect(() => trainRandomForest([[1], [2]], ["A", "B"], ["x"], PARAMS, [1])).toThrow(RangeError);
   });
 });

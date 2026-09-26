@@ -4,6 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HelpTip } from "@/components/forms/help-tip";
 import { LocationPicker, type GeoPosition } from "@/components/forms/location-picker";
 import { StepIndicator } from "@/components/forms/step-indicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -17,6 +18,17 @@ import { useSync } from "@/lib/offline/use-sync";
 import { cn } from "@/lib/utils";
 import { buildVerificationCommand, type VisitOutcome } from "./visit-command";
 
+/** Parcelle à regarder pendant la visite : culture déclarée, et l'avis du satellite s'il diffère. */
+export interface VisitParcel {
+  id: string;
+  code: string;
+  areaHa: number;
+  declaredCropCode: string | null;
+  declaredCropName: string | null;
+  /** Culture vue par le satellite, seulement quand elle diffère ou reste incertaine. */
+  measured: { label: string; confidence: number } | null;
+}
+
 interface VisitFormProps {
   userId: string;
   farm: {
@@ -26,9 +38,14 @@ interface VisitFormProps {
     declaredAreaHa: number;
     communeName: string;
   };
+  parcels?: VisitParcel[];
+  crops?: { code: string; name: string }[];
 }
 
-const STEPS = ["Identité", "Position", "Résultat"] as const;
+/** Valeur du choix « parcelle non vue » : aucune culture n'est alors envoyée. */
+const NOT_SEEN = "";
+
+const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
 
 const OUTCOMES: Array<{ value: VisitOutcome; label: string; hint: string }> = [
   { value: "CONFIRMED", label: "Confirmée", hint: "Ce qui est déclaré correspond au terrain." },
@@ -38,10 +55,20 @@ const OUTCOMES: Array<{ value: VisitOutcome; label: string; hint: string }> = [
 
 // Visite de vérification (parcours D3-D4) : trois sous-écrans, une main, tout est écrit dans
 // l'outbox et part à la prochaine synchronisation.
-export function VisitForm({ userId, farm }: VisitFormProps) {
+export function VisitForm({ userId, farm, parcels = [], crops = [] }: VisitFormProps) {
   const router = useRouter();
   const sync = useSync(userId);
+  // L'étape des cultures n'existe que si l'exploitation a des parcelles.
+  const steps =
+    parcels.length > 0
+      ? ["Identité", "Position", "Cultures", "Résultat"]
+      : ["Identité", "Position", "Résultat"];
+  const cropsStep = parcels.length > 0 ? 2 : -1;
+  const lastStep = steps.length - 1;
   const [step, setStep] = useState(0);
+  const [observed, setObserved] = useState<Record<string, string>>(() =>
+    Object.fromEntries(parcels.map((parcel) => [parcel.id, parcel.declaredCropCode ?? NOT_SEEN])),
+  );
   const [identityConfirmed, setIdentityConfirmed] = useState<boolean | null>(null);
   const [position, setPosition] = useState<GeoPosition | null>(null);
   const [outcome, setOutcome] = useState<VisitOutcome | null>(null);
@@ -59,6 +86,9 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
       position,
       correctedArea,
       notes,
+      observedCrops: Object.entries(observed)
+        .filter(([, cropCode]) => cropCode !== NOT_SEEN)
+        .map(([parcelId, cropCode]) => ({ parcelId, cropCode })),
     });
     if (!built.ok) {
       setError(built.error);
@@ -96,7 +126,7 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
 
   return (
     <div className="flex flex-col gap-6 pb-24 md:pb-0">
-      <StepIndicator steps={STEPS} current={step} />
+      <StepIndicator steps={steps} current={step} />
 
       {step === 0 ? (
         <Card>
@@ -137,7 +167,61 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
         </Card>
       ) : null}
 
-      {step === 2 ? (
+      {step === cropsStep ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-1">
+              <CardTitle>Culture vue sur chaque parcelle</CardTitle>
+              <HelpTip label="Culture vue">
+                La culture que vous voyez sur place, même si elle diffère de la déclaration. Elle
+                sert à apprendre au satellite à reconnaître les cultures. Si vous ne voyez pas la
+                parcelle, choisissez « Non vue ».
+              </HelpTip>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {parcels.map((parcel) => (
+              <div key={parcel.id} className="flex flex-col gap-1 rounded-md border p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="font-mono text-sm font-semibold">{parcel.code}</span>
+                  <span className="tabular text-sm text-muted-foreground">
+                    {parcel.areaHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Déclarée : {parcel.declaredCropName ?? "aucune culture"}
+                </p>
+                {parcel.measured ? (
+                  <p className="text-sm font-medium text-warning">
+                    Satellite : {parcel.measured.label.toLowerCase()},{" "}
+                    {percent.format(parcel.measured.confidence)}
+                  </p>
+                ) : null}
+                <Label htmlFor={`culture-${parcel.id}`} className="mt-1">
+                  Culture vue
+                </Label>
+                <select
+                  id={`culture-${parcel.id}`}
+                  value={observed[parcel.id] ?? NOT_SEEN}
+                  onChange={(event) =>
+                    setObserved((current) => ({ ...current, [parcel.id]: event.target.value }))
+                  }
+                  className="h-12 rounded-md border bg-background px-3 text-base"
+                >
+                  <option value={NOT_SEEN}>Non vue</option>
+                  {crops.map((crop) => (
+                    <option key={crop.code} value={crop.code}>
+                      {crop.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {step === lastStep ? (
         <Card>
           <CardHeader>
             <CardTitle>Résultat de la visite</CardTitle>
@@ -207,7 +291,7 @@ export function VisitForm({ userId, farm }: VisitFormProps) {
               Annuler
             </Button>
           )}
-          {step < 2 ? (
+          {step < lastStep ? (
             <Button
               className="h-12 flex-1"
               disabled={step === 0 && identityConfirmed === null}

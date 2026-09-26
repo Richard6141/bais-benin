@@ -4,8 +4,9 @@ import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireRole } from "@/features/auth/session";
 import { formatHa } from "@/features/registry/agent/labels";
-import { VisitForm } from "@/features/registry/verification/visit-form";
-import { getFarmDetail } from "@/modules/registry";
+import { VisitForm, type VisitParcel } from "@/features/registry/verification/visit-form";
+import { getFarmDetail, listCampaigns, listCrops } from "@/modules/registry";
+import { getParcelCropPrediction } from "@/modules/satellite";
 
 export const metadata: Metadata = { title: "Visite de vérification" };
 
@@ -17,6 +18,29 @@ export default async function VisitPage(props: PageProps<"/agent/verification/[i
   if (!idSchema.safeParse(id).success) notFound();
   const farm = await getFarmDetail(user.actor, id);
   if (!farm) notFound();
+  const [crops, campaigns] = await Promise.all([listCrops(), listCampaigns()]);
+  const open = campaigns.find((campaign) => campaign.status === "OPEN")?.code;
+  // Culture principale déclarée pour la campagne ouverte (la plus grande surface), et l'avis du
+  // satellite sur la parcelle, pour guider ce que l'agent regarde sur place.
+  const parcels: VisitParcel[] = await Promise.all(
+    farm.parcels.map(async (parcel) => {
+      const main = parcel.crops
+        .filter((crop) => crop.campaignCode === open)
+        .sort((a, b) => b.areaHa - a.areaHa)[0];
+      const measured = await getParcelCropPrediction(user.actor, parcel.id);
+      return {
+        id: parcel.id,
+        code: parcel.code,
+        areaHa: parcel.computedAreaHa ?? parcel.declaredAreaHa,
+        declaredCropCode: main?.cropCode ?? null,
+        declaredCropName: main?.cropName ?? null,
+        measured:
+          measured && measured.agreement !== "AGREES"
+            ? { label: measured.cropLabel, confidence: measured.confidence }
+            : null,
+      };
+    }),
+  );
   const points = [
     `Superficie déclarée ${formatHa(farm.declaredAreaHa)}${farm.computedAreaHa === null ? ", aucun relevé" : ""}`,
     farm.parcelCount === 0
@@ -49,6 +73,8 @@ export default async function VisitPage(props: PageProps<"/agent/verification/[i
           declaredAreaHa: farm.declaredAreaHa,
           communeName: farm.commune.name,
         }}
+        parcels={parcels}
+        crops={crops.map((crop) => ({ code: crop.code, name: crop.nameFr }))}
       />
     </div>
   );

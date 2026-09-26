@@ -106,6 +106,9 @@ const serverSchema = z
     SATELLITE_RADAR_RICE: z.enum(["0", "1"]).default("0"),
     // Communes pilotes des cultures par parcelle (ADR-0030) : seules leurs parcelles sont lues
     // par satellite, en attendant l'échantillon aréolaire. Codes séparés par des virgules.
+    // Plafond mensuel des lectures de séries de parcelles, en unités de traitement (ADR-0031) :
+    // la tâche s'arrête net quand la dépense du mois l'atteint.
+    CROP_MODEL_MONTHLY_UNIT_CAP: z.coerce.number().min(0).max(9000).default(600),
     CROP_MODEL_PILOT_COMMUNES: z
       .string()
       .default("BJ-BOR-008,BJ-ATA-008,BJ-DON-001,BJ-COL-004,BJ-ALI-006")

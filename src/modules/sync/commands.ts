@@ -99,6 +99,12 @@ export const verificationRecordPayload = z.object({
   identityConfirmed: z.boolean().default(false),
   // Corrections constatées sur place, appliquées à l'exploitation quand outcome = CORRECTED.
   correctedDeclaredAreaHa: z.number().positive().max(10_000).optional(),
+  // Culture vue sur chaque parcelle (ADR-0030, lot 2) : la meilleure étiquette pour le modèle de
+  // culture. Facultatif, pour les appareils qui n'ont pas encore cette version du formulaire.
+  observedCrops: z
+    .array(z.object({ parcelId: uuid, cropCode: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/) }))
+    .max(50)
+    .optional(),
 });
 
 // Relais oral d'une alerte par l'agent (docs/modules/monitoring-parcours-ux.md §2.B, B3) :
