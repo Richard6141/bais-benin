@@ -63,3 +63,13 @@ export {
   type RefreshReason,
 } from "./refresh";
 export { analyticsScope, canFilterByStatus, type AnalyticsScope } from "./scope";
+export {
+  CONDITION_CLASSES,
+  buildCropCondition,
+  getCropCondition,
+  type ConditionBreakdown,
+  type ConditionClass,
+  type CropCondition,
+  type CropConditionCrop,
+  type CropConditionDepartement,
+} from "./crop-condition";
