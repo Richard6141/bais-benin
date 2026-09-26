@@ -53,12 +53,16 @@ test.describe("espace agent", () => {
     await expect(syncChip(page)).toContainText("À jour");
 
     await page.goto("/agent/exploitations");
+    // Liste compacte : le nom du producteur ouvre la fiche, la ligne dit le village et la commune.
+    const rows = page
+      .getByRole("list", { name: "Exploitations", exact: true })
+      .getByRole("listitem");
     const links = page.locator('a[href^="/agent/exploitations/"]');
     await expect(links.first()).toBeVisible();
-    await expect(links.first().getByText(/Djougou/)).toBeVisible();
+    await expect(rows.first().getByText(/Djougou/)).toBeVisible();
 
     // La recherche par nom ne garde que les producteurs correspondants.
-    const firstName = (await links.first().locator("span").first().textContent())?.trim() ?? "";
+    const firstName = (await links.first().textContent())?.trim() ?? "";
     const needle = firstName.split(" ")[0] ?? firstName;
     await page.getByLabel("Rechercher").fill(needle);
     await page.getByRole("button", { name: "Rechercher" }).click();
