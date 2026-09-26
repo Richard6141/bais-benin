@@ -80,7 +80,64 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const RICH = {
+  ...PARCEL,
+  farmer: { ...PARCEL.farmer, phone: "+22997000042", whatsappConsent: false },
+  prediction: {
+    cropGroup: "COTTON",
+    cropLabel: "Coton",
+    cropId: null,
+    confidence: 0.82,
+    agreement: "DIFFERS",
+    declaredLabel: "Maïs",
+    observedUntil: "2026-09-20T00:00:00.000Z",
+    modelVersion: 1,
+    confirmation: null,
+  },
+  reports: [
+    {
+      id: "0199a000-0000-7000-8000-0000000000aa",
+      type: "PEST",
+      status: "OPEN",
+      cropCode: null,
+      observedAt: "2026-09-10T08:00:00.000Z",
+      hasPhoto: true,
+    },
+  ],
+};
+
+function stubFetch(body: unknown) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })),
+  );
+}
+
 describe("fiche parcelle de la carte", () => {
+  it("montre l'écart déclaré et mesuré, la photo et un contact sans WhatsApp sans accord", async () => {
+    stubFetch(RICH);
+    render(<ParcelPanel parcelId={PARCEL.id} onClose={() => {}} />);
+    expect(await screen.findByText("Culture vue du satellite")).toBeInTheDocument();
+    expect(screen.getByText("Coton (82 %)")).toBeInTheDocument();
+    expect(screen.getByText("Différente de la déclaration")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Photo du signalement/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Joindre le producteur/ })).toHaveAttribute(
+      "href",
+      "tel:+22997000042",
+    );
+    expect(screen.queryByRole("link", { name: /WhatsApp/ })).toBeNull();
+    expect(screen.getByText("Campagne 2025-2026")).toBeInTheDocument();
+  });
+
+  it("propose WhatsApp seulement avec l'accord du producteur", async () => {
+    stubFetch({ ...RICH, farmer: { ...RICH.farmer, whatsappConsent: true } });
+    render(<ParcelPanel parcelId={PARCEL.id} onClose={() => {}} />);
+    expect(await screen.findByRole("link", { name: /WhatsApp/ })).toHaveAttribute(
+      "href",
+      "https://wa.me/22997000042",
+    );
+  });
+
   it("présente le producteur, le rendement comparé et le verdict satellite", async () => {
     vi.stubGlobal(
       "fetch",
