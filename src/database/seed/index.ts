@@ -21,6 +21,7 @@ import {
   seedVegetationChecks,
 } from "./steps/satellite.seed";
 import { seedReferenceFields } from "./steps/reference-fields.seed";
+import { seedCommunePopulation } from "./steps/population.seed";
 import { seedTerritory } from "./steps/territory.seed";
 
 export interface SeedSummary {
@@ -41,6 +42,7 @@ export interface SeedSummary {
   cropClassChecks: number | null;
   parcelSignatures: number | null;
   surveyPoints: number | null;
+  communePopulation: number;
 }
 
 // Chargement des référentiels. Chaque étape est idempotente (upsert) : relancer le seed
@@ -49,6 +51,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   const dataSources = await seedDataSources(prisma);
   const zones = await seedAgroEcologicalZones(prisma);
   const territory = await seedTerritory(prisma);
+  const communePopulation = await seedCommunePopulation(prisma);
   const crops = await seedCrops(prisma);
   const campaigns = await seedCampaigns(prisma);
   const demoAccounts = await seedDemoAccounts(prisma);
@@ -84,6 +87,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
     cropClassChecks,
     parcelSignatures,
     surveyPoints,
+    communePopulation,
   };
 }
 
