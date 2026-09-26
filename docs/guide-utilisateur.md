@@ -245,8 +245,8 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   enregistrer » (vue mais pas encore déclarée).
 - Le tableau « Communes où envoyer les agents en premier » classe les communes selon l'écart entre
   ce qui est vu et ce qui est déclaré. Un clic ouvre la fiche de la commune.
-- La page a cinq onglets : « Surfaces », « Précision de la carte », « Par parcelle »,
-  « Surfaces par parcelle » et « Sondage ». L'onglet ouvert reste dans l'adresse.
+- La page a six onglets : « Surfaces », « Précision de la carte », « Par parcelle »,
+  « Surfaces par parcelle », « Sondage » et « Officiel ». L'onglet ouvert reste dans l'adresse.
 - L'onglet « Précision de la carte » dit combien de parcelles vérifiées sont bien reconnues.
 - L'onglet « Par parcelle » concerne les communes pilotes, où la culture est mesurée sur le contour
   de chaque parcelle :
@@ -262,6 +262,15 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   - la colonne « Usage » dit ce qu'on peut en faire : « À citer » (CV de 10 % au plus, avec sa
     marge), « Indicatif » (jusqu'à 20 %), « À ne pas citer » ;
   - les chiffres des communes réunies sont plus sûrs que ceux d'une commune seule.
+- L'onglet « Officiel » reçoit les statistiques de la DSA et de FAOSTAT, que la plateforme
+  n'invente jamais :
+  - importez un fichier CSV au format du modèle `docs/modeles/statistiques-officielles.csv`
+    (colonnes source, campagne, territoire, culture, indicateur, valeur, reference) ;
+  - une seule ligne fautive et rien n'est importé : chaque erreur est donnée avec son numéro de
+    ligne ; un fichier corrigé se réimporte et remplace les mêmes chiffres ;
+  - chaque surface officielle est mise face à la surface déclarée au registre (sa « Couverture »)
+    et, dans les communes d'enquête, à la surface estimée par sondage : « Dans la marge » ou
+    « Hors marge ».
 - Les surfaces sont recalculées une fois par mois, pendant les huit premiers jours.
 - Le bouton « Carte des cultures » ouvre la carte correspondante.
 
