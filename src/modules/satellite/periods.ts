@@ -13,6 +13,13 @@ export const PERIOD_COUNT = 12;
 
 const PERIOD_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
+/**
+ * Fenêtre glissante des 60 derniers jours : la scène la moins nuageuse de chaque zone sur deux
+ * mois comble une partie des trous nuageux d'un mois de saison des pluies. Toujours proposée.
+ */
+export const ROLLING_PERIOD = "60-jours";
+export const ROLLING_DAYS = 60;
+
 export function isPeriod(value: string): boolean {
   return PERIOD_PATTERN.test(value);
 }
@@ -23,6 +30,12 @@ export function periodOf(date: Date): string {
 
 /** Bornes du mois, la fin plafonnée à `now` pour le mois en cours. */
 export function periodRange(period: string, now: Date): { from: string; to: string } {
+  if (period === ROLLING_PERIOD) {
+    return {
+      from: new Date(now.getTime() - ROLLING_DAYS * 86_400_000).toISOString(),
+      to: now.toISOString(),
+    };
+  }
   const match = PERIOD_PATTERN.exec(period);
   if (!match) throw new RangeError(`Période invalide : ${period}`);
   const year = Number(match[1]);
@@ -48,15 +61,17 @@ export function recentPeriods(now: Date, count = PERIOD_COUNT): string[] {
  * robot pourrait demander chaque mois de 1900 à 2099 et vider le quota mensuel.
  */
 export function isOfferedPeriod(period: string, now: Date): boolean {
-  return recentPeriods(now).includes(period);
+  return period === ROLLING_PERIOD || recentPeriods(now).includes(period);
 }
 
+/** Vrai si la période reçoit encore de nouveaux passages (cache à échéance). */
 export function isCurrentPeriod(period: string, now: Date): boolean {
-  return period === periodOf(now);
+  return period === ROLLING_PERIOD || period === periodOf(now);
 }
 
 /** Libellé français : « septembre 2026 ». */
 export function periodLabel(period: string): string {
+  if (period === ROLLING_PERIOD) return `${ROLLING_DAYS} derniers jours`;
   const match = PERIOD_PATTERN.exec(period);
   if (!match) throw new RangeError(`Période invalide : ${period}`);
   return new Intl.DateTimeFormat("fr-FR", {
@@ -73,6 +88,8 @@ export interface ImageryPeriod {
   period: string;
   label: string;
   current: boolean;
+  /** Fenêtre glissante (comblement des nuages) plutôt qu'un mois calendaire. */
+  rolling: boolean;
   /** Scènes dégagées du mois (moins de CLEAR_SCENE_MAX_CLOUD % de nuages) sur le pays. */
   clearSceneCount: number;
   /** Scène la plus dégagée du mois. */
@@ -96,7 +113,8 @@ export function summarizePeriod(period: string, scenes: SceneSummary[], now: Dat
   return {
     period,
     label: periodLabel(period),
-    current: isCurrentPeriod(period, now),
+    current: period === periodOf(now),
+    rolling: period === ROLLING_PERIOD,
     clearSceneCount: scenes.length,
     clearest,
     lastAcquiredAt,
@@ -111,7 +129,8 @@ const READABLE_CLEAR_SCENES = 25;
  * à défaut (saison des pluies), celui des trois derniers mois qui en a le plus ; null sans
  * aucune scène dégagée.
  */
-export function defaultPeriod(periods: readonly ImageryPeriod[]): string | null {
+export function defaultPeriod(allPeriods: readonly ImageryPeriod[]): string | null {
+  const periods = allPeriods.filter((entry) => !entry.rolling);
   const readable = periods.find((entry) => entry.clearSceneCount >= READABLE_CLEAR_SCENES);
   if (readable) return readable.period;
   const recent = periods.slice(0, 3).filter((entry) => entry.clearSceneCount > 0);

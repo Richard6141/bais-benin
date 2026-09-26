@@ -20,7 +20,9 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ParcelVegetationNote } from "@/features/satellite/parcel-vegetation";
 import type { FarmDetail, ParcelOverlapFlag } from "@/modules/registry";
+import type { ParcelVegetationCheck } from "@/modules/satellite";
 import { EventTimeline, summarizeEvent } from "./event-timeline";
 import { FarmOutbox } from "./farm-outbox";
 import {
@@ -38,10 +40,12 @@ import { VerificationStatusBadge } from "./status-badge";
 interface FarmDetailViewProps {
   farm: FarmDetail;
   userId: string;
+  /** Verdicts satellite des parcelles (ADR-0016), déjà filtrés par le droit de lecture. */
+  vegetation?: readonly ParcelVegetationCheck[];
 }
 
 // Fiche exploitation côté agent : résumé, parcelles, historique, activité de synchronisation.
-export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
+export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailViewProps) {
   const cropCodes = farm.cropCodes.filter((code): code is CropCode =>
     (CROP_CODES as readonly string[]).includes(code),
   );
@@ -246,6 +250,9 @@ export function FarmDetailView({ farm, userId }: FarmDetailViewProps) {
                         ))}
                       </ul>
                     ) : null}
+                    <ParcelVegetationNote
+                      checks={vegetation.filter((check) => check.parcelId === parcel.id)}
+                    />
                   </Card>
                 </li>
               ))}

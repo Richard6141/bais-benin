@@ -8,15 +8,14 @@ import {
   getDetailTile,
   getOverviewImage,
   isOfferedPeriod,
-  isPeriod,
   type ImageryOutcome,
 } from "@/modules/satellite";
 
 export const dynamic = "force-dynamic";
 
 // Images de la vue du ciel (ADR-0016), calculées par Copernicus et gardées en cache :
-// - /api/satellite/{couche}/{AAAA-MM}/overview.png : image d'ensemble du pays, publique ;
-// - /api/satellite/{couche}/{AAAA-MM}/{z}/{x}/{y}.png : tuile détaillée de 512 px, réservée aux
+// - /api/satellite/{couche}/{AAAA-MM|60-jours}/overview.png : image d'ensemble du pays, publique ;
+// - /api/satellite/{couche}/{AAAA-MM|60-jours}/{z}/{x}/{y}.png : tuile de 512 px, réservée aux
 //   comptes connectés, pour qu'un robot anonyme ne vide pas le quota mensuel du compte CDSE.
 
 const LAYERS = { "couleur-naturelle": "TRUE_COLOR", ndvi: "NDVI" } as const;
@@ -72,7 +71,8 @@ function respond(outcome: ImageryOutcome, visibility: "public" | "private"): Nex
 export async function GET(request: NextRequest, context: { params: Promise<ImageParams> }) {
   const { layer: layerSlug, period, tile } = await context.params;
   const layer = LAYERS[layerSlug as keyof typeof LAYERS];
-  if (!layer || !isPeriod(period) || !isOfferedPeriod(period, new Date())) {
+  // Les douze mois proposés et la fenêtre glissante des 60 derniers jours, rien d'autre.
+  if (!layer || !isOfferedPeriod(period, new Date())) {
     return NextResponse.json({ error: "Couche ou période invalide" }, { status: 400 });
   }
   if (tile.length === 1 && tile[0] === "overview.png") {

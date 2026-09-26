@@ -10,12 +10,17 @@ import { requireRole } from "@/features/auth/session";
 import { formatDate, formatHa } from "@/features/registry/agent/labels";
 import { PRIORITY_LABELS, priorityReasons } from "@/features/registry/verification/priority";
 import { verificationQueue } from "@/modules/registry";
+import { listFlaggedFarms } from "@/modules/satellite";
 
 export const metadata: Metadata = { title: "À vérifier" };
 
 export default async function VerificationQueuePage() {
   const user = await requireRole("AGENT_AGRICULTURE");
-  const queue = await verificationQueue(user.actor, 100);
+  // Signalements satellite (ADR-0016) : seulement les exploitations que l'agent a enregistrées.
+  const [queue, flagged] = await Promise.all([
+    verificationQueue(user.actor, 100),
+    listFlaggedFarms(user.actor, 50),
+  ]);
   const now = new Date();
   const ranked = queue
     .map((farm) => ({ farm, reasons: priorityReasons(farm, now) }))
@@ -72,6 +77,46 @@ export default async function VerificationQueuePage() {
           ))}
         </ul>
       )}
+      {flagged.length > 0 ? (
+        <section aria-labelledby="satellite-titre" className="flex flex-col gap-3">
+          <h2 id="satellite-titre" className="text-lg font-semibold">
+            Signalées par le satellite
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Parcelles dont la végétation observée par Sentinel-2 ne correspond pas à la culture
+            déclarée. Une visite confirme la culture ou corrige la déclaration.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {flagged.map((farm) => (
+              <li key={farm.farm_id}>
+                <Card className="p-0">
+                  <Link
+                    href={`/agent/exploitations/${farm.farm_id}` as Route}
+                    className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-accent/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="truncate font-mono text-sm font-semibold">
+                          {farm.farm_code}
+                        </span>
+                        <Badge variant="warning">
+                          {farm.flagged_parcels} parcelle{farm.flagged_parcels > 1 ? "s" : ""} à
+                          vérifier
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {farm.commune_name}
+                        {farm.village ? `, ${farm.village}` : ""} · {farm.crop_names.join(", ")}
+                      </p>
+                    </div>
+                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  </Link>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

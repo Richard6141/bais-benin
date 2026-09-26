@@ -210,6 +210,7 @@ model DataSource {
   verifications FarmVerification[]
 
   weatherObservations WeatherObservation[]
+  vegetationChecks    ParcelVegetationCheck[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -338,7 +339,8 @@ model Crop {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  parcelCrops ParcelCrop[]
+  parcelCrops      ParcelCrop[]
+  vegetationChecks ParcelVegetationCheck[]
 
   @@map("crop")
 }
@@ -360,7 +362,8 @@ model AgriculturalCampaign {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  parcelCrops ParcelCrop[]
+  parcelCrops      ParcelCrop[]
+  vegetationChecks ParcelVegetationCheck[]
 
   @@map("agricultural_campaign")
 }
@@ -648,9 +651,10 @@ model Parcel {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  crops         ParcelCrop[]
-  verifications FarmVerification[]
-  fieldReports  FieldReport[]
+  crops            ParcelCrop[]
+  vegetationChecks ParcelVegetationCheck[]
+  verifications    FarmVerification[]
+  fieldReports     FieldReport[]
 
   @@index([farmId])
   @@map("parcel")
@@ -1376,4 +1380,45 @@ model AssistanceRequest {
   @@index([communeId, status, createdAt])
   @@index([requesterId, createdAt])
   @@map("assistance_request")
+}
+
+enum VegetationCheckStatus {
+  CONSISTENT
+  TO_VERIFY
+  INSUFFICIENT_DATA
+  PENDING
+}
+
+// Confrontation déclaration / satellite (ADR-0016) : NDVI de la parcelle sur la saison, calculé
+// par Copernicus (API Statistical), jugé face au profil attendu de la culture principale
+// déclarée. Une ligne par parcelle, campagne et sous-saison, recalculée tant que la saison n'est
+// pas jugée. `series` garde les valeurs par décade pour l'affichage et l'audit ; `reason` vaut
+// LOW_PEAK, NO_CYCLE ou LOW_COVER quand le statut est TO_VERIFY.
+model ParcelVegetationCheck {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  parcelId       String                @map("parcel_id") @db.Uuid
+  parcel         Parcel                @relation(fields: [parcelId], references: [id])
+  campaignId     String                @map("campaign_id") @db.Uuid
+  campaign       AgriculturalCampaign  @relation(fields: [campaignId], references: [id])
+  subSeason      SubSeason             @map("sub_season")
+  cropId         String                @map("crop_id") @db.Uuid
+  crop           Crop                  @relation(fields: [cropId], references: [id])
+  status         VegetationCheckStatus
+  reason         String?
+  peakNdvi       Decimal?              @map("peak_ndvi") @db.Decimal(4, 3)
+  baseNdvi       Decimal?              @map("base_ndvi") @db.Decimal(4, 3)
+  expectedNdvi   Decimal               @map("expected_ndvi") @db.Decimal(4, 3)
+  validIntervals Int                   @map("valid_intervals")
+  windowFrom     DateTime              @map("window_from") @db.Date
+  windowTo       DateTime              @map("window_to") @db.Date
+  series         Json
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([parcelId, campaignId, subSeason])
+  @@index([campaignId, status])
+  @@map("parcel_vegetation_check")
 }

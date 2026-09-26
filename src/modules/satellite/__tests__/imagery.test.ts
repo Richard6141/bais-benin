@@ -2,7 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Cache et quota simulés : le test vérifie qu'une période hors des mois proposés ne touche ni
 // au cache, ni au plafond mensuel, ni à Copernicus.
+const OUTLINE = {
+  type: "Polygon",
+  coordinates: [
+    [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 0],
+    ],
+  ],
+};
 const sql = vi.hoisted(() => ({
+  readCountryOutline3857: vi.fn(),
   findCachedImage: vi.fn(),
   storeCachedImage: vi.fn(),
   reserveProcessingRequest: vi.fn(),
@@ -26,6 +38,7 @@ const NOW = new Date("2026-09-26T08:00:00Z");
 describe("images de la vue du ciel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sql.readCountryOutline3857.mockResolvedValue(OUTLINE);
   });
 
   it("refusent un mois hors de la période proposée sans cache, sans quota ni Copernicus", async () => {
@@ -48,10 +61,12 @@ describe("images de la vue du ciel", () => {
     expect(outcome).toEqual({ status: "ok", image: new Uint8Array([1]), permanent: true });
     expect(sql.reserveProcessingRequest).toHaveBeenCalledWith("2026-09", "IMAGE", 9000);
     expect(sql.addProcessingUnits).toHaveBeenCalledWith("2026-09", 7.5);
+    // Image découpée sur la frontière du pays, rangée sous la version v2 du cache.
+    expect(provider.renderImage).toHaveBeenCalledWith(expect.objectContaining({ clip: OUTLINE }));
     expect(sql.storeCachedImage).toHaveBeenCalledWith(
       "NDVI",
       "2025-10",
-      "overview",
+      "v2:overview",
       new Uint8Array([1]),
       null,
     );

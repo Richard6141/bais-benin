@@ -38,10 +38,18 @@ export interface SceneSummary {
   gridCode: string | null;
 }
 
+/** Contour en EPSG:3857 (mètres) : les pixels hors contour sortent sans donnée (transparents). */
+export interface ClipGeometry {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: number[][][] | number[][][][];
+}
+
 export interface ImageryRequest {
   layer: ImageryLayer;
   /** Emprise demandée en EPSG:3857, pour se caler sur les tuiles de la carte. */
   envelope: Envelope3857;
+  /** Découpe sur la frontière du pays, dans le même système que l'emprise. */
+  clip?: ClipGeometry;
   width: number;
   height: number;
   from: string;
@@ -63,6 +71,12 @@ export interface VegetationStatisticsRequest {
   to: string;
   /** Pas d'agrégation en jours (10 : une valeur par décade). */
   intervalDays: number;
+  /**
+   * Couvert attendu d'après la culture déclarée : saisonnier (culture annuelle) ou permanent
+   * (plantation). Sert seulement à la fixture pour synthétiser une série plausible ; un vrai
+   * fournisseur mesure et l'ignore.
+   */
+  expectedCover?: "SEASONAL" | "PERMANENT";
 }
 
 /** NDVI moyen d'une géométrie sur un intervalle, pixels nuageux exclus. */

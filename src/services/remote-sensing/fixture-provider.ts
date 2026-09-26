@@ -98,7 +98,11 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
         const middle = new Date(time + step / 2);
         // Un intervalle sur cinq entièrement nuageux, comme en pleine saison des pluies.
         const cloudy = noise(seed, index) < 0.2;
-        const expected = bare ? 0.16 : seasonalNdvi(latitude, dayOfYear(middle));
+        const expected = bare
+          ? 0.16
+          : request.expectedCover === "PERMANENT"
+            ? 0.56
+            : seasonalNdvi(latitude, dayOfYear(middle));
         const value = expected + (noise(seed, index + 100) - 0.5) * 0.06;
         intervals.push({
           from: new Date(time).toISOString(),

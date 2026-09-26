@@ -146,7 +146,12 @@ export function buildStacSearchBody(request: SceneSearchRequest) {
 export function buildProcessBody(request: ImageryRequest) {
   return {
     input: {
-      bounds: { bbox: request.envelope, properties: { crs: CRS_3857 } },
+      // Emprise de sortie (bbox) et découpe (geometry) : hors contour, pas de donnée.
+      bounds: {
+        bbox: request.envelope,
+        ...(request.clip ? { geometry: request.clip } : {}),
+        properties: { crs: CRS_3857 },
+      },
       data: [
         {
           type: COLLECTION,

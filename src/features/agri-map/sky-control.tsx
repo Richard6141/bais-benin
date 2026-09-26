@@ -27,6 +27,7 @@ function clearLabel(entry: ImageryPeriod): string {
     entry.clearSceneCount === 0
       ? "très nuageux"
       : `${entry.clearSceneCount} scène${entry.clearSceneCount > 1 ? "s" : ""} dégagée${entry.clearSceneCount > 1 ? "s" : ""}`;
+  if (entry.rolling) return `comblement des nuages · ${scenes}`;
   return entry.current ? `en cours · ${scenes}` : scenes;
 }
 

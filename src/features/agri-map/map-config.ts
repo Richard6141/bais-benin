@@ -70,9 +70,13 @@ export function satelliteImageUrl(view: SkyView, tile: "overview.png" | "{z}/{x}
   return `/api/satellite/${view.layer}/${view.period}/${tile}`;
 }
 
+/** Fenêtre glissante des 60 derniers jours (modules/satellite/periods.ts, ROLLING_PERIOD). */
+export const ROLLING_SKY_PERIOD = "60-jours";
+
 /** Mention exigée par la licence Copernicus pour toute image dérivée. */
-export function copernicusAttribution(period: string): string {
-  return `Contains modified Copernicus Sentinel data ${period.slice(0, 4)}`;
+export function copernicusAttribution(period: string, now = new Date()): string {
+  const year = period === ROLLING_SKY_PERIOD ? String(now.getFullYear()) : period.slice(0, 4);
+  return `Contains modified Copernicus Sentinel data ${year}`;
 }
 
 /** Opacité des communes : pleine sur la carte, nulle sur l'image (survol et clic restent actifs). */
