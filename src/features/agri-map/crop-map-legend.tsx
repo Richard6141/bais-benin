@@ -57,7 +57,8 @@ export function CropMapLegend() {
       ) : ready !== null && ready < CROP_MAP_QUARTERS.length ? (
         <p className="mt-2 font-medium">Carte en partie prête</p>
       ) : null}
-      <p className="mt-2 font-medium text-warning">Estimation satellite, à confirmer</p>
+      <p className="mt-2 font-medium text-warning">En cours de calibrage, à ne pas citer</p>
+      <p className="mt-1 font-medium text-warning">Estimation satellite, à confirmer</p>
       <p className="mt-1 text-muted-foreground">Sentinel-2, 12 derniers mois</p>
       <p className="mt-1 text-muted-foreground">{cropMapAttribution()}</p>
     </div>

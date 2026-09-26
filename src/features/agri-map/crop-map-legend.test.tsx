@@ -54,6 +54,7 @@ describe("carte des cultures", () => {
     expect(classes).toHaveLength(9);
     expect(classes[0]).toHaveTextContent("Maïs et cultures annuelles");
     expect(screen.getByText("Estimation satellite, à confirmer")).toBeInTheDocument();
+    expect(screen.getByText("En cours de calibrage, à ne pas citer")).toBeInTheDocument();
     expect(
       screen.getByText(/^Contains modified Copernicus Sentinel data \d{4}-\d{4}$/),
     ).toBeInTheDocument();

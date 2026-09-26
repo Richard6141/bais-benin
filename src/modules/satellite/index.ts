@@ -59,6 +59,7 @@ export {
 export { evaluateRadar, expectedRadarProfile } from "./crop-profiles";
 export {
   CROP_AREA_RESOLUTION_M,
+  CROP_MAP_CALIBRATED,
   CULTIVATED_CLASSES,
   cropMapClassOf,
   getCropAreaComparison,

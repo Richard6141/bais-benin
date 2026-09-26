@@ -1,7 +1,9 @@
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/features/auth/session";
@@ -10,7 +12,12 @@ import { parseDashboardFilters } from "@/features/dashboard/dashboard-logic";
 import { DashboardSection } from "@/features/dashboard/national-sections";
 import { CropAccuracySection } from "@/features/satellite/crop-accuracy-section";
 import { CropAreaSection, cropClassLabel } from "@/features/satellite/crop-area-section";
-import { CULTIVATED_CLASSES, getCropAreaComparison, getCropMapAccuracy } from "@/modules/satellite";
+import {
+  CROP_MAP_CALIBRATED,
+  CULTIVATED_CLASSES,
+  getCropAreaComparison,
+  getCropMapAccuracy,
+} from "@/modules/satellite";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Surfaces par satellite" };
@@ -43,6 +50,14 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
           </Button>
         }
       />
+      {CROP_MAP_CALIBRATED ? null : (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden />
+          <AlertTitle className="line-clamp-none">
+            Surfaces en cours de calibrage, probablement surestimées : à ne pas citer
+          </AlertTitle>
+        </Alert>
+      )}
       <Suspense fallback={<Skeleton className="h-16 w-full" />}>
         <DashboardFiltersBar
           campaigns={[]}
