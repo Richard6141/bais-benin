@@ -104,6 +104,10 @@ const serverSchema = z
     // Riz par radar Sentinel-1 dans les surfaces par commune (ADR-0026) : environ 2 unités de
     // plus par commune. Désactivé tant qu'une mesure réelle n'a pas validé la règle.
     SATELLITE_RADAR_RICE: z.enum(["0", "1"]).default("0"),
+    // Classe de la carte aux points d'enquête (ADR-0033) : environ 0,16 unité par point, 100 PU
+    // pour 600 points. Désactivé tant que le chef d'équipe n'a pas validé une passe réelle ; les
+    // points sont tirés quand même, et la fixture reste lue sans compte Copernicus.
+    SURVEY_MAP_READS: z.enum(["0", "1"]).default("0"),
     // Communes pilotes des cultures par parcelle (ADR-0030) : seules leurs parcelles sont lues
     // par satellite, en attendant l'échantillon aréolaire. Codes séparés par des virgules.
     // Plafond mensuel des lectures de séries de parcelles, en unités de traitement (ADR-0031) :
