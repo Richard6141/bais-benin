@@ -1,4 +1,4 @@
-# ADR-0022 — Carte des cultures : coût mesuré, pixels de 120 m, quatre bandes, douze passages
+# ADR-0023 — Carte des cultures : coût mesuré, pixels de 120 m, quatre bandes, douze passages
 
 - Statut : acceptée
 - Date : 2026-09-26

@@ -643,7 +643,8 @@ export function MapCanvas({
       },
       LAYER_IDS.communeFill,
     );
-    extrasRef.current.crops = cropMapAttribution();
+    const extras = extrasRef.current;
+    extras.crops = cropMapAttribution();
     refreshAttribution(map);
     return () => {
       const current = mapRef.current;
@@ -651,7 +652,7 @@ export function MapCanvas({
       if (current.getLayer(CROP_MAP_IDS.layer)) current.removeLayer(CROP_MAP_IDS.layer);
       if (current.getSource(CROP_MAP_IDS.source)) current.removeSource(CROP_MAP_IDS.source);
       current.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", COMMUNE_FILL_OPACITY);
-      extrasRef.current.crops = null;
+      extras.crops = null;
       refreshAttribution(current);
     };
     // refreshAttribution ne lit que des références : la carte n'est recréée qu'avec cropMap.
