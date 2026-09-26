@@ -111,12 +111,37 @@ export const CROP_MAP_LAYER = "cultures";
 /** Fond de carte choisi : communes (null), vue du ciel, ou carte des cultures. */
 export type BaseLayer = SkyLayer | typeof CROP_MAP_LAYER;
 export const CROP_MAP_PERIOD = "12-mois";
-export const CROP_MAP_URL = `/api/satellite/${CROP_MAP_LAYER}/${CROP_MAP_PERIOD}/overview.png`;
 
-export const CROP_MAP_IDS = {
-  source: "bais-crop-map",
-  layer: "bais-crop-map-layer",
-} as const;
+const mercatorY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+const latitudeOf = (y: number) => (Math.atan(Math.exp(y)) * 360) / Math.PI - 90;
+
+/**
+ * Quatre quarts du pays (nord-ouest, nord-est, sud-ouest, sud-est), coupés au milieu du rectangle
+ * en Web Mercator comme côté serveur (modules/satellite/imagery.ts, cropMapQuarterEnvelope).
+ */
+export const CROP_MAP_QUARTERS = (() => {
+  const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
+  const midLon = (minLon + maxLon) / 2;
+  const midLat = latitudeOf((mercatorY(minLat) + mercatorY(maxLat)) / 2);
+  const box = (west: number, south: number, east: number, north: number) =>
+    [
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
+    ] as [[number, number], [number, number], [number, number], [number, number]];
+  return [
+    box(minLon, midLat, midLon, maxLat),
+    box(midLon, midLat, maxLon, maxLat),
+    box(minLon, minLat, midLon, midLat),
+    box(midLon, minLat, maxLon, midLat),
+  ].map((coordinates, index) => ({
+    url: `/api/satellite/${CROP_MAP_LAYER}/${CROP_MAP_PERIOD}/q${index}.png`,
+    coordinates,
+    source: `bais-crop-map-q${index}`,
+    layer: `bais-crop-map-q${index}-layer`,
+  }));
+})();
 
 /** Classes de la légende, cultures d'abord ; l'absence de classe reste transparente. */
 export const CROP_MAP_CLASSES = [

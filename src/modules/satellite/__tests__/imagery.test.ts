@@ -46,7 +46,13 @@ vi.mock("@/lib/env", () => ({
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn() } }));
 vi.mock("@/lib/rate-limit", () => rateLimit);
 
-const { getDetailTile, getOverviewImage } = await import("../imagery");
+const {
+  cropMapQuarterEnvelope,
+  getCropMapQuarter,
+  getDetailTile,
+  getOverviewImage,
+  renderCropMap,
+} = await import("../imagery");
 
 const NOW = new Date("2026-09-26T08:00:00Z");
 
@@ -156,5 +162,67 @@ describe("images de la vue du ciel", () => {
     sql.reserveProcessingRequest.mockResolvedValue("throttled");
     expect(await getOverviewImage("TRUE_COLOR", "2026-06", NOW)).toEqual({ status: "throttled" });
     expect(provider.renderImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("carte des cultures en quatre quarts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sql.readCountryOutline3857.mockResolvedValue(OUTLINE);
+  });
+
+  it("n'est jamais calculée à la demande d'un visiteur", async () => {
+    sql.findCachedImage.mockResolvedValue(null);
+    expect(await getCropMapQuarter(0)).toEqual({ status: "empty" });
+    expect(await getOverviewImage("CROP_CLASSES", "12-mois", NOW)).toEqual({
+      status: "period-not-offered",
+    });
+    expect(provider.renderImage).not.toHaveBeenCalled();
+    expect(sql.reserveProcessingRequest).not.toHaveBeenCalled();
+  });
+
+  it("calcule chaque quart absent avec un long délai, en cache jusqu'au mois suivant", async () => {
+    sql.findCachedImage.mockResolvedValue(null);
+    sql.reserveProcessingRequest.mockResolvedValue("reserved");
+    provider.renderImage.mockResolvedValue({ image: new Uint8Array([1]), processingUnits: 52 });
+    const result = await renderCropMap({ now: NOW });
+    expect(result?.quarters.map((quarter) => quarter.status)).toEqual([
+      "rendered",
+      "rendered",
+      "rendered",
+      "rendered",
+    ]);
+    expect(result?.processingUnits).toBe(208);
+    const request = provider.renderImage.mock.calls[0]?.[0];
+    expect(request).toMatchObject({ layer: "CROP_CLASSES", width: 500 });
+    expect(request.timeoutMs).toBeGreaterThan(60_000);
+    expect(sql.storeCachedImage).toHaveBeenCalledWith(
+      "CROP_CLASSES",
+      "12-mois",
+      "crop-m2:q0",
+      new Uint8Array([1]),
+      new Date("2026-10-01T00:00:00Z"),
+    );
+  });
+
+  it("ne refait pas un quart encore à jour, sauf demande expresse", async () => {
+    sql.findCachedImage.mockResolvedValue({
+      image: new Uint8Array([1]),
+      expiresAt: new Date("2026-10-01T00:00:00Z"),
+    });
+    sql.reserveProcessingRequest.mockResolvedValue("reserved");
+    provider.renderImage.mockResolvedValue({ image: new Uint8Array([2]), processingUnits: 50 });
+    expect((await renderCropMap({ now: NOW }))?.processingUnits).toBe(0);
+    expect(provider.renderImage).not.toHaveBeenCalled();
+    expect((await renderCropMap({ now: NOW, force: true }))?.processingUnits).toBe(200);
+  });
+
+  it("découpe le pays en quatre quarts jointifs", () => {
+    const [west, south] = cropMapQuarterEnvelope(2);
+    const [, , east, north] = cropMapQuarterEnvelope(1);
+    expect(cropMapQuarterEnvelope(0)[2]).toBe(cropMapQuarterEnvelope(1)[0]);
+    expect(cropMapQuarterEnvelope(0)[1]).toBe(cropMapQuarterEnvelope(2)[3]);
+    expect(east - west).toBeGreaterThan(0);
+    expect(north - south).toBeGreaterThan(0);
   });
 });

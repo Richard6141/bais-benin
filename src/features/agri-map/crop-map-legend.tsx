@@ -1,11 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { HelpTip } from "@/components/forms/help-tip";
-import { CROP_MAP_CLASSES, cropMapAttribution } from "./map-config";
+import { CROP_MAP_CLASSES, CROP_MAP_QUARTERS, cropMapAttribution } from "./map-config";
+
+/** Quarts de la carte déjà calculés : une image absente répond 204. */
+function useReadyQuarters(): number | null {
+  const [ready, setReady] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      CROP_MAP_QUARTERS.map((quarter) =>
+        fetch(quarter.url)
+          .then((response) => response.status === 200)
+          .catch(() => false),
+      ),
+    ).then((flags) => {
+      if (!cancelled) setReady(flags.filter(Boolean).length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return ready;
+}
 
 // Légende de la carte des cultures (ADR-0021) : les classes que le satellite distingue, et
-// l'avertissement qui accompagne toute surface qui en découle.
+// l'avertissement qui accompagne toute surface qui en découle. La carte est calculée une fois par
+// mois : tant qu'elle ne l'est pas, la légende le dit au lieu de laisser un fond vide.
 export function CropMapLegend() {
+  const ready = useReadyQuarters();
   return (
     <div className="rounded-lg border bg-card p-3 text-xs">
       <div className="flex items-center gap-1">
@@ -28,6 +52,11 @@ export function CropMapLegend() {
           </li>
         ))}
       </ul>
+      {ready === 0 ? (
+        <p className="mt-2 font-medium">Carte en préparation</p>
+      ) : ready !== null && ready < CROP_MAP_QUARTERS.length ? (
+        <p className="mt-2 font-medium">Carte en partie prête</p>
+      ) : null}
       <p className="mt-2 font-medium text-warning">Estimation satellite, à confirmer</p>
       <p className="mt-1 text-muted-foreground">Sentinel-2, 12 derniers mois</p>
       <p className="mt-1 text-muted-foreground">{cropMapAttribution()}</p>
