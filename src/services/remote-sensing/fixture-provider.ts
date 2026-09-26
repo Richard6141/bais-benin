@@ -85,6 +85,34 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       return null;
     },
 
+    // Champ synthétique autour du centre de la fenêtre : un rectangle de maïs de 1 à 4 ha dans
+    // la brousse, une jachère voisine. Taille et position varient avec l'emprise, de façon
+    // reproductible, pour que la démonstration propose des contours sans compte Copernicus.
+    async fieldFeatures(request) {
+      const { width, height } = request;
+      const seed = hashString(request.envelope.map((v) => Math.round(v)).join(","));
+      const fieldW = 10 + (seed % 11);
+      const fieldH = 10 + ((seed >> 4) % 11);
+      const left = Math.floor(width / 2) - Math.floor(fieldW / 2) - ((seed >> 8) % 3);
+      const top = Math.floor(height / 2) - Math.floor(fieldH / 2) - ((seed >> 10) % 3);
+      const peak = new Float32Array(width * height);
+      const low = new Float32Array(width * height);
+      const swir = new Float32Array(width * height);
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const index = y * width + x;
+          const inField = x >= left && x < left + fieldW && y >= top && y < top + fieldH;
+          const inFallow =
+            x >= left + fieldW && x < left + fieldW + 8 && y >= top && y < top + fieldH;
+          const jitter = (noise(seed, index) - 0.5) * 0.04;
+          peak[index] = (inField ? 0.72 : inFallow ? 0.3 : 0.45) + jitter;
+          low[index] = (inField ? 0.18 : inFallow ? 0.15 : 0.3) + jitter / 2;
+          swir[index] = inField ? 0.16 : inFallow ? 0.3 : 0.22;
+        }
+      }
+      return { width, height, peak, low, swir, processingUnits: null };
+    },
+
     async vegetationStatistics(request): Promise<VegetationInterval[]> {
       const ring = request.geometry.coordinates[0] ?? [];
       const latitude =

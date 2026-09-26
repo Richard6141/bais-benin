@@ -3,6 +3,8 @@ import { lonLatTo3857 } from "@/lib/geo/tile-math";
 import {
   RemoteSensingNotConfiguredError,
   RemoteSensingProviderError,
+  type FieldFeatures,
+  type FieldFeaturesRequest,
   type ImageryRequest,
   type ImageryResult,
   type PolygonGeometry,
@@ -12,7 +14,11 @@ import {
   type VegetationInterval,
   type VegetationStatisticsRequest,
 } from "@/services/ports/remote-sensing-provider";
-import { NDVI_STATISTICS_EVALSCRIPT, renderEvalscript } from "./evalscripts";
+import {
+  FIELD_FEATURES_EVALSCRIPT,
+  NDVI_STATISTICS_EVALSCRIPT,
+  renderEvalscript,
+} from "./evalscripts";
 
 // Adaptateur Copernicus Data Space Ecosystem (https://dataspace.copernicus.eu), sans
 // intermédiaire commercial (ADR-0016) :
@@ -201,6 +207,50 @@ export function buildStatisticsBody(request: VegetationStatisticsRequest) {
   };
 }
 
+/** Fenêtre multi-dates pour la délimitation des champs, scènes très nuageuses écartées. */
+export function buildFieldFeaturesBody(request: FieldFeaturesRequest) {
+  return {
+    input: {
+      bounds: { bbox: request.envelope, properties: { crs: CRS_3857 } },
+      data: [
+        {
+          type: COLLECTION,
+          dataFilter: {
+            timeRange: { from: request.from, to: request.to },
+            // Moins de passages décomptés : les scènes couvertes à plus de 60 % n'apportent rien.
+            maxCloudCoverage: 60,
+          },
+        },
+      ],
+    },
+    output: {
+      width: request.width,
+      height: request.height,
+      responses: [{ identifier: "default", format: { type: "image/png" } }],
+    },
+    evalscript: FIELD_FEATURES_EVALSCRIPT,
+  };
+}
+
+/** Décode les quatre canaux 8 bits (RGBA) en variables par pixel. */
+export function decodeFieldFeatures(
+  rgba: Uint8Array,
+  width: number,
+  height: number,
+): Omit<FieldFeatures, "processingUnits"> {
+  const size = width * height;
+  const peak = new Float32Array(size);
+  const low = new Float32Array(size);
+  const swir = new Float32Array(size);
+  for (let i = 0; i < size; i += 1) {
+    const seen = rgba[i * 4 + 3] ?? 0;
+    peak[i] = seen ? (rgba[i * 4] ?? 0) / 127.5 - 1 : Number.NaN;
+    low[i] = seen ? (rgba[i * 4 + 1] ?? 0) / 127.5 - 1 : Number.NaN;
+    swir[i] = seen ? (rgba[i * 4 + 2] ?? 0) / 255 : Number.NaN;
+  }
+  return { width, height, peak, low, swir };
+}
+
 export function parseStatistics(payload: unknown): VegetationInterval[] {
   const parsed = statisticsSchema.parse(payload);
   return parsed.data.map((entry) => {
@@ -348,6 +398,28 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         "application/json",
       );
       return parseStatistics(await response.json());
+    },
+
+    async fieldFeatures(request): Promise<FieldFeatures> {
+      const response = await processing(
+        "/api/v1/process",
+        buildFieldFeaturesBody(request),
+        "image/png",
+      );
+      const spent = Number(response.headers.get("x-processingunits-spent"));
+      // sharp n'est chargé qu'ici : les autres usages de l'adaptateur n'en ont pas besoin.
+      const { default: sharp } = await import("sharp");
+      const { data, info } = await sharp(Buffer.from(await response.arrayBuffer()))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      if (info.width !== request.width || info.height !== request.height || info.channels !== 4) {
+        throw new RemoteSensingProviderError("Variables de champ CDSE : image inattendue", false);
+      }
+      return {
+        ...decodeFieldFeatures(new Uint8Array(data), info.width, info.height),
+        processingUnits: Number.isFinite(spent) && spent > 0 ? spent : null,
+      };
     },
   };
 }

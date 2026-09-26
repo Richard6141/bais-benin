@@ -9,7 +9,6 @@ import {
   vegetationSummary,
   type FarmScopeParams,
 } from "@/database/sql/vegetation.sql";
-import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { authorize, scopeFilter, type Actor } from "@/modules/authorization";
 import {

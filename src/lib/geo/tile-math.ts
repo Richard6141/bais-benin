@@ -79,6 +79,13 @@ export function lonLatTo3857(lon: number, lat: number): [number, number] {
   return [x, y];
 }
 
+/** Point EPSG:3857 (mètres) ramené en WGS84 : [longitude, latitude]. */
+export function mercatorToLonLat(x: number, y: number): [number, number] {
+  const lon = (x / WORLD_HALF_SIZE_M) * 180;
+  const lat = (Math.atan(Math.exp((y / WORLD_HALF_SIZE_M) * Math.PI)) * 360) / Math.PI - 90;
+  return [lon, lat];
+}
+
 /** Emprise WGS84 [minLon, minLat, maxLon, maxLat] projetée en EPSG:3857. */
 export function bboxToEnvelope3857(bbox: BBox): Envelope3857 {
   const [xmin, ymin] = lonLatTo3857(bbox[0], bbox[1]);

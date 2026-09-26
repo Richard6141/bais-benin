@@ -4,7 +4,9 @@ import {
   RemoteSensingProviderError,
 } from "@/services/ports/remote-sensing-provider";
 import {
+  buildFieldFeaturesBody,
   buildProcessBody,
+  decodeFieldFeatures,
   buildStacSearchBody,
   buildStatisticsBody,
   createCdseProvider,
@@ -252,5 +254,31 @@ describe("scripts d'évaluation", () => {
     const script = renderEvalscript("TRUE_COLOR");
     expect(script).toContain("s.dataMask");
     expect(script).not.toContain("SCL");
+  });
+});
+
+describe("variables de délimitation des champs", () => {
+  it("demandent tous les passages de la période, nuages très couverts écartés", () => {
+    const body = buildFieldFeaturesBody({
+      envelope: [0, 0, 640, 640],
+      width: 64,
+      height: 64,
+      from: "2025-11-30T00:00:00Z",
+      to: "2026-09-26T00:00:00Z",
+    });
+    expect(body.evalscript).toContain('mosaicking: "ORBIT"');
+    expect(body.evalscript).toContain("B11");
+    expect(body.input.data[0]?.dataFilter.maxCloudCoverage).toBe(60);
+    expect(body.output).toMatchObject({ width: 64, height: 64 });
+  });
+
+  it("décodent les quatre canaux 8 bits, et rien là où aucun passage n'a été vu", () => {
+    // Pixel 1 : NDVI 0,7 / 0,2, B11 0,16, 12 passages. Pixel 2 : jamais vu.
+    const rgba = new Uint8Array([217, 153, 41, 12, 0, 0, 0, 0]);
+    const features = decodeFieldFeatures(rgba, 2, 1);
+    expect(features.peak[0]).toBeCloseTo(0.702, 2);
+    expect(features.low[0]).toBeCloseTo(0.2, 2);
+    expect(features.swir[0]).toBeCloseTo(0.161, 2);
+    expect(Number.isNaN(features.peak[1])).toBe(true);
   });
 });

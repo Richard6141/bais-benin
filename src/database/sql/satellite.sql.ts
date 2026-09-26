@@ -113,6 +113,17 @@ export async function readCountryOutline3857(): Promise<z.infer<typeof outlineSc
   return geojson ? outlineSchema.parse(JSON.parse(geojson)) : null;
 }
 
+/** Surfaces géodésiques (PostGIS, en hectares) de polygones GeoJSON en WGS84. */
+export async function geodesicAreasHa(geojsons: readonly string[]): Promise<number[]> {
+  if (geojsons.length === 0) return [];
+  const rows = await prisma.$queryRaw<{ ord: bigint; area_ha: number }[]>`
+    SELECT t.ord, ST_Area(ST_SetSRID(ST_GeomFromGeoJSON(t.geojson), 4326)::geography) / 10000
+             AS area_ha
+      FROM unnest(${[...geojsons]}::text[]) WITH ORDINALITY AS t(geojson, ord)
+     ORDER BY t.ord`;
+  return rows.map((row) => Number(row.area_ha));
+}
+
 export async function addProcessingUnits(month: string, units: number): Promise<void> {
   if (!(units > 0)) return;
   await prisma.$executeRaw`
