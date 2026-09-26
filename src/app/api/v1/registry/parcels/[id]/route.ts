@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getApiActor } from "@/features/auth/api-actor";
 import { getParcelInspection } from "@/modules/registry";
+import { getParcelCropPrediction } from "@/modules/satellite";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
   const parcel = await getParcelInspection(api.actor, id);
   if (!parcel) return NextResponse.json({ error: "Parcelle introuvable" }, { status: 404 });
-  return NextResponse.json(parcel, { headers: { "Cache-Control": "private, no-store" } });
+  const prediction = await getParcelCropPrediction(api.actor, id).catch(() => null);
+  return NextResponse.json(
+    { ...parcel, prediction },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

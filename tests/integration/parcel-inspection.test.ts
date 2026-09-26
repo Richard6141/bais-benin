@@ -120,6 +120,55 @@ describe("carte au champ", () => {
       expect(after).toBe(before + 1);
     });
 
+    it("n'offre WhatsApp qu'avec un consentement accordé et non révoqué", async () => {
+      const owner = await prisma.farm.findFirstOrThrow({
+        where: { parcels: { some: { id: foreignParcel.id } } },
+        select: { farmerId: true },
+      });
+      const key = { farmerId_channel: { farmerId: owner.farmerId, channel: "WHATSAPP" as const } };
+      const before = await prisma.channelConsent.findUnique({ where: key });
+      try {
+        await prisma.channelConsent.deleteMany({
+          where: { farmerId: owner.farmerId, channel: "WHATSAPP" },
+        });
+        expect(
+          (await getParcelInspection(ministry, foreignParcel.id))!.farmer.whatsappConsent,
+        ).toBe(false);
+        const base = {
+          farmerId: owner.farmerId,
+          channel: "WHATSAPP" as const,
+          method: "AGENT_FORM" as const,
+        };
+        await prisma.channelConsent.create({
+          data: { ...base, granted: true, grantedAt: new Date() },
+        });
+        expect(
+          (await getParcelInspection(ministry, foreignParcel.id))!.farmer.whatsappConsent,
+        ).toBe(true);
+        await prisma.channelConsent.update({ where: key, data: { revokedAt: new Date() } });
+        expect(
+          (await getParcelInspection(ministry, foreignParcel.id))!.farmer.whatsappConsent,
+        ).toBe(false);
+      } finally {
+        await prisma.channelConsent.deleteMany({
+          where: { farmerId: owner.farmerId, channel: "WHATSAPP" },
+        });
+        if (before)
+          await prisma.channelConsent.create({
+            data: {
+              farmerId: before.farmerId,
+              channel: before.channel,
+              granted: before.granted,
+              grantedAt: before.grantedAt,
+              revokedAt: before.revokedAt,
+              method: before.method,
+              evidence: before.evidence,
+              textVersion: before.textVersion,
+            },
+          });
+      }
+    });
+
     it("ne compare un rendement qu'avec assez de parcelles voisines", async () => {
       const parcel = await getParcelInspection(ministry, foreignParcel.id);
       for (const crop of parcel!.crops) {

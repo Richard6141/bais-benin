@@ -69,7 +69,13 @@ export interface ParcelInspection {
     verificationStatus: "DECLARED" | "AGENT_VERIFIED" | "FIELD_VERIFIED" | "DISPUTED";
     parcelCount: number;
   };
-  farmer: { code: string; displayName: string; phone: string | null };
+  farmer: {
+    code: string;
+    displayName: string;
+    phone: string | null;
+    /** Vrai seulement avec le droit de contact et un consentement WhatsApp accordé et non révoqué. */
+    whatsappConsent: boolean;
+  };
   crops: ParcelInspectionCrop[];
   vegetation: ParcelInspectionVegetation | null;
   overlaps: ParcelOverlapFlag[];
@@ -79,6 +85,7 @@ export interface ParcelInspection {
     status: string;
     cropCode: string | null;
     observedAt: Date;
+    hasPhoto: boolean;
   }>;
 }
 
@@ -130,7 +137,14 @@ export async function getParcelInspection(
             select: { name: true, departementId: true, departement: { select: { name: true } } },
           },
           farmer: {
-            select: { code: true, firstName: true, lastName: true, phoneE164: true, userId: true },
+            select: {
+              id: true,
+              code: true,
+              firstName: true,
+              lastName: true,
+              phoneE164: true,
+              userId: true,
+            },
           },
           _count: { select: { parcels: { where: { archivedAt: null } } } },
         },
@@ -167,7 +181,14 @@ export async function getParcelInspection(
       fieldReports: {
         orderBy: { observedAt: "desc" },
         take: REPORT_LIMIT,
-        select: { id: true, type: true, status: true, cropCode: true, observedAt: true },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          cropCode: true,
+          observedAt: true,
+          photo: { select: { reportId: true } },
+        },
       },
     },
   });
@@ -182,10 +203,16 @@ export async function getParcelInspection(
   if (!authorize(actor, "farm.read", resource).allowed) return null;
   const canContact = authorize(actor, "farmer.contact.read", resource).allowed;
 
-  const [shape, yields, overlaps] = await Promise.all([
+  const [shape, yields, overlaps, whatsapp] = await Promise.all([
     readParcelShape(row.id),
     readParcelYields(row.id),
     farmParcelOverlaps(actor, farm.id),
+    canContact
+      ? prisma.channelConsent.findUnique({
+          where: { farmerId_channel: { farmerId: farm.farmer.id, channel: "WHATSAPP" } },
+          select: { granted: true, revokedAt: true },
+        })
+      : null,
   ]);
   const yieldById = new Map(yields.map((y) => [y.parcel_crop_id, y]));
   const check = row.vegetationChecks[0];
@@ -222,6 +249,7 @@ export async function getParcelInspection(
       code: farm.farmer.code,
       displayName: `${farm.farmer.firstName} ${farm.farmer.lastName}`,
       phone: canContact ? farm.farmer.phoneE164 : null,
+      whatsappConsent: Boolean(canContact && whatsapp?.granted && !whatsapp.revokedAt),
     },
     crops: row.crops.map((crop) => {
       const measured = yieldById.get(crop.id);
@@ -255,6 +283,9 @@ export async function getParcelInspection(
         }
       : null,
     overlaps: overlaps.get(row.id) ?? [],
-    reports: row.fieldReports,
+    reports: row.fieldReports.map(({ photo, ...report }) => ({
+      ...report,
+      hasPhoto: photo !== null,
+    })),
   };
 }

@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { AlertTriangle, Phone, X } from "lucide-react";
+import { AlertTriangle, MessageCircle, Phone, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HelpTip } from "@/components/forms/help-tip";
 import { Badge } from "@/components/ui/badge";
@@ -25,13 +25,22 @@ import {
   vegetationSourceLabel,
 } from "@/features/satellite/vegetation-labels";
 import type { ParcelInspection, ParcelInspectionCrop } from "@/modules/registry";
+import type { ParcelCropPrediction } from "@/modules/satellite";
 import { NdviSparkline } from "./ndvi-sparkline";
 
 // Fiche d'une parcelle cliquée sur la carte : qui la cultive, ce qui y pousse, le rendement face
 // aux voisins de la commune et ce que le satellite en voit. Les données arrivent en JSON : les
 // dates y sont des chaînes.
 
+type Prediction = Omit<ParcelCropPrediction, "observedUntil" | "confirmation"> & {
+  observedUntil: string;
+  confirmation:
+    | (Omit<NonNullable<ParcelCropPrediction["confirmation"]>, "visitedAt"> & { visitedAt: string })
+    | null;
+};
+
 type Inspection = Omit<ParcelInspection, "vegetation" | "reports" | "crops"> & {
+  prediction: Prediction | null;
   crops: Array<Omit<ParcelInspectionCrop, "sowingDate"> & { sowingDate: string | null }>;
   vegetation:
     | (Omit<NonNullable<ParcelInspection["vegetation"]>, "computedAt"> & { computedAt: string })
@@ -139,7 +148,8 @@ function ParcelDetail({
   farmHref?: (farmId: string) => string;
 }) {
   const current = parcel.crops.filter((crop) => crop.campaignOpen);
-  const past = parcel.crops.filter((crop) => !crop.campaignOpen && crop.harvestKg !== null);
+  const past = parcel.crops.filter((crop) => !crop.campaignOpen);
+  const photos = parcel.reports.filter((report) => report.hasPhoto);
   return (
     <>
       <section aria-label="Producteur" className="flex flex-col gap-1.5">
@@ -157,16 +167,8 @@ function ParcelDetail({
           <Badge variant={VERIFICATION_STATUS_VARIANTS[parcel.farm.verificationStatus]}>
             {VERIFICATION_STATUS_LABELS[parcel.farm.verificationStatus]}
           </Badge>
-          {parcel.farmer.phone ? (
-            <a
-              href={`tel:${parcel.farmer.phone}`}
-              className="tabular inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              <Phone className="size-3.5" aria-hidden />
-              {parcel.farmer.phone}
-            </a>
-          ) : null}
         </div>
+        <ContactButtons farmer={parcel.farmer} />
       </section>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-card p-3 text-sm">
@@ -197,6 +199,8 @@ function ParcelDetail({
         </p>
       ) : null}
 
+      {parcel.prediction ? <PredictionBlock prediction={parcel.prediction} /> : null}
+
       <section aria-labelledby="parcelle-cultures">
         <h3 id="parcelle-cultures" className="text-sm font-semibold">
           Campagne en cours
@@ -221,24 +225,34 @@ function ParcelDetail({
         <section aria-labelledby="parcelle-rendements">
           <div className="flex items-center gap-1.5">
             <h3 id="parcelle-rendements" className="text-sm font-semibold">
-              Rendements des campagnes passées
+              Campagnes passées
             </h3>
-            <HelpTip label="Rendements">
-              Récolte déclarée rapportée à la surface semée, comparée aux autres parcelles de la
-              même commune pour la même culture et la même campagne. La comparaison n&apos;apparaît
-              qu&apos;à partir de 5 parcelles comparables.
+            <HelpTip label="Campagnes passées">
+              Cultures de chaque campagne. Le rendement est la récolte déclarée rapportée à la
+              surface semée, comparée aux autres parcelles de la même commune pour la même culture
+              et la même campagne. La comparaison n&apos;apparaît qu&apos;à partir de 5 parcelles
+              comparables.
             </HelpTip>
           </div>
-          <ul className="mt-2 flex flex-col gap-2">
-            {past.map((crop) => (
-              <CropRow
-                key={`${crop.campaignCode}-${crop.cropCode}-${crop.subSeason}`}
-                crop={crop}
-              />
-            ))}
-          </ul>
+          {campaignGroups(past).map(([campaign, crops]) => (
+            <div key={campaign} className="mt-3 flex flex-col gap-2">
+              <p className="tabular text-xs font-semibold text-muted-foreground">
+                Campagne {campaign}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {crops.map((crop) => (
+                  <CropRow
+                    key={`${crop.campaignCode}-${crop.cropCode}-${crop.subSeason}`}
+                    crop={crop}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
       ) : null}
+
+      {photos.length > 0 ? <PhotoStrip reports={photos} /> : null}
 
       {parcel.reports.length > 0 ? (
         <section aria-labelledby="parcelle-signalements">
@@ -281,6 +295,109 @@ function ParcelDetail({
   );
 }
 
+function campaignGroups(crops: Inspection["crops"]): Array<[string, Inspection["crops"]]> {
+  const groups = new Map<string, Inspection["crops"]>();
+  for (const crop of crops) {
+    groups.set(crop.campaignCode, [...(groups.get(crop.campaignCode) ?? []), crop]);
+  }
+  return [...groups.entries()];
+}
+
+function ContactButtons({ farmer }: { farmer: Inspection["farmer"] }) {
+  if (!farmer.phone) return null;
+  const digits = farmer.phone.replace(/\D/g, "");
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      <Button asChild variant="outline" className="h-11">
+        <a href={`tel:${farmer.phone}`}>
+          <Phone aria-hidden />
+          Joindre le producteur
+        </a>
+      </Button>
+      {farmer.whatsappConsent ? (
+        <Button asChild variant="outline" className="h-11">
+          <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer">
+            <MessageCircle aria-hidden />
+            WhatsApp
+          </a>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+const AGREEMENT_LABELS: Record<Prediction["agreement"], string> = {
+  AGREES: "Conforme à la déclaration",
+  DIFFERS: "Différente de la déclaration",
+  UNCERTAIN: "Écart à confirmer",
+};
+
+const CONFIRMATION_LABELS: Record<NonNullable<Prediction["confirmation"]>["outcome"], string> = {
+  CONFIRMED: "Confirmée sur place",
+  CORRECTED: "Corrigée sur place",
+  REJECTED: "Écartée sur place",
+};
+
+function PredictionBlock({ prediction }: { prediction: Prediction }) {
+  const { confirmation } = prediction;
+  return (
+    <section aria-labelledby="parcelle-mesure" className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <h3 id="parcelle-mesure" className="text-sm font-semibold">
+          Culture vue du satellite
+        </h3>
+        <HelpTip label="Culture vue du satellite">
+          Culture la plus probable d&apos;après l&apos;évolution de la végétation cette campagne,
+          comparée à ce que le producteur a déclaré. Un écart demande une visite, ce n&apos;est
+          jamais une sanction.
+        </HelpTip>
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-card p-3 text-sm">
+        <Figure label="Déclarée" value={prediction.declaredLabel ?? "Non déclarée"} />
+        <Figure
+          label="Mesurée"
+          value={`${prediction.cropLabel} (${percent.format(prediction.confidence)})`}
+        />
+      </dl>
+      <p className="text-sm">
+        <Badge variant={prediction.agreement === "AGREES" ? "success" : "watch"}>
+          {AGREEMENT_LABELS[prediction.agreement]}
+        </Badge>
+      </p>
+      {confirmation ? (
+        <p className="text-xs text-muted-foreground">
+          {CONFIRMATION_LABELS[confirmation.outcome]} le {formatDate(confirmation.visitedAt)}
+          {confirmation.observedLabel ? `, culture constatée : ${confirmation.observedLabel}` : ""}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function PhotoStrip({ reports }: { reports: Inspection["reports"] }) {
+  return (
+    <section aria-labelledby="parcelle-photos">
+      <h3 id="parcelle-photos" className="text-sm font-semibold">
+        Photos de terrain
+      </h3>
+      <ul className="mt-2 grid grid-cols-2 gap-2">
+        {reports.map((report) => (
+          <li key={report.id} className="flex flex-col gap-1">
+            {/* eslint-disable-next-line @next/next/no-img-element -- photo privée servie par l'API */}
+            <img
+              src={`/api/v1/reports/${report.id}/photo`}
+              alt={`Photo du signalement du ${formatDate(report.observedAt)}`}
+              loading="lazy"
+              className="aspect-4/3 w-full rounded-md border bg-muted object-cover"
+            />
+            <span className="text-xs text-muted-foreground">{formatDate(report.observedAt)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function CropRow({ crop }: { crop: Inspection["crops"][number] }) {
   return (
     <li className="rounded-lg border bg-card p-3 text-sm">
@@ -298,7 +415,7 @@ function CropRow({ crop }: { crop: Inspection["crops"][number] }) {
       <p className="mt-1 text-muted-foreground">
         {crop.campaignOpen
           ? `${CROP_STAGE_LABELS[crop.stage] ?? crop.stage}${crop.sowingDate ? `, semée le ${formatDate(crop.sowingDate)}` : ""}`
-          : `Campagne ${crop.campaignCode}`}
+          : (CROP_STAGE_LABELS[crop.stage] ?? crop.stage)}
       </p>
       {crop.yieldTPerHa !== null ? <YieldLine crop={crop} /> : null}
     </li>
