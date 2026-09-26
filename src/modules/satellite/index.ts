@@ -3,6 +3,7 @@ export { getDetailTile, getOverviewImage, type ImageryOutcome } from "./imagery"
 export {
   BENIN_IMAGERY_BBOX,
   defaultPeriod,
+  isOfferedPeriod,
   isPeriod,
   periodLabel,
   periodRange,

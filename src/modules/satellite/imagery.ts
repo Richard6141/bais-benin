@@ -13,7 +13,13 @@ import {
   type RemoteSensingProvider,
 } from "@/services/ports/remote-sensing-provider";
 import { getRemoteSensingProvider } from "@/services/remote-sensing";
-import { BENIN_IMAGERY_BBOX, isCurrentPeriod, periodOf, periodRange } from "./periods";
+import {
+  BENIN_IMAGERY_BBOX,
+  isCurrentPeriod,
+  isOfferedPeriod,
+  periodOf,
+  periodRange,
+} from "./periods";
 import { DETAIL_TILE_SIZE, isDetailTileInBenin, overviewSize } from "./tiles";
 
 // Images de la vue du ciel : une image d'ensemble du pays par couche et par mois, puis des
@@ -28,6 +34,7 @@ const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
 export type ImageryOutcome =
   | { status: "ok"; image: Uint8Array; permanent: boolean }
   | { status: "empty" }
+  | { status: "period-not-offered" }
   | { status: "not-configured" }
   | { status: "budget-exhausted" }
   | { status: "unavailable" };
@@ -97,6 +104,9 @@ async function renderCached(
 }
 
 function render(target: RenderTarget, now: Date): Promise<ImageryOutcome> {
+  // Hors des mois proposés : refus avant le cache, le quota et Copernicus.
+  if (!isOfferedPeriod(target.period, now))
+    return Promise.resolve({ status: "period-not-offered" });
   const key = `${target.layer}/${target.period}/${target.tileKey}`;
   const pending = inflight.get(key);
   if (pending) return pending;

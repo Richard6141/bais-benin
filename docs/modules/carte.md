@@ -16,7 +16,7 @@ Ce document décrit la carte livrée à l'étape 4 : ce qu'elle montre, d'où vi
 - Sous le zoom 9, une image d'ensemble du pays (publique) ; au-delà, des tuiles de 512 px jusqu'au zoom 13, pour les comptes connectés seulement. Les communes deviennent transparentes (survol et clic restent actifs), les contours restent visibles, la légende passe aux classes du NDVI ou à la lecture de l'image.
 - Les images sont calculées par Copernicus (API Process), gardées en base (`satellite_tile`) et sur l'appareil (service worker). Un mois révolu n'est jamais redemandé ; le mois en cours l'est au bout de deux jours.
 - Sans compte CDSE configuré (`CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET`), l'encadré propose les mois (catalogue public) mais les fonds satellite restent grisés : « Images satellite en cours de mise en service ».
-- Quota : chaque requête de traitement est décomptée dans `satellite_usage` avant l'appel ; au-delà de `SATELLITE_MONTHLY_REQUEST_BUDGET`, seul le cache est servi.
+- Quota : chaque requête de traitement est décomptée dans `satellite_usage` avant l'appel ; au-delà de `SATELLITE_MONTHLY_REQUEST_BUDGET`, seul le cache est servi. Seuls les douze mois proposés sont servis (400 sinon, sans toucher au cache ni au quota) ; l'image d'ensemble publique est limitée à 60 demandes par adresse et par tranche de cinq minutes (adresse lue derrière `TRUSTED_PROXIES` seulement).
 
 | Couche | Emplacement | Rôle |
 |---|---|---|

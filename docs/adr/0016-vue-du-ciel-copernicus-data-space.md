@@ -58,7 +58,9 @@ commercial n'est nécessaire.
 - **Garde-fou de quota** (`satellite_usage`) : chaque appel de traitement réserve d'abord sa place
   sous `SATELLITE_MONTHLY_REQUEST_BUDGET` (9 000 par défaut), dans la même requête SQL que
   l'incrément. Au-delà, seul le cache est servi jusqu'au mois suivant. Une tuile hors de l'emprise
-  du Bénin n'est jamais demandée.
+  du Bénin n'est jamais demandée, ni un mois hors des douze proposés (refusé avant le cache et le
+  quota : sinon un robot pourrait demander chaque mois de 1900 à 2099). L'image d'ensemble
+  publique est en plus limitée à 60 demandes par adresse et par tranche de cinq minutes.
 - **Statistiques NDVI par parcelle (API Statistical)**, pour la confrontation déclaration /
   satellite (phase 1, étape 2) : NDVI moyen par décade sur la géométrie de la parcelle, pixels
   nuageux exclus, une requête par parcelle et par saison, sous le même garde-fou.

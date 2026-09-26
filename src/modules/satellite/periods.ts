@@ -42,6 +42,15 @@ export function recentPeriods(now: Date, count = PERIOD_COUNT): string[] {
   return periods;
 }
 
+/**
+ * Vrai si la période fait partie des mois proposés (les PERIOD_COUNT derniers, mois en cours
+ * compris). Toute autre période est refusée avant le cache et le quota : sans cette borne, un
+ * robot pourrait demander chaque mois de 1900 à 2099 et vider le quota mensuel.
+ */
+export function isOfferedPeriod(period: string, now: Date): boolean {
+  return recentPeriods(now).includes(period);
+}
+
 export function isCurrentPeriod(period: string, now: Date): boolean {
   return period === periodOf(now);
 }
