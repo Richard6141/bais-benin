@@ -2,21 +2,24 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { FireWindowParam } from "@/features/agri-map/fire-layer";
 import { useFires } from "@/features/agri-map/use-fires";
 import type { WatchSummary } from "@/modules/watch";
 import {
   AlertsPanel,
-  FiresPanel,
+  ExposurePanel,
   FreshnessPanel,
   HeldOutbreaksPanel,
   Indicator,
+  ReportGroupsPanel,
   formatClock,
 } from "./watch-panels";
 
 // Centre de veille (ADR-0022) : la synthèse est relue chaque minute et les feux toutes les cinq
 // minutes, sans recharger la page. Carte au centre : communes colorées par l'alerte la plus grave,
-// feux des dernières 24 heures au-dessus.
+// feux des dernières 24 heures ou des 7 derniers jours au-dessus.
 
 const AlertMapCanvas = dynamic(
   () => import("@/features/monitoring/alert-map-canvas").then((module) => module.AlertMapCanvas),
@@ -25,11 +28,16 @@ const AlertMapCanvas = dynamic(
 
 const SUMMARY_REFRESH_MS = 60_000;
 const FIRES_REFRESH_MS = 5 * 60_000;
+const WINDOWS: ReadonlyArray<{ value: FireWindowParam; label: string }> = [
+  { value: "24h", label: "24 heures" },
+  { value: "7j", label: "7 jours" },
+];
 
 export function WatchCentre({ initial }: { initial: WatchSummary }) {
   const [summary, setSummary] = useState(initial);
   const [failed, setFailed] = useState(false);
-  const fires = useFires("24h", FIRES_REFRESH_MS);
+  const [window, setWindow] = useState<FireWindowParam>("24h");
+  const fires = useFires(window, FIRES_REFRESH_MS);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -59,7 +67,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
           label="Feux, 24 heures"
           value={summary.fires.last24h}
           tone="alert"
-          help={`Feux détectés au Bénin par les satellites de la NASA ces dernières 24 heures, dans ${summary.fires.communes} commune(s).`}
+          help={`Feux détectés au Bénin par les satellites de la NASA ces dernières 24 heures, dans ${summary.fires.communes} commune(s). ${summary.fires.last7d} sur 7 jours.`}
         />
         <Indicator
           label="Alertes actives"
@@ -80,21 +88,39 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
-          <FiresPanel summary={summary} />
+          <ExposurePanel summary={summary} window={window === "24h" ? "24h" : "7d"} />
           <FreshnessPanel summary={summary} />
         </div>
         <figure className="flex min-w-0 flex-col gap-2">
+          <div
+            role="group"
+            aria-label="Période des feux affichés"
+            className="flex items-center gap-2"
+          >
+            {WINDOWS.map((option) => (
+              <Button
+                key={option.value}
+                size="sm"
+                variant={window === option.value ? "default" : "outline"}
+                aria-pressed={window === option.value}
+                onClick={() => setWindow(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
           <div className="relative h-[28rem] overflow-hidden rounded-lg border lg:h-[36rem]">
             <AlertMapCanvas levels={summary.levels} withFires fires={fires} />
           </div>
           <figcaption className="text-sm text-muted-foreground">
-            Communes colorées par l&apos;alerte active la plus grave, feux des dernières 24 heures
-            en points. Source des feux : NASA FIRMS.
+            Communes colorées par l&apos;alerte active la plus grave, feux en points colorés selon
+            leur puissance. Source des feux : NASA FIRMS.
           </figcaption>
         </figure>
         <div className="flex flex-col gap-4">
           <AlertsPanel summary={summary} />
           <HeldOutbreaksPanel summary={summary} />
+          <ReportGroupsPanel summary={summary} />
         </div>
       </div>
     </div>

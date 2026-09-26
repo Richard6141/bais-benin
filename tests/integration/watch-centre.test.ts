@@ -28,6 +28,10 @@ describe("centre de veille", () => {
       Object.values(summary.alerts.bySeverity).reduce((sum, count) => sum + count, 0),
     );
     expect(summary.heldOutbreaks.length).toBeLessThanOrEqual(summary.alerts.active);
+    expect(summary.fires.last7d).toBeGreaterThanOrEqual(summary.fires.last24h);
+    expect(Array.isArray(summary.exposure["24h"])).toBe(true);
+    expect(Array.isArray(summary.exposure["7d"])).toBe(true);
+    expect(summary.reportGroups.every((group) => group.reports >= 2)).toBe(true);
     expect(summary.freshness.map((source) => source.source)).toEqual([
       "Feux actifs (NASA FIRMS)",
       "Météo (Open-Meteo)",

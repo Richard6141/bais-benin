@@ -1,4 +1,9 @@
 import { prisma } from "@/database/client";
+import {
+  fireExposureByCommune,
+  reportGroups,
+  type FireExposureRow,
+} from "@/database/sql/watch.sql";
 import { getAnalyticsFreshness } from "@/modules/analytics";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import { fireFreshness, listFires } from "@/modules/fires";
@@ -16,9 +21,20 @@ export interface WatchSummary {
   generatedAt: string;
   fires: {
     last24h: number;
+    last7d: number;
     communes: number;
-    latest: Array<{ communeName: string; detectedAt: string; frpMw: number | null }>;
   };
+  /** Communes où des feux ont touché les abords de parcelles enregistrées (moins de 1 km). */
+  exposure: Record<"24h" | "7d", FireExposureRow[]>;
+  /** Signalements des 7 derniers jours groupés par commune et type (deux au moins). */
+  reportGroups: Array<{
+    communeName: string;
+    type: string;
+    reports: number;
+    producers: number;
+    confirmed: number;
+    lastAt: string;
+  }>;
   alerts: {
     active: number;
     bySeverity: Record<AlertSeverity, number>;
@@ -44,13 +60,21 @@ export async function getWatchSummary(actor: Actor, now = new Date()): Promise<W
   if (scopeFilter(actor, "alert.read").kind !== "all") {
     throw new WatchAccessError("Centre de veille réservé au ministère");
   }
-  const [fires, alerts, levels, assistance, fireSource, analytics] = await Promise.all([
+  const day = new Date(now.getTime() - 24 * HOUR);
+  const week = new Date(now.getTime() - 7 * 24 * HOUR);
+  const [fires, fires7d, alerts, levels, assistance, fireSource, analytics] = await Promise.all([
     listFires("24h", now),
+    prisma.fireDetection.count({ where: { detectedAt: { gte: week } } }),
     listAlertsForActor(actor, { status: "ACTIVE", limit: 200 }),
     communeAlertLevels(),
     assistanceVolumes(now),
     fireFreshness(),
     getAnalyticsFreshness(now),
+  ]);
+  const [exposure24h, exposure7d, groups] = await Promise.all([
+    fireExposureByCommune(day),
+    fireExposureByCommune(week),
+    reportGroups(week),
   ]);
   const bySeverity: Record<AlertSeverity, number> = { INFO: 0, WATCH: 0, WARNING: 0, CRITICAL: 0 };
   for (const alert of alerts) bySeverity[alert.severity] += 1;
@@ -60,13 +84,18 @@ export async function getWatchSummary(actor: Actor, now = new Date()): Promise<W
     generatedAt: now.toISOString(),
     fires: {
       last24h: fires.length,
+      last7d: fires7d,
       communes: new Set(fires.map((fire) => fire.communeName)).size,
-      latest: fires.slice(0, 6).map((fire) => ({
-        communeName: fire.communeName,
-        detectedAt: fire.detectedAt,
-        frpMw: fire.frpMw,
-      })),
     },
+    exposure: { "24h": exposure24h, "7d": exposure7d },
+    reportGroups: groups.map((group) => ({
+      communeName: group.commune_name,
+      type: group.type,
+      reports: group.reports,
+      producers: group.producers,
+      confirmed: group.confirmed,
+      lastAt: group.last_at.toISOString(),
+    })),
     alerts: {
       active: alerts.length,
       bySeverity,

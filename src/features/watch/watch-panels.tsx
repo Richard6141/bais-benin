@@ -1,7 +1,9 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { HelpTip } from "@/components/data-display/help-tip";
+import { HelpTip } from "@/components/forms/help-tip";
 import { SeverityBadge } from "@/components/data-display/severity-badge";
+import { REPORT_TYPE_LABELS } from "@/features/reports/labels";
+import type { FieldReportType } from "@/modules/reports";
 import type { WatchSummary } from "@/modules/watch";
 
 // Blocs du centre de veille : indicateurs sobres, listes courtes, fraîcheur des sources. Heures
@@ -131,22 +133,70 @@ export function HeldOutbreaksPanel({ summary }: { summary: WatchSummary }) {
   );
 }
 
-export function FiresPanel({ summary }: { summary: WatchSummary }) {
+export function ExposurePanel({
+  summary,
+  window,
+}: {
+  summary: WatchSummary;
+  window: "24h" | "7d";
+}) {
+  const rows = summary.exposure[window];
+  const period = window === "24h" ? "24 heures" : "7 jours";
   return (
     <Panel
-      title="Derniers feux"
-      help="Feux détectés par satellite au Bénin ces dernières 24 heures, heure de Porto-Novo. Source NASA FIRMS."
+      title="Parcelles exposées aux feux"
+      help={`Communes où des feux ont été détectés à moins de 1 km de parcelles enregistrées ces ${period}, avec le nombre de producteurs et d'exploitations exposés. Confiance moyenne ou haute seulement.`}
     >
-      {summary.fires.latest.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun feu détecté ces dernières 24 heures.</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Aucun feu à moins de 1 km d&apos;une parcelle ces {period}.
+        </p>
       ) : (
-        <ul className="flex flex-col gap-1 text-sm">
-          {summary.fires.latest.map((fire, index) => (
-            <li key={`${fire.detectedAt}-${index}`} className="flex justify-between gap-3">
-              <span>{fire.communeName}</span>
-              <span className="tabular text-muted-foreground">
-                {dayClock.format(new Date(fire.detectedAt))}
-                {fire.frpMw !== null ? `, ${fire.frpMw.toLocaleString("fr-FR")} MW` : ""}
+        <table className="w-full text-sm">
+          <thead className="text-left text-muted-foreground">
+            <tr>
+              <th className="pb-1 font-normal">Commune</th>
+              <th className="pb-1 text-right font-normal">Producteurs</th>
+              <th className="pb-1 text-right font-normal">Feux</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.commune_code} className="border-t">
+                <td className="py-1.5">{row.commune_name}</td>
+                <td className="tabular py-1.5 text-right font-medium">
+                  {integer.format(row.producers)}
+                </td>
+                <td className="tabular py-1.5 text-right">{integer.format(row.fires)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+}
+
+export function ReportGroupsPanel({ summary }: { summary: WatchSummary }) {
+  return (
+    <Panel
+      title="Signalements groupés"
+      help="Signalements des 7 derniers jours de même type dans une même commune, deux au moins, les plus répandus d'abord. Les signalements écartés par un agent ne comptent pas."
+    >
+      {summary.reportGroups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aucun signalement groupé cette semaine.</p>
+      ) : (
+        <ul className="flex flex-col gap-2 text-sm">
+          {summary.reportGroups.map((group) => (
+            <li key={`${group.communeName}-${group.type}`}>
+              <span className="font-medium">
+                {REPORT_TYPE_LABELS[group.type as FieldReportType]?.label ?? group.type},{" "}
+                {group.communeName}
+              </span>
+              <span className="block text-muted-foreground">
+                {group.reports} signalements de {group.producers} producteur
+                {group.producers > 1 ? "s" : ""}, {group.confirmed} confirmé
+                {group.confirmed > 1 ? "s" : ""}
               </span>
             </li>
           ))}

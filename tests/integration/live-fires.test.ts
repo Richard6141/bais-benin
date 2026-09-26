@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import { seedReferenceData } from "@/database/seed";
+import { fireExposureByCommune } from "@/database/sql/watch.sql";
 import { listFires, runFireIngestion, type FireIngestionSummary } from "@/modules/fires";
 import { evaluateNewFires, seedDefaultRules } from "@/modules/monitoring";
 import { FixtureFireProvider } from "@/services/fires";
@@ -112,5 +113,13 @@ describe("feux actifs NASA FIRMS", () => {
     // Agent : celui qui a enregistré l'exploitation touchée (ADR-0014).
     const agents = recipients.filter((r) => r.farmId === null).map((r) => r.userId);
     expect(agents).toContain(farm.registeredById);
+  });
+
+  it("compte la commune parmi les parcelles exposées du centre de veille", async () => {
+    const exposure = await fireExposureByCommune(hoursAgo(24));
+    const commune = await prisma.commune.findUniqueOrThrow({ where: { id: farm.communeId } });
+    const row = exposure.find((r) => r.commune_code === commune.code);
+    expect(row?.producers).toBeGreaterThanOrEqual(1);
+    expect(row?.fires).toBeGreaterThanOrEqual(1);
   });
 });
