@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SurveySection } from "@/features/area-survey/survey-section";
 import { requireRole } from "@/features/auth/session";
+import { OfficialSection } from "@/features/official-stats/official-section";
 import { DashboardFiltersBar } from "@/features/dashboard/dashboard-filters";
 import { parseDashboardFilters } from "@/features/dashboard/dashboard-logic";
 import { DashboardSection } from "@/features/dashboard/national-sections";
@@ -23,6 +24,7 @@ import {
   getParcelCropOverview,
 } from "@/modules/satellite";
 import { getSurveyEstimates } from "@/modules/area-survey";
+import { getOfficialReconciliation } from "@/modules/official-stats";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Surfaces par satellite" };
@@ -37,11 +39,12 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/cultures" });
   const search = await props.searchParams;
   const { departementCode, cropCode } = parseDashboardFilters(search);
-  const [comparison, accuracy, parcelCrops, survey, departements] = await Promise.all([
+  const [comparison, accuracy, parcelCrops, survey, official, departements] = await Promise.all([
     getCropAreaComparison(user.actor, { departementCode, cropClass: cropCode }),
     getCropMapAccuracy(user.actor),
     getParcelCropOverview(user.actor),
     getSurveyEstimates(user.actor),
+    getOfficialReconciliation(user.actor),
     listDepartements(),
   ]);
 
@@ -110,6 +113,21 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
           description={`Points tirés au hasard et constatés par les agents, campagne ${survey.campaignCode} : chaque surface avec sa marge d'erreur.`}
         >
           <SurveySection survey={survey} />
+        </DashboardSection>
+      ),
+    });
+  }
+  if (official) {
+    tabs.push({
+      value: "officiel",
+      label: "Officiel",
+      content: (
+        <DashboardSection
+          id="officiel"
+          title="Statistiques officielles"
+          description="Chiffres de la DSA et de FAOSTAT importés par le ministère, face au registre et au sondage."
+        >
+          <OfficialSection reconciliation={official} />
         </DashboardSection>
       ),
     });

@@ -36,3 +36,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0031 | Cultures par parcelle : culture constatée à la visite, apprentissage actif, coût mesuré des séries | acceptée, complète 0030 |
 | 0032 | Cultures par parcelle : précision jugée sur des communes jamais vues, accord et surfaces pondérées | acceptée, complète 0030 et 0031 |
 | 0033 | Surfaces par culture : base de sondage aréolaire (points tirés, constat de terrain) et estimateur par régression | acceptée, complète 0021, 0030 et 0032 |
+| 0034 | Statistiques agricoles officielles : table de référence, import CSV et rapprochement avec nos surfaces | acceptée, complète 0021 et 0033 |
