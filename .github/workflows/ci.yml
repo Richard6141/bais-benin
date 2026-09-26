@@ -6,10 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
-# Une nouvelle proposition (pull request) annule la vérification précédente ; un envoi sur une
-# branche ne l'annule jamais, pour ne pas couper un déploiement en cours.
+# Une nouvelle proposition (pull request) annule la vérification précédente. Chaque envoi sur une
+# branche a son propre groupe : il n'attend pas la fin des parcours de bout en bout de l'envoi
+# précédent, et n'est jamais annulé, pour ne pas couper un déploiement en cours. Les déploiements
+# restent un par un (groupe deploy-demo) et seul le dernier commit de develop part.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -112,6 +114,7 @@ jobs:
     name: Parcours de bout en bout
     runs-on: ubuntu-latest
     needs: [build]
+    timeout-minutes: 30
     services:
       db:
         image: postgis/postgis:16-3.4
@@ -238,7 +241,22 @@ jobs:
       contents: read
       packages: read
     steps:
+      # Un envoi plus récent sur develop a pu arriver pendant la construction : il se déploiera
+      # lui-même, et ce commit dépassé ne doit pas passer après lui.
+      - name: Ne déployer que le dernier commit de develop
+        id: head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          head=$(gh api "repos/${{ github.repository }}/git/ref/heads/develop" --jq .object.sha)
+          if [ "$head" = "${{ github.sha }}" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+            echo "Commit dépassé par $head : le déploiement revient à l'envoi suivant."
+          fi
       - name: Déployer sur le serveur de démonstration
+        if: steps.head.outputs.latest == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.BAIS_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.BAIS_DEPLOY_USER }}
@@ -255,4 +273,5 @@ jobs:
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o ConnectTimeout=20 \
             "$DEPLOY_USER@$DEPLOY_HOST" "deploy ${{ github.sha }} ${{ github.repository_owner }}"
       - name: Vérifier l'adresse publique
+        if: steps.head.outputs.latest == 'true'
         run: curl -fsS --retry 5 --retry-delay 10 https://bais.51-210-108-173.sslip.io/api/health
