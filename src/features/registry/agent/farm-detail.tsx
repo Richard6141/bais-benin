@@ -170,7 +170,7 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                 />
                 <Item
                   label="Producteur"
-                  value={`${farm.farmer.displayName} · ${farm.farmer.code}`}
+                  value={`${farm.farmer.displayName} (${farm.farmer.code})`}
                 />
                 <Item label="Position du siège" value={formatPosition(farm.location)} />
                 <Item
@@ -208,7 +208,7 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                     <p className="tabular text-sm">
                       {formatHa(parcel.declaredAreaHa)} déclarés
                       {parcel.computedAreaHa !== null
-                        ? ` · ${formatHa(parcel.computedAreaHa)} mesurés`
+                        ? `, ${formatHa(parcel.computedAreaHa)} mesurés`
                         : ""}
                     </p>
                     {parcel.overlaps.length > 0 ? (
@@ -223,7 +223,7 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                         <ul className="flex flex-col gap-0.5 text-muted-foreground">
                           {parcel.overlaps.map((overlap, index) => (
                             <li key={index}>
-                              {overlapLabel(overlap)} · {formatHa(overlap.overlapHa)} en commun (
+                              {overlapLabel(overlap)}, {formatHa(overlap.overlapHa)} en commun (
                               {Math.round(overlap.overlapShare * 100)} % de la plus petite)
                             </li>
                           ))}
@@ -244,8 +244,8 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                       <ul className="flex flex-wrap gap-2 text-sm">
                         {parcel.crops.map((crop) => (
                           <li key={crop.id} className="rounded-md bg-muted px-2 py-1">
-                            {crop.cropName} · {SUB_SEASON_LABELS[crop.subSeason] ?? crop.subSeason}{" "}
-                            · {crop.campaignCode} · {CROP_STAGE_LABELS[crop.stage] ?? crop.stage}
+                            {crop.cropName}, {SUB_SEASON_LABELS[crop.subSeason] ?? crop.subSeason},{" "}
+                            {crop.campaignCode}, {CROP_STAGE_LABELS[crop.stage] ?? crop.stage}
                           </li>
                         ))}
                       </ul>
@@ -275,10 +275,10 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
                         className="flex flex-wrap justify-between gap-2 border-b pb-2 last:border-0"
                       >
                         <span>
-                          {crop.cropName} · {crop.parcelCode} · {crop.campaignCode}
+                          {crop.cropName}, {crop.parcelCode}, {crop.campaignCode}
                         </span>
                         <span className="tabular">
-                          {d.declaredQuantity} {d.unit} ≈ {Math.round(d.quantityKg)} kg ·{" "}
+                          {d.declaredQuantity} {d.unit} ≈ {Math.round(d.quantityKg)} kg,{" "}
                           {formatDate(d.declaredOn)}
                         </span>
                       </li>

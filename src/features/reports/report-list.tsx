@@ -51,9 +51,15 @@ export function ReportList({ reports, detailBase, showFarmer = true, empty }: Re
             </div>
             <p className="line-clamp-2 text-sm">{report.description}</p>
             <p className="text-sm text-muted-foreground">
-              {dateFormatter.format(report.observedAt)} · {report.farm.name ?? report.farm.code}
-              {report.parcelCode ? ` · ${report.parcelCode}` : ""} · {report.communeName}
-              {showFarmer ? ` · ${report.farm.farmerName}` : ""}
+              {[
+                dateFormatter.format(report.observedAt),
+                report.farm.name ?? report.farm.code,
+                report.parcelCode,
+                report.communeName,
+                showFarmer ? report.farm.farmerName : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
             </p>
             {report.review?.note ? (
               <p className="text-sm">

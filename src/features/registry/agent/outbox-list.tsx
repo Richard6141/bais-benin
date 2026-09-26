@@ -74,7 +74,7 @@ export function OutboxList({ userId, farmId }: OutboxListProps) {
               <p className="text-xs text-muted-foreground">
                 Saisie le {formatDateTime(entry.clientCreatedAt)}
                 {entry.attempts > 0
-                  ? ` · ${entry.attempts} envoi${entry.attempts > 1 ? "s" : ""}`
+                  ? `, ${entry.attempts} envoi${entry.attempts > 1 ? "s" : ""}`
                   : ""}
               </p>
               {entry.lastError ? (

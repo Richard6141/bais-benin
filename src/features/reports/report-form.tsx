@@ -191,7 +191,7 @@ export function ReportForm({ userId, farms, cropNames }: ReportFormProps) {
             <option value="">Toute l&apos;exploitation</option>
             {farm?.parcels.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.code} · {p.areaHa.toLocaleString("fr-FR")} ha
+                {p.code} ({p.areaHa.toLocaleString("fr-FR")} ha)
               </option>
             ))}
           </select>
