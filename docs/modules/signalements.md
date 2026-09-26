@@ -2,8 +2,9 @@
 
 Phase 0 de la feuille de route : le producteur signale un problème sur une parcelle, l'agent
 vient constater, le ministère suit l'ensemble. Ce document couvre l'étape 1 (signalement et suite
-donnée) et l'étape 2 (détection des foyers, ADR-0015, section 8). Les demandes d'assistance
-(étape 3) y seront ajoutées.
+donnée), l'étape 2 (détection des foyers, ADR-0015, section 8) et l'étape 3 (demandes
+d'assistance, section 9). Les messages WhatsApp de suivi sont décrits dans
+`docs/modules/suivi-et-palmares.md`.
 
 ## 1. Parcours
 
@@ -145,7 +146,7 @@ de cette commune, qui la prennent en charge puis la résolvent ; le producteur s
 - **Fichiers** : migration `20260926030000_assistance_requests`, `src/modules/assistance/`,
   `src/database/sql/assistance.sql.ts`, `src/modules/sync/handlers/assistance-request.ts`,
   `src/features/assistance/`, `tests/integration/assistance-requests.test.ts`.
-- **Limite** : le producteur n'est pas encore prévenu par WhatsApp quand sa demande est prise en
-  charge ou résolue ; il le voit dans son espace. L'envoi passera par le canal de messagerie et le
-  consentement déjà recueilli pour les alertes.
+- **Message WhatsApp** : le producteur est prévenu quand sa demande est prise en charge ou
+  résolue, et quand son signalement est confirmé ou écarté, s'il a donné son accord
+  (`docs/modules/suivi-et-palmares.md`).
 
