@@ -254,10 +254,10 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
               {ring ? (
                 <div className="flex flex-col gap-2 text-sm">
                   <p className="tabular text-muted-foreground">
-                    Surface du contour : {areaHa === null ? "—" : areaFormatter.format(areaHa)} ha
-                    sur {areaFormatter.format(parcel.declaredAreaHa)} ha déclarés
-                    {gap !== null ? ` (écart de ${gap} %)` : ""}. Faites glisser un sommet pour le
-                    corriger.
+                    {areaHa === null
+                      ? "Surface du contour non calculée."
+                      : `Surface du contour : ${areaFormatter.format(areaHa)} ha sur ${areaFormatter.format(parcel.declaredAreaHa)} ha déclarés${gap !== null ? ` (écart de ${gap} %)` : ""}.`}{" "}
+                    Faites glisser un sommet pour le corriger.
                   </p>
                   {openRing.length > 3 ? (
                     <Button

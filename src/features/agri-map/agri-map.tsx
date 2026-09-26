@@ -34,6 +34,7 @@ import { ParcelPanel } from "./parcel-panel";
 import { SkyControl } from "./sky-control";
 import { useFires } from "./use-fires";
 import { useImageryCatalog } from "./use-imagery-catalog";
+import { FieldAttributionSheet } from "@/features/registry/parcel-survey/field-attribution-sheet";
 import { FieldsControl } from "./fields-control";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
@@ -54,6 +55,10 @@ interface AgriMapProps {
   canInspectParcels?: boolean;
   /** Début de l'adresse de la fiche d'exploitation de l'espace, quand il en a une (agent). */
   farmHrefBase?: string;
+  /** Toucher un champ détecté pour l'attribuer à une exploitation (ADR-0029) : agent seulement. */
+  canAttributeFields?: boolean;
+  /** Compte connecté : file d'attente hors ligne propre à l'agent qui attribue un champ. */
+  userId?: string;
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
@@ -96,6 +101,8 @@ export function AgriMap({
   canSeeSkyDetail,
   canInspectParcels = false,
   farmHrefBase,
+  canAttributeFields = false,
+  userId,
 }: AgriMapProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -135,6 +142,8 @@ export function AgriMap({
     skyParams.layer === CROP_MAP_LAYER &&
     !(catalog.status === "ready" && !catalog.catalog.imageryAvailable);
   const [showFarms, setShowFarms] = useState(false);
+  // Champ(s) touché(s) avant attribution (ADR-0029) : la feuille s'ouvre dès le premier geste.
+  const [touchedFieldIds, setTouchedFieldIds] = useState<string[] | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
   // Parcelle ouverte, dans l'adresse aussi (?parcelle=<id>) : un lien mène droit au champ.
@@ -286,6 +295,10 @@ export function AgriMap({
             onZoomChange={setZoom}
             fires={fires}
             showFields={showFields}
+            touchedFieldId={touchedFieldIds?.[0] ?? null}
+            onSelectField={
+              canAttributeFields && userId ? (id) => setTouchedFieldIds([id]) : undefined
+            }
           />
           {canInspectParcels && zoom !== null && zoom < PARCEL_MIN_ZOOM - 3 ? (
             <p className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border bg-card/95 px-3 py-1.5 text-xs font-medium shadow-raised sm:block">
@@ -335,6 +348,17 @@ export function AgriMap({
             </div>
           ) : null}
         </div>
+        {userId ? (
+          <FieldAttributionSheet
+            userId={userId}
+            fieldIds={touchedFieldIds}
+            onClose={() => setTouchedFieldIds(null)}
+            onAttributed={(farmId) => {
+              setTouchedFieldIds(null);
+              if (farmHrefBase) router.push(`${farmHrefBase}/${farmId}` as Route);
+            }}
+          />
+        ) : null}
         <MapPanelDrawer label="Lecture de la carte" expandKey={parcelId ?? selectedCode}>
           {parcelId ? (
             <ParcelPanel

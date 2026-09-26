@@ -4,6 +4,7 @@ import { isValidTile } from "@/lib/geo/tile-math";
 import { getApiActor } from "@/features/auth/api-actor";
 import { scopeFilter } from "@/modules/authorization";
 import { scopedCommuneIds } from "@/modules/registry";
+import { referenceFieldScope } from "@/modules/reference-fields/read";
 import { renderTile, type FarmTileScope, type FieldTileScope } from "@/modules/territory/tiles";
 
 export const dynamic = "force-dynamic";
@@ -58,25 +59,10 @@ async function farmScopeFor(request: NextRequest): Promise<FarmTileScope> {
 }
 
 // Champs de référence : contours ouverts, non nominatifs, mais réservés aux comptes qui lisent le
-// registre, dans le même périmètre territorial : tout le pays pour le ministère ; les communes
-// d'affectation pour l'agent, qui doit voir les champs de sa commune pour les enregistrer, même
-// ceux qu'il n'a pas encore enregistrés ; rien pour le producteur ni le visiteur.
+// registre (portée dans modules/reference-fields/read.ts).
 async function fieldScopeFor(request: NextRequest): Promise<FieldTileScope> {
   const api = await getApiActor(request.headers);
-  if (!api) return [];
-  const filter = scopeFilter(api.actor, "farm.read");
-  switch (filter.kind) {
-    case "all":
-      return null;
-    case "none":
-    case "self":
-      return [];
-    case "registered":
-    case "territory": {
-      const ids = await scopedCommuneIds(api.actor);
-      return ids === "all" ? null : ids;
-    }
-  }
+  return api ? referenceFieldScope(api.actor) : [];
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<TileParams> }) {

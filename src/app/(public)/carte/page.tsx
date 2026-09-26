@@ -51,6 +51,8 @@ export default async function MapPage() {
             canFilterByStatus={canFilterByStatus(user?.actor ?? null)}
             canInspectParcels={canInspectParcels}
             farmHrefBase={isAgent ? "/agent/exploitations" : undefined}
+            canAttributeFields={isAgent}
+            userId={isAgent ? user?.id : undefined}
             canSeeSkyDetail={
               // Tuiles satellite détaillées : agents et ministère seulement (revue R2).
               user?.actor.grants.some(

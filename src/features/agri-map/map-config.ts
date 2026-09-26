@@ -60,6 +60,8 @@ export const FIELDS_ATTRIBUTION =
 export const FIELD_COLORS = {
   toRegister: brandColors.ink,
   registered: "#9aa3ad",
+  // Champ touché par l'agent avant attribution : vif et épais, lisible au soleil sur un téléphone.
+  touched: "#ff6b00",
 } as const;
 
 // Parcelles : remplies de la couleur de leur culture principale (gris si aucune n'est déclarée),

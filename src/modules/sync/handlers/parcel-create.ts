@@ -5,6 +5,7 @@ import {
   writeParcelGeometry,
 } from "./geometry";
 import { farmTarget, findFarm } from "./lookups";
+import { matchesReferenceFields } from "./reference-fields";
 import { FIELD_SOURCE_ID, idConflict, rejected, type SyncHandler } from "./types";
 
 // Ajout d'une parcelle à une exploitation. Le contour est facultatif (DECLARED_ONLY) ; quand il
@@ -59,6 +60,18 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
       measuredHa = measure.areaHa;
     }
 
+    if (payload.captureMethod === "REFERENCE_FIELD") {
+      if (!payload.geometry || !payload.referenceFieldIds) {
+        return rejected(
+          "INVALID_GEOMETRY",
+          "Un champ détecté attribué exige son contour et ses références",
+          "referenceFieldIds",
+        );
+      }
+      const match = await matchesReferenceFields(db, payload.referenceFieldIds, payload.geometry);
+      if (!match.ok) return rejected("INVALID_GEOMETRY", match.message, "referenceFieldIds");
+    }
+
     const code = await nextParcelCode(db, farm.code);
     const parcel = await db.parcel.create({
       data: {
@@ -76,10 +89,16 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
         // C2 : FIELD_VERIFIED suppose qu'un agent a réellement marché le contour ; captureMethod
         // seul (envoyé par le client) ne le prouve pas — n'importe quel téléphone peut prétendre
         // GPS_WALK. On la plafonne au rôle qui a autorisé la commande (context.grantRole).
+        // Un champ détecté attribué par un agent vaut AGENT_VERIFIED : il a choisi le champ et
+        // l'exploitation, sans avoir marché le contour.
         reliability:
-          payload.captureMethod === "GPS_WALK" && context.grantRole === "AGENT_AGRICULTURE"
-            ? "FIELD_VERIFIED"
-            : "DECLARED",
+          context.grantRole !== "AGENT_AGRICULTURE"
+            ? "DECLARED"
+            : payload.captureMethod === "GPS_WALK"
+              ? "FIELD_VERIFIED"
+              : payload.captureMethod === "REFERENCE_FIELD"
+                ? "AGENT_VERIFIED"
+                : "DECLARED",
       },
       select: { id: true, code: true, version: true },
     });
@@ -101,6 +120,7 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
         declaredAreaHa: payload.declaredAreaHa,
         computedAreaHa: measuredHa,
         captureMethod: payload.captureMethod,
+        referenceFieldIds: payload.referenceFieldIds ?? null,
       },
       audit: {
         action: "registry.parcel.created",
