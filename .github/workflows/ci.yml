@@ -58,6 +58,8 @@ jobs:
           --health-retries 12
     env:
       DATABASE_URL: postgresql://bais:bais@localhost:5432/bais_test?schema=public
+      # APP_ENV vaut "production" par défaut (fail-closed) : les tests le fixent explicitement.
+      APP_ENV: test
       AUTH_SECRET: ci-secret-de-test-ci-secret-de-test-ci-secret
       MESSAGING_PRIMARY_CHANNEL: fixture
       OTP_DEMO_CODE: "246810"
@@ -125,6 +127,8 @@ jobs:
           --health-retries 12
     env:
       DATABASE_URL: postgresql://bais:bais@localhost:5432/bais_e2e?schema=public
+      # APP_ENV vaut "production" par défaut (fail-closed) : les tests le fixent explicitement.
+      APP_ENV: test
       APP_URL: http://localhost:3000
       AUTH_SECRET: ci-secret-de-test-ci-secret-de-test-ci-secret
       MESSAGING_PRIMARY_CHANNEL: console
