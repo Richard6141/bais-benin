@@ -13,13 +13,16 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { SyncStatusChip } from "@/components/forms/sync-status-chip";
 import { SpaceNav, type SpaceNavItem } from "@/components/layout/space-nav";
+import { GuidedTour } from "@/features/onboarding/guided-tour";
 import { useSync } from "@/lib/offline/use-sync";
 
 interface AgentShellProps {
   userId: string;
+  /** Compte de démonstration : bandeau du scénario suivant. */
+  demo?: boolean;
   children: ReactNode;
 }
 
@@ -49,7 +52,7 @@ const NAV: readonly SpaceNavItem[] = [
 // Coque de l'espace agent : navigation de l'espace (onglets sur ordinateur, barre basse sous le
 // pouce sur téléphone, docs/modules/registre-parcours-ux.md §0) et puce de synchronisation
 // toujours visible.
-export function AgentShell({ userId, children }: AgentShellProps) {
+export function AgentShell({ userId, demo = false, children }: AgentShellProps) {
   const sync = useSync(userId);
 
   return (
@@ -73,6 +76,10 @@ export function AgentShell({ userId, children }: AgentShellProps) {
           </Link>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <GuidedTour role="agent" userId={userId} demo={demo} />
+      </Suspense>
 
       {children}
     </div>

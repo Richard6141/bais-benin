@@ -31,6 +31,7 @@ export function PrintButton({ label = "Imprimer ou enregistrer en PDF" }: { labe
       type="button"
       variant="outline"
       className="h-11 print:hidden"
+      data-tour="imprimer"
       onClick={() => window.print()}
     >
       <Printer aria-hidden />

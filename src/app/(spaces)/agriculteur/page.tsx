@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
+import { FirstStepsCard } from "@/features/onboarding/first-steps-card";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
 import { PendingReports } from "@/features/reports/pending-reports";
@@ -122,6 +123,8 @@ export default async function FarmerSpacePage() {
           </Button>
         ))}
       </nav>
+
+      <FirstStepsCard role="producteur" userId={user.id} />
 
       <KeyFigures
         label="Mon exploitation en chiffres"

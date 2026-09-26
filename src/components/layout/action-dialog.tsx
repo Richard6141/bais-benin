@@ -16,6 +16,8 @@ interface ActionDialogProps {
   /** Phrase courte lue par les lecteurs d'écran à l'ouverture. */
   description: string;
   variant?: "default" | "outline";
+  /** Repère des « Premiers pas » (data-tour) posé sur le bouton. */
+  tour?: string;
   children: ReactNode;
 }
 
@@ -26,12 +28,13 @@ export function ActionDialog({
   label,
   description,
   variant = "outline",
+  tour,
   children,
 }: ActionDialogProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant={variant} className="h-11">
+        <Button variant={variant} className="h-11" data-tour={tour}>
           {label}
         </Button>
       </DialogTrigger>
