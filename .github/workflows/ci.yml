@@ -171,12 +171,14 @@ jobs:
 
   # Images du serveur de démonstration (docs/deploiement-demo.md), construites ici et jamais sur
   # le serveur : application, outils (migrations, seed) et planificateur, étiquetés par SHA et
-  # publiés en privé sur GHCR. Seulement pour un envoi sur develop dont la CI est passée.
+  # publiés en privé sur GHCR. Seulement pour un envoi sur develop dont le lint, les types, les
+  # tests unitaires et le build de production sont passés. Les tests d'intégration et de bout en
+  # bout restent des signaux à part : ils ne bloquent pas la démonstration.
   images:
     name: Images Docker (GHCR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    needs: [quality, integration]
+    needs: [quality, build]
     permissions:
       contents: read
       packages: write
