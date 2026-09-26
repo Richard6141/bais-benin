@@ -2,8 +2,8 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { HeroSection } from "@/features/landing/hero-section";
 import { QuestionsSection } from "@/features/landing/questions-section";
-import { SpacesGrid } from "@/features/landing/spaces-grid";
 import { TerritoryFigures } from "@/features/landing/territory-figures";
+import { WhoAreYou } from "@/features/landing/who-are-you";
 
 export default function HomePage() {
   return (
@@ -11,7 +11,7 @@ export default function HomePage() {
       <SiteHeader />
       <main className="flex-1">
         <HeroSection />
-        <SpacesGrid />
+        <WhoAreYou />
         <TerritoryFigures />
         <QuestionsSection />
       </main>

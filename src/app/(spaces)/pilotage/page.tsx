@@ -106,7 +106,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
         title="Carte des communes"
         description="Les filtres de la carte s'appliquent à toute la page. Touchez une commune pour lire ses chiffres."
       >
-        <div className="h-[720px] overflow-hidden rounded-xl border print:hidden">
+        <div className="h-[75svh] min-h-[480px] overflow-hidden rounded-lg border lg:h-[720px] print:hidden">
           <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
             <AgriMap
               options={{ crops, campaigns, departements }}

@@ -7,8 +7,7 @@ const NAV = [
   { href: "/", label: "Accueil" },
   { href: "/carte", label: "Carte agricole" },
   { href: "/palmares", label: "Palmarès" },
-  { href: "/#espaces", label: "Les espaces" },
-  { href: "/design-system", label: "Design system", desktopOnly: true },
+  { href: "/#qui-etes-vous", label: "Qui êtes-vous ?" },
 ] as const;
 
 // En-tête public des portails de l'administration : une bande blanche avec l'identité du
@@ -33,7 +32,7 @@ export function SiteHeader() {
       <nav aria-label="Navigation principale" className="bg-band text-band-foreground">
         <ul className="mx-auto flex w-full max-w-6xl items-stretch overflow-x-auto px-4 sm:px-6 lg:px-8">
           {NAV.map((item) => (
-            <li key={item.href} className={"desktopOnly" in item ? "hidden sm:block" : undefined}>
+            <li key={item.href}>
               <Link
                 href={item.href}
                 className="flex h-11 items-center px-3 text-xs font-semibold tracking-wide whitespace-nowrap uppercase hover:bg-white/10 focus-visible:bg-white/15 focus-visible:outline-none"

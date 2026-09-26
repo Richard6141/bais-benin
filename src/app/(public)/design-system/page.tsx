@@ -15,6 +15,8 @@ import { TokensSection } from "@/features/design-system/tokens-section";
 export const metadata: Metadata = {
   title: "Design system",
   description: "Jetons, composants et états visuels de la plateforme.",
+  // Vitrine de l'équipe, hors des menus : accessible par son adresse, jamais indexée.
+  robots: { index: false, follow: false },
 };
 
 const sections = [
