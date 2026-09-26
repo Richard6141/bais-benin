@@ -31,3 +31,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0026 | Riz par radar Sentinel-1 dans les surfaces par commune | acceptée, complète 0019, 0021, 0023 et 0025 |
 | 0027 | Carte des cultures : règle plus sévère pour « cultivé », avertissement tant qu'elle n'est pas calée | acceptée, complète 0021, 0023 et 0025 |
 | 0028 | Carte des cultures : moins de 1 200 PU par mois, communes refaites tous les deux mois, carte à 800 px | acceptée, complète 0023 et 0025 |
+| 0030 | Culture de chaque parcelle, mesurée par satellite et apprise des parcelles vérifiées (forêt aléatoire) | acceptée, complète 0016, 0019 et 0021 |
