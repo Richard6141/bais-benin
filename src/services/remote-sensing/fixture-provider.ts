@@ -53,6 +53,26 @@ function dayOfYear(date: Date): number {
 }
 
 /** Pixels de 10 m de la parcelle (surface approchée de l'anneau en WGS84). */
+// Confusions plausibles de la classification, par code de classe : coton et céréales se
+// ressemblent, un riz mal repéré passe en culture annuelle, un verger en savane, un jardin
+// de contre-saison en jachère.
+const FIXTURE_CONFUSION: Record<number, number> = { 1: 2, 2: 3, 3: 2, 4: 7, 5: 6 };
+
+/**
+ * Parcelle d'une exploitation vérifiée (matrice de confusion) : la classe déclarée domine quatre
+ * fois sur cinq, sinon sa confusion la plus plausible ; quelques pixels de bordure et de nuage.
+ */
+function parcelClassPixels(expected: number, total: number, seed: number): number[] {
+  const pixels = new Array<number>(10).fill(0);
+  const confused = FIXTURE_CONFUSION[expected] ?? 6;
+  const [major, minor] = seed % 100 < 80 ? [expected, confused] : [confused, expected];
+  pixels[major] = Math.round(total * 0.7);
+  pixels[minor] = (pixels[minor] ?? 0) + Math.round(total * 0.18);
+  pixels[7] = (pixels[7] ?? 0) + Math.round(total * 0.07);
+  pixels[0] = (pixels[0] ?? 0) + Math.max(0, total - Math.round(total * 0.95));
+  return pixels;
+}
+
 function parcelPixels(ring: number[][]): number {
   if (ring.length < 4) return 0;
   const lat = ring.reduce((sum, point) => sum + (point[1] ?? 0), 0) / ring.length;
@@ -202,6 +222,12 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       const total = Math.round(
         (parcelPixels(ring) * 100) / (request.resolutionM * request.resolutionM),
       );
+      if (request.expectedClass !== undefined) {
+        return {
+          classPixels: parcelClassPixels(request.expectedClass, total, seed),
+          processingUnits: null,
+        };
+      }
       const north = request.latitude >= 9;
       // Parts indicatives : non classé, riz, annuelles, coton, pérennes, maraîchage, jachère,
       // naturel, eau, bâti.
