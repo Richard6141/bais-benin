@@ -12,11 +12,13 @@ import { parseDashboardFilters } from "@/features/dashboard/dashboard-logic";
 import { DashboardSection } from "@/features/dashboard/national-sections";
 import { CropAccuracySection } from "@/features/satellite/crop-accuracy-section";
 import { CropAreaSection, cropClassLabel } from "@/features/satellite/crop-area-section";
+import { ParcelCropAreaSection, ParcelCropSection } from "@/features/satellite/parcel-crop-section";
 import {
   CROP_MAP_CALIBRATED,
   CULTIVATED_CLASSES,
   getCropAreaComparison,
   getCropMapAccuracy,
+  getParcelCropOverview,
 } from "@/modules/satellite";
 import { listDepartements } from "@/modules/territory";
 
@@ -24,13 +26,16 @@ export const metadata: Metadata = { title: "Surfaces par satellite" };
 
 // Surfaces cultivées vues par satellite, face au registre (ADR-0021) : le ministère voit depuis
 // son bureau ce qui est cultivé par culture et par zone, le taux d'enrôlement, et les communes
-// où envoyer les agents vérifier. Des hectares par commune, aucun producteur.
+// où envoyer les agents vérifier. Des hectares par commune, aucun producteur. Dans les communes
+// pilotes, la culture mesurée parcelle par parcelle (ADR-0030 à 0032) : sa précision sur une
+// commune jamais vue, l'accord avec les déclarations et les surfaces qui en découlent.
 export default async function CropAreasPage(props: PageProps<"/pilotage/cultures">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/cultures" });
   const { departementCode, cropCode } = parseDashboardFilters(await props.searchParams);
-  const [comparison, accuracy, departements] = await Promise.all([
+  const [comparison, accuracy, parcelCrops, departements] = await Promise.all([
     getCropAreaComparison(user.actor, { departementCode, cropClass: cropCode }),
     getCropMapAccuracy(user.actor),
+    getParcelCropOverview(user.actor),
     listDepartements(),
   ]);
 
@@ -75,6 +80,24 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
         >
           <CropAccuracySection accuracy={accuracy} />
         </DashboardSection>
+      ) : null}
+      {parcelCrops ? (
+        <>
+          <DashboardSection
+            id="parcelles"
+            title="Cultures mesurées par parcelle"
+            description={`Communes pilotes, campagne ${parcelCrops.campaignCode} : la culture vue sur le contour de chaque parcelle, face à la déclaration.`}
+          >
+            <ParcelCropSection overview={parcelCrops} />
+          </DashboardSection>
+          <DashboardSection
+            id="surfaces-parcelles"
+            title="Surfaces mesurées par parcelle"
+            description="Surfaces par culture des parcelles mesurées, face à la carte des pixels."
+          >
+            <ParcelCropAreaSection overview={parcelCrops} />
+          </DashboardSection>
+        </>
       ) : null}
     </div>
   );
