@@ -13,13 +13,13 @@ const NAV = [
 
 // En-tête public des portails de l'administration : une bande blanche avec l'identité du
 // ministère et l'accès à son espace, puis une barre de navigation marine en capitales. Seule la
-// marque du ministère apparaît (consigne : pas de logo propre à la plateforme). La bande blanche
-// occupe toute la largeur, sans marge : le logo touche le bord gauche, « Se connecter » le droit.
+// marque du ministère apparaît (consigne : pas de logo propre à la plateforme). Une légère marge
+// encadre le contenu de la bande blanche comme de la barre de navigation, à gauche et à droite.
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 print:hidden">
       <div className="border-b bg-background">
-        <div className="flex h-20 w-full items-center justify-between gap-3">
+        <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
@@ -33,7 +33,7 @@ export function SiteHeader() {
         </div>
       </div>
       <nav aria-label="Navigation principale" className="bg-band text-band-foreground">
-        <ul className="mx-auto flex w-full max-w-6xl items-stretch overflow-x-auto px-2 sm:px-4">
+        <ul className="mx-auto flex w-full max-w-6xl items-stretch overflow-x-auto px-4 sm:px-6 lg:px-8">
           {NAV.map((item) => (
             <li key={item.href} className={"desktopOnly" in item ? "hidden sm:block" : undefined}>
               <Link

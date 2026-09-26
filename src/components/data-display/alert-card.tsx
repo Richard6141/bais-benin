@@ -79,7 +79,7 @@ export function AlertCard({ alert, variant = "full", onMarkRead, className }: Al
           <category.Icon aria-hidden className="size-4" />
           {category.label}
         </span>
-        <span className="text-sm text-muted-foreground">· {alert.communeName}</span>
+        <span className="text-sm text-muted-foreground">({alert.communeName})</span>
       </div>
 
       <h3
@@ -109,7 +109,7 @@ export function AlertCard({ alert, variant = "full", onMarkRead, className }: Al
 
       <p className="tabular text-sm text-muted-foreground">
         {formatPeriod(alert.startsOn, alert.endsOn)}
-        {scope.length > 0 ? ` · ${scope.join(", ")} concernés` : ""}
+        {scope.length > 0 ? `, ${scope.join(", ")} concernés` : ""}
       </p>
 
       {!compact ? <SourceCaption source={alert.source} date={alert.sourceDate} /> : null}

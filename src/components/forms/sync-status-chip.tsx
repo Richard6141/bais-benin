@@ -72,9 +72,9 @@ export function SyncStatusChip({
     OFFLINE: {
       variant: "offline",
       Icon: CloudOff,
-      text: waiting > 0 ? `Hors ligne · ${waitingLabel}` : "Hors ligne",
+      text: waiting > 0 ? `Hors ligne (${waitingLabel})` : "Hors ligne",
     },
-    SYNCING: { variant: "info", Icon: Loader2, text: "Synchronisation…" },
+    SYNCING: { variant: "info", Icon: Loader2, text: "Synchronisation en cours" },
     PENDING: { variant: "watch", Icon: CloudUpload, text: waitingLabel },
     UP_TO_DATE: {
       variant: "success",

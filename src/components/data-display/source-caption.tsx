@@ -12,7 +12,7 @@ export function SourceCaption({ source, date, className }: SourceCaptionProps) {
   return (
     <p className={cn("text-xs text-muted-foreground", className)}>
       Source : {source}
-      {date ? ` · ${date}` : null}
+      {date ? ` (${date})` : null}
     </p>
   );
 }

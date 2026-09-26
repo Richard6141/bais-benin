@@ -57,7 +57,7 @@ describe("SyncStatusChip", () => {
         onSync={vi.fn()}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Hors ligne · 2 à envoyer");
+    expect(screen.getByRole("status")).toHaveTextContent("Hors ligne (2 à envoyer)");
     expect(screen.getByRole("button", { name: "Synchroniser maintenant" })).toBeDisabled();
   });
 
