@@ -31,6 +31,7 @@ const ENTRIES = [
   },
   { href: "/pilotage/alertes", label: "Alertes", match: ["/pilotage/alertes"] },
   { href: "/pilotage/signalements", label: "Signalements", match: ["/pilotage/signalements"] },
+  { href: "/pilotage/demandes", label: "Demandes d'assistance", match: ["/pilotage/demandes"] },
   {
     href: "/pilotage/regles",
     label: "Règles d'alerte",

@@ -169,6 +169,9 @@ export default async function FarmerSpacePage() {
           <Link href="/agriculteur/signaler">Signaler un problème sur une parcelle</Link>
         </Button>
         <Button asChild variant="outline" className="h-14 w-full text-base">
+          <Link href="/agriculteur/solliciter">Solliciter l&apos;État</Link>
+        </Button>
+        <Button asChild variant="outline" className="h-14 w-full text-base">
           <Link href="/agriculteur/assistant">
             <MessageCircleQuestion aria-hidden />
             Poser une question à l&apos;assistant
