@@ -1,4 +1,5 @@
 export {
+  RANKING_CONSENT_TEXT,
   rankingConsentOf,
   setRankingConsent,
   type RankingConsentResult,

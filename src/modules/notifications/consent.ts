@@ -7,6 +7,18 @@ import { authorize, type Actor } from "@/modules/authorization";
 // par un code WhatsApp à la connexion : c'est la preuve retenue (méthode OTP). Retirer l'accord
 // arrête aussi les messages déjà en file, vérifiés au moment de l'envoi.
 
+/**
+ * Texte présenté au producteur, avec sa version enregistrée dans chaque accord (preuve APDP). Tout
+ * changement de formulation change la version : un accord garde celle qu'il a acceptée.
+ */
+export const WHATSAPP_CONSENT_TEXT = {
+  version: "whatsapp-2026-09-26",
+  title: "Messages WhatsApp",
+  text:
+    "Recevoir sur votre numéro les alertes de votre commune et le suivi de vos demandes et " +
+    "signalements (prise en charge, réponse, décision de l'agent).",
+} as const;
+
 export interface WhatsappConsent {
   /** Faux pour un compte qu'aucune fiche producteur ne relie encore. */
   available: boolean;
@@ -57,9 +69,16 @@ export async function setWhatsappConsent(
       revokedAt: granted ? null : now,
       method: "OTP",
       evidence: "compte-bais-numero-verifie",
+      textVersion: granted ? WHATSAPP_CONSENT_TEXT.version : null,
     },
     update: granted
-      ? { granted: true, grantedAt: now, revokedAt: null, method: "OTP" }
+      ? {
+          granted: true,
+          grantedAt: now,
+          revokedAt: null,
+          method: "OTP",
+          textVersion: WHATSAPP_CONSENT_TEXT.version,
+        }
       : { granted: false, revokedAt: now },
   });
   await recordAudit({
@@ -67,6 +86,7 @@ export async function setWhatsappConsent(
     actorId: actor.userId,
     resourceType: "farmer",
     resourceId: farmer.id,
+    ...(granted ? { details: { textVersion: WHATSAPP_CONSENT_TEXT.version } } : {}),
   });
   return { ok: true };
 }

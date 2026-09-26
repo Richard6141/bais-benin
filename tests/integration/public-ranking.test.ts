@@ -5,6 +5,7 @@ import { getProducerRanking, type ProducerRankingRow } from "@/modules/analytics
 import type { Actor } from "@/modules/authorization";
 import { loadActor } from "@/modules/identity";
 import {
+  RANKING_CONSENT_TEXT,
   getPublicRanking,
   listPublicRankings,
   listPublishedRankings,
@@ -101,6 +102,9 @@ describe("palmarès public", () => {
     expect(await rankingConsentOf(farmer)).toEqual({ available: true, grantedAt: since });
 
     const demo = await prisma.farmer.findUniqueOrThrow({ where: { userId: farmer.userId } });
+    expect(
+      await prisma.rankingConsent.findUniqueOrThrow({ where: { farmerId: demo.id } }),
+    ).toMatchObject({ textVersion: RANKING_CONSENT_TEXT.version });
     await prisma.publishedRankingEntry.create({
       data: {
         rankingId: publishedId,
