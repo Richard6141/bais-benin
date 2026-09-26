@@ -18,12 +18,13 @@ interface SpaceHeaderProps {
 }
 
 // En-tête des espaces connectés : identité du ministère sur la bande blanche, puis une barre
-// marine qui dit dans quel espace on se trouve et donne accès au compte et à la déconnexion.
+// marine qui dit dans quel espace on se trouve et donne accès au compte et à la déconnexion. Une
+// légère marge encadre le contenu de la bande blanche comme de la barre marine.
 export function SpaceHeader({ user }: SpaceHeaderProps) {
   return (
     <header className="sticky top-0 z-40 print:hidden">
       <div className="border-b bg-background">
-        <div className="flex h-16 w-full items-center justify-between gap-3 sm:h-20">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
             <span className="sr-only"> — Accueil de la plateforme</span>
@@ -32,7 +33,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
         </div>
       </div>
       <div className="bg-band text-band-foreground">
-        <div className="mx-auto flex h-11 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-11 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <p className="truncate text-xs font-semibold tracking-wide uppercase">
             {user.primaryRole ? SPACE_LABELS[user.primaryRole] : "Mon compte"}
           </p>
