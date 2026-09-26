@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AgentDatabase } from "@/lib/offline/db";
-import { buildParcelSurveyCommand } from "./survey-command";
+import { buildParcelSurveyCommand, buildSatelliteContourCommand } from "./survey-command";
 
 const farmId = "01923456-0000-7000-8000-000000000010";
 const parcelId = "01923456-0000-7000-8000-000000000020";
@@ -82,5 +82,44 @@ describe("commande de relevé de contour de parcelle", () => {
     expect(entries[0]?.expectedVersion).toBe(3);
     const farm = await db.farms.get(farmId);
     expect(farm?.syncState).toBe("MODIFIED");
+  });
+});
+
+describe("commande de contour proposé par le satellite", () => {
+  it("part en SATELLITE_ASSISTED, anneau fermé, sans précision GPS", () => {
+    const built = buildSatelliteContourCommand({
+      farmId,
+      parcelId,
+      expectedVersion: 3,
+      ring: [
+        [1.67, 9.7],
+        [1.671, 9.7],
+        [1.671, 9.701],
+        [1.67, 9.701],
+        [1.67, 9.7],
+      ],
+    });
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.payload.captureMethod).toBe("SATELLITE_ASSISTED");
+    expect(built.payload.gpsAccuracyM).toBeUndefined();
+    expect(built.payload.expectedVersion).toBe(3);
+    const ring = built.payload.geometry.coordinates[0] ?? [];
+    expect(ring[0]).toEqual(ring[ring.length - 1]);
+    expect(built.areaHa).toBeGreaterThan(1);
+  });
+
+  it("refuse un contour corrigé jusqu'à moins de trois sommets", () => {
+    const built = buildSatelliteContourCommand({
+      farmId,
+      parcelId,
+      expectedVersion: 1,
+      ring: [
+        [1.67, 9.7],
+        [1.671, 9.7],
+        [1.67, 9.7],
+      ],
+    });
+    expect(built.ok).toBe(false);
   });
 });
