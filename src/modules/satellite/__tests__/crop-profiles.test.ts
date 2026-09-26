@@ -190,6 +190,20 @@ describe("jugement radar d'une parcelle (Sentinel-1)", () => {
       reason: "LOW_PEAK",
     });
   });
+
+  // Mesure réelle (calibration du 26/09) : deux parcelles hors de la trace Sentinel-1 retenue
+  // n'ont reçu aucun intervalle. Pas de conclusion, et jamais d'erreur.
+  it("ne conclut pas sans aucun passage radar", () => {
+    const profile = expectedRadarProfile(MAIZE, "ZAE_5");
+    expect(evaluateRadar([], profile, window, NOW)).toMatchObject({
+      status: "INSUFFICIENT_DATA",
+      peak: null,
+      base: null,
+      validIntervals: 0,
+    });
+    const cashew = expectedRadarProfile({ ...MAIZE, cycle: "PERENNIAL" }, "ZAE_5");
+    expect(evaluateRadar([], cashew, window, NOW).status).toBe("INSUFFICIENT_DATA");
+  });
 });
 
 // Non-régression (signalé par la page Prévisions) : 32 parcelles de tomate sur 32 jugées sortaient
