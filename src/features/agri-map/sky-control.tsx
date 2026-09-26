@@ -85,7 +85,7 @@ export function SkyControl({
               {ready.periods.map((entry) => (
                 <SelectItem key={entry.period} value={entry.period}>
                   <span className="capitalize">{entry.label}</span>
-                  <span className="text-muted-foreground"> — {clearLabel(entry)}</span>
+                  <span className="text-muted-foreground">, {clearLabel(entry)}</span>
                 </SelectItem>
               ))}
             </SelectContent>

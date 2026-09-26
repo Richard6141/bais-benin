@@ -18,7 +18,7 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     id: "MAEP_DSA",
     name: "Statistiques agricoles nationales",
     organization:
-      "Ministère de l'Agriculture, de l'Élevage et de la Pêche — Direction de la Statistique Agricole",
+      "Ministère de l'Agriculture, de l'Élevage et de la Pêche, Direction de la Statistique Agricole",
     kind: "OFFICIAL",
   },
   {
@@ -30,7 +30,7 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
   },
   {
     id: "GEOBOUNDARIES",
-    name: "geoBoundaries gbOpen — limites administratives ADM1 et ADM2",
+    name: "geoBoundaries gbOpen (limites administratives ADM1 et ADM2)",
     organization: "William & Mary geoLab",
     url: "https://www.geoboundaries.org",
     licence: "CC BY 4.0",
@@ -46,7 +46,7 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
   },
   {
     id: "OPEN_METEO",
-    name: "Open-Meteo — prévisions et réanalyse",
+    name: "Open-Meteo (prévisions et réanalyse)",
     organization: "Open-Meteo",
     url: "https://open-meteo.com",
     licence: "CC BY 4.0",
@@ -54,20 +54,20 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
   },
   {
     id: "COPERNICUS_S2",
-    name: "Copernicus Sentinel-2 L2A — Copernicus Data Space Ecosystem",
+    name: "Copernicus Sentinel-2 L2A (Copernicus Data Space Ecosystem)",
     organization: "Commission européenne et Agence spatiale européenne (programme Copernicus)",
     url: "https://dataspace.copernicus.eu",
     licence:
-      "Licence Copernicus (accès libre et gratuit) — « Contains modified Copernicus Sentinel data »",
+      "Licence Copernicus (accès libre et gratuit), « Contains modified Copernicus Sentinel data »",
     kind: "SENSOR",
   },
   {
     id: "COPERNICUS_S1",
-    name: "Copernicus Sentinel-1 GRD (radar) — Copernicus Data Space Ecosystem",
+    name: "Copernicus Sentinel-1 GRD (radar), Copernicus Data Space Ecosystem",
     organization: "Commission européenne et Agence spatiale européenne (programme Copernicus)",
     url: "https://dataspace.copernicus.eu",
     licence:
-      "Licence Copernicus (accès libre et gratuit) — « Contains modified Copernicus Sentinel data »",
+      "Licence Copernicus (accès libre et gratuit), « Contains modified Copernicus Sentinel data »",
     kind: "SENSOR",
   },
   {

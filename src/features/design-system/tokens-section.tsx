@@ -80,7 +80,7 @@ export function TokensSection() {
       <DemoRow label="Typographie" className="flex-col items-start gap-2">
         {typeScale.map((entry) => (
           <p key={entry.name} className={entry.className}>
-            {entry.name} — Le maïs de la commune de Djougou
+            {entry.name} : Le maïs de la commune de Djougou
           </p>
         ))}
       </DemoRow>

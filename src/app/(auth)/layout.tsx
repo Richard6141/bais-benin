@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-20 w-full max-w-6xl items-center px-4 sm:px-6 lg:px-8">
           <Link href="/" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring">
             <MinistryLogo />
-            <span className="sr-only"> — Accueil de la plateforme</span>
+            <span className="sr-only">, Accueil de la plateforme</span>
           </Link>
         </div>
       </header>

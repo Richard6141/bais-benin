@@ -11,7 +11,7 @@ interface MinistryLogoProps {
 // Fichiers officiels dont seules les marges transparentes ont été retirées, pour que la hauteur
 // affichée soit celle du logo lui-même. Version couleur en thème clair, blanche en thème sombre.
 // Source et crédit : docs/credits-images.md.
-const ALT = "Ministère de l'Agriculture, de l'Élevage et de la Pêche — République du Bénin";
+const ALT = "Ministère de l'Agriculture, de l'Élevage et de la Pêche, République du Bénin";
 
 export function MinistryLogo({ className }: MinistryLogoProps) {
   return (
