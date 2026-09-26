@@ -893,6 +893,8 @@ export function MapCanvas({
     extras.relief = RELIEF.attribution;
     refreshAttribution(map);
 
+    // Limite : requestAnimationFrame mesure la charge du fil principal, pas celle du GPU ; à confirmer
+    // sur un vrai mobile modeste.
     let frames = 0;
     let frame = 0;
     const started = performance.now();

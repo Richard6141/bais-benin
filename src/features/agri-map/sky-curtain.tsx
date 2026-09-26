@@ -37,6 +37,7 @@ export function SkyCurtain({
     const container = overlayRef.current;
     if (!container) return;
     const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
+    let disposed = false;
     const overlay = new MapLibreMap({
       container,
       style: { version: 8, sources: {}, layers: [] },
@@ -49,6 +50,7 @@ export function SkyCurtain({
       fadeDuration: 0,
     });
     overlay.on("load", () => {
+      if (disposed) return;
       overlay.addSource(SOURCE, {
         type: "image",
         url: satelliteImageUrl(before, "overview.png"),
@@ -88,9 +90,13 @@ export function SkyCurtain({
         pitch: map.getPitch(),
       });
     };
+    const resize = () => overlay.resize();
     map.on("move", follow);
+    map.on("resize", resize);
     return () => {
+      disposed = true;
       map.off("move", follow);
+      map.off("resize", resize);
       overlay.remove();
     };
     // `key` résume la vue « avant » : l'objet before change d'identité à chaque rendu.
@@ -100,11 +106,12 @@ export function SkyCurtain({
   return (
     <>
       <div
-        ref={overlayRef}
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
-      />
+      >
+        <div ref={overlayRef} className="h-full w-full" />
+      </div>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-raised"

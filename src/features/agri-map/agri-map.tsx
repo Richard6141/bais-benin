@@ -310,7 +310,7 @@ export function AgriMap({
           }
           before={beforePeriod}
           onBeforeChange={setSkyBefore}
-          compareAvailable={reliefAvailable}
+          compareAvailable={reliefAvailable && !relief}
         />
       </div>
       <div className="pointer-events-auto">
@@ -327,6 +327,8 @@ export function AgriMap({
             onChange={(next) => {
               setReliefSlow(false);
               setRelief(next);
+              // Le rideau est plat : il ne se superpose pas à un terrain soulevé.
+              if (next) setSkyBefore(null);
             }}
           />
         </div>
