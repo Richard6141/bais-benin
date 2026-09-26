@@ -8,6 +8,8 @@ import {
   type FieldFeatures,
   type FieldFeaturesRequest,
   type MultiPolygonGeometry,
+  type RiceRadarRequest,
+  type RiceRadarResult,
   type RadarInterval,
   type RadarStatisticsRequest,
   type StatisticsResult,
@@ -22,6 +24,7 @@ import {
 } from "@/services/ports/remote-sensing-provider";
 import { cropMapColors } from "@/styles/tokens";
 import { cropClassRenderEvalscript, cropClassStatisticsEvalscript } from "./crop-classes";
+import { RICE_RADAR_STATISTICS_EVALSCRIPT } from "./rice-radar";
 import {
   FIELD_FEATURES_EVALSCRIPT,
   NDVI_STATISTICS_EVALSCRIPT,
@@ -371,6 +374,84 @@ const radarStatisticsSchema = z.object({
  * VV + VH, rétrodiffusion normalisée au relief (GAMMA0_TERRAIN, orthorectifiée sur le MNT
  * Copernicus 30 m) et filtre de chatoiement de Lee 3 × 3 ; un seul sens d'orbite.
  */
+/**
+ * Riz par radar sur une commune (ADR-0026) : histogramme riz / pas riz, orbites descendantes,
+ * rétrodiffusion corrigée du relief, filtre de chatoiement 5 × 5 avant la lecture à 120 m.
+ */
+export function buildRiceRadarBody(request: RiceRadarRequest) {
+  const days = Math.max(
+    1,
+    Math.ceil((Date.parse(request.to) - Date.parse(request.from)) / 86_400_000),
+  );
+  const resolution = request.resolutionM / Math.cos((request.latitude * Math.PI) / 180);
+  return {
+    input: {
+      bounds: { geometry: projectAny(request.geometry), properties: { crs: CRS_3857 } },
+      data: [
+        {
+          type: "sentinel-1-grd",
+          dataFilter: {
+            acquisitionMode: "IW",
+            polarization: "DV",
+            resolution: "HIGH",
+            orbitDirection: "DESCENDING",
+          },
+          processing: {
+            backCoeff: "GAMMA0_TERRAIN",
+            orthorectify: true,
+            demInstance: "COPERNICUS_30",
+            speckleFilter: { type: "LEE", windowSizeX: 5, windowSizeY: 5 },
+          },
+        },
+      ],
+    },
+    aggregation: {
+      timeRange: { from: request.from, to: request.to },
+      aggregationInterval: { of: `P${days}D` },
+      evalscript: RICE_RADAR_STATISTICS_EVALSCRIPT,
+      resx: resolution,
+      resy: resolution,
+    },
+    calculations: {
+      default: { histograms: { default: { nBins: 2, lowEdge: 0, highEdge: 2 } } },
+    },
+  };
+}
+
+const riceRadarSchema = z.object({
+  data: z.array(
+    z.object({
+      outputs: z.object({
+        rice: z.object({
+          bands: z.object({
+            B0: z.object({
+              histogram: z.object({
+                bins: z.array(
+                  z.object({ lowEdge: z.number(), highEdge: z.number(), count: z.number() }),
+                ),
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  ),
+});
+
+/** Pixels de rizière et pixels vus, cumulés sur les intervalles renvoyés. */
+export function parseRiceRadar(payload: unknown): { ricePixels: number; observedPixels: number } {
+  const parsed = riceRadarSchema.parse(payload);
+  let ricePixels = 0;
+  let observedPixels = 0;
+  for (const entry of parsed.data) {
+    for (const bin of entry.outputs.rice.bands.B0.histogram.bins) {
+      observedPixels += bin.count;
+      if (Math.round(bin.lowEdge) === 1) ricePixels += bin.count;
+    }
+  }
+  return { ricePixels, observedPixels };
+}
+
 export function buildRadarStatisticsBody(request: RadarStatisticsRequest) {
   return {
     input: {
@@ -633,6 +714,19 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         parseCropArea(await response.json()),
       );
       return { classPixels, processingUnits: spentUnits(response) };
+    },
+
+    async riceRadarStatistics(request): Promise<RiceRadarResult> {
+      const response = await processing(
+        "/api/v1/statistics",
+        buildRiceRadarBody(request),
+        "application/json",
+        request.timeoutMs,
+      );
+      const counts = await readResponse("Riz radar CDSE", async () =>
+        parseRiceRadar(await response.json()),
+      );
+      return { ...counts, processingUnits: spentUnits(response) };
     },
 
     async radarStatistics(request): Promise<StatisticsResult<RadarInterval>> {

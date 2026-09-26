@@ -152,6 +152,25 @@ export interface CropAreaRequest {
   expectedClass?: number;
 }
 
+/** Riz vu par le radar Sentinel-1 sur une commune (ADR-0026). */
+export interface RiceRadarRequest {
+  geometry: PolygonGeometry | MultiPolygonGeometry;
+  /** Saison des pluies : de mai à novembre au plus. */
+  from: string;
+  to: string;
+  resolutionM: number;
+  latitude: number;
+  timeoutMs?: number;
+}
+
+export interface RiceRadarResult {
+  /** Pixels de la commune reconnus comme rizière. */
+  ricePixels: number;
+  /** Pixels de la commune vus par le radar. */
+  observedPixels: number;
+  processingUnits: number | null;
+}
+
 export interface CropAreaResult {
   /** Pixels par code de classe (index 0 : non classé). */
   classPixels: number[];
@@ -222,6 +241,7 @@ export interface RemoteSensingProvider {
   ): Promise<StatisticsResult<VegetationInterval>>;
   radarStatistics(request: RadarStatisticsRequest): Promise<StatisticsResult<RadarInterval>>;
   cropAreaStatistics(request: CropAreaRequest): Promise<CropAreaResult>;
+  riceRadarStatistics(request: RiceRadarRequest): Promise<RiceRadarResult>;
   fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
 }
 
