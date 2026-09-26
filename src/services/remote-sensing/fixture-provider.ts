@@ -265,7 +265,9 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       const classPixels = shares.map((share, index) =>
         Math.round(total * share * (0.85 + noise(seed, index + 300) * 0.3)),
       );
-      return { classPixels, processingUnits: null };
+      // Le sud, plus nuageux en pleine saison, voit moins de mois de pluie que le nord.
+      const rainyMonthsSeen = Number(((north ? 3.8 : 2.6) + noise(seed, 400) * 1.2).toFixed(2));
+      return { classPixels, rainyMonthsSeen, processingUnits: null };
     },
 
     // Radar : pas de nuage. Même régime saisonnier que le NDVI, en indice RVI (0,2 au sol nu,

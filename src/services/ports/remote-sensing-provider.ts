@@ -176,6 +176,11 @@ export interface RiceRadarResult {
 export interface CropAreaResult {
   /** Pixels par code de classe (index 0 : non classé). */
   classPixels: number[];
+  /**
+   * Mois de saison des pluies (mai à octobre) vus sans nuage, en moyenne par pixel, de 0 à 6 :
+   * la vraie mesure de l'incertitude d'une commune. Null si le fournisseur ne la donne pas.
+   */
+  rainyMonthsSeen?: number | null;
   processingUnits: number | null;
 }
 
