@@ -36,6 +36,16 @@ const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const LINK =
   /\b(?:https?:\/\/|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|bj|me|ly|io|info|biz|link|app|xyz|site|online|co|gl)\b(?:\/\S*)?/gi;
 
+/** Texte sans caractère de contrôle, invisible ni d'inversion ; les sauts de ligne restent. */
+export function withoutInvisible(text: string): string {
+  return text.replace(INVISIBLE, "");
+}
+
+/** Vrai si le texte contient un lien web ou une adresse e-mail (search ignore l'état /g). */
+export function containsLinkOrAddress(text: string): boolean {
+  return text.search(LINK) !== -1 || text.search(EMAIL) !== -1;
+}
+
 /** Citation d'une réponse d'agent : sans lien ni adresse, sur une ligne, tronquée. */
 export function quote(text: string): string {
   const flat = text

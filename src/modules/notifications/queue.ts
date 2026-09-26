@@ -58,6 +58,31 @@ export async function queueFarmerNotification(
   return created.id;
 }
 
+/**
+ * Met en file plusieurs messages d'un coup (message de groupe) : deux requêtes quel que soit le
+ * nombre de destinataires. Un couple (type, sujet) déjà en file est ignoré ; renvoie les
+ * identifiants des messages créés.
+ */
+export async function queueFarmerNotifications(
+  db: Db,
+  inputs: ReadonlyArray<QueuedNotification & { farmerId: string }>,
+  now = new Date(),
+): Promise<string[]> {
+  if (inputs.length === 0) return [];
+  const created = await db.farmerNotification.createManyAndReturn({
+    data: inputs.map((input) => ({
+      farmerId: input.farmerId,
+      kind: input.kind,
+      subjectId: input.subjectId,
+      text: input.text,
+      nextAttemptAt: now,
+    })),
+    skipDuplicates: true,
+    select: { id: true },
+  });
+  return created.map((row) => row.id);
+}
+
 export interface SendOptions {
   messaging: MessagingChannel;
   now?: Date;

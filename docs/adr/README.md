@@ -26,3 +26,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0021 | Carte des cultures par satellite : surfaces par commune sans agent | acceptée, remplacée en partie par 0023 |
 | 0022 | Feux actifs NASA FIRMS en quasi temps réel, alertes « feu de brousse » et centre de veille | acceptée |
 | 0023 | Carte des cultures : coût mesuré, pixels de 120 m, quatre bandes, douze passages | acceptée, remplace en partie 0021 |
+| 0024 | Groupes de producteurs formés depuis le palmarès, message WhatsApp aux membres consentants | acceptée |
