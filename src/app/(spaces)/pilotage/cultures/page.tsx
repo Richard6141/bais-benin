@@ -7,8 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/features/auth/session";
 import { DashboardFiltersBar } from "@/features/dashboard/dashboard-filters";
 import { parseDashboardFilters } from "@/features/dashboard/dashboard-logic";
+import { DashboardSection } from "@/features/dashboard/national-sections";
+import { CropAccuracySection } from "@/features/satellite/crop-accuracy-section";
 import { CropAreaSection, cropClassLabel } from "@/features/satellite/crop-area-section";
-import { CULTIVATED_CLASSES, getCropAreaComparison } from "@/modules/satellite";
+import { CULTIVATED_CLASSES, getCropAreaComparison, getCropMapAccuracy } from "@/modules/satellite";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Surfaces par satellite" };
@@ -19,8 +21,9 @@ export const metadata: Metadata = { title: "Surfaces par satellite" };
 export default async function CropAreasPage(props: PageProps<"/pilotage/cultures">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/cultures" });
   const { departementCode, cropCode } = parseDashboardFilters(await props.searchParams);
-  const [comparison, departements] = await Promise.all([
+  const [comparison, accuracy, departements] = await Promise.all([
     getCropAreaComparison(user.actor, { departementCode, cropClass: cropCode }),
+    getCropMapAccuracy(user.actor),
     listDepartements(),
   ]);
 
@@ -49,6 +52,15 @@ export default async function CropAreasPage(props: PageProps<"/pilotage/cultures
         />
       </Suspense>
       {comparison ? <CropAreaSection comparison={comparison} /> : null}
+      {accuracy ? (
+        <DashboardSection
+          id="precision"
+          title="Précision de la carte"
+          description="Parcelles des exploitations vérifiées, culture déclarée face à la classe vue."
+        >
+          <CropAccuracySection accuracy={accuracy} />
+        </DashboardSection>
+      ) : null}
     </div>
   );
 }
