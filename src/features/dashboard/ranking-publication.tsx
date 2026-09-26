@@ -138,7 +138,7 @@ export function PublishedRankingsList({ rows }: { rows: PublishedRankingRow[] })
                   {/* Un palmarès retiré n'a plus de lauréats : ils sont supprimés au retrait. */}
                   {row.withdrawnOn
                     ? ""
-                    : ` · ${row.laureates} lauréat${row.laureates > 1 ? "s" : ""}`}
+                    : `, ${row.laureates} lauréat${row.laureates > 1 ? "s" : ""}`}
                 </span>
                 {row.withdrawnOn ? (
                   <Badge variant="outline" className="w-fit">

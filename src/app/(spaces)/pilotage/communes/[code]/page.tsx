@@ -67,14 +67,14 @@ export default async function CommuneProfilePage(props: PageProps<"/pilotage/com
       <PageHeader
         eyebrow={`Département ${commune.departementName}`}
         title={commune.name}
-        description={`Campagne ${profile.campaign.code} · données au ${formatDataDate(profile.provenance.refreshedAt)}.`}
+        description={`Campagne ${profile.campaign.code}, données au ${formatDataDate(profile.provenance.refreshedAt)}.`}
         actions={<ExportActions query={query} communeCode={commune.code} />}
       />
       <div className="flex flex-wrap items-center gap-2">
         {commune.zoneCode ? (
           <Badge variant="outline">
             {commune.zoneCode}
-            {commune.zoneName ? ` · ${commune.zoneName}` : ""}
+            {commune.zoneName ? ` (${commune.zoneName})` : ""}
           </Badge>
         ) : null}
         <Button asChild variant="outline" className="h-11 print:hidden">

@@ -65,7 +65,7 @@ export default async function RulePage({ params }: { params: Promise<{ code: str
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow={`Règle ${current.code} · version ${current.version}`}
+        eyebrow={`Règle ${current.code} (version ${current.version})`}
         title={current.name}
         description={current.description}
         actions={

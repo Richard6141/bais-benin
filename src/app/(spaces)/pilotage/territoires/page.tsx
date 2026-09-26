@@ -48,7 +48,7 @@ export default async function TerritoriesPage(props: PageProps<"/pilotage/territ
       <PageHeader
         eyebrow="Centre de pilotage"
         title={departementName ? `Communes du département ${departementName}` : "Départements"}
-        description={`Campagne ${ranking.campaign.code} · données au ${formatDataDate(ranking.provenance.refreshedAt)}. Triez par colonne ; touchez une ligne pour descendre d'un niveau.`}
+        description={`Campagne ${ranking.campaign.code}, données au ${formatDataDate(ranking.provenance.refreshedAt)}. Triez par colonne ; touchez une ligne pour descendre d'un niveau.`}
         actions={<ExportActions query={filtersQuery(filters)} />}
       />
       <DemoDataBanner provenance={ranking.provenance} />

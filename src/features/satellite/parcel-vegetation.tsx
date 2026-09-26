@@ -25,7 +25,7 @@ export function ParcelVegetationNote({ checks }: { checks: readonly ParcelVegeta
                 {VEGETATION_STATUS_LABELS[check.status]}
               </Badge>
               <span className="text-muted-foreground">
-                {check.cropName} · {check.campaignCode}
+                {check.cropName} ({check.campaignCode})
               </span>
             </span>
             {check.status === "TO_VERIFY" ? (

@@ -66,7 +66,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
       <PageHeader
         eyebrow="Centre de pilotage"
         title="Tableau de bord national"
-        description={`Campagne ${overview.campaign.code} · données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
+        description={`Campagne ${overview.campaign.code}, données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
         actions={<ExportActions query={query} />}
       />
       <DemoDataBanner provenance={overview.provenance} />

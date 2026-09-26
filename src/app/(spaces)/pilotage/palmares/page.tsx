@@ -67,7 +67,7 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Centre de pilotage"
-        title={`Palmarès ${cropName.toLowerCase()} · campagne ${ranking.campaign.code}`}
+        title={`Palmarès ${cropName.toLowerCase()} (campagne ${ranking.campaign.code})`}
         description={`${scope}, classement ${criterion}. ${ranking.eligibleCount} producteur${ranking.eligibleCount > 1 ? "s" : ""} classable${ranking.eligibleCount > 1 ? "s" : ""} avec ces critères. Données nominatives réservées au ministère ; chaque consultation est journalisée.`}
         actions={
           <Button asChild variant="outline" className="h-11">

@@ -50,7 +50,7 @@ export default async function PublicRankingsPage() {
                     </Link>
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Publié le {longDate.format(new Date(ranking.publishedAt))} · {ranking.laureates}{" "}
+                    Publié le {longDate.format(new Date(ranking.publishedAt))}, {ranking.laureates}{" "}
                     lauréat
                     {ranking.laureates > 1 ? "s" : ""}
                   </p>
@@ -63,7 +63,7 @@ export default async function PublicRankingsPage() {
                       </span>
                       <span className="font-medium">{laureate.name}</span>
                       <span className="text-muted-foreground">
-                        {laureate.communeName} · {tonnes.format(laureate.productionT)} t
+                        {laureate.communeName} ({tonnes.format(laureate.productionT)} t)
                       </span>
                     </li>
                   ))}

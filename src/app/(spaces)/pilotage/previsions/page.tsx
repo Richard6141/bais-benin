@@ -28,8 +28,8 @@ export default async function ForecastPage(props: PageProps<"/pilotage/prevision
         eyebrow="Centre de pilotage"
         title={
           forecast.cropCode
-            ? `Prévision ${(forecast.cropName ?? forecast.cropCode).toLowerCase()} par département · campagne ${forecast.campaign.code}`
-            : `Prévisions de récolte · campagne ${forecast.campaign.code}`
+            ? `Prévision ${(forecast.cropName ?? forecast.cropCode).toLowerCase()} par département (campagne ${forecast.campaign.code})`
+            : `Prévisions de récolte (campagne ${forecast.campaign.code})`
         }
         description={`Surfaces semées de la campagne × rendements observés en ${forecast.historyCampaigns.join(" et ")}. ${forecast.deficits > 0 ? `${forecast.deficits} ${forecast.cropCode ? "département" : "culture"}${forecast.deficits > 1 ? "s" : ""} en déficit probable (baisse de ${Math.abs(DEFICIT_THRESHOLD_PCT)} % ou plus). ` : ""}Production totale prévue : ${tonnes.format(total)} t.`}
         actions={
