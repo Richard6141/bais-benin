@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ImageryCatalog } from "@/modules/satellite";
 import { SkyLegend } from "./map-legend";
@@ -63,6 +63,40 @@ describe("choix du fond de carte", () => {
     expect(screen.getByLabelText("Fond de carte")).toHaveTextContent("Végétation (NDVI)");
     expect(screen.getByLabelText("Mois")).toHaveTextContent("Mai 2026, 255 scènes dégagées");
     expect(screen.queryByText(/mise en service/)).not.toBeInTheDocument();
+  });
+
+  it("fait défiler les mois du plus ancien au plus récent", () => {
+    const onPeriodChange = vi.fn();
+    render(
+      <SkyControl
+        catalog={{ status: "ready", catalog: catalog(true) }}
+        layer="ndvi"
+        period="2026-05"
+        onLayerChange={vi.fn()}
+        onPeriodChange={onPeriodChange}
+      />,
+    );
+    const slider = screen.getByRole("slider", { name: "Faire défiler les mois" });
+    expect(slider).toHaveValue("0");
+    fireEvent.change(slider, { target: { value: "1" } });
+    expect(onPeriodChange).toHaveBeenCalledWith("2026-09");
+  });
+
+  it("n'offre la comparaison qu'aux appareils capables, avec le mois précédent par défaut", () => {
+    const onBeforeChange = vi.fn();
+    const props = {
+      catalog: { status: "ready" as const, catalog: catalog(true) },
+      layer: "ndvi" as const,
+      period: "2026-09",
+      onLayerChange: vi.fn(),
+      onPeriodChange: vi.fn(),
+      onBeforeChange,
+    };
+    const { rerender } = render(<SkyControl {...props} />);
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    rerender(<SkyControl {...props} compareAvailable />);
+    fireEvent.click(screen.getByRole("switch", { name: /Comparer avec un autre mois/ }));
+    expect(onBeforeChange).toHaveBeenCalledWith("2026-05");
   });
 
   it("signale un catalogue injoignable sans bloquer la carte des communes", () => {

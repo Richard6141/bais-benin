@@ -177,7 +177,23 @@ export function AgriMap({
   // proposé seulement aux appareils assez puissants (faux au rendu serveur, puis mesuré).
   const [relief, setRelief] = useState(false);
   const [reliefSlow, setReliefSlow] = useState(false);
+  // Comparaison avant et après (rideau) : mois « avant » choisi, local à la session.
+  const [skyBefore, setSkyBefore] = useState<string | null>(null);
   const reliefAvailable = useSyncExternalStore(subscribeNothing, readReliefAvailable, () => false);
+  // Le mois « avant » ne vaut que sur une vue du ciel, différent du mois affiché et connu du catalogue.
+  const beforeEntry =
+    sky && skyBefore && skyBefore !== sky.period
+      ? readyCatalog?.periods.find((entry) => entry.period === skyBefore)
+      : undefined;
+  const beforePeriod = beforeEntry?.period ?? null;
+  const curtain =
+    sky && beforeEntry
+      ? {
+          view: { layer: sky.layer, period: beforeEntry.period },
+          label: beforeEntry.label,
+          afterLabel: skyPeriodEntry?.label ?? sky.period,
+        }
+      : null;
   const [fieldMode, setFieldMode] = useState<FieldMode>("single");
   const [cutPoints, setCutPoints] = useState<Array<[number, number]>>([]);
   const [attributionOpen, setAttributionOpen] = useState(false);
@@ -292,6 +308,9 @@ export function AgriMap({
           onPeriodChange={(period) =>
             pushState(filters, metric, selectedCode, { layer: skyParams.layer, period })
           }
+          before={beforePeriod}
+          onBeforeChange={setSkyBefore}
+          compareAvailable={reliefAvailable}
         />
       </div>
       <div className="pointer-events-auto">
@@ -375,6 +394,7 @@ export function AgriMap({
             fires={fires}
             showFields={showFields}
             relief={relief}
+            skyBefore={curtain}
             onReliefSlow={() => {
               setRelief(false);
               setReliefSlow(true);

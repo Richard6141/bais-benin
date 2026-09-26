@@ -13,6 +13,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { MapUnavailable } from "@/components/feedback/map-unavailable";
 import { hasWebGL2 } from "@/lib/webgl";
+import { SkyCurtain } from "./sky-curtain";
 
 // Le worker de MapLibre est servi en fichiers statiques (scripts/copy-maplibre-worker.mjs) :
 // le bundler de Next ne sait pas exposer celui embarqué par la bibliothèque.
@@ -112,6 +113,8 @@ interface MapCanvasProps {
   showFields?: boolean;
   /** Relief 3D : terrain soulevé et vue inclinée ; `onReliefSlow` quand l'affichage saccade. */
   relief?: boolean;
+  /** Mois « avant » d'une comparaison : un rideau le montre à gauche de l'image affichée. */
+  skyBefore?: { view: SkyView; label: string; afterLabel: string } | null;
   onReliefSlow?: () => void;
   /** Champs touchés avant attribution (ADR-0029) : trait vif et épais. */
   touchedFieldIds?: readonly string[];
@@ -147,6 +150,7 @@ export function MapCanvas({
   fires = null,
   showFields = false,
   relief = false,
+  skyBefore = null,
   onReliefSlow,
   touchedFieldIds = NO_FIELDS,
   onSelectField,
@@ -194,6 +198,8 @@ export function MapCanvas({
   const hoveredRef = useRef<string | null>(null);
   // Passe à vrai quand les sources et couches existent : les effets de peinture attendent ce signal.
   const [ready, setReady] = useState(false);
+  // Carte exposée au rideau avant et après, qui suit son cadrage.
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   // Les gestionnaires de la carte sont posés une fois, au chargement : ils lisent les rappels
   // courants par cette référence plutôt que ceux du premier rendu.
   const callbacksRef = useRef({
@@ -545,6 +551,7 @@ export function MapCanvas({
       callbacksRef.current.onZoomChange?.(map.getZoom());
 
       setReady(true);
+      setMapInstance(map);
       onReady?.();
     });
 
@@ -560,6 +567,7 @@ export function MapCanvas({
       map.remove();
       mapRef.current = null;
       setReady(false);
+      setMapInstance(null);
     };
     // La carte n'est construite qu'une fois ; les mises à jour passent par les effets suivants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -933,12 +941,22 @@ export function MapCanvas({
   if (!supported) return <MapUnavailable />;
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      role="application"
-      aria-label="Carte agricole du Bénin"
-    />
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        role="application"
+        aria-label="Carte agricole du Bénin"
+      />
+      {mapInstance && skyBefore && sky ? (
+        <SkyCurtain
+          map={mapInstance}
+          before={skyBefore.view}
+          beforeLabel={skyBefore.label}
+          afterLabel={skyBefore.afterLabel}
+        />
+      ) : null}
+    </div>
   );
 }
 
