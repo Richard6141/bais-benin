@@ -20,6 +20,11 @@ const ENTRIES = [
     match: ["/pilotage/territoires", "/pilotage/communes"],
   },
   {
+    href: "/pilotage/previsions",
+    label: "Prévisions",
+    match: ["/pilotage/previsions"],
+  },
+  {
     href: "/pilotage/palmares",
     label: "Palmarès",
     match: ["/pilotage/palmares"],
