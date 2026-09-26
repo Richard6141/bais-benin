@@ -447,6 +447,28 @@ zéro. Les données de démonstration elles-mêmes ne sont pas réinitialisées 
 
 ---
 
+## Avis des testeurs
+
+Pendant la période de test, chaque espace connecté (producteur, agent, pilotage) propose
+**Donner mon avis** : dans le menu « Plus » sur ordinateur, dans « Plus » de la barre basse sur
+téléphone, et en haut de la navigation du pilotage.
+
+- La fenêtre demande un type (« Quelque chose ne marche pas », « C'est difficile à comprendre »,
+  « Une idée »), un message de 1 000 caractères au plus et, si on le souhaite, une note de 1 à 5.
+- La page, le rôle, la date et le type d'écran (téléphone ou ordinateur) partent avec l'avis sans
+  être demandés. Ni capture d'écran, ni NPI, ni téléphone : un numéro ou un NPI écrit dans le
+  message est masqué avant l'enregistrement, comme dans l'assistant.
+- Dix avis par heure et par compte au plus. Après l'envoi, un accusé de réception, puis retour à
+  la page.
+
+Le ministère lit les avis dans **Avis des testeurs** (`/pilotage/avis`), avec le nombre de
+nouveaux avis dans la navigation : filtres par type, rôle et état (« Nouveau », « Vu »,
+« Traité »), et export CSV des avis filtrés. L'auteur n'est jamais montré, seulement son rôle.
+Chaque changement d'état est inscrit au journal d'audit. Rien n'est envoyé hors de l'application,
+ni WhatsApp ni e-mail.
+
+---
+
 ## Questions transverses
 
 - **Accès refusé** : chaque espace est réservé à son rôle ; une tentative d'accès à un autre
