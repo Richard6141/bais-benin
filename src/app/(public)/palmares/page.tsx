@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { listPublicRankings } from "@/modules/public-ranking";
+import { cachedPublicRankings } from "@/features/public-ranking/cached";
 
 export const metadata: Metadata = {
   title: "Palmarès des producteurs",
@@ -23,7 +23,7 @@ const tonnes = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 // Page publique des palmarès publiés par le ministère (complément d'ADR-0018). Seuls y figurent
 // les producteurs qui ont donné leur accord depuis leur compte ; les autres ne sont jamais nommés.
 export default async function PublicRankingsPage() {
-  const rankings = await listPublicRankings();
+  const rankings = await cachedPublicRankings();
   return (
     <>
       <SiteHeader />
@@ -50,7 +50,8 @@ export default async function PublicRankingsPage() {
                     </Link>
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Publié le {longDate.format(ranking.publishedAt)} · {ranking.laureates} lauréat
+                    Publié le {longDate.format(new Date(ranking.publishedAt))} · {ranking.laureates}{" "}
+                    lauréat
                     {ranking.laureates > 1 ? "s" : ""}
                   </p>
                 </div>

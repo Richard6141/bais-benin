@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
+import { expirePublicRankings } from "@/features/public-ranking/cached";
 import { setWhatsappConsent } from "@/modules/notifications";
 import { setRankingConsent } from "@/modules/public-ranking";
 
@@ -40,6 +41,8 @@ export async function setConsentAction(
       ? await setWhatsappConsent(user.actor, granted)
       : await setRankingConsent(user.actor, granted);
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
+  // Un accord donné ou retiré change la page publique des palmarès : son cache expire aussitôt.
+  if (consent === "RANKING") expirePublicRankings();
   revalidatePath("/compte");
   return {
     status: "success",

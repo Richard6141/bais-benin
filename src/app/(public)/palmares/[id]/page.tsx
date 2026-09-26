@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { LaureatesTable } from "@/features/public-ranking/laureates-table";
-import { getPublicRanking } from "@/modules/public-ranking";
+import { cachedPublicRanking } from "@/features/public-ranking/cached";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ const longDate = new Intl.DateTimeFormat("fr-FR", {
 });
 
 async function load(id: string) {
-  return z.uuid().safeParse(id).success ? getPublicRanking(id) : null;
+  return z.uuid().safeParse(id).success ? cachedPublicRanking(id) : null;
 }
 
 export async function generateMetadata(props: PageProps<"/palmares/[id]">): Promise<Metadata> {
@@ -40,7 +40,7 @@ export default async function PublicRankingPage(props: PageProps<"/palmares/[id]
           <PageHeader
             eyebrow="Palmarès des producteurs"
             title={ranking.title}
-            description={`Publié par le ministère de l'Agriculture le ${longDate.format(ranking.publishedAt)}. Le rang est celui du classement complet : un rang absent est celui d'un producteur qui n'a pas souhaité être nommé.`}
+            description={`Publié par le ministère de l'Agriculture le ${longDate.format(new Date(ranking.publishedAt))}. Le rang est celui du classement complet : un rang absent est celui d'un producteur qui n'a pas souhaité être nommé.`}
             actions={
               <Button asChild variant="outline">
                 <Link href="/palmares">Tous les palmarès</Link>
