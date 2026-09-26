@@ -27,6 +27,7 @@ import { ParcelPanel } from "./parcel-panel";
 import { SkyControl } from "./sky-control";
 import { useFires } from "./use-fires";
 import { useImageryCatalog } from "./use-imagery-catalog";
+import { FieldsControl } from "./fields-control";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
 // MapLibre manipule window et WebGL : chargé côté client uniquement, hors du rendu serveur.
@@ -118,6 +119,8 @@ export function AgriMap({
   const fireWindow: FireWindowParam | null =
     feuxParam === "24h" || feuxParam === "7j" ? feuxParam : null;
   const fires = useFires(fireWindow);
+  // Champs détectés dans l'adresse aussi : ?champs=1 (ADR-0029), pour les comptes du registre.
+  const showFields = canInspectParcels && searchParams.get("champs") === "1";
   // Carte des cultures (ADR-0021) : ?ciel=cultures, sans mois (les 12 derniers).
   // Sans attendre le catalogue des périodes : la carte n'a besoin que de ses quarts en cache, et
   // la légende dit quand ils ne sont pas encore prêts.
@@ -156,6 +159,7 @@ export function AgriMap({
       nextSky: SkyParams = skyParams,
       nextParcel: string | null = parcelId,
       nextFires: FireWindowParam | null = fireWindow,
+      nextFields: boolean = showFields,
     ) => {
       const params = filtersToSearchParams(nextFilters);
       if (nextMetric !== "farmCount") params.set("metric", nextMetric);
@@ -164,10 +168,11 @@ export function AgriMap({
       if (nextSky.layer && nextSky.period) params.set("mois", nextSky.period);
       if (nextParcel) params.set("parcelle", nextParcel);
       if (nextFires) params.set("feux", nextFires);
+      if (nextFields) params.set("champs", "1");
       const query = params.toString();
       router.replace((query ? `${pathname}?${query}` : pathname) as Route, { scroll: false });
     },
-    [router, pathname, skyParams, parcelId, fireWindow],
+    [router, pathname, skyParams, parcelId, fireWindow, showFields],
   );
 
   const selectParcel = (id: string | null) => {
@@ -218,6 +223,7 @@ export function AgriMap({
             focusBounds={focusBounds}
             onZoomChange={setZoom}
             fires={fires}
+            showFields={showFields}
           />
           {canInspectParcels && zoom !== null && zoom < PARCEL_MIN_ZOOM - 3 ? (
             <p className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border bg-card/95 px-3 py-1.5 text-xs font-medium shadow-raised sm:block">
@@ -246,6 +252,17 @@ export function AgriMap({
                 }
               />
             </div>
+            {canInspectParcels ? (
+              <div className="pointer-events-auto">
+                <FieldsControl
+                  checked={showFields}
+                  zoom={zoom}
+                  onChange={(next) =>
+                    pushState(filters, metric, selectedCode, skyParams, parcelId, fireWindow, next)
+                  }
+                />
+              </div>
+            ) : null}
             {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
             {cropMap ? (
               <CropMapLegend />

@@ -4,12 +4,12 @@ import { isValidTile } from "@/lib/geo/tile-math";
 import { getApiActor } from "@/features/auth/api-actor";
 import { scopeFilter } from "@/modules/authorization";
 import { scopedCommuneIds } from "@/modules/registry";
-import { renderTile, type FarmTileScope } from "@/modules/territory/tiles";
+import { renderTile, type FarmTileScope, type FieldTileScope } from "@/modules/territory/tiles";
 
 export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({
-  layer: z.enum(["communes", "departements", "farms", "parcels"]),
+  layer: z.enum(["communes", "departements", "farms", "parcels", "fields"]),
   z: z.coerce.number().int().min(0).max(18),
   x: z.coerce.number().int().min(0),
   y: z.coerce.number().int().min(0),
@@ -17,11 +17,13 @@ const paramsSchema = z.object({
 
 // Les tuiles des limites administratives sont publiques et stables : cache long partagé.
 // Les points d'exploitations changent avec les saisies : cache court.
-const cacheControl: Record<"communes" | "departements" | "farms" | "parcels", string> = {
+const cacheControl: Record<"communes" | "departements" | "farms" | "parcels" | "fields", string> = {
   communes: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
   departements: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
   farms: "private, max-age=60",
   parcels: "private, max-age=60",
+  // Champs de référence : stables (import ponctuel), mais servis selon le compte.
+  fields: "private, max-age=3600",
 };
 
 interface TileParams {
@@ -55,6 +57,28 @@ async function farmScopeFor(request: NextRequest): Promise<FarmTileScope> {
   }
 }
 
+// Champs de référence : contours ouverts, non nominatifs, mais réservés aux comptes qui lisent le
+// registre, dans le même périmètre territorial : tout le pays pour le ministère ; les communes
+// d'affectation pour l'agent, qui doit voir les champs de sa commune pour les enregistrer, même
+// ceux qu'il n'a pas encore enregistrés ; rien pour le producteur ni le visiteur.
+async function fieldScopeFor(request: NextRequest): Promise<FieldTileScope> {
+  const api = await getApiActor(request.headers);
+  if (!api) return [];
+  const filter = scopeFilter(api.actor, "farm.read");
+  switch (filter.kind) {
+    case "all":
+      return null;
+    case "none":
+    case "self":
+      return [];
+    case "registered":
+    case "territory": {
+      const ids = await scopedCommuneIds(api.actor);
+      return ids === "all" ? null : ids;
+    }
+  }
+}
+
 export async function GET(request: NextRequest, context: { params: Promise<TileParams> }) {
   const raw = await context.params;
   const parsed = paramsSchema.safeParse({ ...raw, y: raw.y.replace(/\.(pbf|mvt)$/, "") });
@@ -64,7 +88,8 @@ export async function GET(request: NextRequest, context: { params: Promise<TileP
   const { layer, z: zoom, x, y } = parsed.data;
   const farmScope =
     layer === "farms" || layer === "parcels" ? await farmScopeFor(request) : undefined;
-  const tile = await renderTile(layer, zoom, x, y, { farmScope });
+  const fieldScope = layer === "fields" ? await fieldScopeFor(request) : undefined;
+  const tile = await renderTile(layer, zoom, x, y, { farmScope, fieldScope });
   if (!tile) {
     return new NextResponse(null, {
       status: 204,

@@ -23,14 +23,16 @@ export const INITIAL_ZOOM = 6.2;
 export const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/positron";
 
-export const TILE_URL_TEMPLATE = (layer: "communes" | "departements" | "farms" | "parcels") =>
-  `/api/tiles/${layer}/{z}/{x}/{y}.pbf`;
+export const TILE_URL_TEMPLATE = (
+  layer: "communes" | "departements" | "farms" | "parcels" | "fields",
+) => `/api/tiles/${layer}/{z}/{x}/{y}.pbf`;
 
 export const SOURCE_IDS = {
   communes: "bais-communes",
   departements: "bais-departements",
   farms: "bais-farms",
   parcels: "bais-parcels",
+  fields: "bais-fields",
 } as const;
 
 export const LAYER_IDS = {
@@ -41,10 +43,24 @@ export const LAYER_IDS = {
   farmPoints: "bais-farm-points",
   parcelFill: "bais-parcel-fill",
   parcelLine: "bais-parcel-line",
+  fieldFill: "bais-field-fill",
+  fieldLine: "bais-field-line",
 } as const;
 
 /** Les parcelles apparaissent à partir de ce zoom (tuiles servies dès 12). */
 export const PARCEL_MIN_ZOOM = 12;
+
+/** Champs de référence (ADR-0029) : tuiles servies dès le zoom 12, comme les parcelles. */
+export const FIELD_MIN_ZOOM = 12;
+export const FIELDS_ATTRIBUTION =
+  "Champs détectés : Fields of The World, Taylor Geospatial Institute, CC BY 4.0";
+
+// Champs détectés : trait fin et voile léger, plus marqués quand aucune parcelle enregistrée ne
+// les recouvre (à enregistrer), effacés quand une parcelle les recouvre déjà.
+export const FIELD_COLORS = {
+  toRegister: brandColors.ink,
+  registered: "#9aa3ad",
+} as const;
 
 // Parcelles : remplies de la couleur de leur culture principale (gris si aucune n'est déclarée),
 // bordées de latérite quand le satellite demande une visite, d'encre quand elles sont ouvertes.
