@@ -108,6 +108,15 @@ function monthStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
+/**
+ * Moitié du pays refaite ce mois-ci : chaque commune l'est tous les deux mois, en deux moitiés
+ * de coût égal qui alternent (environ 1 000 unités par mois au lieu de 2 000, ADR-0028). La
+ * classification lit toujours douze mois : seule la fraîcheur passe à deux mois au plus.
+ */
+export function refreshGroupOf(now: Date): 0 | 1 {
+  return ((now.getUTCFullYear() * 12 + now.getUTCMonth()) % 2) as 0 | 1;
+}
+
 /** Lignes d'une commune, une par classe, à partir des pixels comptés par code de classe. */
 export function cropAreaRows(
   pixels: readonly number[],
@@ -244,6 +253,7 @@ export async function runCropAreaEstimates(options: {
     staleBefore: monthStart(now),
     methodVersion: CROP_AREA_METHOD_VERSION,
     replaceSynthetic: options.provider.provenance.sourceId !== "BAIS_SEED",
+    refreshGroup: refreshGroupOf(now),
   };
   const communes = await listCommunesForCropAreas({ ...cursor, limit: options.limit });
   const budget = processingBudget();
@@ -380,6 +390,7 @@ export async function writeDemoCropAreaEstimates(now = new Date()): Promise<numb
       staleBefore: farFuture(),
       methodVersion: CROP_AREA_METHOD_VERSION,
       replaceSynthetic: false,
+      refreshGroup: null,
       limit: 1000,
     }),
     declaredAreasByCrop(campaign.id),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/database/client";
 
 // Carte des cultures par satellite (ADR-0021) : communes à calculer, estimations, surfaces
@@ -34,6 +35,36 @@ interface CursorOptions {
   methodVersion: number;
   /** Vrai pour une mesure réelle : les estimations de démonstration comptent comme absentes. */
   replaceSynthetic: boolean;
+  /**
+   * Moitié du pays refaite ce mois-ci (0 ou 1), ou null pour toutes. Les communes sont réparties
+   * en deux moitiés de coût égal, en alternant dans l'ordre de leur rectangle englobant : chacune
+   * est refaite tous les deux mois. Une commune jamais calculée, ou d'une méthode antérieure,
+   * passe quel que soit le mois.
+   */
+  refreshGroup: 0 | 1 | null;
+}
+
+// Moitié de rafraîchissement de chaque commune : 1, 0, 1, 0… du plus grand rectangle au plus petit.
+const RANKED_COMMUNES = Prisma.sql`
+  SELECT c.*, mod(row_number() OVER (
+           ORDER BY ST_Area(ST_Envelope(c."geom"::geometry)) DESC, c."code"), 2)::int AS refresh_group
+    FROM "commune" c
+   WHERE c."archived_at" IS NULL AND c."geom" IS NOT NULL`;
+
+/** Dernier calcul d'une commune ; null s'il manque ou vient d'une méthode antérieure. */
+function lastComputation(options: CursorOptions) {
+  return Prisma.sql`
+    SELECT CASE WHEN min(e."method_version") < ${options.methodVersion} THEN NULL
+                ELSE max(e."computed_at") END AS computed_at
+      FROM "crop_area_estimate" e
+     WHERE e."commune_id" = c."id" AND e."campaign_id" = ${options.campaignId}::uuid
+       AND (NOT ${options.replaceSynthetic} OR e."source_id" <> 'BAIS_SEED')`;
+}
+
+function isDue(options: CursorOptions) {
+  return Prisma.sql`(last.computed_at IS NULL
+    OR (last.computed_at < ${options.staleBefore}
+        AND (${options.refreshGroup}::int IS NULL OR c.refresh_group = ${options.refreshGroup}::int)))`;
 }
 
 /**
@@ -49,17 +80,10 @@ export async function listCommunesForCropAreas(
            ST_Y(ST_Centroid(c."geom"::geometry)) AS latitude,
            ST_Area(c."geom") / 10000 AS area_ha,
            ST_AsGeoJSON(ST_SimplifyPreserveTopology(c."geom"::geometry, 0.002), 5) AS geometry
-      FROM "commune" c
+      FROM (${RANKED_COMMUNES}) c
       LEFT JOIN "agro_ecological_zone" z ON z."id" = c."agro_ecological_zone_id"
-      LEFT JOIN LATERAL (
-        SELECT CASE WHEN min(e."method_version") < ${options.methodVersion} THEN NULL
-                    ELSE max(e."computed_at") END AS computed_at
-          FROM "crop_area_estimate" e
-         WHERE e."commune_id" = c."id" AND e."campaign_id" = ${options.campaignId}::uuid
-           AND (NOT ${options.replaceSynthetic} OR e."source_id" <> 'BAIS_SEED')
-      ) last ON true
-     WHERE c."archived_at" IS NULL AND c."geom" IS NOT NULL
-       AND (last.computed_at IS NULL OR last.computed_at < ${options.staleBefore})
+      LEFT JOIN LATERAL (${lastComputation(options)}) last ON true
+     WHERE ${isDue(options)}
      ORDER BY last.computed_at NULLS FIRST, c."code"
      LIMIT ${options.limit}`;
   return rows.map((row) => communeSchema.parse(row));
@@ -69,15 +93,9 @@ export async function listCommunesForCropAreas(
 export async function countCommunesForCropAreas(options: CursorOptions): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT count(*) AS count
-      FROM "commune" c
-     WHERE c."archived_at" IS NULL AND c."geom" IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM "crop_area_estimate" e
-          WHERE e."commune_id" = c."id" AND e."campaign_id" = ${options.campaignId}::uuid
-            AND e."computed_at" >= ${options.staleBefore}
-            AND e."method_version" >= ${options.methodVersion}
-            AND (NOT ${options.replaceSynthetic} OR e."source_id" <> 'BAIS_SEED')
-       )`;
+      FROM (${RANKED_COMMUNES}) c
+      LEFT JOIN LATERAL (${lastComputation(options)}) last ON true
+     WHERE ${isDue(options)}`;
   return Number(rows[0]?.count ?? 0);
 }
 

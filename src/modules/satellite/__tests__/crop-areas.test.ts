@@ -35,8 +35,14 @@ vi.mock("@/lib/env", () => ({
   }),
 }));
 
-const { cropAreaRows, cropMapClassOf, riceRadarSeason, runCropAreaEstimates, withRadarRice } =
-  await import("../crop-areas");
+const {
+  cropAreaRows,
+  cropMapClassOf,
+  refreshGroupOf,
+  riceRadarSeason,
+  runCropAreaEstimates,
+  withRadarRice,
+} = await import("../crop-areas");
 
 const SQUARE = JSON.stringify({
   type: "MultiPolygon",
@@ -157,6 +163,7 @@ describe("passe mensuelle des surfaces", () => {
       expect.objectContaining({
         staleBefore: new Date("2026-10-01T00:00:00Z"),
         replaceSynthetic: true,
+        refreshGroup: refreshGroupOf(NOW),
         limit: 12,
       }),
     );
@@ -281,5 +288,14 @@ describe("riz complété par le radar", () => {
     });
     expect(quota.reserveProcessingRequest).toHaveBeenCalledTimes(2);
     expect(result.perCommune).toEqual([{ code: "A", processingUnits: 14, radarRiceShare: 0.08 }]);
+  });
+});
+
+describe("moitié du pays refaite chaque mois", () => {
+  it("alterne d'un mois au suivant, y compris au passage de l'année", () => {
+    const groups = ["2026-10-02", "2026-11-02", "2026-12-02", "2027-01-02"].map((day) =>
+      refreshGroupOf(new Date(`${day}T05:30:00Z`)),
+    );
+    expect(groups).toEqual([groups[0], 1 - groups[0]!, groups[0], 1 - groups[0]!]);
   });
 });
