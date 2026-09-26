@@ -88,4 +88,32 @@ describe("commande de visite de vérification", () => {
     const farm = await db.farms.get(farmId);
     expect(farm?.syncState).toBe("MODIFIED");
   });
+
+  it("envoie la culture vue sur chaque parcelle, sauf pour une visite rejetée", () => {
+    const observedCrops = [
+      { parcelId: "01923456-0000-7000-8000-000000000011", cropCode: "COTTON" },
+    ];
+    const confirmed = buildVerificationCommand({
+      farmId,
+      identityConfirmed: true,
+      outcome: "CONFIRMED",
+      position: null,
+      correctedArea: "",
+      notes: "",
+      observedCrops,
+      now,
+    });
+    expect(confirmed.ok && confirmed.payload.observedCrops).toEqual(observedCrops);
+    const rejectedVisit = buildVerificationCommand({
+      farmId,
+      identityConfirmed: false,
+      outcome: "REJECTED",
+      position: null,
+      correctedArea: "",
+      notes: "Parcelle introuvable",
+      observedCrops,
+      now,
+    });
+    expect(rejectedVisit.ok && rejectedVisit.payload.observedCrops).toBeUndefined();
+  });
 });

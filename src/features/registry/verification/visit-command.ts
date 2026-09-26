@@ -13,6 +13,8 @@ export interface VisitInput {
   position: GeoPosition | null;
   correctedArea: string;
   notes: string;
+  /** Culture vue par parcelle ; une parcelle absente n'a pas été vue. */
+  observedCrops?: { parcelId: string; cropCode: string }[];
   now?: Date;
 }
 
@@ -55,6 +57,9 @@ export function buildVerificationCommand(input: VisitInput): BuiltVisit {
     gpsPoint: input.position ? [input.position.lng, input.position.lat] : undefined,
     identityConfirmed: input.identityConfirmed,
     correctedDeclaredAreaHa,
+    // Une visite rejetée ne dit rien des cultures.
+    observedCrops:
+      input.outcome !== "REJECTED" && input.observedCrops?.length ? input.observedCrops : undefined,
   };
   return {
     ok: true,
