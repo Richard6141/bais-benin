@@ -1,0 +1,160 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { prisma } from "@/database/client";
+import { seedReferenceData } from "@/database/seed";
+import {
+  assistanceStats,
+  listAssistanceForActor,
+  resolveRequest,
+  takeChargeOfRequest,
+} from "@/modules/assistance";
+import { loadActor } from "@/modules/identity";
+import { applySyncBatch } from "@/modules/sync";
+
+// « Solliciter l'État » (phase 0) : la demande du producteur arrive aux agents de sa commune,
+// qui la prennent en charge puis la résolvent ; le producteur suit le statut ; le ministère ne
+// voit que les agrégats par commune, masqués sous 5 demandes.
+
+const AGENT_PHONE = "+2290190000001";
+const FARMER_PHONE = "+2290190000002";
+const DEVICE = "test-device-assistance";
+const AT = "2026-09-26T09:00:00+01:00";
+const ids = {
+  withFarm: "019284a0-0000-7000-8000-0000000f0001",
+  withoutFarm: "019284a0-0000-7000-8000-0000000f0002",
+  byAgent: "019284a0-0000-7000-8000-0000000f0003",
+};
+
+function command(id: string, payload: unknown) {
+  return {
+    id,
+    type: "assistance.request",
+    payload,
+    idempotencyKey: `asst-${id}`,
+    clientCreatedAt: AT,
+    deviceId: DEVICE,
+  };
+}
+
+async function actorForPhone(phone: string) {
+  const user = await prisma.user.findFirstOrThrow({ where: { phoneNumber: phone } });
+  return loadActor(user.id);
+}
+
+describe("demandes d'assistance", () => {
+  beforeAll(async () => {
+    await seedReferenceData();
+  }, 180_000);
+
+  afterAll(async () => {
+    await prisma.assistanceRequest.deleteMany({ where: { id: { in: Object.values(ids) } } });
+    await prisma.farmEvent.deleteMany({ where: { kind: "ASSISTANCE_REQUESTED" } });
+    await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
+    await prisma.$disconnect();
+  });
+
+  it("reçoit la demande du producteur, avec ou sans exploitation, jamais celle d'un agent", async () => {
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farm = await prisma.farm.findFirstOrThrow({
+      where: { farmer: { userId: farmer.userId }, archivedAt: null },
+      select: { id: true },
+    });
+    const results = await applySyncBatch(farmer, DEVICE, [
+      command(ids.withFarm, {
+        id: ids.withFarm,
+        category: "INPUT",
+        description: "Je n'ai pas reçu les semences de maïs promises",
+        farmId: farm.id,
+        requestedAt: AT,
+      }),
+      command(ids.withoutFarm, {
+        id: ids.withoutFarm,
+        category: "ADVICE",
+        description: "Quand semer le niébé cette année ?",
+        communeCode: "BJ-DON-003",
+        requestedAt: AT,
+      }),
+    ]);
+    expect(results.map((r) => r.outcome)).toEqual(["APPLIED", "APPLIED"]);
+
+    const [fromAgent] = await applySyncBatch(agent, DEVICE, [
+      command(ids.byAgent, {
+        id: ids.byAgent,
+        category: "OTHER",
+        description: "Demande déposée par un agent",
+        communeCode: "BJ-DON-003",
+        requestedAt: AT,
+      }),
+    ]);
+    expect(fromAgent).toMatchObject({ outcome: "REJECTED", error: { code: "FORBIDDEN" } });
+  });
+
+  it("montre la demande aux agents de la commune, avec le contact du producteur", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const forAgent = await listAssistanceForActor(agent);
+    const request = forAgent.find((r) => r.id === ids.withFarm);
+    expect(request).toMatchObject({ status: "RECEIVED", requesterPhone: FARMER_PHONE });
+    expect(forAgent.map((r) => r.id)).toContain(ids.withoutFarm);
+
+    const forFarmer = await listAssistanceForActor(farmer);
+    expect(forFarmer.map((r) => r.id)).toEqual(
+      expect.arrayContaining([ids.withFarm, ids.withoutFarm]),
+    );
+    // Le producteur ne voit pas son propre numéro comme « contact ».
+    expect(forFarmer.find((r) => r.id === ids.withFarm)?.requesterPhone).toBeNull();
+  });
+
+  it("suit la demande de la réception à la résolution", async () => {
+    const agent = await actorForPhone(AGENT_PHONE);
+    const farmer = await actorForPhone(FARMER_PHONE);
+    expect(await takeChargeOfRequest(farmer, ids.withFarm)).toEqual({
+      ok: false,
+      code: "FORBIDDEN",
+    });
+    expect(await takeChargeOfRequest(agent, ids.withFarm)).toEqual({ ok: true });
+    expect(await takeChargeOfRequest(agent, ids.withFarm)).toEqual({
+      ok: false,
+      code: "INVALID_STATE",
+    });
+    expect(await resolveRequest(agent, ids.withFarm, "ok")).toEqual({
+      ok: false,
+      code: "NOTE_REQUIRED",
+    });
+    expect(
+      await resolveRequest(agent, ids.withFarm, "Semences livrées au magasin de Djougou lundi"),
+    ).toEqual({ ok: true });
+    // Résolue directement, sans étape « en cours ».
+    expect(await resolveRequest(agent, ids.withoutFarm, "Semez dès les premières pluies")).toEqual({
+      ok: true,
+    });
+
+    const [resolved] = (await listAssistanceForActor(farmer)).filter((r) => r.id === ids.withFarm);
+    expect(resolved).toMatchObject({
+      status: "RESOLVED",
+      resolutionNote: "Semences livrées au magasin de Djougou lundi",
+    });
+    expect(resolved?.takenAt).not.toBeNull();
+    expect(resolved?.handledByName).toBeTruthy();
+  });
+
+  it("ne donne au ministère que des agrégats masqués sous 5 demandes", async () => {
+    const ministryUser = await prisma.user.findUniqueOrThrow({
+      where: { email: "ministere@bais.demo" },
+    });
+    const ministry = await loadActor(ministryUser.id);
+    expect(await listAssistanceForActor(ministry)).toEqual([]);
+
+    const stats = await assistanceStats(ministry);
+    const djougou = stats.communes.find((c) => c.communeCode === "BJ-DON-003");
+    const count = await prisma.assistanceRequest.count({
+      where: { commune: { code: "BJ-DON-003" } },
+    });
+    if (count < 5) {
+      expect(djougou).toMatchObject({ masked: true, total: null, medianHoursToTake: null });
+    } else {
+      expect(djougou?.masked).toBe(false);
+    }
+    expect(stats.total.requests).toBeGreaterThanOrEqual(2);
+  });
+});

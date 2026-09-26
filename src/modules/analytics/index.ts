@@ -53,4 +53,4 @@ export {
   type AnalyticsRefreshResult,
   type RefreshReason,
 } from "./refresh";
-export { canFilterByStatus } from "./scope";
+export { analyticsScope, canFilterByStatus, type AnalyticsScope } from "./scope";

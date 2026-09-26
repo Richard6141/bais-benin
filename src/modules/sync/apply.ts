@@ -157,7 +157,7 @@ export function createSyncApplier(deps: SyncApplierDeps) {
             return fromStored(command.id, concurrent.result);
           }
         }
-        const target = await handler.target(command as never, tx);
+        const target = await handler.target(command as never, tx, context.actor);
         if (!target) {
           return {
             id: command.id,

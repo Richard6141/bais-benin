@@ -105,3 +105,47 @@ existant (ADR-0011), avec sa diffusion (producteurs de la commune, agents, relai
   pas, la troisième lève l'alerte, pas de doublon, simulation) ; tests unitaires des règles par
   défaut et de l'éditeur de seuils.
 
+## 9. Solliciter l'État (demandes d'assistance)
+
+Le producteur adresse une demande à l'État : conseil, intrants, litige, sinistre ou autre, pour
+une de ses exploitations ou, s'il n'en a pas encore, pour sa commune. La demande arrive aux agents
+de cette commune, qui la prennent en charge puis la résolvent ; le producteur suit chaque étape.
+
+- **Parcours** : `/agriculteur/solliciter` (objet, exploitation ou commune, quelques mots) et
+  `/agriculteur/demandes` (reçue, prise en charge par qui et quand, résolue avec la réponse de
+  l'agent) ; `/agent/demandes` (à traiter, en cours, toutes), avec le contact du producteur,
+  « Prendre en charge » et « Marquer résolue » (réponse obligatoire, que le producteur lira) ;
+  `/pilotage/demandes` pour le ministère. Une demande simple peut être résolue sans passer par
+  « en cours ».
+- **Hors ligne** : commande `assistance.request` dans la file de l'appareil, comme un
+  signalement. L'heure de la demande est celle de sa réception par le serveur : les délais ne
+  peuvent pas être antidatés par l'appareil.
+- **Exception à ADR-0014** (validée par le chef d'équipe) : les agents lisent et traitent les
+  demandes de toute leur commune (`assistance.read` et `assistance.handle` en portée `SCOPE`), et
+  pas seulement celles des exploitations qu'ils ont enregistrées. Raison : un producteur inscrit
+  par lui-même n'a pas d'agent enregistreur, et sa demande doit arriver à quelqu'un. L'exception
+  est limitée à ce qui sert à traiter la demande : objet, message, commune, nom et numéro du
+  demandeur. L'exploitation n'est nommée que si l'agent peut déjà la lire (il l'a enregistrée) ;
+  la fiche d'une exploitation qu'il n'a pas enregistrée reste inaccessible (ADR-0014 inchangée).
+- **Ministère** : aucune lecture des demandes elles-mêmes. Il voit, par commune et sur 90 jours,
+  le nombre de demandes par statut et les délais médians de prise en charge et de résolution
+  (`analytics.read`), une commune de moins de 5 demandes étant masquée (k = 5, masquage
+  complémentaire quand le total est affiché).
+- **Droits** :
+
+| Action | ADMIN_STATE | AGENT_AGRICULTURE | FARMER | COOPERATIVE | BUYER |
+|---|---|---|---|---|---|
+| `assistance.request` | NONE | NONE | SELF | NONE | NONE |
+| `assistance.read` | NONE | SCOPE | SELF | NONE | NONE |
+| `assistance.handle` | NONE | SCOPE | NONE | NONE | NONE |
+
+- **Journal** : `assistance.requested`, `assistance.taken`, `assistance.resolved` dans
+  `audit_log` ; événement `ASSISTANCE_REQUESTED` dans le fil de l'exploitation quand la demande en
+  vise une.
+- **Fichiers** : migration `20260926030000_assistance_requests`, `src/modules/assistance/`,
+  `src/database/sql/assistance.sql.ts`, `src/modules/sync/handlers/assistance-request.ts`,
+  `src/features/assistance/`, `tests/integration/assistance-requests.test.ts`.
+- **Limite** : le producteur n'est pas encore prévenu par WhatsApp quand sa demande est prise en
+  charge ou résolue ; il le voit dans son espace. L'envoi passera par le canal de messagerie et le
+  consentement déjà recueilli pour les alertes.
+

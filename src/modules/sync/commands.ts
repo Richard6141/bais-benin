@@ -146,6 +146,31 @@ export const fieldReportCreatePayload = z.object({
     .optional(),
 });
 
+// Demande d'assistance « Solliciter l'État » (phase 0) : routée vers les agents de la commune de
+// l'exploitation, ou de la commune indiquée quand le producteur n'a pas encore d'exploitation.
+export const ASSISTANCE_CATEGORIES = ["ADVICE", "INPUT", "DISPUTE", "DISASTER", "OTHER"] as const;
+
+export const assistanceRequestPayload = z
+  .object({
+    id: uuid,
+    category: z.enum(ASSISTANCE_CATEGORIES),
+    description: z
+      .string()
+      .trim()
+      .min(5, "Décrivez votre demande en quelques mots")
+      .max(1000, "1 000 caractères au plus"),
+    farmId: uuid.optional(),
+    communeCode: z
+      .string()
+      .regex(/^BJ-[A-Z]{3}-\d{3}$/)
+      .optional(),
+    requestedAt: isoDate,
+  })
+  .refine((payload) => payload.farmId !== undefined || payload.communeCode !== undefined, {
+    message: "Indiquez l'exploitation ou la commune",
+    path: ["communeCode"],
+  });
+
 export const syncPayloadSchemas = {
   "farmer.create": farmerCreatePayload,
   "farm.create": farmCreatePayload,
@@ -156,6 +181,7 @@ export const syncPayloadSchemas = {
   "verification.record": verificationRecordPayload,
   "alert.relay": alertRelayPayload,
   "fieldReport.create": fieldReportCreatePayload,
+  "assistance.request": assistanceRequestPayload,
 } as const;
 
 export type SyncCommandType = keyof typeof syncPayloadSchemas;

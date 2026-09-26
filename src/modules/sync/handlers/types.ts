@@ -52,7 +52,8 @@ export type AuditActionOfRegistry =
   | "registry.harvest.declared"
   | "registry.farm.verified"
   | "alert.relayed"
-  | "report.created";
+  | "report.created"
+  | "assistance.requested";
 
 /** Cible d'une commande : l'action à autoriser et la ressource sur laquelle l'évaluer. */
 export interface CommandTarget {
@@ -67,8 +68,12 @@ export interface CommandTarget {
 }
 
 export interface SyncHandler<T extends SyncCommandType> {
-  /** Résout la cible d'autorisation ; null si l'entité visée n'existe pas (REJECTED NOT_FOUND). */
-  target(command: SyncCommand<T>, db: Db): Promise<CommandTarget | null>;
+  /**
+   * Résout la cible d'autorisation ; null si l'entité visée n'existe pas (REJECTED NOT_FOUND).
+   * L'acteur sert aux commandes qui portent sur son propre compte (demande d'assistance sans
+   * exploitation) ; les autres ne s'en servent pas.
+   */
+  target(command: SyncCommand<T>, db: Db, actor: Actor): Promise<CommandTarget | null>;
   apply(command: SyncCommand<T>, db: Db, context: SyncContext): Promise<HandlerOutcome>;
 }
 

@@ -4,6 +4,7 @@ import {
   BarChart3,
   BellRing,
   Bug,
+  LifeBuoy,
   ClipboardCheck,
   Home,
   LandPlot,
@@ -32,6 +33,8 @@ const NAV = [
   { href: "/agent/alertes", label: "Alertes", icon: BellRing },
   // Signalements des producteurs (phase 0) : ouverts aussi depuis l'accueil sur téléphone.
   { href: "/agent/signalements", label: "Signalements", icon: Bug, desktopOnly: true },
+  // Demandes « Solliciter l'État » des producteurs de la commune (phase 0).
+  { href: "/agent/demandes", label: "Demandes", icon: LifeBuoy, desktopOnly: true },
   // Barre basse pleine (cinq entrées) : sur téléphone, le tableau de bord et l'assistant
   // s'ouvrent depuis l'accueil.
   { href: "/agent/tableau-de-bord", label: "Tableau de bord", icon: BarChart3, desktopOnly: true },

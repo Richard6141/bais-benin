@@ -53,6 +53,11 @@ export const ACTIONS = [
   // Palmarès nominatif des producteurs (ADR-0018) : exception volontaire au masquage des petits
   // effectifs, réservée au ministère.
   "ranking.read",
+  // Demandes d'assistance « Solliciter l'État » (phase 0) : demander, lire, prendre en charge et
+  // résoudre. Le ministère n'en voit que les agrégats par commune (analytics.read).
+  "assistance.request",
+  "assistance.read",
+  "assistance.handle",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -91,6 +96,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.read": "ALL",
     "report.review": "ALL",
     "ranking.read": "ALL",
+    // Demandes d'assistance : le ministère n'en lit que les volumes et délais par commune.
+    "assistance.request": "NONE",
+    "assistance.read": "NONE",
+    "assistance.handle": "NONE",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -129,6 +138,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.read": "OWN",
     "report.review": "OWN",
     "ranking.read": "NONE",
+    // Demandes routées vers les agents de la commune du producteur : portée territoriale, pas OWN.
+    "assistance.request": "NONE",
+    "assistance.read": "SCOPE",
+    "assistance.handle": "SCOPE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -160,6 +173,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.read": "SELF",
     "report.review": "NONE",
     "ranking.read": "NONE",
+    "assistance.request": "SELF",
+    "assistance.read": "SELF",
+    "assistance.handle": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -191,6 +207,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.read": "NONE",
     "report.review": "NONE",
     "ranking.read": "NONE",
+    "assistance.request": "NONE",
+    "assistance.read": "NONE",
+    "assistance.handle": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -222,5 +241,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "report.read": "NONE",
     "report.review": "NONE",
     "ranking.read": "NONE",
+    "assistance.request": "NONE",
+    "assistance.read": "NONE",
+    "assistance.handle": "NONE",
   },
 };

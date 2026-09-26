@@ -304,6 +304,7 @@ model Commune {
   assistantConversations AssistantConversation[]
   assistantAgentRequests AssistantAgentRequest[]
   fieldReports           FieldReport[]
+  assistanceRequests     AssistanceRequest[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -413,6 +414,9 @@ model User {
 
   fieldReports         FieldReport[] @relation("fieldReportAuthor")
   reviewedFieldReports FieldReport[] @relation("fieldReportReviewer")
+
+  assistanceRequests        AssistanceRequest[] @relation("assistanceRequester")
+  handledAssistanceRequests AssistanceRequest[] @relation("assistanceHandler")
 
   @@map("user")
 }
@@ -610,6 +614,7 @@ model Farm {
 
   alertRecipients AlertRecipient[]
   fieldReports    FieldReport[]
+  assistance      AssistanceRequest[]
 
   assistantConversations AssistantConversation[]
 
@@ -1325,4 +1330,50 @@ model SatelliteUsage {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("satellite_usage")
+}
+
+// ---------------------------------------------------------------------------
+// Demandes d'assistance « Solliciter l'État » (phase 0, docs/modules/signalements.md)
+// ---------------------------------------------------------------------------
+
+enum AssistanceCategory {
+  ADVICE
+  INPUT
+  DISPUTE
+  DISASTER
+  OTHER
+}
+
+enum AssistanceStatus {
+  RECEIVED
+  IN_PROGRESS
+  RESOLVED
+}
+
+// Demande d'un producteur à l'État (conseil, intrant, litige, sinistre), routée vers les agents de
+// sa commune. Suivie des deux côtés : reçue, prise en charge par un agent, résolue. Le ministère
+// n'en voit que les volumes et les délais par commune, avec le masquage des petits effectifs.
+// L'identifiant vient de l'appareil (saisie hors ligne).
+model AssistanceRequest {
+  id             String             @id @db.Uuid
+  requesterId    String             @map("requester_id") @db.Uuid
+  requester      User               @relation("assistanceRequester", fields: [requesterId], references: [id])
+  farmId         String?            @map("farm_id") @db.Uuid
+  farm           Farm?              @relation(fields: [farmId], references: [id])
+  communeId      String             @map("commune_id") @db.Uuid
+  commune        Commune            @relation(fields: [communeId], references: [id])
+  category       AssistanceCategory
+  description    String
+  status         AssistanceStatus   @default(RECEIVED)
+  handledById    String?            @map("handled_by_id") @db.Uuid
+  handledBy      User?              @relation("assistanceHandler", fields: [handledById], references: [id])
+  takenAt        DateTime?          @map("taken_at")
+  resolvedAt     DateTime?          @map("resolved_at")
+  resolutionNote String?            @map("resolution_note")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  @@index([communeId, status, createdAt])
+  @@index([requesterId, createdAt])
+  @@map("assistance_request")
 }
