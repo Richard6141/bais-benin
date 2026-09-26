@@ -19,6 +19,7 @@ import {
 } from "./map-config";
 import { MapFiltersBar, type FilterOptions } from "./map-filters";
 import { MapLegend, SkyLegend } from "./map-legend";
+import { MapPanelDrawer } from "./map-panel-drawer";
 import { MapSidePanel } from "./map-side-panel";
 import { FireControl, FireLegend } from "./fire-control";
 import type { FireWindowParam } from "./fire-layer";
@@ -194,8 +195,10 @@ export function AgriMap({
           onShowFarmsChange={setShowFarms}
         />
       </div>
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="relative min-h-[60vh] lg:min-h-0">
+      {/* Rangée de hauteur bornée : la carte la remplit et le panneau défile seul. Sur téléphone,
+          la carte laisse sous elle la place du tiroir replié. */}
+      <div className="relative grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="relative mb-[8.5rem] min-h-0 lg:mb-0">
           <MapCanvas
             statsByCode={stats.byCode}
             metric={metric}
@@ -273,10 +276,7 @@ export function AgriMap({
             </div>
           ) : null}
         </div>
-        <aside
-          className="border-t bg-background p-4 lg:border-t-0 lg:border-l"
-          aria-label="Lecture de la carte"
-        >
+        <MapPanelDrawer label="Lecture de la carte" expandKey={parcelId ?? selectedCode}>
           {parcelId ? (
             <ParcelPanel
               parcelId={parcelId}
@@ -297,7 +297,7 @@ export function AgriMap({
               }}
             />
           )}
-        </aside>
+        </MapPanelDrawer>
       </div>
     </div>
   );

@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { MinistryLockup } from "@/components/brand/ministry-lockup";
 
+const PLATFORM_LINKS = [
+  { href: "/carte", label: "Carte agricole" },
+  { href: "/palmares", label: "Palmarès des producteurs" },
+  { href: "/#qui-etes-vous", label: "Qui êtes-vous ?" },
+  { href: "/connexion", label: "Se connecter" },
+] as const;
+
 // Pied de page institutionnel des portails de l'administration : identité du ministère, nature
 // de la plateforme, liens utiles, puis une barre de mentions. Pas de logo propre à la plateforme.
 export function SiteFooter() {
@@ -18,30 +25,16 @@ export function SiteFooter() {
         <div>
           <p className="text-xs font-bold tracking-wide uppercase">Plateforme</p>
           <ul className="mt-3 flex flex-col gap-2 text-white/80">
-            <li>
-              <Link
-                href="/#espaces"
-                className="underline-offset-4 hover:text-white hover:underline"
-              >
-                Les six espaces
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/connexion"
-                className="underline-offset-4 hover:text-white hover:underline"
-              >
-                Se connecter
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/design-system"
-                className="underline-offset-4 hover:text-white hover:underline"
-              >
-                Design system
-              </Link>
-            </li>
+            {PLATFORM_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="underline-offset-4 hover:text-white hover:underline"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>

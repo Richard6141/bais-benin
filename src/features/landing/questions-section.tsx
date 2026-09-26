@@ -1,34 +1,57 @@
-// Les questions que l'État pose aujourd'hui sans réponse rapide (docs/01 §6), et ce que
-// la plateforme mobilise pour y répondre. Pas de numérotation : ce n'est pas une séquence.
-const questions = [
+import { ChevronRight } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
+
+interface Question {
+  question: string;
+  answer: string;
+  href: Route;
+  link: string;
+}
+
+// Les questions que l'État pose aujourd'hui sans réponse rapide (docs/01 §6), chacune avec l'écran
+// qui y répond. Pas de numérotation : ce n'est pas une séquence. Seule la dernière réponse est
+// réservée au ministère, et le lien le dit.
+const questions: Question[] = [
   {
-    question: "Combien de producteurs cultivent le maïs dans une commune donnée ?",
+    question: "Combien de producteurs cultivent le maïs dans chaque commune ?",
     answer: "Le registre relie chaque exploitation à sa commune et à ses cultures par campagne.",
+    href: "/carte?cropCode=MAIZE" as Route,
+    link: "Voir le maïs sur la carte",
   },
   {
-    question: "Quelle superficie est réellement cultivée ?",
+    question: "Quelle superficie est cultivée, et où ?",
     answer:
       "Les parcelles sont relevées au GPS par les agents ; l'écart avec la surface déclarée est suivi.",
+    href: "/carte?metric=declaredAreaHa" as Route,
+    link: "Voir les surfaces par commune",
   },
   {
-    question: "Quelles zones sont exposées à un déficit de pluie ?",
+    question: "Où brûle-t-il en ce moment ?",
     answer:
-      "La météo par commune alimente un moteur de règles qui déclenche les alertes hydriques.",
+      "Les feux vus par les satellites de la NASA arrivent toutes les 30 minutes, avec leur puissance.",
+    href: "/carte?feux=24h" as Route,
+    link: "Voir les feux des dernières 24 heures",
   },
   {
-    question: "Quels producteurs ont besoin d'un accompagnement ?",
-    answer:
-      "Alertes actives, historique de rendement et statut de vérification désignent les priorités.",
+    question: "Comment se porte la végétation ce mois-ci ?",
+    answer: "Les images Sentinel-2 montrent la vigueur des cultures, mois par mois, sans nuages.",
+    href: "/carte?ciel=ndvi" as Route,
+    link: "Voir la végétation",
   },
   {
-    question: "Où trouver 40 tonnes de riz paddy vérifié ?",
+    question: "Qui sont les meilleurs producteurs de la campagne ?",
     answer:
-      "Le marché publie les récoltes des exploitations vérifiées, par produit, zone et volume.",
+      "Le ministère publie un palmarès établi sur les récoltes vérifiées, avec l'accord des lauréats.",
+    href: "/palmares",
+    link: "Voir le palmarès",
   },
   {
     question: "Où intervenir en premier ?",
     answer:
-      "Le centre de pilotage classe les zones par gravité et par nombre d'exploitations touchées.",
+      "Alertes, demandes d'aide et vérifications en attente désignent les communes prioritaires.",
+    href: "/connexion?profil=ministere" as Route,
+    link: "Réservé au ministère : se connecter",
   },
 ];
 
@@ -50,7 +73,16 @@ export function QuestionsSection() {
               className="grid gap-2 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-6"
             >
               <dt className="font-semibold text-heading">{item.question}</dt>
-              <dd className="text-muted-foreground">{item.answer}</dd>
+              <dd className="flex flex-col items-start gap-1.5">
+                <span className="text-muted-foreground">{item.answer}</span>
+                <Link
+                  href={item.href}
+                  className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-0"
+                >
+                  {item.link}
+                  <ChevronRight className="size-4" aria-hidden />
+                </Link>
+              </dd>
             </div>
           ))}
         </dl>

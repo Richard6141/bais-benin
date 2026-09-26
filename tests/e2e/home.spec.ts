@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("page d'accueil", () => {
-  test("affiche le nom de la plateforme et les six espaces", async ({ page }) => {
+  test("affiche le nom de la plateforme et les trois profils", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Bénin Agricultural Intelligence System/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
@@ -12,8 +12,10 @@ test.describe("page d'accueil", () => {
       page.locator("footer").getByText("République du Bénin", { exact: true }),
     ).toBeVisible();
 
-    const spaces = page.locator("#espaces li");
-    await expect(spaces).toHaveCount(6);
+    const profiles = page.locator("#qui-etes-vous li");
+    await expect(profiles).toHaveCount(3);
+    // La vitrine des composants n'apparaît plus dans la navigation publique.
+    await expect(page.getByRole("link", { name: "Design system" })).toHaveCount(0);
   });
 
   test("n'a pas de défilement horizontal sur mobile", async ({ page }, testInfo) => {

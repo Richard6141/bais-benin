@@ -103,7 +103,7 @@ describe("légende de la vue du ciel", () => {
     expect(screen.queryByText(/moins nuageuse du mois/)).not.toBeInTheDocument();
   });
 
-  it("dit que l'image détaillée est réservée aux agents et au ministère", () => {
+  it("ne parle pas au public d'un détail qu'il ne peut pas voir", () => {
     render(
       <SkyLegend
         view={{ layer: "couleur-naturelle", period: "2026-05" }}
@@ -112,8 +112,7 @@ describe("légende de la vue du ciel", () => {
       />,
     );
     expect(screen.getByText("Image en couleur naturelle")).toBeInTheDocument();
-    expect(
-      screen.getByText("Sentinel-2, mai 2026, détail réservé aux agents et au ministère"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Sentinel-2, mai 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/réservé/)).not.toBeInTheDocument();
   });
 });

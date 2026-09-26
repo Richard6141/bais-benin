@@ -107,6 +107,15 @@
     color: var(--heading);
   }
 
+  /* Pages plein écran (carte agricole) : le corps prend exactement la hauteur visible de la fenêtre
+     et ne défile plus ; l'en-tête et le bandeau hors connexion gardent leur hauteur, la zone
+     principale (flex-1, min-h-0) prend le reste. Le panneau de la carte défile seul. */
+  body:has(main[data-fill-viewport]) {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   /* Les chiffres s'alignent dans les tableaux et les tuiles d'indicateurs. */
   .tabular {
     font-variant-numeric: tabular-nums;

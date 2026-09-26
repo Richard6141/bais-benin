@@ -37,7 +37,9 @@ export default async function MapPage() {
   return (
     <>
       <SiteHeader />
-      <main className="flex h-[calc(100svh-4rem)] flex-col">
+      {/* Plein écran exact, quels que soient l'en-tête et le bandeau hors connexion : la page
+          prend la hauteur de la fenêtre (globals.css, data-fill-viewport) et la carte le reste. */}
+      <main data-fill-viewport className="flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
           <AgriMap
             options={{

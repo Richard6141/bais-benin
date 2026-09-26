@@ -159,7 +159,7 @@ export function SkyLegend({ view, periodLabel, detail }: SkyLegendProps) {
       ) : null}
       <p className="mt-2 text-muted-foreground">
         Sentinel-2, {periodLabel}
-        {detail ? ", détail en zoomant" : ", détail réservé aux agents et au ministère"}
+        {detail ? ", détail en zoomant" : null}
       </p>
       <p className="mt-1 text-muted-foreground">{copernicusAttribution(view.period)}</p>
     </div>

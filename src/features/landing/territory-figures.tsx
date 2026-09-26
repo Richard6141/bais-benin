@@ -1,17 +1,17 @@
 import { SourceCaption } from "@/components/data-display/source-caption";
+import { listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
 
-// Le territoire couvert, lu dans la base : les départements et communes sont ceux du
-// référentiel chargé, pas des constantes d'affichage.
+// Le territoire couvert, lu dans la base : départements, communes et cultures sont ceux des
+// référentiels chargés, jamais des constantes d'affichage.
 export async function TerritoryFigures() {
-  const departements = await listDepartements();
+  const [departements, crops] = await Promise.all([listDepartements(), listCrops()]);
   const communeCount = departements.reduce((sum, d) => sum + d.communeCount, 0);
 
   const figures = [
     { label: "Départements", value: String(departements.length) },
     { label: "Communes", value: String(communeCount) },
-    { label: "Arrondissements", value: "546" },
-    { label: "Cultures suivies", value: "21" },
+    { label: "Cultures suivies", value: String(crops.length) },
   ];
 
   return (
@@ -20,10 +20,12 @@ export async function TerritoryFigures() {
         <h2 id="territoire" className="text-xl sm:text-2xl">
           Le territoire couvert
         </h2>
-        <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <dl className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
           {figures.map((figure) => (
             <div key={figure.label} className="flex flex-col gap-1 rounded-lg border bg-card p-4">
-              <dd className="tabular order-1 text-3xl font-bold text-heading">{figure.value}</dd>
+              <dd className="tabular order-1 text-2xl font-bold text-heading sm:text-3xl">
+                {figure.value}
+              </dd>
               <dt className="order-2 text-sm text-muted-foreground">{figure.label}</dt>
             </div>
           ))}
