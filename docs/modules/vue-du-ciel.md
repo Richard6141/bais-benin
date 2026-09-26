@@ -151,9 +151,28 @@ La marche GPS reste la référence pour les petites parcelles.
 
 Tant que le pilote n'a pas eu lieu, la délimitation assistée sert de point de départ, que l'agent corrige ; elle ne remplace pas la marche sur les parcelles de moins d'un hectare.
 
+## Carte des cultures et surfaces par satellite (ADR-0021, ADR-0022)
+
+L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, sans envoyer d'agent. Les agents ne font plus que vérifier là où l'écart avec le registre est le plus fort.
+
+- **Classification par pixel**, calculée par Copernicus : un passage par mois sur les 12 derniers mois, le moins nuageux. La courbe de végétation de chaque pixel le range dans l'une de ces classes : riz, maïs et cultures annuelles, coton, cultures pérennes, maraîchage, jachère et sol nu, forêt et savane, eau, bâti. Règles et seuils dans `src/services/remote-sensing/crop-classes.ts`.
+- **Carte** : fond « Carte des cultures » sur `/carte` (`?ciel=cultures`). C'est une image d'ensemble du pays, d'environ 400 m par pixel, placée sous les limites et les parcelles, sans tuiles détaillées. Elle coûte environ 115 PU et reste 30 jours en cache.
+- **Surfaces par commune** : `POST /api/v1/satellite/crop-areas?limit=12`, planifiée du 1er au 8 de chaque mois.
+  - Chaque commune reçoit un histogramme des classes par l'API Statistical, en pixels de 120 m.
+  - Chaque lot reprend les communes pas encore calculées ce mois-ci, puis s'arrête net quand la part des statistiques ou le plafond d'unités est atteint.
+  - Coût : environ 11 PU par commune en moyenne, 870 PU par passe nationale. La formule est dans ADR-0022.
+  - Résultats dans la table `crop_area_estimate`.
+- **Ministère** (`/pilotage/cultures`, « Surfaces par satellite ») : surfaces vues par culture et par département face aux surfaces déclarées au registre.
+  - Taux d'enrôlement = surface déclarée rapportée à la surface vue. Il n'est pas calculé sous 50 ha vus.
+  - Classement des communes au plus gros écart en hectares, où envoyer les agents en premier.
+  - Part non classée par commune (nuages persistants).
+  - Toujours affiché avec « Estimation satellite, à confirmer ».
+- **Correspondance registre et classes** : riz et coton ont leur classe. Anacarde, palmier à huile, karité, plantain et ananas vont en cultures pérennes. Tomate, piment, gombo et oignon vont en maraîchage. Toutes les autres cultures du registre vont en cultures annuelles (`cropMapClassOf`).
+- **Limites** : un champ isolé plus petit qu'un pixel n'apparaît pas. Les seuils sont des valeurs de départ, à confronter aux parcelles vérifiées par les agents (matrice de confusion, étape suivante).
+
 ## Démonstration sans compte
 
-Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE. Avec `SATELLITE_PROVIDER=fixture`, les propositions de contours dessinent un champ rectangulaire synthétique de 1 à 4 ha autour du point, pour montrer l'écran sans compte.
+Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATION=0`, jamais en production) calcule des verdicts pour 3 000 parcelles avec l'adaptateur fixture : séries NDVI synthétiques selon le régime des pluies, une parcelle sur huit restée nue. Ces verdicts portent la source `BAIS_SEED` et sont remplacés par une mesure réelle dès que la tâche planifiée tourne avec le compte CDSE. Avec `SATELLITE_PROVIDER=fixture`, les propositions de contours dessinent un champ rectangulaire synthétique de 1 à 4 ha autour du point, pour montrer l'écran sans compte. Le seed écrit aussi des surfaces par satellite de démonstration, déduites des surfaces déclarées avec un taux d'enrôlement propre à chaque commune (entre 25 et 95 %). Une mesure réelle n'est jamais écrasée, et la passe mensuelle réelle remplace ces lignes.
 
 ## Vérifier
 
@@ -161,4 +180,6 @@ Le seed (`src/database/seed/steps/satellite.seed.ts`, sauté avec `SEED_VEGETATI
 pnpm exec vitest run --project unit src/modules/satellite src/services/remote-sensing src/features/satellite src/features/agri-map src/features/registry/parcel-survey
 pnpm exec vitest run --project integration tests/integration/satellite.test.ts tests/integration/vegetation-checks.test.ts tests/integration/field-proposals.test.ts tests/integration/satellite-contour-reliability.test.ts
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/vegetation-checks?limit=20"
+pnpm exec vitest run --project integration tests/integration/crop-areas.test.ts tests/integration/satellite-route.test.ts
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/v1/satellite/crop-areas?limit=2"
 ```
