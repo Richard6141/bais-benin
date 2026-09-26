@@ -34,13 +34,24 @@ Fenêtre de 15 km sur 17 km autour de Djougou (environ 260 km2), lue en 2 min 36
 - surface médiane 0,12 ha, moyenne 0,32 ha, 90e centile 0,44 ha ; 8 % des champs ont 0,5 ha et plus, 3,5 % ont 1 ha et plus ;
 - occupation en base : environ 1,3 Ko par champ, index compris (1 139 champs : 1,4 Mo).
 
-Ces surfaces médianes sont très inférieures à celles des exploitations béninoises (souvent 1 à 3 ha en plusieurs parcelles). Le modèle à 10 m découpe probablement des champs en fragments. Conséquence pour le parcours de l'agent : toucher un champ n'ouvre pas toujours une parcelle entière ; l'agent doit pouvoir fusionner des champs voisins avant de valider (lot 3).
+Ces surfaces médianes sont très inférieures à celles des exploitations béninoises (souvent 1 à 3 ha en plusieurs parcelles). Le modèle à 10 m découpe probablement des champs en fragments. Conséquence pour le parcours de l'agent : toucher un champ n'ouvre pas toujours une parcelle entière ; l'agent doit pouvoir fusionner des champs voisins en un geste, et découper un champ en deux pour des parcelles contiguës de deux producteurs (lot 3).
 
-## Qualité face aux parcelles relevées au GPS
+## Qualité : à mesurer sur une campagne de terrain
 
-Outil livré : `scripts/measure-ftw-quality.ts` (module `measureReferenceQuality`). Pour chaque parcelle mesurée (marche GPS ou dessin) située dans la zone couverte : meilleur recouvrement IoU avec un seul champ, part de la parcelle couverte par l'ensemble des champs, taux de parcelles retrouvées (IoU 0,5 et plus). Surfaces calculées en UTM 31N. Vérifié par un test d'intégration sur des géométries construites (champ de 100 m sur 100 m et parcelle décalée de 20 m : IoU 2/3, couverture 0,8).
+Outil livré : `scripts/measure-ftw-quality.ts` (module `measureReferenceQuality`). Pour chaque parcelle mesurée (marche GPS ou dessin) située dans la zone couverte : meilleur recouvrement IoU avec un seul champ, part de la parcelle couverte par l'ensemble des champs, taux de parcelles retrouvées. Surfaces calculées en UTM 31N. Vérifié par un test d'intégration sur des géométries construites (champ de 100 m sur 100 m et parcelle décalée de 20 m : IoU 2/3, couverture 0,8).
 
-Limite de cette base de développement : ses parcelles sont synthétiques (jeu de démonstration), placées sans lien avec les champs réels ; la mesure y donne 0 sur 4 parcelles et ne dit rien de la qualité réelle. **La mesure réelle reste à faire** sur la base qui contient de vrais relevés GPS. Cibles de réception du plan : plus de 80 % des champs visibles ont un contour à Djougou.
+Aucune base actuelle ne contient de vrais relevés GPS en nombre : les parcelles de démonstration sont synthétiques et placées sans lien avec les champs réels (la mesure y donne 0 sur 4 parcelles et ne dit rien). **La qualité réelle n'est donc pas connue** et se mesure sur une campagne de terrain.
+
+Protocole :
+
+1. **Échantillon** : 50 champs relevés à pied autour de Djougou, tirés pour couvrir trois classes de surface (moins de 0,5 ha, 0,5 à 2 ha, plus de 2 ha), au moins 15 par classe, dans au moins trois villages, en évitant les champs sous arbres et les limites contiguës non marquées.
+2. **Relevé** : marche GPS du tour du champ avec filtre de précision (lot 4), méthode `GPS_WALK`, précision de chaque sommet gardée. Chaque champ relevé deux fois par deux agents pour borner l'erreur du relevé lui-même (écart de surface médian sous 5 %, réception du chantier G).
+3. **Mesure** : `measureReferenceQuality`, seuil de recouvrement 0,5, sur l'année 2025 du contour de référence.
+4. **Indicateurs** : taux de champs retrouvés (IoU 0,5 et plus avec un seul champ) ; IoU médian ; part médiane du champ couverte par l'ensemble des champs de référence ; ces trois chiffres par classe de surface.
+5. **Seuils d'acceptation** : la couche sert au geste « toucher pour enregistrer » si le taux retrouvé atteint 60 % sur les champs de 0,5 ha et plus et si la couverture médiane dépasse 80 % ; sinon la couche reste une aide visuelle et le parcours du lot 3 impose la fusion ou le redessin. Ces seuils sont une proposition à valider avec le ministère.
+6. **Restitution** : le résultat remplace ce paragraphe.
+
+La cible du plan (plus de 80 % des champs visibles ont un contour à Djougou) se vérifie sur le même échantillon.
 
 ## Import national
 
