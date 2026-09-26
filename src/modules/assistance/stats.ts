@@ -1,23 +1,19 @@
 import { readAssistanceStats } from "@/database/sql/assistance.sql";
 import { analyticsScope, maskSmallCells } from "@/modules/analytics";
 import type { Actor } from "@/modules/authorization";
+import {
+  maskWithinCommune,
+  type AssistanceCommuneStats,
+  type AssistanceStatField,
+} from "./stats-masking";
 
 // Volumes et délais des demandes d'assistance par commune, pour le ministère (et l'agent sur son
 // périmètre) : droit analytics.read, jamais la lecture des demandes elles-mêmes. Une commune qui
 // compte moins de 5 demandes est masquée, comme toute case du tableau de bord (k = 5), avec le
-// masquage complémentaire quand le total national est affiché.
+// masquage complémentaire quand le total national est affiché. Dans une commune affichée, les
+// cases par statut et les délais suivent la même règle (stats-masking.ts).
 
-export interface AssistanceCommuneStats {
-  communeCode: string;
-  communeName: string;
-  total: number | null;
-  received: number | null;
-  inProgress: number | null;
-  resolved: number | null;
-  medianHoursToTake: number | null;
-  medianHoursToResolve: number | null;
-  masked: boolean;
-}
+export type { AssistanceCommuneStats, AssistanceStatField };
 
 export interface AssistanceStats {
   days: number;
@@ -41,6 +37,7 @@ export async function assistanceStats(actor: Actor, days = 90): Promise<Assistan
       resolved: r.resolved,
       medianHoursToTake: round(r.median_hours_to_take),
       medianHoursToResolve: round(r.median_hours_to_resolve),
+      maskedFields: [] as AssistanceStatField[],
     })),
     {
       count: (r) => r.total,
@@ -54,7 +51,7 @@ export async function assistanceStats(actor: Actor, days = 90): Promise<Assistan
         "medianHoursToResolve",
       ],
     },
-  );
+  ).map(maskWithinCommune);
   const requests = rows.reduce((sum, r) => sum + r.total, 0);
   const resolved = rows.reduce((sum, r) => sum + r.resolved, 0);
   return { days, communes, total: { requests, resolved } };

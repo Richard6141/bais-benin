@@ -11,6 +11,8 @@ import {
 import type { AssistanceStats } from "@/modules/assistance";
 
 const integer = new Intl.NumberFormat("fr-FR");
+/** Case d'une commune affichée masquée par le secret statistique (effectif ou complément). */
+const MASKED_CELL = "masquée";
 const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
 /** Délai lisible : en heures sous deux jours, en jours au-delà. */
@@ -32,7 +34,10 @@ export function AssistanceStatsTable({ stats }: { stats: AssistanceStats }) {
       <TableCaption>
         {integer.format(stats.total.requests)} demandes reçues ces {stats.days} derniers jours, dont{" "}
         {integer.format(stats.total.resolved)} résolues. Délais médians comptés depuis la réception
-        de la demande. Une commune de moins de 5 demandes est masquée (secret statistique).
+        de la demande. Secret statistique : une commune de moins de 5 demandes est masquée ; dans
+        une commune affichée, une case de moins de 5 l&apos;est aussi, avec une autre case quand le
+        total permettrait de la retrouver, et un délai médian n&apos;est donné que sur 5 demandes au
+        moins.
       </TableCaption>
       <TableHeader>
         <TableRow>
@@ -58,21 +63,24 @@ export function AssistanceStatsTable({ stats }: { stats: AssistanceStats }) {
                 <TableCell className="tabular text-right">
                   {integer.format(row.total ?? 0)}
                 </TableCell>
-                <TableCell className="tabular text-right">
-                  {integer.format(row.received ?? 0)}
-                </TableCell>
-                <TableCell className="tabular text-right">
-                  {integer.format(row.inProgress ?? 0)}
-                </TableCell>
-                <TableCell className="tabular text-right">
-                  {integer.format(row.resolved ?? 0)}
-                </TableCell>
-                <TableCell className="tabular text-right">
-                  {formatDelay(row.medianHoursToTake)}
-                </TableCell>
-                <TableCell className="tabular text-right">
-                  {formatDelay(row.medianHoursToResolve)}
-                </TableCell>
+                {(["received", "inProgress", "resolved"] as const).map((field) => (
+                  <TableCell key={field} className="tabular text-right">
+                    {row.maskedFields.includes(field) ? (
+                      <span className="text-muted-foreground">{MASKED_CELL}</span>
+                    ) : (
+                      integer.format(row[field] ?? 0)
+                    )}
+                  </TableCell>
+                ))}
+                {(["medianHoursToTake", "medianHoursToResolve"] as const).map((field) => (
+                  <TableCell key={field} className="tabular text-right">
+                    {row.maskedFields.includes(field) ? (
+                      <span className="text-muted-foreground">{MASKED_CELL}</span>
+                    ) : (
+                      formatDelay(row[field])
+                    )}
+                  </TableCell>
+                ))}
               </>
             )}
           </TableRow>
