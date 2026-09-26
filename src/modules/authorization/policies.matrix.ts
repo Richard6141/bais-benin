@@ -67,6 +67,10 @@ export const ACTIONS = [
   "survey.observe",
   // Statistiques agricoles officielles (ADR-0034) : importer les chiffres de la DSA ou de FAOSTAT.
   "stats.import",
+  // Avis des testeurs (chantier J) : chacun donne le sien ; le ministère les lit, les classe et
+  // les exporte.
+  "feedback.create",
+  "feedback.manage",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -114,6 +118,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "consent.manage": "NONE",
     "survey.observe": "NONE",
     "stats.import": "ALL",
+    "feedback.create": "SELF",
+    "feedback.manage": "ALL",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -160,6 +166,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "consent.manage": "NONE",
     "survey.observe": "SCOPE",
     "stats.import": "NONE",
+    "feedback.create": "SELF",
+    "feedback.manage": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -199,6 +207,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "consent.manage": "SELF",
     "survey.observe": "NONE",
     "stats.import": "NONE",
+    "feedback.create": "SELF",
+    "feedback.manage": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -237,6 +247,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "consent.manage": "NONE",
     "survey.observe": "NONE",
     "stats.import": "NONE",
+    "feedback.create": "SELF",
+    "feedback.manage": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -275,5 +287,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "consent.manage": "NONE",
     "survey.observe": "NONE",
     "stats.import": "NONE",
+    "feedback.create": "SELF",
+    "feedback.manage": "NONE",
   },
 };

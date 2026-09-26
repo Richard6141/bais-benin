@@ -60,6 +60,8 @@ export type AuditAction =
   | "assistance.requested"
   | "survey.point.observed"
   | "stats.official.imported"
+  | "feedback.created"
+  | "feedback.status.changed"
   | "assistance.taken"
   | "assistance.resolved"
   | "rule.created"
