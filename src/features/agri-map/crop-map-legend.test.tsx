@@ -12,6 +12,7 @@ const catalog: ImageryCatalog = {
   attribution: "Contains modified Copernicus Sentinel data",
   defaultPeriod: "2026-05",
   checkedAt: "2026-09-26T08:00:00.000Z",
+  partial: false,
   periods: [
     {
       period: "2026-05",

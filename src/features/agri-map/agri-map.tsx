@@ -118,7 +118,11 @@ export function AgriMap({
     feuxParam === "24h" || feuxParam === "7j" ? feuxParam : null;
   const fires = useFires(fireWindow);
   // Carte des cultures (ADR-0021) : ?ciel=cultures, sans mois (les 12 derniers).
-  const cropMap = skyParams.layer === CROP_MAP_LAYER && readyCatalog?.imageryAvailable === true;
+  // Sans attendre le catalogue des périodes : la carte n'a besoin que de ses quarts en cache, et
+  // la légende dit quand ils ne sont pas encore prêts.
+  const cropMap =
+    skyParams.layer === CROP_MAP_LAYER &&
+    !(catalog.status === "ready" && !catalog.catalog.imageryAvailable);
   const [showFarms, setShowFarms] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
