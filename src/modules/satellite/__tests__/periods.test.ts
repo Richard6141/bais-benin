@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isDetailTileInBenin, overviewSize } from "../tiles";
 import {
+  ROLLING_PERIOD,
   defaultPeriod,
+  isOfferedPeriod,
   isPeriod,
   periodLabel,
   periodRange,
@@ -17,6 +19,7 @@ function period(value: string, clearSceneCount: number): ImageryPeriod {
     period: value,
     label: value,
     current: false,
+    rolling: false,
     clearSceneCount,
     clearest: null,
     lastAcquiredAt: null,
@@ -37,6 +40,18 @@ describe("périodes d'imagerie", () => {
     expect(periods).toHaveLength(12);
     expect(periods[0]).toBe("2026-09");
     expect(periods[11]).toBe("2025-10");
+  });
+
+  it("proposent aussi les 60 derniers jours, jamais comme période par défaut", () => {
+    expect(isOfferedPeriod(ROLLING_PERIOD, NOW)).toBe(true);
+    expect(periodRange(ROLLING_PERIOD, NOW)).toEqual({
+      from: "2026-07-28T08:00:00.000Z",
+      to: NOW.toISOString(),
+    });
+    expect(periodLabel(ROLLING_PERIOD)).toBe("60 derniers jours");
+    expect(
+      defaultPeriod([{ ...period(ROLLING_PERIOD, 400), rolling: true }, period("2026-09", 30)]),
+    ).toBe("2026-09");
   });
 
   it("valident le format et nomment le mois en français", () => {

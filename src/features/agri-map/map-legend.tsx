@@ -4,6 +4,7 @@ import {
   METRICS,
   NDVI_SCALE,
   NO_DATA_COLOR,
+  ROLLING_SKY_PERIOD,
   copernicusAttribution,
   type MetricKey,
   type SkyView,
@@ -138,10 +139,16 @@ export function SkyLegend({ view, periodLabel, detail }: SkyLegendProps) {
         <>
           <p className="font-medium">Image en couleur naturelle</p>
           <p className="mt-1 text-muted-foreground">
-            Scènes les moins nuageuses du mois ; les nuages restants sont visibles.
+            Scènes les moins nuageuses de la période ; les nuages restants sont visibles.
           </p>
         </>
       )}
+      {view.period === ROLLING_SKY_PERIOD ? (
+        <p className="mt-2 text-muted-foreground">
+          Mosaïque des 60 derniers jours : chaque zone prend sa scène la moins nuageuse, pour
+          combler les trous de la saison des pluies.
+        </p>
+      ) : null}
       <p className="mt-2 text-muted-foreground">
         Sentinel-2, {periodLabel}
         {detail ? " · détail en zoomant" : " · connectez-vous pour le détail"}

@@ -4,6 +4,7 @@ import { getRemoteSensingProvider } from "@/services/remote-sensing";
 import {
   BENIN_IMAGERY_BBOX,
   CLEAR_SCENE_MAX_CLOUD,
+  ROLLING_PERIOD,
   defaultPeriod,
   periodRange,
   recentPeriods,
@@ -35,7 +36,8 @@ let refreshing: Promise<ImageryCatalog> | null = null;
 
 async function buildCatalog(now: Date): Promise<ImageryCatalog> {
   const provider = getRemoteSensingProvider();
-  const months = recentPeriods(now);
+  // La fenêtre glissante d'abord, puis les douze mois.
+  const months = [ROLLING_PERIOD, ...recentPeriods(now)];
   const periods: ImageryPeriod[] = new Array(months.length);
   let complete = true;
   async function summarize(index: number) {
