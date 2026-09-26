@@ -27,6 +27,8 @@ import {
   showFireLayer,
   type FireCollection,
 } from "@/features/agri-map/fire-layer";
+import { showLivePulses } from "@/features/live/live-pulse";
+import type { LiveActivityItem } from "@/modules/live";
 import { SEVERITY_COLORS } from "./alert-map-colors";
 import type { Severity } from "./monitoring-logic";
 
@@ -59,14 +61,22 @@ interface AlertMapCanvasProps {
   withFires?: boolean;
   /** Feux actifs au-dessus des communes. */
   fires?: FireCollection | null;
+  /** Faits arrivés en direct : un point pulse à leur position, puis s'efface. */
+  pulses?: readonly LiveActivityItem[];
 }
 
-export function AlertMapCanvas({ levels, withFires = false, fires = null }: AlertMapCanvasProps) {
+export function AlertMapCanvas({
+  levels,
+  withFires = false,
+  fires = null,
+  pulses = [],
+}: AlertMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
   const [supported] = useState(hasWebGL2);
   const [ready, setReady] = useState(false);
+  const shownPulses = useRef(new Set<string>());
   const router = useRouter();
 
   useEffect(() => {
@@ -150,6 +160,12 @@ export function AlertMapCanvas({ levels, withFires = false, fires = null }: Aler
     if (fires) showFireLayer(map, fires);
     else hideFireLayer(map);
   }, [fires, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    showLivePulses(map, pulses, shownPulses.current);
+  }, [pulses, ready]);
 
   if (!supported) return <MapUnavailable />;
 
