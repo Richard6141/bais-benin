@@ -20,7 +20,8 @@ import { FixtureMessagingChannel } from "@/services/messaging/fixture/fixture-ch
 const AGENT_PHONE = "+2290190000001";
 const FARMER_PHONE = "+2290190000002";
 const DEVICE = "test-device-follow-up";
-const AT = "2026-09-25T08:00:00+01:00";
+// Une heure avant l'exécution : une date d'observation de plus de 60 jours est refusée.
+const AT = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 // 10 h 00 à Porto-Novo : hors silence nocturne.
 const DAY = new Date("2026-09-25T09:00:00Z");
 const since = new Date();

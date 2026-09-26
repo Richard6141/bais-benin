@@ -13,7 +13,14 @@ import { authClient } from "@/lib/auth/auth-client";
 // une réponse mise en cache) : en cas d'écart, la page est manifestement une copie périmée d'un
 // autre compte — les caches propres au compte sont vidés et un rechargement forcé la remplace
 // par la vraie page de la session active, avant qu'aucune donnée n'ait pu être lue à l'écran.
-const ACCOUNT_SCOPED_CACHES = ["bais-registry-data", "bais-spaces-pages", "bais-spaces-rsc"];
+// « bais-pages » : copies des pages du ministère et du compte mises en cache avant qu'elles ne
+// passent en NetworkOnly (sw.ts).
+const ACCOUNT_SCOPED_CACHES = [
+  "bais-registry-data",
+  "bais-spaces-pages",
+  "bais-spaces-rsc",
+  "bais-pages",
+];
 
 export function SessionIdentityGuard({ userId }: { userId: string }) {
   useEffect(() => {

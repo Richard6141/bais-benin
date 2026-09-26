@@ -123,7 +123,7 @@ describe("regroupement de signalements (ADR-0015)", () => {
     ],
   });
 
-  it("propose le nombre d'exploitations, le rayon et la durée comme réglages", () => {
+  it("propose le nombre de producteurs, le rayon et la durée comme réglages", () => {
     const fields = listThresholds(outbreak);
     expect(fields.map((f) => [f.path, f.value])).toEqual([
       ["all.0", 3],
@@ -131,7 +131,7 @@ describe("regroupement de signalements (ADR-0015)", () => {
       ["all.0#days", 7],
     ]);
     expect(fields[0]?.label).toBe(
-      "Exploitations ayant signalé des ravageurs à moins de 5 km en 7 jours",
+      "Producteurs ayant signalé des ravageurs à moins de 5 km en 7 jours",
     );
   });
 

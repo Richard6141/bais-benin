@@ -19,7 +19,11 @@ export async function prepareReportPhoto(base64: string): Promise<PreparedPhoto 
   const input = Buffer.from(base64, "base64");
   if (input.length === 0 || input.length > REPORT_PHOTO_MAX_INPUT_BYTES) return null;
   try {
-    const { data, info } = await sharp(input, { limitInputPixels: 40_000_000, failOn: "error" })
+    // JPEG ou WebP seulement, ce que produit l'appareil : jamais de SVG, de TIFF ni de PDF, que
+    // sharp saurait aussi décoder. 25 millions de pixels au plus avant décodage complet.
+    const format = (await sharp(input).metadata()).format;
+    if (format !== "jpeg" && format !== "webp") return null;
+    const { data, info } = await sharp(input, { limitInputPixels: 25_000_000, failOn: "error" })
       .rotate()
       .resize({
         width: REPORT_PHOTO_MAX_EDGE,

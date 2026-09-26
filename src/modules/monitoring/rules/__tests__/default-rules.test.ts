@@ -191,7 +191,7 @@ describe.each(["PEST_OUTBREAK_V1", "CROP_DISEASE_OUTBREAK_V1", "ANIMAL_DISEASE_O
       crops: [],
     });
 
-    it("se déclenche à partir de 3 exploitations, jamais sur 2", () => {
+    it("se déclenche à partir de 3 producteurs, jamais sur 2", () => {
       expect(evaluateRule(rule.definition, noWeather, () => 3).matched).toBe(true);
       expect(evaluateRule(rule.definition, noWeather, () => 2).matched).toBe(false);
       // Sans valeur de regroupement connue, la condition est non évaluable, jamais vraie.
@@ -203,7 +203,7 @@ describe.each(["PEST_OUTBREAK_V1", "CROP_DISEASE_OUTBREAK_V1", "ANIMAL_DISEASE_O
       const short = renderMessage(rule.messageShort, noWeather, context);
       const long = renderMessage(rule.messageFr, noWeather, context);
       expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
-      expect(long).toContain("4 exploitations");
+      expect(long).toContain("4 producteurs");
       for (const message of [short, long]) {
         expect(message).toContain("Akpro-Missérété");
         expect(message).not.toMatch(/[{}]|—|NaN|undefined/);

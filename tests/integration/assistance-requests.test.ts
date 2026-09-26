@@ -22,7 +22,9 @@ const ids = {
   withFarm: "019284a0-0000-7000-8000-0000000f0001",
   withoutFarm: "019284a0-0000-7000-8000-0000000f0002",
   byAgent: "019284a0-0000-7000-8000-0000000f0003",
+  capped: "019284a0-0000-7000-8000-0000000f0004",
 };
+const filler: string[] = [];
 
 function command(id: string, payload: unknown) {
   return {
@@ -49,7 +51,9 @@ describe("demandes d'assistance", () => {
     await prisma.farmerNotification.deleteMany({
       where: { subjectId: { in: Object.values(ids) } },
     });
-    await prisma.assistanceRequest.deleteMany({ where: { id: { in: Object.values(ids) } } });
+    await prisma.assistanceRequest.deleteMany({
+      where: { id: { in: [...Object.values(ids), ...filler] } },
+    });
     await prisma.farmEvent.deleteMany({ where: { kind: "ASSISTANCE_REQUESTED" } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
     await prisma.$disconnect();
@@ -159,5 +163,33 @@ describe("demandes d'assistance", () => {
       expect(djougou?.masked).toBe(false);
     }
     expect(stats.total.requests).toBeGreaterThanOrEqual(2);
+  });
+
+  it("plafonne les demandes d'un compte sur 24 heures", async () => {
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const commune = await prisma.commune.findUniqueOrThrow({ where: { code: "BJ-DON-003" } });
+    const already = await prisma.assistanceRequest.count({
+      where: { requesterId: farmer.userId, createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+    });
+    filler.push(...Array.from({ length: Math.max(0, 10 - already) }, () => crypto.randomUUID()));
+    await prisma.assistanceRequest.createMany({
+      data: filler.map((id) => ({
+        id,
+        requesterId: farmer.userId,
+        communeId: commune.id,
+        category: "OTHER" as const,
+        description: "Demande de remplissage du plafond",
+      })),
+    });
+    const [capped] = await applySyncBatch(farmer, DEVICE, [
+      command(ids.capped, {
+        id: ids.capped,
+        category: "ADVICE",
+        description: "Une demande de trop dans la journée",
+        communeCode: "BJ-DON-003",
+        requestedAt: AT,
+      }),
+    ]);
+    expect(capped).toMatchObject({ outcome: "REJECTED", error: { code: "RATE_LIMITED" } });
   });
 });

@@ -34,15 +34,24 @@ ait été ouverte en ligne (les pages authentifiées ne sont pas mises en cache,
 
 GPS du téléphone si le producteur l'a relevé (point hors du Bénin refusé), sinon centre de la
 parcelle, sinon point de l'exploitation (`location_source` : `GPS`, `PARCEL`, `FARM`, `NONE`).
-Colonne PostGIS `geography(Point, 4326)` avec index GiST, pour la détection de l'étape 2.
+Colonne PostGIS `geography(Point, 4326)` avec index GiST, pour la détection de l'étape 2. Un point
+GPS à plus de 30 km de l'exploitation est ignoré : le signalement est gardé, placé sur la parcelle
+ou l'exploitation, pour qu'on ne puisse pas le déplacer vers une autre zone.
+
+Date d'observation : refusée si elle est à plus d'un jour dans le futur ou de plus de 60 jours ;
+une horloge d'appareil légèrement en avance est ramenée à l'heure du serveur. Au plus
+20 signalements par compte et par 24 heures (`RATE_LIMITED` au-delà).
 
 ## 4. Photo
 
 Réduite sur l'appareil (canevas, 1280 px au plus, WebP ou JPEG, moins de 380 000 caractères en
 base64), ce qui retire déjà les métadonnées. Le serveur la réencode quand même en WebP avec sharp
-(`src/modules/reports/photo.ts`) : orientation appliquée, aucune métadonnée conservée (EXIF,
-position de l'appareil, modèle du téléphone). Stockée à part (`field_report_photo`), servie par
-`/api/v1/reports/[id]/photo` à qui peut lire le signalement, jamais en cache partagé.
+(`src/modules/reports/photo.ts`) : JPEG ou WebP seulement (jamais SVG, TIFF ni PDF), 25 millions
+de pixels au plus, orientation appliquée, aucune métadonnée conservée (EXIF, position de
+l'appareil, modèle du téléphone). Stockée à part (`field_report_photo`), servie par
+`/api/v1/reports/[id]/photo` à qui peut lire le signalement, jamais en cache (`no-store`, même
+dans le navigateur). La photo telle qu'envoyée n'est pas recopiée dans le journal des commandes
+(`sync_command.payload` ne garde que `{ contentType, omitted: true }`).
 
 Le client coupe ses lots de synchronisation avant 1,8 Mo (`sync-client.ts`) pour ne jamais
 dépasser le plafond de 2 Mo du serveur avec plusieurs photos.
@@ -84,15 +93,17 @@ Un signalement isolé n'est jamais une alerte. Plusieurs signalements du même t
 zone, sur une période courte, lèvent une alerte « épidémie probable » par le moteur de règles
 existant (ADR-0011), avec sa diffusion (producteurs de la commune, agents, relais oral).
 
-- **Indicateur `report_cluster`** : pour une commune, le plus grand nombre d'exploitations
-  distinctes ayant signalé ce type de problème à moins du rayon d'un signalement de la commune,
-  sur la durée qui se termine à la date de référence. Les signalements écartés ne comptent pas ;
+- **Indicateur `report_cluster`** : pour une commune, le plus grand nombre de producteurs
+  distincts dont une exploitation a signalé ce type de problème à moins du rayon d'un signalement
+  de la commune, sur la durée qui se termine à la date de référence. Des producteurs et non des
+  exploitations : un producteur déclare lui-même autant d'exploitations qu'il veut, il ne doit
+  jamais lever seul une alerte (correction d'ADR-0015). Les signalements écartés ne comptent pas ;
   `confirmedOnly` restreint aux signalements confirmés. Calcul PostGIS
   (`src/database/sql/report-clusters.sql.ts`).
 - **Règles par défaut** : `PEST_OUTBREAK`, `CROP_DISEASE_OUTBREAK`, `ANIMAL_DISEASE_OUTBREAK`,
-  3 exploitations, 5 km, 7 jours, gravité « avertissement ». Catégories d'alerte `PEST`,
+  3 producteurs, 5 km, 7 jours, gravité « avertissement ». Catégories d'alerte `PEST`,
   `CROP_DISEASE`, `ANIMAL_DISEASE` (migration `20260926020000_alert_disease_categories`).
-- **Réglages** : dans « Règles d'alerte », le ministère ajuste le nombre d'exploitations (2 au
+- **Réglages** : dans « Règles d'alerte », le ministère ajuste le nombre de producteurs (2 au
   moins), le rayon (1 à 50 km) et la durée (1 à 60 jours) ; chaque changement crée une version et
   se simule sur l'historique avant mise en service.
 - **Délai** : évaluation quotidienne, et évaluation immédiate après chaque lot synchronisé qui
@@ -102,9 +113,10 @@ existant (ADR-0011), avec sa diffusion (producteurs de la commune, agents, relai
 - **Météo** : une météo ancienne ne bloque jamais une règle qui ne lit que des signalements.
 - **Provenance** : source `BAIS_SIGNALEMENTS`, fiabilité déclarative (vérifiée par un agent si
   la règle ne compte que des signalements confirmés).
-- **Tests** : `tests/integration/outbreak-detection.test.ts` (une exploitation ou deux ne suffisent
-  pas, la troisième lève l'alerte, pas de doublon, simulation) ; tests unitaires des règles par
-  défaut et de l'éditeur de seuils.
+- **Tests** : `tests/integration/outbreak-detection.test.ts` (une exploitation, trois exploitations
+  d'un même producteur ou deux producteurs ne suffisent pas, le troisième producteur lève
+  l'alerte, pas de doublon, simulation) ; tests unitaires des règles par défaut et de l'éditeur
+  de seuils.
 
 ## 9. Solliciter l'État (demandes d'assistance)
 
@@ -120,7 +132,8 @@ de cette commune, qui la prennent en charge puis la résolvent ; le producteur s
   « en cours ».
 - **Hors ligne** : commande `assistance.request` dans la file de l'appareil, comme un
   signalement. L'heure de la demande est celle de sa réception par le serveur : les délais ne
-  peuvent pas être antidatés par l'appareil.
+  peuvent pas être antidatés par l'appareil. Au plus 10 demandes par compte et par 24 heures,
+  pour qu'un compte ne noie pas les agents d'une commune.
 - **Exception à ADR-0014** (validée par le chef d'équipe) : les agents lisent et traitent les
   demandes de toute leur commune (`assistance.read` et `assistance.handle` en portée `SCOPE`), et
   pas seulement celles des exploitations qu'ils ont enregistrées. Raison : un producteur inscrit

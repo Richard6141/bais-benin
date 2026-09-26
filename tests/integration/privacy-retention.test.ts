@@ -1,16 +1,25 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
-import { purgeAuditLogDetails, purgeSyncCommandPayloads } from "@/modules/privacy";
+import {
+  purgeAuditLogDetails,
+  purgeFarmerNotifications,
+  purgeSyncCommandPayloads,
+} from "@/modules/privacy";
 
 // C4 : purge/anonymisation périodique des données personnelles (APDP). Les lignes créées ici
 // sont retirées en fin de suite, purgées ou non.
 
-const created = { syncCommands: [] as string[], auditLogs: [] as string[] };
+const created = {
+  syncCommands: [] as string[],
+  auditLogs: [] as string[],
+  notifications: [] as string[],
+};
 
 describe("purge des données personnelles (rétention)", () => {
   afterAll(async () => {
     await prisma.syncCommand.deleteMany({ where: { id: { in: created.syncCommands } } });
     await prisma.auditLog.deleteMany({ where: { id: { in: created.auditLogs } } });
+    await prisma.farmerNotification.deleteMany({ where: { id: { in: created.notifications } } });
     await prisma.$disconnect();
   });
 
@@ -82,5 +91,31 @@ describe("purge des données personnelles (rétention)", () => {
 
     const recentAfter = await prisma.auditLog.findUniqueOrThrow({ where: { id: recent.id } });
     expect(recentAfter.details).toMatchObject({ note: "récente entrée" });
+  });
+
+  it("supprime un message de suivi traité depuis plus de 90 jours, jamais un message en attente", async () => {
+    const now = new Date("2026-09-25T00:00:00Z");
+    const old = new Date(now.getTime() - 100 * 86_400_000);
+    const farmer = await prisma.farmer.findFirstOrThrow({ select: { id: true } });
+    const row = (status: "SENT" | "PENDING") => ({
+      id: crypto.randomUUID(),
+      farmerId: farmer.id,
+      kind: "ASSISTANCE_TAKEN" as const,
+      subjectId: crypto.randomUUID(),
+      text: "BAIS : votre demande est prise en charge.",
+      status,
+      createdAt: old,
+      updatedAt: old,
+    });
+    const sent = row("SENT");
+    const pending = row("PENDING");
+    await prisma.farmerNotification.createMany({ data: [sent, pending] });
+    created.notifications.push(sent.id, pending.id);
+
+    expect(await purgeFarmerNotifications(now)).toBeGreaterThanOrEqual(1);
+    expect(await prisma.farmerNotification.findUnique({ where: { id: sent.id } })).toBeNull();
+    expect(
+      await prisma.farmerNotification.findUnique({ where: { id: pending.id } }),
+    ).not.toBeNull();
   });
 });

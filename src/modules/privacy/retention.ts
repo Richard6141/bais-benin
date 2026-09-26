@@ -5,7 +5,8 @@ import { logger } from "@/lib/logger";
 // C4 : purge/anonymisation périodique, exigée par le principe de minimisation de l'APDP
 // (Autorité de protection des données à caractère personnel, loi béninoise n° 2017-20) — les
 // données personnelles ne doivent pas être conservées indéfiniment au seul motif qu'elles sont
-// techniquement pratiques à garder. Deux tables identifiées par la revue de sécurité :
+// techniquement pratiques à garder. Deux tables identifiées par la revue de sécurité de
+// l'étape 9 (farmer_notification s'y ajoute avec la revue des phases 0 à 2, voir plus bas) :
 //
 // - sync_command.payload : la charge utile brute d'une commande hors ligne (nom, téléphone,
 //   position GPS…) reste utile pour l'idempotence et le débogage pendant quelques mois, mais
@@ -23,12 +24,15 @@ import { logger } from "@/lib/logger";
 
 export const SYNC_PAYLOAD_RETENTION_DAYS = 180;
 export const AUDIT_DETAILS_RETENTION_DAYS = 365;
+/** Messages de suivi WhatsApp : leur texte cite la réponse de l'agent au producteur. */
+export const FARMER_NOTIFICATION_RETENTION_DAYS = 90;
 
 const REDACTED_PAYLOAD: Prisma.InputJsonValue = { redacted: true, reason: "retention-expired" };
 
 export interface RetentionSummary {
   syncCommandPayloadsPurged: number;
   auditLogDetailsPurged: number;
+  farmerNotificationsPurged: number;
 }
 
 /** Efface la charge utile des commandes de synchronisation appliquées depuis plus de 180 jours. */
@@ -62,10 +66,27 @@ export async function purgeAuditLogDetails(
   return result.count;
 }
 
+/**
+ * Supprime les messages de suivi au producteur traités depuis plus de 90 jours (envoyés, échoués
+ * ou écartés) : le message a servi, la demande et le signalement gardent leur propre historique.
+ * Un message encore en attente n'est jamais supprimé.
+ */
+export async function purgeFarmerNotifications(
+  now: Date = new Date(),
+  retentionDays: number = FARMER_NOTIFICATION_RETENTION_DAYS,
+): Promise<number> {
+  const threshold = new Date(now.getTime() - retentionDays * 86_400_000);
+  const result = await prisma.farmerNotification.deleteMany({
+    where: { status: { not: "PENDING" }, updatedAt: { lt: threshold } },
+  });
+  return result.count;
+}
+
 export async function runRetentionPurge(now: Date = new Date()): Promise<RetentionSummary> {
   const summary: RetentionSummary = {
     syncCommandPayloadsPurged: await purgeSyncCommandPayloads(now),
     auditLogDetailsPurged: await purgeAuditLogDetails(now),
+    farmerNotificationsPurged: await purgeFarmerNotifications(now),
   };
   logger.info(summary, "Purge des données personnelles au-delà de leur délai de conservation");
   return summary;

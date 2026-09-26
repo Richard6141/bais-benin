@@ -1,6 +1,6 @@
 # ADR-0015 — Détection des foyers par regroupement de signalements, dans le moteur de règles
 
-- Statut : acceptée
+- Statut : acceptée, corrigée le 2026-09-26 (revue de sécurité des phases 0 à 2)
 - Date : 2026-09-26
 - Décideurs : Chef d'équipe (feuille de route validée par l'utilisateur), Architecte
 
@@ -71,3 +71,20 @@ français et un éditeur de seuils généré depuis l'arbre de conditions.
   ou lève, et le ministère voit qui a signalé quoi.
 - Photos des signalements stockées en base (docs/modules/signalements.md) : à déplacer vers un
   stockage objet avant un déploiement à grande échelle.
+
+## Correction du 2026-09-26 : producteurs distincts (revue de sécurité des phases 0 à 2)
+
+La conséquence « un producteur malveillant ne peut pas déclencher seul une alerte » était fausse :
+un producteur déclare lui-même autant d'exploitations qu'il veut, dans n'importe quelle commune,
+et son point GPS pouvait être placé n'importe où au Bénin. Trois exploitations d'un même compte
+levaient une alerte diffusée par WhatsApp à toute une commune.
+
+- `report_cluster` compte désormais les **producteurs distincts** (`farm.farmer_id`), et non plus
+  les exploitations. Un producteur ne peut pas créer d'autre fiche producteur (droit réservé aux
+  agents) ; chaque compte exige un NPI et un numéro vérifié par code WhatsApp.
+- Un point GPS à plus de 30 km de l'exploitation est ignoré : le signalement est gardé, placé sur
+  la parcelle ou l'exploitation. La date d'observation est bornée (pas dans le futur au-delà d'un
+  jour, pas plus de 60 jours en arrière) ; 20 signalements au plus par compte et par 24 heures.
+- Libellés, messages et éditeur de seuils parlent de producteurs.
+- Reste ouvert (docs/recherche/revue-securite-phases-0-2.md, R1) : trois comptes coordonnés dont le
+  NPI n'est pas encore vérifié par l'ANIP suffisent encore à lever une alerte diffusée.
