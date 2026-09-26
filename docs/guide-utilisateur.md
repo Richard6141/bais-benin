@@ -121,6 +121,10 @@ sans changer d'adresse ni de connexion.
 Connexion par le parcours commun (NPI, numéro relié, code WhatsApp) ; le compte ministère est
 ouvert par l'administration, jamais par la connexion elle-même. Une session ministère dure 12 heures au plus.
 
+La navigation du centre de pilotage est groupée en quatre thèmes (Situation, Cultures et
+satellite, Producteurs, Administration) ; chaque thème ouvre ses rubriques en dessous, sans
+défilement caché.
+
 1. **Vue nationale** (`/pilotage`) : six indicateurs avec provenance et fiabilité (producteurs,
    exploitations, superficies déclarée et relevée, part vérifiée, production déclarée), carte des
    communes, production par culture, comparaison de campagnes, alertes en cours, qualité des
