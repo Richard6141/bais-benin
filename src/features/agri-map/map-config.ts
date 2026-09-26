@@ -95,12 +95,19 @@ export function copernicusAttribution(period: string, now = new Date()): string 
   return `Contains modified Copernicus Sentinel data ${year}`;
 }
 
-/** Opacité des communes : pleine sur la carte, nulle sur l'image (survol et clic restent actifs). */
+/**
+ * Opacité des communes : pleine sur la carte, nulle sur l'image (survol et clic restent actifs).
+ * En se rapprochant des champs, la couleur s'efface pour laisser lire le fond (routes, villages)
+ * et les parcelles.
+ */
 export const COMMUNE_FILL_OPACITY: ExpressionSpecification = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  0.9,
-  0.78,
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  10,
+  ["case", ["boolean", ["feature-state", "selected"], false], 0.9, 0.78],
+  12.5,
+  ["case", ["boolean", ["feature-state", "selected"], false], 0.22, 0.12],
 ];
 
 export type MetricKey = "farmCount" | "declaredAreaHa" | "verifiedShare";
