@@ -26,16 +26,19 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# DATABASE_URL n'est pas nécessaire au build : le client Prisma est généré
-# à partir du schéma, la connexion n'a lieu qu'à l'exécution.
-RUN pnpm db:generate && pnpm build
+# Aucune base n'est contactée au build : le client Prisma est généré à partir du schéma, et les
+# routes ne se connectent qu'à la première requête. La configuration Prisma et le module de base
+# exigent pourtant une DATABASE_URL à l'import ; une adresse factice, propre à cette commande,
+# leur suffit et n'est pas gardée dans l'image finale.
+RUN export DATABASE_URL=postgresql://build:build@localhost:5432/build \
+  && pnpm db:generate && pnpm build
 
 FROM base AS tools
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build pnpm db:generate
 # Aucune commande par défaut utile : le déploiement passe la sienne (migrations, seed).
 CMD ["pnpm", "exec", "prisma", "migrate", "status"]
 

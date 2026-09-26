@@ -23,6 +23,9 @@ jobs:
   quality:
     name: Lint, types et tests unitaires
     runs-on: ubuntu-latest
+    env:
+      # Exigée par prisma.config.ts pour générer le client ; aucune base n'est contactée ici.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -76,6 +79,8 @@ jobs:
     name: Build de production
     runs-on: ubuntu-latest
     needs: [quality]
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
