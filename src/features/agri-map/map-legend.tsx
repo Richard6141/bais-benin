@@ -145,8 +145,8 @@ export function SkyLegend({ view, periodLabel, detail }: SkyLegendProps) {
       )}
       {view.period === ROLLING_SKY_PERIOD ? (
         <p className="mt-2 text-muted-foreground">
-          Mosaïque des 60 derniers jours : chaque zone prend sa scène la moins nuageuse, pour
-          combler les trous de la saison des pluies.
+          Mosaïque sans nuages des 60 derniers jours : chaque point pris au passage dégagé le plus
+          récent.
         </p>
       ) : null}
       <p className="mt-2 text-muted-foreground">

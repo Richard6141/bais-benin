@@ -9,16 +9,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ImageryPeriod } from "@/modules/satellite";
-import { SKY_LAYERS, type SkyLayer } from "./map-config";
+import { CROP_MAP_LAYER, SKY_LAYERS, type BaseLayer, type SkyLayer } from "./map-config";
 import type { ImageryCatalogState } from "./use-imagery-catalog";
 
 const COMMUNES = "communes";
 
 interface SkyControlProps {
   catalog: ImageryCatalogState;
-  layer: SkyLayer | null;
+  layer: BaseLayer | null;
   period: string | null;
-  onLayerChange: (layer: SkyLayer | null) => void;
+  onLayerChange: (layer: BaseLayer | null) => void;
   onPeriodChange: (period: string) => void;
 }
 
@@ -51,7 +51,7 @@ export function SkyControl({
         </Label>
         <Select
           value={layer ?? COMMUNES}
-          onValueChange={(value) => onLayerChange(value === COMMUNES ? null : (value as SkyLayer))}
+          onValueChange={(value) => onLayerChange(value === COMMUNES ? null : (value as BaseLayer))}
         >
           <SelectTrigger id="vue-du-ciel" className="w-full">
             <SelectValue />
@@ -63,6 +63,9 @@ export function SkyControl({
                 {SKY_LAYERS[key].label}
               </SelectItem>
             ))}
+            <SelectItem value={CROP_MAP_LAYER} disabled={!available}>
+              Carte des cultures
+            </SelectItem>
           </SelectContent>
         </Select>
         {catalog.status === "ready" && !available ? (
@@ -72,7 +75,7 @@ export function SkyControl({
           <p className="text-muted-foreground">Catalogue satellite momentanément injoignable.</p>
         ) : null}
       </div>
-      {layer && ready ? (
+      {layer && layer !== CROP_MAP_LAYER && ready ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="vue-du-ciel-periode" className="text-xs font-medium">
             Mois

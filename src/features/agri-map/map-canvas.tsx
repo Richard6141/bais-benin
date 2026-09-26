@@ -23,6 +23,8 @@ import {
   BENIN_CENTER,
   CHOROPLETH_SCALE,
   COMMUNE_FILL_OPACITY,
+  CROP_MAP_IDS,
+  CROP_MAP_URL,
   NO_DATA_COLOR,
   FARM_COLORS,
   INITIAL_ZOOM,
@@ -40,6 +42,7 @@ import {
   TILE_URL_TEMPLATE,
   classIndex,
   copernicusAttribution,
+  cropMapAttribution,
   quantileBreaks,
   satelliteImageUrl,
   type MetricKey,
@@ -84,6 +87,8 @@ interface MapCanvasProps {
   onReady?: () => void;
   /** Image satellite sous les limites ; null : carte des communes seule. */
   sky?: SkyView | null;
+  /** Carte des cultures par satellite sous les limites et les parcelles (ADR-0021). */
+  cropMap?: boolean;
   /** Tuiles détaillées aux zooms rapprochés (comptes connectés seulement). */
   skyDetail?: boolean;
   /** Contours des parcelles à partir du zoom 12, cliquables (comptes qui lisent le registre). */
@@ -110,6 +115,7 @@ export function MapCanvas({
   onReady,
   sky = null,
   skyDetail = false,
+  cropMap = false,
   showParcels = false,
   selectedParcelId = null,
   onSelectParcel,
@@ -544,6 +550,48 @@ export function MapCanvas({
     // skyKey résume sky et skyDetail : l'objet sky change d'identité à chaque rendu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skyKey, ready]);
+
+  // Carte des cultures : une image d'ensemble du pays, sous les limites et les parcelles, pixels
+  // nets (classes, pas de dégradé). Déclarée après la vue du ciel, qui remet les communes en
+  // couleur quand elle se retire : cet effet les rend transparentes ensuite.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !cropMap) return;
+    const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
+    map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", 0);
+    map.addSource(CROP_MAP_IDS.source, {
+      type: "image",
+      url: CROP_MAP_URL,
+      coordinates: [
+        [minLon, maxLat],
+        [maxLon, maxLat],
+        [maxLon, minLat],
+        [minLon, minLat],
+      ],
+    });
+    map.addLayer(
+      {
+        id: CROP_MAP_IDS.layer,
+        type: "raster",
+        source: CROP_MAP_IDS.source,
+        paint: {
+          "raster-fade-duration": 0,
+          "raster-resampling": "nearest",
+          "raster-opacity": 0.85,
+        },
+      },
+      LAYER_IDS.communeFill,
+    );
+    attributionRef.current = swapAttribution(map, attributionRef.current, cropMapAttribution());
+    return () => {
+      const current = mapRef.current;
+      if (!current) return;
+      if (current.getLayer(CROP_MAP_IDS.layer)) current.removeLayer(CROP_MAP_IDS.layer);
+      if (current.getSource(CROP_MAP_IDS.source)) current.removeSource(CROP_MAP_IDS.source);
+      current.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", COMMUNE_FILL_OPACITY);
+      attributionRef.current = swapAttribution(current, attributionRef.current, null);
+    };
+  }, [cropMap, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
