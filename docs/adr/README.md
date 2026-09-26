@@ -19,4 +19,5 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0013 | Création de compte réservée aux agriculteurs, autres comptes ouverts par l'administration | acceptée, complète 0012 |
 | 0014 | Un agent ne lit que les exploitations qu'il a lui-même enregistrées | acceptée, complète 0004 |
 | 0015 | Détection des foyers par regroupement de signalements, dans le moteur de règles | acceptée |
+| 0016 | Vue du ciel : Sentinel-2 depuis le Copernicus Data Space Ecosystem, calcul côté Copernicus | acceptée |
 | 0018 | Palmarès nominatif des producteurs, réservé au ministère | acceptée |

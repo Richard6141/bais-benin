@@ -67,6 +67,24 @@ const serverSchema = z
     OPEN_METEO_BASE_URL: z.url().default("https://api.open-meteo.com"),
     CRON_SECRET: z.string().min(32, "CRON_SECRET doit faire au moins 32 caractères").optional(),
 
+    // Vue du ciel (ADR-0016) : Copernicus Data Space Ecosystem, sans intermédiaire commercial.
+    // Le catalogue STAC est public ; les images et statistiques NDVI demandent un client OAuth
+    // du compte CDSE gratuit (tableau de bord CDSE, « User Settings », « OAuth clients »).
+    // Sans ces deux variables, la carte propose les périodes mais pas les images.
+    SATELLITE_PROVIDER: z.enum(["cdse", "fixture"]).default("cdse"),
+    CDSE_CLIENT_ID: optionalText(z.string().trim().min(1)),
+    CDSE_CLIENT_SECRET: optionalText(z.string().trim().min(1)),
+    CDSE_STAC_URL: z.url().default("https://stac.dataspace.copernicus.eu/v1"),
+    CDSE_PROCESSING_URL: z.url().default("https://sh.dataspace.copernicus.eu"),
+    CDSE_TOKEN_URL: z
+      .url()
+      .default(
+        "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token",
+      ),
+    // Plafond mensuel de requêtes de traitement envoyées à CDSE (quota gratuit : 10 000 par
+    // mois) : au-delà, BAIS ne sert que son cache jusqu'au mois suivant.
+    SATELLITE_MONTHLY_REQUEST_BUDGET: z.coerce.number().int().min(0).max(10000).default(9000),
+
     // NPI : chiffrement AES-256-GCM et index HMAC, deux clés distinctes de 32 octets.
     NPI_ENCRYPTION_KEY: base64Key(32, "NPI_ENCRYPTION_KEY"),
     NPI_HASH_KEY: base64Key(32, "NPI_HASH_KEY"),

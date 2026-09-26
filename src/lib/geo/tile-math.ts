@@ -71,6 +71,21 @@ export function lonLatToTile(lon: number, lat: number, z: number): { x: number; 
   return { x: Math.min(n - 1, Math.max(0, x)), y: Math.min(n - 1, Math.max(0, y)) };
 }
 
+/** Projection d'un point WGS84 en EPSG:3857, en mètres : [x, y]. */
+export function lonLatTo3857(lon: number, lat: number): [number, number] {
+  const clampedLat = Math.max(-MAX_LATITUDE, Math.min(MAX_LATITUDE, lat));
+  const x = (lon / 180) * WORLD_HALF_SIZE_M;
+  const y = (Math.log(Math.tan(((90 + clampedLat) * Math.PI) / 360)) / Math.PI) * WORLD_HALF_SIZE_M;
+  return [x, y];
+}
+
+/** Emprise WGS84 [minLon, minLat, maxLon, maxLat] projetée en EPSG:3857. */
+export function bboxToEnvelope3857(bbox: BBox): Envelope3857 {
+  const [xmin, ymin] = lonLatTo3857(bbox[0], bbox[1]);
+  const [xmax, ymax] = lonLatTo3857(bbox[2], bbox[3]);
+  return [xmin, ymin, xmax, ymax];
+}
+
 /** Taille d'un pixel de tuile raster 256 px au zoom donné, en mètres à l'équateur. */
 export function metersPerPixel(z: number): number {
   return EARTH_CIRCUMFERENCE_M / TILE_PIXELS / 2 ** z;

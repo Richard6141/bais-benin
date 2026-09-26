@@ -22,18 +22,48 @@ import {
   BENIN_BOUNDS,
   BENIN_CENTER,
   CHOROPLETH_SCALE,
+  COMMUNE_FILL_OPACITY,
   NO_DATA_COLOR,
   FARM_COLORS,
   INITIAL_ZOOM,
   LAYER_IDS,
   MAP_STYLE_URL,
   OUTLINE_COLOR,
+  SATELLITE_BOUNDS,
+  SATELLITE_DETAIL_MAX_ZOOM,
+  SATELLITE_DETAIL_MIN_ZOOM,
+  SATELLITE_IDS,
+  SATELLITE_TILE_SIZE,
   SOURCE_IDS,
   TILE_URL_TEMPLATE,
   classIndex,
+  copernicusAttribution,
   quantileBreaks,
+  satelliteImageUrl,
   type MetricKey,
+  type SkyView,
 } from "./map-config";
+
+const BOUNDARIES_ATTRIBUTION = "Limites administratives : geoBoundaries (CC BY 4.0)";
+
+function attributionControl(extra: string | null): AttributionControl {
+  return new AttributionControl({
+    compact: true,
+    customAttribution: extra ? [BOUNDARIES_ATTRIBUTION, extra] : BOUNDARIES_ATTRIBUTION,
+  });
+}
+
+/** Remplace le contrôle d'attribution (ses mentions sont fixées à la construction). */
+function swapAttribution(
+  map: MapLibreMap,
+  current: AttributionControl | null,
+  extra: string | null,
+): AttributionControl {
+  if (current) map.removeControl(current);
+  const next = attributionControl(extra);
+  map.addControl(next, "bottom-right");
+  return next;
+}
 
 export interface HoveredCommune {
   code: string;
@@ -50,6 +80,10 @@ interface MapCanvasProps {
   onSelectCommune: (code: string | null) => void;
   onHoverCommune: (hovered: HoveredCommune | null) => void;
   onReady?: () => void;
+  /** Image satellite sous les limites ; null : carte des communes seule. */
+  sky?: SkyView | null;
+  /** Tuiles détaillées aux zooms rapprochés (comptes connectés seulement). */
+  skyDetail?: boolean;
 }
 
 // Carte MapLibre : fond OpenStreetMap, communes en choroplèthe alimentée par les agrégats,
@@ -64,9 +98,12 @@ export function MapCanvas({
   onSelectCommune,
   onHoverCommune,
   onReady,
+  sky = null,
+  skyDetail = false,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const attributionRef = useRef<AttributionControl | null>(null);
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
   const [supported] = useState(hasWebGL2);
   const hoveredRef = useRef<string | null>(null);
@@ -96,13 +133,8 @@ export function MapCanvas({
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
-    map.addControl(
-      new AttributionControl({
-        compact: true,
-        customAttribution: "Limites administratives : geoBoundaries (CC BY 4.0)",
-      }),
-      "bottom-right",
-    );
+    attributionRef.current = attributionControl(null);
+    map.addControl(attributionRef.current, "bottom-right");
     mapRef.current = map;
 
     map.on("load", () => {
@@ -135,7 +167,7 @@ export function MapCanvas({
         "source-layer": "communes",
         paint: {
           "fill-color": fillExpression(),
-          "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.9, 0.78],
+          "fill-opacity": COMMUNE_FILL_OPACITY,
         },
       });
       map.addLayer({
@@ -286,6 +318,73 @@ export function MapCanvas({
     if (!map || !ready) return;
     map.setLayoutProperty(LAYER_IDS.farmPoints, "visibility", showFarms ? "visible" : "none");
   }, [showFarms, ready]);
+
+  // Vue du ciel : image d'ensemble du pays aux petits zooms, tuiles de 512 px au-delà, sous les
+  // limites administratives. Les communes deviennent transparentes (survol et clic gardés) pour
+  // laisser voir l'image ; la mention Copernicus accompagne les deux sources.
+  const skyKey = sky ? `${sky.layer}/${sky.period}/${skyDetail ? "detail" : "overview"}` : null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    for (const id of [SATELLITE_IDS.detailLayer, SATELLITE_IDS.overviewLayer]) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    for (const id of [SATELLITE_IDS.detailSource, SATELLITE_IDS.overviewSource]) {
+      if (map.getSource(id)) map.removeSource(id);
+    }
+    map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", sky ? 0 : COMMUNE_FILL_OPACITY);
+    if (!sky) return;
+    const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
+    const attribution = copernicusAttribution(sky.period);
+    map.addSource(SATELLITE_IDS.overviewSource, {
+      type: "image",
+      url: satelliteImageUrl(sky, "overview.png"),
+      coordinates: [
+        [minLon, maxLat],
+        [maxLon, maxLat],
+        [maxLon, minLat],
+        [minLon, minLat],
+      ],
+    });
+    map.addLayer(
+      {
+        id: SATELLITE_IDS.overviewLayer,
+        type: "raster",
+        source: SATELLITE_IDS.overviewSource,
+        paint: { "raster-fade-duration": 0 },
+      },
+      LAYER_IDS.communeFill,
+    );
+    if (skyDetail) {
+      map.addSource(SATELLITE_IDS.detailSource, {
+        type: "raster",
+        tiles: [`${window.location.origin}${satelliteImageUrl(sky, "{z}/{x}/{y}.png")}`],
+        tileSize: SATELLITE_TILE_SIZE,
+        minzoom: SATELLITE_DETAIL_MIN_ZOOM,
+        maxzoom: SATELLITE_DETAIL_MAX_ZOOM,
+        bounds: SATELLITE_BOUNDS,
+      });
+      map.addLayer(
+        {
+          id: SATELLITE_IDS.detailLayer,
+          type: "raster",
+          source: SATELLITE_IDS.detailSource,
+          minzoom: SATELLITE_DETAIL_MIN_ZOOM,
+        },
+        LAYER_IDS.communeFill,
+      );
+    }
+    // Une source d'image ne porte pas d'attribution : la mention Copernicus passe par le
+    // contrôle, recréé avec elle (ses mentions sont fixées à la construction).
+    attributionRef.current = swapAttribution(map, attributionRef.current, attribution);
+    return () => {
+      if (mapRef.current) {
+        attributionRef.current = swapAttribution(mapRef.current, attributionRef.current, null);
+      }
+    };
+    // skyKey résume sky et skyDetail : l'objet sky change d'identité à chaque rendu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skyKey, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {

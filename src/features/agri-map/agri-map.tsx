@@ -6,10 +6,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HoveredCommune } from "./map-canvas";
-import { METRICS, quantileBreaks, type MetricKey } from "./map-config";
+import { METRICS, SKY_LAYERS, quantileBreaks, type MetricKey, type SkyLayer } from "./map-config";
 import { MapFiltersBar, type FilterOptions } from "./map-filters";
-import { MapLegend } from "./map-legend";
+import { MapLegend, SkyLegend } from "./map-legend";
 import { MapSidePanel } from "./map-side-panel";
+import { SkyControl } from "./sky-control";
+import { useImageryCatalog } from "./use-imagery-catalog";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
 // MapLibre manipule window et WebGL : chargé côté client uniquement, hors du rendu serveur.
@@ -23,9 +25,25 @@ interface AgriMapProps {
   canShowFarms: boolean;
   /** Filtre par statut de vérification (adresse) : ministère seulement, refusé par l'API sinon. */
   canFilterByStatus: boolean;
+  /** Tuiles satellite détaillées : comptes connectés seulement (quota Copernicus, ADR-0016). */
+  canSeeSkyDetail: boolean;
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
+const SKY_KEYS = Object.keys(SKY_LAYERS) as SkyLayer[];
+
+interface SkyParams {
+  layer: SkyLayer | null;
+  period: string | null;
+}
+
+function readSky(params: URLSearchParams): SkyParams {
+  const layer = params.get("ciel");
+  return {
+    layer: SKY_KEYS.includes(layer as SkyLayer) ? (layer as SkyLayer) : null,
+    period: params.get("mois"),
+  };
+}
 
 function readFilters(params: URLSearchParams, allowStatus: boolean): MapFilters {
   const status = allowStatus ? params.get("verificationStatus") : null;
@@ -44,7 +62,12 @@ function readFilters(params: URLSearchParams, allowStatus: boolean): MapFilters 
 }
 
 // Les filtres vivent dans l'URL : une vue se partage par lien et survit au rechargement.
-export function AgriMap({ options, canShowFarms, canFilterByStatus }: AgriMapProps) {
+export function AgriMap({
+  options,
+  canShowFarms,
+  canFilterByStatus,
+  canSeeSkyDetail,
+}: AgriMapProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -56,6 +79,18 @@ export function AgriMap({ options, canShowFarms, canFilterByStatus }: AgriMapPro
   const metric: MetricKey = METRIC_KEYS.includes(metricParam as MetricKey)
     ? (metricParam as MetricKey)
     : "farmCount";
+  // Vue du ciel dans l'adresse aussi : ?ciel=ndvi&mois=2026-08.
+  const skyParams = useMemo(() => readSky(searchParams), [searchParams]);
+  const catalog = useImageryCatalog();
+  const readyCatalog = catalog.status === "ready" ? catalog.catalog : null;
+  const skyPeriodEntry =
+    readyCatalog?.periods.find((entry) => entry.period === skyParams.period) ??
+    readyCatalog?.periods.find((entry) => entry.period === readyCatalog.defaultPeriod);
+  const skyPeriod = skyPeriodEntry?.period ?? null;
+  const sky =
+    skyParams.layer && skyPeriod && readyCatalog?.imageryAvailable
+      ? { layer: skyParams.layer, period: skyPeriod }
+      : null;
   const [showFarms, setShowFarms] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
@@ -72,14 +107,21 @@ export function AgriMap({ options, canShowFarms, canFilterByStatus }: AgriMapPro
   const selected = selectedCode ? (stats.byCode.get(selectedCode) ?? null) : null;
 
   const pushState = useCallback(
-    (nextFilters: MapFilters, nextMetric: MetricKey, nextCommune: string | null) => {
+    (
+      nextFilters: MapFilters,
+      nextMetric: MetricKey,
+      nextCommune: string | null,
+      nextSky: SkyParams = skyParams,
+    ) => {
       const params = filtersToSearchParams(nextFilters);
       if (nextMetric !== "farmCount") params.set("metric", nextMetric);
       if (nextCommune) params.set("commune", nextCommune);
+      if (nextSky.layer) params.set("ciel", nextSky.layer);
+      if (nextSky.layer && nextSky.period) params.set("mois", nextSky.period);
       const query = params.toString();
       router.replace((query ? `${pathname}?${query}` : pathname) as Route, { scroll: false });
     },
-    [router, pathname],
+    [router, pathname, skyParams],
   );
 
   const hoveredStats = hovered ? stats.byCode.get(hovered.code) : undefined;
@@ -113,9 +155,32 @@ export function AgriMap({ options, canShowFarms, canFilterByStatus }: AgriMapPro
               pushState(filters, metric, code);
             }}
             onHoverCommune={setHovered}
+            sky={sky}
+            skyDetail={canSeeSkyDetail}
           />
-          <div className="pointer-events-none absolute top-3 left-3 max-w-[220px]">
-            <MapLegend metric={metric} breaks={breaks} showFarms={showFarms && canShowFarms} />
+          <div className="pointer-events-none absolute top-3 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col gap-2">
+            <div className="pointer-events-auto">
+              <SkyControl
+                catalog={catalog}
+                layer={skyParams.layer}
+                period={skyPeriod}
+                onLayerChange={(layer) =>
+                  pushState(filters, metric, selectedCode, { layer, period: skyParams.period })
+                }
+                onPeriodChange={(period) =>
+                  pushState(filters, metric, selectedCode, { layer: skyParams.layer, period })
+                }
+              />
+            </div>
+            {sky ? (
+              <SkyLegend
+                view={sky}
+                periodLabel={skyPeriodEntry?.label ?? sky.period}
+                detail={canSeeSkyDetail}
+              />
+            ) : (
+              <MapLegend metric={metric} breaks={breaks} showFarms={showFarms && canShowFarms} />
+            )}
           </div>
           {hovered ? (
             <div

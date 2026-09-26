@@ -54,6 +54,21 @@ export const choroplethScale = [
 // Couleur des communes sans donnée ou masquées (secret statistique) : gris neutre, hors échelle.
 export const choroplethNoData = "#e5e9ee";
 
+// Classes de l'indice de végétation (NDVI) des images Sentinel-2 : du sable pour le sol nu, l'eau
+// et le bâti, au vert profond pour un couvert dense. La clarté baisse avec l'indice, pour que
+// l'ordre se lise sans la couleur. Chaque classe va jusqu'à `max` (exclu) ; la dernière est
+// ouverte. Une seule définition sert la légende et le script de calcul envoyé à Copernicus.
+export const ndviScale = [
+  { max: 0.1, color: "#ddd5c4" },
+  { max: 0.2, color: "#c8ad74" },
+  { max: 0.3, color: "#e2dc7c" },
+  { max: 0.4, color: "#b3d363" },
+  { max: 0.5, color: "#7dbd4b" },
+  { max: 0.6, color: "#4b9a39" },
+  { max: 0.7, color: "#2b782d" },
+  { max: null, color: "#145a26" },
+] as const;
+
 // Échelle divergente (écart à la normale) : latérite pour le déficit, golfe pour l'excédent.
 export const divergingScale = [
   "#b7410e",

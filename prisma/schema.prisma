@@ -1287,3 +1287,42 @@ model FieldReportPhoto {
 
   @@map("field_report_photo")
 }
+
+// ---------------------------------------------------------------------------
+// Vue du ciel : imagerie Sentinel-2 du Copernicus Data Space Ecosystem (ADR-0016)
+// ---------------------------------------------------------------------------
+
+enum SatelliteLayer {
+  TRUE_COLOR
+  NDVI
+}
+
+// Cache des images calculées par Copernicus, pour ne pas épuiser le quota gratuit (10 000
+// requêtes par mois) : une tuile demandée une fois n'est plus redemandée. `tile_key` vaut
+// « z/x/y » pour une tuile de 512 px, « overview » pour l'image d'ensemble du pays. Un mois
+// révolu ne change plus (cache sans échéance) ; le mois en cours expire pour prendre les
+// nouveaux passages. `image` nulle : zone sans donnée, mémorisée pour ne pas redemander.
+model SatelliteTile {
+  layer     SatelliteLayer
+  period    String
+  tileKey   String         @map("tile_key")
+  image     Bytes?
+  fetchedAt DateTime       @default(now()) @map("fetched_at")
+  expiresAt DateTime?      @map("expires_at")
+
+  @@id([layer, period, tileKey])
+  @@map("satellite_tile")
+}
+
+// Décompte mensuel des requêtes envoyées aux API de traitement CDSE (mois AAAA-MM, UTC) : le
+// plafond SATELLITE_MONTHLY_REQUEST_BUDGET est vérifié avant chaque appel, dans la même
+// requête SQL que l'incrément.
+model SatelliteUsage {
+  month              String   @id
+  imageRequests      Int      @default(0) @map("image_requests")
+  statisticsRequests Int      @default(0) @map("statistics_requests")
+  processingUnits    Decimal  @default(0) @map("processing_units") @db.Decimal(12, 3)
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("satellite_usage")
+}
