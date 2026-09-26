@@ -213,6 +213,7 @@ model DataSource {
 
   weatherObservations WeatherObservation[]
   vegetationChecks    ParcelVegetationCheck[]
+  cropAreaEstimates   CropAreaEstimate[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -308,6 +309,7 @@ model Commune {
   assistantAgentRequests AssistantAgentRequest[]
   fieldReports           FieldReport[]
   assistanceRequests     AssistanceRequest[]
+  cropAreaEstimates      CropAreaEstimate[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -364,8 +366,9 @@ model AgriculturalCampaign {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  parcelCrops      ParcelCrop[]
-  vegetationChecks ParcelVegetationCheck[]
+  parcelCrops       ParcelCrop[]
+  vegetationChecks  ParcelVegetationCheck[]
+  cropAreaEstimates CropAreaEstimate[]
 
   @@map("agricultural_campaign")
 }
@@ -1319,6 +1322,8 @@ model FieldReportPhoto {
 enum SatelliteLayer {
   TRUE_COLOR
   NDVI
+  // Carte des cultures par satellite (ADR-0021).
+  CROP_CLASSES
 }
 
 // Cache des images calculées par Copernicus, pour ne pas épuiser le quota gratuit (10 000
@@ -1540,4 +1545,47 @@ model PublishedRankingEntry {
   @@id([rankingId, rank])
   @@index([farmerId])
   @@map("published_ranking_entry")
+}
+
+// Classes de la carte des cultures par satellite (ADR-0021).
+enum CropMapClass {
+  UNCLASSIFIED
+  RICE
+  ANNUAL
+  COTTON
+  PERENNIAL
+  GARDEN
+  FALLOW
+  NATURAL
+  WATER
+  BUILT
+}
+
+// Surfaces estimées par satellite, par commune, campagne et classe (ADR-0021) : histogramme de la
+// classification phénologique calculée par Copernicus, pixels de `resolution_m` mètres. Une
+// estimation, à confirmer : la vue du ministère la compare aux surfaces déclarées au registre.
+// `pixel_share` : part des pixels de la commune dans la classe ; `unclassified_share` : part
+// restée sans classe (nuages persistants), la même pour toutes les lignes d'une commune.
+model CropAreaEstimate {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  communeId         String               @map("commune_id") @db.Uuid
+  commune           Commune              @relation(fields: [communeId], references: [id])
+  campaignId        String               @map("campaign_id") @db.Uuid
+  campaign          AgriculturalCampaign @relation(fields: [campaignId], references: [id])
+  cropClass         CropMapClass         @map("crop_class")
+  areaHa            Decimal              @map("area_ha") @db.Decimal(12, 2)
+  pixelShare        Decimal              @map("pixel_share") @db.Decimal(6, 4)
+  unclassifiedShare Decimal              @map("unclassified_share") @db.Decimal(6, 4)
+  resolutionM       Int                  @map("resolution_m")
+  windowFrom        DateTime             @map("window_from") @db.Date
+  windowTo          DateTime             @map("window_to") @db.Date
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([communeId, campaignId, cropClass])
+  @@index([campaignId, cropClass])
+  @@map("crop_area_estimate")
 }
