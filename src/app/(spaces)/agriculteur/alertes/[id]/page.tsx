@@ -35,7 +35,7 @@ export default async function FarmerAlertPage(props: PageProps<"/agriculteur/ale
           <SeverityBadge severity={alert.severity} size="large" />
           <span className="inline-flex items-center gap-1.5 text-base text-muted-foreground">
             <category.Icon aria-hidden className="size-5" />
-            {category.label} · {alert.communeName}
+            {category.label} ({alert.communeName})
           </span>
         </div>
         <h1 id="alert-title" className="text-3xl font-semibold tracking-tight text-balance">

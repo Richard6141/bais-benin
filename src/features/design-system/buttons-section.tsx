@@ -47,7 +47,7 @@ export function ButtonsSection() {
         </Button>
         <Button aria-busy>
           <RefreshCw className="animate-spin" aria-hidden />
-          Synchronisation…
+          Synchronisation en cours
         </Button>
       </DemoRow>
       <DemoRow label="Espace agriculteur (pleine largeur, 56 px)" className="max-w-sm">

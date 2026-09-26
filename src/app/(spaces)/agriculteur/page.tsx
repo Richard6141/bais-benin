@@ -148,8 +148,8 @@ export default async function FarmerSpacePage() {
               </p>
               <p className="flex items-center gap-2 text-base text-muted-foreground">
                 <CalendarDays className="size-4" aria-hidden />
-                {dateFormatter.format(harvest.declaredOn)} · ≈{" "}
-                {kgFormatter.format(harvest.quantityKg)} kg
+                {dateFormatter.format(harvest.declaredOn)} (≈{" "}
+                {kgFormatter.format(harvest.quantityKg)} kg)
               </p>
             </>
           ) : (

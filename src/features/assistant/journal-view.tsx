@@ -115,7 +115,7 @@ export function JournalView({ entries, basePath, outcome }: JournalViewProps) {
                   ) : null}
                 </TableCell>
                 <TableCell className="tabular text-right">
-                  {entry.useful} utile · {entry.notUseful} pas utile
+                  {entry.useful} utile, {entry.notUseful} pas utile
                 </TableCell>
               </TableRow>
             ))}

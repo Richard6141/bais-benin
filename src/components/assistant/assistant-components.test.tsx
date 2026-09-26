@@ -33,7 +33,7 @@ describe("SourceList", () => {
     expect(container.querySelector("details")).not.toHaveAttribute("open");
     expect(screen.getByText("1 source citée")).toBeInTheDocument();
     expect(screen.getByText("démonstration")).toBeInTheDocument();
-    expect(screen.getByText(/CC BY 4\.0 · vérifiée le 25 septembre 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/\(CC BY 4\.0\), vérifiée le 25 septembre 2026/)).toBeInTheDocument();
     expect(screen.getByText("Semer après une pluie d'au moins 20 mm.")).toBeInTheDocument();
   });
 

@@ -95,7 +95,7 @@ export function QualityGlance({ quality }: { quality: DataQuality }) {
         <StatTile
           label="Écart médian déclaré / mesuré"
           value={gap === null ? "—" : formatShare(gap)}
-          source={`${formatInteger(quality.gaps.measuredParcels)} parcelles relevées · signalement à 20 %`}
+          source={`${formatInteger(quality.gaps.measuredParcels)} parcelles relevées, signalement à 20 %`}
           reliability={gap !== null && gap >= 0.2 ? "DECLARED" : "FIELD_VERIFIED"}
         />
         <StatTile
