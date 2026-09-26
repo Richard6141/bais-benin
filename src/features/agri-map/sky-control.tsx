@@ -68,7 +68,8 @@ export function SkyControl({
                 {SKY_LAYERS[key].label}
               </SelectItem>
             ))}
-            <SelectItem value={CROP_MAP_LAYER} disabled={!available}>
+            {/* La carte des cultures ne dépend que de ses images calculées à l'avance. */}
+            <SelectItem value={CROP_MAP_LAYER} disabled={catalog.status === "ready" && !available}>
               Carte des cultures
             </SelectItem>
           </SelectContent>
@@ -93,7 +94,9 @@ export function SkyControl({
               {ready.periods.map((entry) => (
                 <SelectItem key={entry.period} value={entry.period}>
                   <span>{sentenceCase(entry.label)}</span>
-                  <span className="text-muted-foreground">, {clearLabel(entry)}</span>
+                  {ready.partial ? null : (
+                    <span className="text-muted-foreground">, {clearLabel(entry)}</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
