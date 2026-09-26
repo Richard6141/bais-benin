@@ -141,6 +141,7 @@ export async function runVegetationChecks(options: {
     const to = window.to.getTime() < now.getTime() ? window.to : now;
     const profile = expectedProfile(crop, candidate.zone_code);
     const expectedPeak = { from: window.peakFrom.toISOString(), to: window.peakTo.toISOString() };
+    const demoKeys = { commune: candidate.commune_code, parcel: candidate.parcel_id };
     let series;
     try {
       series = await options.provider.vegetationStatistics({
@@ -150,6 +151,7 @@ export async function runVegetationChecks(options: {
         intervalDays: INTERVAL_DAYS,
         expectedCover: profile.kind,
         expectedPeak,
+        demoKeys,
       });
     } catch (error) {
       if (!(error instanceof RemoteSensingProviderError)) throw error;
@@ -189,6 +191,7 @@ export async function runVegetationChecks(options: {
             orbitDirection: RADAR_ORBIT,
             expectedCover: profile.kind,
             expectedPeak,
+            demoKeys,
           });
           if (metered && radar.processingUnits) {
             await addProcessingUnits(periodOf(now), radar.processingUnits);

@@ -22,6 +22,7 @@ const candidateSchema = z.object({
   crop_cycle: z.enum(["ANNUAL", "PERENNIAL", "GATHERED"]),
   crop_calendar: z.unknown(),
   zone_code: z.string().nullable(),
+  commune_code: z.string(),
   rainfall_regime: z.enum(["BIMODAL", "UNIMODAL"]).nullable(),
   geometry: z.string(),
 });
@@ -55,7 +56,7 @@ export async function listVegetationCandidates(options: {
     SELECT p."id" AS parcel_id, p."code" AS parcel_code, p."farm_id",
            mc."sub_season"::text AS sub_season, c."id" AS crop_id, c."code" AS crop_code,
            c."category"::text AS crop_category, c."cycle"::text AS crop_cycle,
-           c."calendar" AS crop_calendar, z."code" AS zone_code,
+           c."calendar" AS crop_calendar, z."code" AS zone_code, co."code" AS commune_code,
            z."rainfall_regime"::text AS rainfall_regime,
            ST_AsGeoJSON(p."geom"::geometry, 6) AS geometry
       FROM main_crop mc
