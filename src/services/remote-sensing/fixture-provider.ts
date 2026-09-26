@@ -156,6 +156,38 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       return { intervals: syntheticNdvi(request), processingUnits: null };
     },
 
+    // Répartition synthétique des classes, proportionnelle à la surface de la géométrie :
+    // cultures annuelles, savane et jachère dominent ; coton au nord seulement.
+    async cropAreaStatistics(request) {
+      const ring =
+        request.geometry.type === "Polygon"
+          ? (request.geometry.coordinates[0] ?? [])
+          : (request.geometry.coordinates[0]?.[0] ?? []);
+      const seed = hashString(JSON.stringify(ring).slice(0, 400));
+      const total = Math.round(
+        (parcelPixels(ring) * 100) / (request.resolutionM * request.resolutionM),
+      );
+      const north = request.latitude >= 9;
+      // Parts indicatives : non classé, riz, annuelles, coton, pérennes, maraîchage, jachère,
+      // naturel, eau, bâti.
+      const shares = [
+        0.03,
+        0.02,
+        0.3,
+        north ? 0.08 : 0,
+        0.06,
+        0.01,
+        0.15,
+        north ? 0.31 : 0.39,
+        0.02,
+        0.02,
+      ];
+      const classPixels = shares.map((share, index) =>
+        Math.round(total * share * (0.85 + noise(seed, index + 300) * 0.3)),
+      );
+      return { classPixels, processingUnits: null };
+    },
+
     // Radar : pas de nuage. Même régime saisonnier que le NDVI, en indice RVI (0,2 au sol nu,
     // 0,5 à 0,6 en plein couvert), une parcelle sur huit restée nue, comme pour l'optique.
     async radarStatistics(request) {

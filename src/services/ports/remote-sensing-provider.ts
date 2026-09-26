@@ -8,7 +8,7 @@ import type { BBox, Envelope3857 } from "@/lib/geo/tile-math";
 export type RemoteSensingProviderId = "cdse" | "fixture";
 
 /** Couche d'image produite côté fournisseur : couleur naturelle ou indice de végétation. */
-export type ImageryLayer = "TRUE_COLOR" | "NDVI";
+export type ImageryLayer = "TRUE_COLOR" | "NDVI" | "CROP_CLASSES";
 
 export interface PolygonGeometry {
   type: "Polygon";
@@ -109,6 +109,31 @@ export interface RadarInterval {
   maskedPixels: number;
 }
 
+export interface MultiPolygonGeometry {
+  type: "MultiPolygon";
+  coordinates: number[][][][];
+}
+
+/** Surfaces par classe de culture sur une géométrie (carte des cultures, ADR-0021). */
+export interface CropAreaRequest {
+  /** Commune entière, parfois en plusieurs morceaux. */
+  geometry: PolygonGeometry | MultiPolygonGeometry;
+  from: string;
+  to: string;
+  /** Côté du pixel au sol, en mètres (100 : un hectare par pixel). */
+  resolutionM: number;
+  /** Latitude moyenne, pour convertir la résolution au sol en unités Web Mercator. */
+  latitude: number;
+  /** Abaissement des seuils de végétation dans les zones les plus sèches. */
+  zoneOffset: number;
+}
+
+export interface CropAreaResult {
+  /** Pixels par code de classe (index 0 : non classé). */
+  classPixels: number[];
+  processingUnits: number | null;
+}
+
 /** Série statistique et unités de traitement décomptées par le fournisseur. */
 export interface StatisticsResult<T> {
   intervals: T[];
@@ -172,6 +197,7 @@ export interface RemoteSensingProvider {
     request: VegetationStatisticsRequest,
   ): Promise<StatisticsResult<VegetationInterval>>;
   radarStatistics(request: RadarStatisticsRequest): Promise<StatisticsResult<RadarInterval>>;
+  cropAreaStatistics(request: CropAreaRequest): Promise<CropAreaResult>;
   fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
 }
 
