@@ -20,6 +20,11 @@ const ENTRIES = [
     match: ["/pilotage/territoires", "/pilotage/communes"],
   },
   {
+    href: "/pilotage/etat-des-cultures",
+    label: "État des cultures",
+    match: ["/pilotage/etat-des-cultures"],
+  },
+  {
     href: "/pilotage/previsions",
     label: "Prévisions",
     match: ["/pilotage/previsions"],
