@@ -132,6 +132,9 @@ Source : `src/modules/authorization/policies.matrix.ts`. Portées : **ALL** tout
 | `report.create` | NONE | OWN | SELF | NONE | NONE |
 | `report.read` | ALL | OWN | SELF | NONE | NONE |
 | `report.review` | ALL | OWN | NONE | NONE | NONE |
+| `assistance.request` | NONE | NONE | SELF | NONE | NONE |
+| `assistance.read` | NONE | SCOPE | SELF | NONE | NONE |
+| `assistance.handle` | NONE | SCOPE | NONE | NONE | NONE |
 
 Les tests unitaires du moteur (`src/modules/authorization/__tests__/authorize.test.ts`) sont générés à partir de cette matrice : chaque cellule produit au moins un cas autorisé et un cas refusé. `scopeFilter` traduit l'union des affectations en filtre de liste (`all`, `none`, `self` ou `territory` avec communes, départements et organisations) que les dépôts convertissent en clause SQL.
 
