@@ -20,6 +20,7 @@ import {
 import { getRemoteSensingProvider } from "@/services/remote-sensing";
 import {
   BENIN_IMAGERY_BBOX,
+  ROLLING_PERIOD,
   isCurrentPeriod,
   isOfferedPeriod,
   periodOf,
@@ -49,8 +50,10 @@ export type ImageryOutcome =
   | { status: "unavailable" };
 
 // Version des images en cache : v2 découpe sur la frontière du pays (les images v1, sur le
-// rectangle entier, restent en base mais ne sont plus servies).
+// rectangle entier, restent en base mais ne sont plus servies). v3 : la fenêtre glissante devient
+// une mosaïque sans nuages ; les mois gardent leurs images v2.
 const CACHE_VERSION = "v2";
+const ROLLING_CACHE_VERSION = "v3";
 
 // Frontière du pays, lue une fois par processus (union des communes simplifiée).
 let outline: Promise<ClipGeometry | null> | null = null;
@@ -94,7 +97,8 @@ async function renderCached(
   now: Date,
   requesterId: string | undefined,
 ): Promise<ImageryOutcome> {
-  const tileKey = `${CACHE_VERSION}:${target.tileKey}`;
+  const cloudFree = target.period === ROLLING_PERIOD;
+  const tileKey = `${cloudFree ? ROLLING_CACHE_VERSION : CACHE_VERSION}:${target.tileKey}`;
   const cached = await findCachedImage(target.layer, target.period, tileKey);
   const fresh = cached && (cached.expiresAt === null || cached.expiresAt.getTime() > now.getTime());
   const fromCache = (entry: NonNullable<typeof cached>): ImageryOutcome =>
@@ -132,6 +136,7 @@ async function renderCached(
       from,
       to,
       maxCloudCover: MAX_CLOUD_COVER,
+      cloudFree,
     });
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
     const permanent = !isCurrentPeriod(target.period, now);

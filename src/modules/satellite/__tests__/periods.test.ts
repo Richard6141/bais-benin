@@ -42,7 +42,7 @@ describe("périodes d'imagerie", () => {
     expect(periods[11]).toBe("2025-10");
   });
 
-  it("proposent aussi les 60 derniers jours, jamais comme période par défaut", () => {
+  it("proposent aussi les 60 derniers jours, par défaut dès qu'ils ont une scène dégagée", () => {
     expect(isOfferedPeriod(ROLLING_PERIOD, NOW)).toBe(true);
     expect(periodRange(ROLLING_PERIOD, NOW)).toEqual({
       from: "2026-07-28T08:00:00.000Z",
@@ -51,6 +51,9 @@ describe("périodes d'imagerie", () => {
     expect(periodLabel(ROLLING_PERIOD)).toBe("60 derniers jours");
     expect(
       defaultPeriod([{ ...period(ROLLING_PERIOD, 400), rolling: true }, period("2026-09", 30)]),
+    ).toBe(ROLLING_PERIOD);
+    expect(
+      defaultPeriod([{ ...period(ROLLING_PERIOD, 0), rolling: true }, period("2026-09", 30)]),
     ).toBe("2026-09");
   });
 

@@ -161,6 +161,8 @@ export function buildStacSearchBody(request: SceneSearchRequest) {
 export function buildProcessBody(request: ImageryRequest) {
   // Carte des cultures : toute la série du pixel (un passage par mois, retenu par le script).
   const crop = request.layer === "CROP_CLASSES";
+  // Mosaïque sans nuages : les passages sont choisis et triés par le script, pixel par pixel.
+  const byOrbit = crop || request.cloudFree === true;
   return {
     input: {
       // Emprise de sortie (bbox) et découpe (geometry) : hors contour, pas de donnée.
@@ -176,7 +178,7 @@ export function buildProcessBody(request: ImageryRequest) {
             timeRange: { from: request.from, to: request.to },
             maxCloudCoverage: request.maxCloudCover,
             // La scène la moins nuageuse de la période passe devant les autres.
-            ...(crop ? {} : { mosaickingOrder: "leastCC" }),
+            ...(byOrbit ? {} : { mosaickingOrder: "leastCC" }),
           },
         },
       ],
@@ -186,7 +188,9 @@ export function buildProcessBody(request: ImageryRequest) {
       height: request.height,
       responses: [{ identifier: "default", format: { type: "image/png" } }],
     },
-    evalscript: crop ? cropClassRenderEvalscript(cropMapColors) : renderEvalscript(request.layer),
+    evalscript: crop
+      ? cropClassRenderEvalscript(cropMapColors)
+      : renderEvalscript(request.layer, request.cloudFree === true),
   };
 }
 

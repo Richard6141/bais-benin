@@ -14,8 +14,9 @@ export const PERIOD_COUNT = 12;
 const PERIOD_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 /**
- * Fenêtre glissante des 60 derniers jours : la scène la moins nuageuse de chaque zone sur deux
- * mois comble une partie des trous nuageux d'un mois de saison des pluies. Toujours proposée.
+ * Fenêtre glissante des 60 derniers jours : mosaïque sans nuages, chaque pixel pris au passage le
+ * plus récent où il est dégagé. Comble les trous nuageux d'un mois de saison des pluies ; toujours
+ * proposée, et période par défaut dès qu'elle a une scène dégagée.
  */
 export const ROLLING_PERIOD = "60-jours";
 export const ROLLING_DAYS = 60;
@@ -125,11 +126,13 @@ export function summarizePeriod(period: string, scenes: SceneSummary[], now: Dat
 const READABLE_CLEAR_SCENES = 25;
 
 /**
- * Période proposée par défaut : le mois le plus récent qui couvre le pays de scènes dégagées ;
- * à défaut (saison des pluies), celui des trois derniers mois qui en a le plus ; null sans
- * aucune scène dégagée.
+ * Période proposée par défaut : la mosaïque sans nuages des 60 derniers jours dès qu'elle a une
+ * scène dégagée ; sinon le mois le plus récent qui couvre le pays de scènes dégagées ; à défaut,
+ * celui des trois derniers mois qui en a le plus ; null sans aucune scène dégagée.
  */
 export function defaultPeriod(allPeriods: readonly ImageryPeriod[]): string | null {
+  const rolling = allPeriods.find((entry) => entry.rolling);
+  if (rolling && rolling.clearSceneCount > 0) return rolling.period;
   const periods = allPeriods.filter((entry) => !entry.rolling);
   const readable = periods.find((entry) => entry.clearSceneCount >= READABLE_CLEAR_SCENES);
   if (readable) return readable.period;
