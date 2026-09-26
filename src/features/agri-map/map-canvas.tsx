@@ -46,6 +46,8 @@ import {
   classIndex,
   copernicusAttribution,
   cropMapAttribution,
+  WORLDCEREAL_ATTRIBUTION,
+  WORLDCEREAL_QUARTERS,
   quantileBreaks,
   satelliteImageUrl,
   type MetricKey,
@@ -93,6 +95,8 @@ interface MapCanvasProps {
   sky?: SkyView | null;
   /** Carte des cultures par satellite sous les limites et les parcelles (ADR-0021). */
   cropMap?: boolean;
+  /** Terres cultivées 2021 (ESA WorldCereal), carte de référence sous les limites et les champs. */
+  worldCereal?: boolean;
   /** Tuiles détaillées aux zooms rapprochés (comptes connectés seulement). */
   skyDetail?: boolean;
   /** Contours des parcelles à partir du zoom 12, cliquables (comptes qui lisent le registre). */
@@ -130,6 +134,7 @@ export function MapCanvas({
   sky = null,
   skyDetail = false,
   cropMap = false,
+  worldCereal = false,
   showParcels = false,
   selectedParcelId = null,
   onSelectParcel,
@@ -147,11 +152,13 @@ export function MapCanvas({
   const extrasRef = useRef<{
     sky: string | null;
     crops: string | null;
+    reference: string | null;
     fires: string | null;
     fields: string | null;
   }>({
     sky: null,
     crops: null,
+    reference: null,
     fires: null,
     fields: null,
   });
@@ -159,10 +166,11 @@ export function MapCanvas({
     const {
       sky: skyMention,
       crops: cropMention,
+      reference: referenceMention,
       fires: fireMention,
       fields: fieldMention,
     } = extrasRef.current;
-    const extras = [skyMention, cropMention, fireMention, fieldMention].filter(
+    const extras = [skyMention, cropMention, referenceMention, fireMention, fieldMention].filter(
       (mention): mention is string => !!mention,
     );
     attributionRef.current = swapAttribution(map, attributionRef.current, extras);
@@ -786,6 +794,50 @@ export function MapCanvas({
     };
     // refreshAttribution ne lit que des références : la carte n'est recréée qu'avec cropMap.
   }, [cropMap, ready]);
+
+  // Terres cultivées 2021 (ESA WorldCereal) : quatre images statiques, sous les limites et les
+  // champs détectés, pour comparer une carte de référence à la nôtre. Même rendu net que la carte
+  // des cultures, et sa mention CC BY 4.0 dans l'attribution.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !worldCereal) return;
+    map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", 0);
+    for (const quarter of WORLDCEREAL_QUARTERS) {
+      map.addSource(quarter.source, {
+        type: "image",
+        url: quarter.url,
+        coordinates: quarter.coordinates,
+      });
+      map.addLayer(
+        {
+          id: quarter.layer,
+          type: "raster",
+          source: quarter.source,
+          paint: {
+            "raster-fade-duration": 0,
+            "raster-resampling": "nearest",
+            "raster-opacity": 0.8,
+          },
+        },
+        LAYER_IDS.communeFill,
+      );
+    }
+    const extras = extrasRef.current;
+    extras.reference = WORLDCEREAL_ATTRIBUTION;
+    refreshAttribution(map);
+    return () => {
+      const current = mapRef.current;
+      if (!current) return;
+      for (const quarter of WORLDCEREAL_QUARTERS) {
+        if (current.getLayer(quarter.layer)) current.removeLayer(quarter.layer);
+        if (current.getSource(quarter.source)) current.removeSource(quarter.source);
+      }
+      current.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", COMMUNE_FILL_OPACITY);
+      extras.reference = null;
+      refreshAttribution(current);
+    };
+    // Même règle que la carte des cultures : l'effet ne dépend que de worldCereal et de ready.
+  }, [worldCereal, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {

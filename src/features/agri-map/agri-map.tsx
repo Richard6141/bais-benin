@@ -8,8 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { HoveredCommune } from "./map-canvas";
 import { CropMapLegend } from "./crop-map-legend";
+import { WorldCerealLegend } from "./worldcereal-legend";
 import {
   CROP_MAP_LAYER,
+  WORLDCEREAL_LAYER,
   METRICS,
   PARCEL_MIN_ZOOM,
   SKY_LAYERS,
@@ -63,7 +65,11 @@ interface AgriMapProps {
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
-const BASE_KEYS: BaseLayer[] = [...(Object.keys(SKY_LAYERS) as SkyLayer[]), CROP_MAP_LAYER];
+const BASE_KEYS: BaseLayer[] = [
+  ...(Object.keys(SKY_LAYERS) as SkyLayer[]),
+  CROP_MAP_LAYER,
+  WORLDCEREAL_LAYER,
+];
 
 interface SkyParams {
   layer: BaseLayer | null;
@@ -124,7 +130,13 @@ export function AgriMap({
     readyCatalog?.periods.find((entry) => entry.period === skyParams.period) ??
     readyCatalog?.periods.find((entry) => entry.period === readyCatalog.defaultPeriod);
   const skyPeriod = skyPeriodEntry?.period ?? null;
-  const skyLayer = skyParams.layer === CROP_MAP_LAYER ? null : skyParams.layer;
+  const skyLayer =
+    skyParams.layer === CROP_MAP_LAYER || skyParams.layer === WORLDCEREAL_LAYER
+      ? null
+      : skyParams.layer;
+  // Terres cultivées 2021 (ESA WorldCereal) : ?ciel=worldcereal-2021, des images statiques qui ne
+  // dépendent ni du catalogue ni du compte Copernicus.
+  const worldCereal = skyParams.layer === WORLDCEREAL_LAYER;
   const sky =
     skyLayer && skyPeriod && readyCatalog?.imageryAvailable
       ? { layer: skyLayer, period: skyPeriod }
@@ -285,6 +297,8 @@ export function AgriMap({
       {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
       {cropMap ? (
         <CropMapLegend />
+      ) : worldCereal ? (
+        <WorldCerealLegend />
       ) : sky ? (
         <SkyLegend
           view={sky}
@@ -319,6 +333,7 @@ export function AgriMap({
             sky={sky}
             skyDetail={canSeeSkyDetail}
             cropMap={cropMap}
+            worldCereal={worldCereal}
             showParcels={canInspectParcels}
             selectedParcelId={parcelId}
             onSelectParcel={selectParcel}

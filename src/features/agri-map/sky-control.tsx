@@ -9,7 +9,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ImageryPeriod } from "@/modules/satellite";
-import { CROP_MAP_LAYER, SKY_LAYERS, type BaseLayer, type SkyLayer } from "./map-config";
+import {
+  CROP_MAP_LAYER,
+  SKY_LAYERS,
+  WORLDCEREAL_LAYER,
+  type BaseLayer,
+  type SkyLayer,
+} from "./map-config";
 import type { ImageryCatalogState } from "./use-imagery-catalog";
 
 const COMMUNES = "communes";
@@ -72,6 +78,10 @@ export function SkyControl({
             <SelectItem value={CROP_MAP_LAYER} disabled={catalog.status === "ready" && !available}>
               Carte des cultures
             </SelectItem>
+            {/* Carte de référence en images statiques : toujours disponible. */}
+            <SelectItem value={WORLDCEREAL_LAYER}>
+              Terres cultivées 2021 (ESA WorldCereal)
+            </SelectItem>
           </SelectContent>
         </Select>
         {catalog.status === "ready" && !available ? (
@@ -81,7 +91,7 @@ export function SkyControl({
           <p className="text-muted-foreground">Catalogue satellite momentanément injoignable.</p>
         ) : null}
       </div>
-      {layer && layer !== CROP_MAP_LAYER && ready ? (
+      {layer && layer !== CROP_MAP_LAYER && layer !== WORLDCEREAL_LAYER && ready ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="vue-du-ciel-periode" className="text-xs font-medium">
             Mois
