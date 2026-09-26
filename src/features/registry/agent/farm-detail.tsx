@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  FileBadge,
   MapPin,
   MapPinned,
   MessageCircleQuestion,
@@ -96,6 +97,12 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
             <Link href={`/agent/assistant?exploitation=${farm.code}` as Route}>
               <MessageCircleQuestion aria-hidden />
               Poser une question
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-12">
+            <Link href={`/agent/exploitations/${farm.id}/attestation` as Route}>
+              <FileBadge aria-hidden />
+              Attestation
             </Link>
           </Button>
           {farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED" ? (
