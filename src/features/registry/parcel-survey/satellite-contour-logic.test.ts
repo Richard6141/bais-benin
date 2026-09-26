@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ProposedContour } from "@/modules/satellite";
-import { moveVertex, recommendedCandidate, removeVertex } from "./satellite-contour-logic";
+import {
+  confidenceLabel,
+  moveVertex,
+  recommendedCandidate,
+  removeVertex,
+} from "./satellite-contour-logic";
 
 const SQUARE: [number, number][] = [
   [0, 0],
@@ -29,6 +34,12 @@ describe("écran de contour proposé par le satellite", () => {
       "MEDIUM",
     );
     expect(recommendedCandidate([])).toBeNull();
+  });
+
+  it("dit à l'agent ce que la confiance demande de faire", () => {
+    expect(confidenceLabel(0.72)).toBe("confiance bonne");
+    expect(confidenceLabel(0.38)).toBe("confiance moyenne : vérifiez les sommets");
+    expect(confidenceLabel(0.17)).toMatch(/relevez à pied/);
   });
 
   it("garde l'anneau fermé quand l'agent déplace le premier sommet", () => {

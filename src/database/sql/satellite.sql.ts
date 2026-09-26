@@ -6,21 +6,6 @@ import { prisma } from "@/database/client";
 export type SatelliteLayerCode = "TRUE_COLOR" | "NDVI";
 export type SatelliteRequestKind = "IMAGE" | "STATISTICS" | "PROPOSAL";
 
-/**
- * Plafond mensuel de requêtes de traitement et part réservée aux propositions de contours de
- * champs. Deux parts étanches : la tâche quotidienne de confrontation et les images de la carte
- * ne peuvent pas prendre la part des propositions, ni l'inverse.
- */
-export interface ProcessingBudget {
-  total: number;
-  proposalShare: number;
-}
-
-export function budgetLimits(budget: ProcessingBudget): { proposals: number; others: number } {
-  const proposals = Math.floor(budget.total * budget.proposalShare);
-  return { proposals, others: Math.max(0, budget.total - proposals) };
-}
-
 export interface CachedImage {
   image: Uint8Array | null;
   expiresAt: Date | null;
@@ -56,40 +41,117 @@ export async function storeCachedImage(
 }
 
 /**
- * Réserve une requête de traitement sur le mois, dans la part de son type : l'incrément n'a lieu
- * que si la part reste sous son plafond, dans une seule requête (deux appels concurrents ne
- * peuvent pas le dépasser ensemble). Faux : part épuisée, ne pas appeler Copernicus.
+ * Garde-fous du compte CDSE (ADR-0016, revue de sécurité R2) : plafond mensuel de requêtes en
+ * trois parts étanches (propositions de contours, statistiques de la confrontation, images de la
+ * carte : aucune ne peut prendre la part d'une autre), plafond mensuel d'unités de traitement et
+ * limite globale de requêtes par minute, sous celle de Copernicus.
+ */
+export interface ProcessingBudget {
+  total: number;
+  proposalShare: number;
+  statisticsShare: number;
+  /** Unités de traitement (PU) par mois. */
+  processingUnits: number;
+  /** Requêtes par minute, tous usages confondus. */
+  perMinute: number;
+}
+
+export function budgetLimits(budget: ProcessingBudget): {
+  proposals: number;
+  statistics: number;
+  images: number;
+} {
+  const proposals = Math.floor(budget.total * budget.proposalShare);
+  const statistics = Math.floor(budget.total * budget.statisticsShare);
+  return { proposals, statistics, images: Math.max(0, budget.total - proposals - statistics) };
+}
+
+export type ReservationOutcome = "reserved" | "share-exhausted" | "units-exhausted" | "throttled";
+
+function minuteOf(now: Date): string {
+  return now.toISOString().slice(0, 16);
+}
+
+/**
+ * Réserve une requête de traitement, dans la part de son type : l'incrément n'a lieu que si la
+ * part, les unités de traitement du mois et la limite de la minute le permettent, dans une seule
+ * requête (des appels concurrents ne peuvent pas dépasser ensemble). Refus : la cause, pour dire
+ * à l'appelant d'attendre une minute ou le mois suivant.
  */
 export async function reserveProcessingRequest(
   month: string,
   kind: SatelliteRequestKind,
   budget: ProcessingBudget,
-): Promise<boolean> {
+  now = new Date(),
+): Promise<ReservationOutcome> {
   const limits = budgetLimits(budget);
-  const proposal = kind === "PROPOSAL";
-  if ((proposal ? limits.proposals : limits.others) <= 0) return false;
+  const limit =
+    kind === "PROPOSAL"
+      ? limits.proposals
+      : kind === "STATISTICS"
+        ? limits.statistics
+        : limits.images;
+  if (limit <= 0) return "share-exhausted";
+  if (budget.processingUnits <= 0) return "units-exhausted";
+  if (budget.perMinute <= 0) return "throttled";
   const image = kind === "IMAGE" ? 1 : 0;
   const statistics = kind === "STATISTICS" ? 1 : 0;
-  const proposals = proposal ? 1 : 0;
+  const proposals = kind === "PROPOSAL" ? 1 : 0;
+  const minute = minuteOf(now);
   const rows = await prisma.$queryRaw<{ month: string }[]>`
     INSERT INTO "satellite_usage" (
-      "month", "image_requests", "statistics_requests", "proposal_requests", "updated_at"
+      "month", "image_requests", "statistics_requests", "proposal_requests", "minute_bucket",
+      "minute_requests", "updated_at"
     )
-    VALUES (${month}, ${image}, ${statistics}, ${proposals}, now())
+    VALUES (${month}, ${image}, ${statistics}, ${proposals}, ${minute}, 1, now())
     ON CONFLICT ("month") DO UPDATE
       SET "image_requests" = "satellite_usage"."image_requests" + EXCLUDED."image_requests",
           "statistics_requests" =
             "satellite_usage"."statistics_requests" + EXCLUDED."statistics_requests",
           "proposal_requests" =
             "satellite_usage"."proposal_requests" + EXCLUDED."proposal_requests",
+          "minute_requests" = CASE
+            WHEN "satellite_usage"."minute_bucket" = EXCLUDED."minute_bucket"
+              THEN "satellite_usage"."minute_requests" + 1
+            ELSE 1
+          END,
+          "minute_bucket" = EXCLUDED."minute_bucket",
           "updated_at" = now()
-      WHERE CASE WHEN ${proposal}
-                 THEN "satellite_usage"."proposal_requests" < ${limits.proposals}
-                 ELSE "satellite_usage"."image_requests" + "satellite_usage"."statistics_requests"
-                      < ${limits.others}
+      WHERE CASE ${kind}
+              WHEN 'PROPOSAL' THEN "satellite_usage"."proposal_requests" < ${limit}
+              WHEN 'STATISTICS' THEN "satellite_usage"."statistics_requests" < ${limit}
+              ELSE "satellite_usage"."image_requests" < ${limit}
             END
+        AND "satellite_usage"."processing_units" < ${budget.processingUnits}
+        AND ("satellite_usage"."minute_bucket" IS DISTINCT FROM EXCLUDED."minute_bucket"
+             OR "satellite_usage"."minute_requests" < ${budget.perMinute})
     RETURNING "month"`;
-  return rows.length > 0;
+  if (rows.length > 0) return "reserved";
+  // Refus : lire l'état du mois pour en donner la cause.
+  const usage = await readProcessingUsage(month);
+  const used =
+    kind === "PROPOSAL"
+      ? usage.proposalRequests
+      : kind === "STATISTICS"
+        ? usage.statisticsRequests
+        : usage.imageRequests;
+  if (used >= limit) return "share-exhausted";
+  if (usage.processingUnits >= budget.processingUnits) return "units-exhausted";
+  return "throttled";
+}
+
+/** Garde une image périmée une heure de plus, ou note l'échec, pour ne pas redemander aussitôt. */
+export async function holdAfterFailure(
+  layer: SatelliteLayerCode,
+  period: string,
+  tileKey: string,
+  until: Date,
+): Promise<void> {
+  await prisma.$executeRaw`
+    INSERT INTO "satellite_tile" ("layer", "period", "tile_key", "image", "fetched_at", "expires_at")
+    VALUES (${layer}::"SatelliteLayer", ${period}, ${tileKey}, NULL, now(), ${until})
+    ON CONFLICT ("layer", "period", "tile_key") DO UPDATE
+      SET "expires_at" = EXCLUDED."expires_at"`;
 }
 
 const outlineSchema = z.object({

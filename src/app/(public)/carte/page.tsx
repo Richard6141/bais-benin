@@ -43,7 +43,12 @@ export default async function MapPage() {
             }}
             canShowFarms={canShowFarms}
             canFilterByStatus={canFilterByStatus(user?.actor ?? null)}
-            canSeeSkyDetail={user !== null}
+            canSeeSkyDetail={
+              // Tuiles satellite détaillées : agents et ministère seulement (revue R2).
+              user?.actor.grants.some(
+                (grant) => grant.role === "AGENT_AGRICULTURE" || grant.role === "ADMIN_STATE",
+              ) ?? false
+            }
           />
         </Suspense>
       </main>

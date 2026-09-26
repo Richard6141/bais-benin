@@ -44,6 +44,8 @@ const geometrySchema = z.object({
 
 /** Une valeur par décade : assez fin pour voir la levée, assez large pour passer les nuages. */
 const INTERVAL_DAYS = 10;
+/** Échecs de Copernicus d'affilée au-delà desquels le lot quotidien s'arrête. */
+const MAX_CONSECUTIVE_ERRORS = 5;
 /** Une saison encore en cours ou masquée par les nuages est réexaminée après ce délai. */
 const RETRY_AFTER_MS = 10 * 86_400_000;
 
@@ -54,6 +56,8 @@ export interface VegetationRunResult {
   skipped: number;
   errors: number;
   budgetExhausted: boolean;
+  /** Arrêt du lot : limite par minute atteinte ou Copernicus injoignable plusieurs fois de suite. */
+  interrupted: "throttled" | "provider-unavailable" | null;
 }
 
 export async function runVegetationChecks(options: {
@@ -70,6 +74,7 @@ export async function runVegetationChecks(options: {
     skipped: 0,
     errors: 0,
     budgetExhausted: false,
+    interrupted: null,
   };
   const campaign = await prisma.agriculturalCampaign.findFirst({
     where: options.campaignCode ? { code: options.campaignCode } : { status: "OPEN" },
@@ -88,6 +93,7 @@ export async function runVegetationChecks(options: {
   // Seul le vrai fournisseur consomme le quota Copernicus ; la fixture n'appelle personne.
   const metered = options.provider.id === "cdse";
 
+  let consecutiveErrors = 0;
   for (const candidate of candidates) {
     const calendar = calendarSchema.safeParse(candidate.crop_calendar);
     const geometry = geometrySchema.safeParse(JSON.parse(candidate.geometry));
@@ -108,9 +114,16 @@ export async function runVegetationChecks(options: {
       result.skipped += 1;
       continue;
     }
-    if (metered && !(await reserveProcessingRequest(periodOf(now), "STATISTICS", budget))) {
-      result.budgetExhausted = true;
-      break;
+    if (metered) {
+      const reservation = await reserveProcessingRequest(periodOf(now), "STATISTICS", budget, now);
+      if (reservation === "throttled") {
+        result.interrupted = "throttled";
+        break;
+      }
+      if (reservation !== "reserved") {
+        result.budgetExhausted = true;
+        break;
+      }
     }
     const to = window.to.getTime() < now.getTime() ? window.to : now;
     const profile = expectedProfile(crop, candidate.zone_code);
@@ -127,8 +140,16 @@ export async function runVegetationChecks(options: {
       if (!(error instanceof RemoteSensingProviderError)) throw error;
       logger.warn({ err: error, parcel: candidate.parcel_code }, "NDVI de parcelle indisponible");
       result.errors += 1;
+      consecutiveErrors += 1;
+      // Copernicus injoignable : le lot s'arrête au lieu de réserver des unités dans le vide ; les
+      // parcelles restantes passeront au lot suivant.
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        result.interrupted = "provider-unavailable";
+        break;
+      }
       continue;
     }
+    consecutiveErrors = 0;
     const verdict = evaluateVegetation(series, profile, window, now);
     await upsertVegetationCheck({
       parcelId: candidate.parcel_id,

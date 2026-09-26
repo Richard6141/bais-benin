@@ -67,7 +67,8 @@ describe("contour depuis le satellite", () => {
     fireEvent.click(screen.getByRole("button", { name: "Proposer un contour" }));
     expect(await screen.findByRole("radio", { name: /Moyen/ })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Serré/ })).not.toBeChecked();
-    expect(screen.getByText(/2,4 ha · confiance 81/)).toBeInTheDocument();
+    expect(screen.getByText(/2,4 ha · confiance bonne \(81/)).toBeInTheDocument();
+    expect(screen.getByText(/1,8 ha · confiance bonne \(62/)).toBeInTheDocument();
     expect(screen.getByText(/Contains modified Copernicus Sentinel data/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Valider ce contour" })).toBeEnabled();
   });

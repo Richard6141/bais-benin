@@ -9,7 +9,8 @@ export const maxDuration = 300;
 
 // Tâche planifiée quotidienne (ADR-0016) : confrontation déclaration / satellite d'un lot de
 // parcelles relevées. 150 par jour par défaut, soit environ 4 500 requêtes Statistical par mois :
-// la moitié du plafond, l'autre moitié restant aux images de la carte.
+// la part des statistiques (SATELLITE_STATISTICS_SHARE, 50 %), étanche vis-à-vis des images de
+// la carte et des propositions de contours (revue R2).
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1000).default(150),
 });

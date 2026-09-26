@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { segmentField, simplifyRing, traceOutline, type FeatureGrid } from "../field-segmentation";
+import {
+  MAX_VERTICES,
+  segmentField,
+  simplifyRing,
+  simplifyToLimit,
+  traceOutline,
+  type FeatureGrid,
+} from "../field-segmentation";
 
 const SIZE = 64;
 const PIXEL_M2 = 100; // pixels de 10 m
@@ -124,6 +131,18 @@ describe("délimitation assistée d'un champ", () => {
 });
 
 describe("contour d'un masque", () => {
+  it("garde au plus douze sommets, maniables au doigt, même pour un bord dentelé", () => {
+    // Escalier de 30 marches : un contour brut de plus de 60 sommets.
+    const ring: [number, number][] = [[0, 0]];
+    for (let i = 0; i < 30; i += 1) {
+      ring.push([i + 1, i], [i + 1, i + 1]);
+    }
+    ring.push([0, 30], [0, 0]);
+    const simplified = simplifyToLimit(ring, 1.5, MAX_VERTICES);
+    expect(simplified.length - 1).toBeLessThanOrEqual(MAX_VERTICES);
+    expect(simplified[0]).toEqual(simplified[simplified.length - 1]);
+  });
+
   it("suit le bord des pixels en anneau fermé, puis se simplifie", () => {
     const mask = new Uint8Array(16);
     // Carré de 2 × 2 pixels en (1, 1) dans une grille de 4 × 4.

@@ -16,6 +16,16 @@ export const LEVEL_COLORS: Record<CandidateLevel, string> = {
   WIDE: choroplethScale[2],
 };
 
+/**
+ * Ce que la confiance veut dire pour l'agent : contraste au bord et régularité de la forme, pas
+ * une probabilité. Au-dessous de 0,6, les sommets sont à vérifier sur l'image.
+ */
+export function confidenceLabel(confidence: number): string {
+  if (confidence >= 0.6) return "confiance bonne";
+  if (confidence >= 0.35) return "confiance moyenne : vérifiez les sommets";
+  return "confiance faible : ajustez les sommets ou relevez à pied";
+}
+
 /** Candidat proposé d'office : le plus sûr, qui ne déborde pas de la fenêtre si possible. */
 export function recommendedCandidate(
   candidates: readonly ProposedContour[],
