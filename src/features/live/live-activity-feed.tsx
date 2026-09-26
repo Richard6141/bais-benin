@@ -119,7 +119,7 @@ export function LiveActivityFeed({
     <section className={cn("flex flex-col gap-3 rounded-lg border bg-card p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          Activité en direct
+          Activité
           <HelpTip label="Activité en direct">
             Ce qui arrive du terrain et des satellites, au fil de l&apos;eau : exploitations et
             contours enregistrés, récoltes, visites, signalements, alertes, feux et demandes
@@ -128,7 +128,7 @@ export function LiveActivityFeed({
           </HelpTip>
         </h2>
         <span
-          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          className="flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground"
           aria-live="polite"
         >
           <span aria-hidden className={cn("inline-block size-2 rounded-full", state.dot)} />
@@ -157,8 +157,8 @@ export function LiveActivityFeed({
                   )}
                 />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium">{view.label}</span>
-                  <span className="truncate text-xs text-muted-foreground">
+                  <span className="text-sm leading-snug font-medium">{view.label}</span>
+                  <span className="text-xs text-muted-foreground">
                     {item.communeName} ({item.departementName})
                   </span>
                 </span>
