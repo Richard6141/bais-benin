@@ -108,7 +108,7 @@ interface MapCanvasProps {
   /** Champs touchés avant attribution (ADR-0029) : trait vif et épais. */
   touchedFieldIds?: readonly string[];
   /** Un agent touche un champ détecté pour l'attribuer ; absent : la couche n'est pas cliquable. */
-  onSelectField?: (id: string) => void;
+  onSelectField?: (id: string, position: [number, number]) => void;
   /** Feux actifs à afficher au-dessus de tout (ADR-0022) ; null : pas de couche de feux. */
   fires?: FireCollection | null;
 }
@@ -471,7 +471,7 @@ export function MapCanvas({
         }
         const feature = event.features?.[0];
         const id = typeof feature?.id === "string" ? feature.id : null;
-        if (id) callbacksRef.current.onSelectField?.(id);
+        if (id) callbacksRef.current.onSelectField?.(id, [event.lngLat.lng, event.lngLat.lat]);
       });
       map.on("mouseenter", LAYER_IDS.fieldFill, () => {
         map.getCanvas().style.cursor = "pointer";

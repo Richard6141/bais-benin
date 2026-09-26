@@ -35,7 +35,7 @@ import { SkyControl } from "./sky-control";
 import { useFires } from "./use-fires";
 import { useImageryCatalog } from "./use-imagery-catalog";
 import { FieldAttributionSheet } from "@/features/registry/parcel-survey/field-attribution-sheet";
-import { FieldMultiBar } from "./field-multi-bar";
+import { FieldMultiBar, type FieldMode } from "./field-multi-bar";
 import { FieldsControl } from "./fields-control";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
@@ -145,12 +145,22 @@ export function AgriMap({
   const [showFarms, setShowFarms] = useState(false);
   // Champ(s) touché(s) avant attribution (ADR-0029) : la feuille s'ouvre dès le premier geste.
   const [touchedFieldIds, setTouchedFieldIds] = useState<string[]>([]);
-  const [multiFields, setMultiFields] = useState(false);
+  const [fieldMode, setFieldMode] = useState<FieldMode>("single");
+  const [cutPoints, setCutPoints] = useState<Array<[number, number]>>([]);
   const [attributionOpen, setAttributionOpen] = useState(false);
   // Un toucher seul attribue tout de suite ; en mode « plusieurs champs », il ajoute ou retire
   // le champ de la sélection, et l'agent attribue l'ensemble d'un geste.
-  const selectField = (id: string) => {
-    if (multiFields) {
+  const selectField = (id: string, position: [number, number]) => {
+    if (fieldMode === "split") {
+      // Les deux points de la coupe tombent dans le même champ ; un autre champ recommence.
+      const same = touchedFieldIds[0] === id;
+      const points = same ? [...cutPoints, position] : [position];
+      setTouchedFieldIds([id]);
+      setCutPoints(points);
+      if (points.length === 2) setAttributionOpen(true);
+      return;
+    }
+    if (fieldMode === "multiple") {
       setTouchedFieldIds((current) =>
         current.includes(id) ? current.filter((other) => other !== id) : [...current, id],
       );
@@ -161,7 +171,8 @@ export function AgriMap({
   };
   const clearFieldSelection = () => {
     setTouchedFieldIds([]);
-    setMultiFields(false);
+    setCutPoints([]);
+    setFieldMode("single");
     setAttributionOpen(false);
   };
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
@@ -320,11 +331,13 @@ export function AgriMap({
           />
           {canAttributeFields && userId && showFields ? (
             <FieldMultiBar
-              multiple={multiFields}
+              mode={fieldMode}
               count={touchedFieldIds.length}
-              onToggle={(value) => {
-                setMultiFields(value);
+              cutPoints={cutPoints.length}
+              onMode={(mode) => {
+                setFieldMode(mode);
                 setTouchedFieldIds([]);
+                setCutPoints([]);
                 setAttributionOpen(false);
               }}
               onAttribute={() => setAttributionOpen(true)}
@@ -383,9 +396,11 @@ export function AgriMap({
           <FieldAttributionSheet
             userId={userId}
             fieldIds={attributionOpen ? touchedFieldIds : null}
+            cut={fieldMode === "split" && cutPoints.length === 2 ? cutPoints : null}
             onClose={() => {
               setAttributionOpen(false);
-              if (!multiFields) setTouchedFieldIds([]);
+              setCutPoints([]);
+              if (fieldMode === "single") setTouchedFieldIds([]);
             }}
             onAttributed={(farmId) => {
               clearFieldSelection();
