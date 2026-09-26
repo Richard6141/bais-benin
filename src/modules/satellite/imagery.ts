@@ -239,7 +239,7 @@ export async function getDetailTile(
 
 export const CROP_MAP_QUARTERS = 4;
 /** Clé des quarts en cache ; à changer avec la règle de classification. */
-const CROP_MAP_CACHE_KEY = "crop-m2";
+const CROP_MAP_CACHE_KEY = "crop-m3";
 /** Délai d'un quart : une série de douze mois et deux traces à lire chez Copernicus. */
 const CROP_MAP_QUARTER_TIMEOUT_MS = 200_000;
 /** Temps de calcul d'un appel, sous la limite de 300 s de la route ; l'appel suivant reprend. */

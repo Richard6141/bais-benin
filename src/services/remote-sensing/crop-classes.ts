@@ -127,6 +127,16 @@ function classify(samples, scenes) {
   const amplitude = max - min;
   const late = Math.max(ndvi[10] === undefined ? -1 : ndvi[10], ndvi[11] === undefined ? -1 : ndvi[11]);
   const june = ndvi[6] === undefined ? (ndvi[7] === undefined ? -1 : ndvi[7]) : ndvi[6];
+  // Montée rapide : un champ passe du sol nu au couvert vert en deux mois, une savane reverdit
+  // progressivement dès les premières pluies. Premier mois vert d'avril à novembre, comparé au
+  // NDVI deux mois plus tôt (trois à défaut).
+  let onset = 0;
+  for (let m = 4; m <= 11 && onset === 0; m++) {
+    if (ndvi[m] !== undefined && ndvi[m] >= 0.5 - OFFSET) onset = m;
+  }
+  const before = onset === 0 ? undefined
+    : ndvi[onset - 2] !== undefined ? ndvi[onset - 2] : ndvi[onset - 3];
+  const steep = before !== undefined && before <= 0.35 && ndvi[onset] - before >= 0.25 - OFFSET;
   // Riz : submersion en début de cycle puis couvert dense dans les trois mois.
   let flooded = false;
   for (let m = 5; m <= 10 && !flooded; m++) {
@@ -143,11 +153,15 @@ function classify(samples, scenes) {
   if (dry >= 0.6 - OFFSET) return 7;
   if (dry >= 0.45 - OFFSET && amplitude <= 0.25) return 4;
   if ((maxMonth === 12 || maxMonth <= 3) && max >= 0.45 - OFFSET && rainy < 0.4) return 5;
-  if (dry <= 0.35 && amplitude >= 0.25 && green >= 1 && green <= 4) {
-    if ((maxMonth === 9 || maxMonth === 10) && late >= 0.45 - OFFSET && june < 0.4) return 3;
+  // Culture annuelle : sol nu en saison sèche, forte amplitude, montée rapide, saison verte
+  // courte. Sans l'un de ces signes, le pixel n'est pas compté comme cultivé.
+  if (dry <= 0.35 && amplitude >= 0.3 - OFFSET && steep && green >= 1 && green <= 4) {
+    if ((maxMonth === 9 || maxMonth === 10) && late >= 0.45 - OFFSET && june < 0.35) return 3;
     return 2;
   }
   if (green >= 5 || dry > 0.35) return 7;
+  // Savane : saison verte nette mais sans la montée rapide d'un champ semé.
+  if (amplitude >= 0.25 && max >= 0.5 - OFFSET) return 7;
   return 6;
 }`;
 
