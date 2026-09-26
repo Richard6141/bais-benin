@@ -201,7 +201,8 @@ describe("déclaration de récolte en ligne", () => {
       unit: "BASIN",
     });
     applied.push(result.id);
-    expect(result).toMatchObject({ outcome: "REJECTED", error: { code: "FORBIDDEN" } });
+    // Hors de portée : même réponse qu'une cible inconnue, rien n'est révélé (revue de sécurité, C2).
+    expect(result).toMatchObject({ outcome: "REJECTED", error: { code: "NOT_FOUND" } });
     expect(
       await prisma.productionDeclaration.count({ where: { parcelCropId: other.parcelCrop } }),
     ).toBe(0);
