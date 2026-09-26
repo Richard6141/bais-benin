@@ -91,6 +91,16 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
   {
+    // Images satellite (ADR-0016) : les mêmes pour tous les comptes, sans donnée personnelle.
+    // Gardées sur l'appareil et affichées tout de suite ; la copie est rafraîchie en arrière-plan
+    // depuis le cache du serveur (le mois en cours reçoit de nouveaux passages), sans quota.
+    matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith("/api/satellite/"),
+    handler: new StaleWhileRevalidate({
+      cacheName: "bais-satellite",
+      plugins: [okOnly, new ExpirationPlugin({ maxEntries: 800, maxAgeSeconds: 30 * DAY })],
+    }),
+  },
+  {
     // B2 : charges RSC des espaces authentifiés (navigation côté client). Le repli sur cache
     // n'existe que pour amortir un réseau lent ou une coupure de quelques minutes en plein
     // parcours de terrain — pas pour rester valide des semaines. Une rétention courte réduit
