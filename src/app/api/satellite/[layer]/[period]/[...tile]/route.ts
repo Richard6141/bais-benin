@@ -7,7 +7,7 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   getDetailTile,
   getOverviewImage,
-  isOfferedPeriod,
+  isOfferedFor,
   type ImageryOutcome,
 } from "@/modules/satellite";
 
@@ -18,8 +18,14 @@ export const dynamic = "force-dynamic";
 // - /api/satellite/{couche}/{AAAA-MM|60-jours}/{z}/{x}/{y}.png : tuile de 512 px, réservée aux
 //   agents et au ministère (revue R2 : producteurs, coopératives et acheteurs n'ont que l'image
 //   d'ensemble), avec un plafond mensuel par compte sur les tuiles à calculer (imagery.ts).
+// - /api/satellite/cultures/12-mois/overview.png : carte des cultures (ADR-0021), image
+//   d'ensemble seulement.
 
-const LAYERS = { "couleur-naturelle": "TRUE_COLOR", ndvi: "NDVI" } as const;
+const LAYERS = {
+  "couleur-naturelle": "TRUE_COLOR",
+  ndvi: "NDVI",
+  cultures: "CROP_CLASSES",
+} as const;
 
 // Image d'ensemble publique : 60 demandes par adresse et par tranche de 5 minutes, bien au-delà
 // d'une navigation normale (24 images au plus, gardées ensuite par le navigateur).
@@ -93,8 +99,9 @@ export async function GET(request: NextRequest, context: { params: Promise<Image
   const layer = Object.hasOwn(LAYERS, layerSlug)
     ? LAYERS[layerSlug as keyof typeof LAYERS]
     : undefined;
-  // Les douze mois proposés et la fenêtre glissante des 60 derniers jours, rien d'autre.
-  if (!layer || !isOfferedPeriod(period, new Date())) {
+  // Les douze mois proposés et la fenêtre glissante des 60 derniers jours, rien d'autre ; les
+  // 12 derniers mois pour la carte des cultures.
+  if (!layer || !isOfferedFor(layer, period, new Date())) {
     return NextResponse.json({ error: "Couche ou période invalide" }, { status: 400 });
   }
   if (tile.length === 1 && tile[0] === "overview.png") {
@@ -112,6 +119,12 @@ export async function GET(request: NextRequest, context: { params: Promise<Image
       );
     }
     return respond(await getOverviewImage(layer, period), "public");
+  }
+  if (layer === "CROP_CLASSES") {
+    return NextResponse.json(
+      { error: "Carte des cultures en image d'ensemble seulement" },
+      { status: 404 },
+    );
   }
   const parsed = tileSchema.safeParse([tile[0], tile[1], tile[2]?.replace(/\.png$/, "")]);
   if (tile.length !== 3 || !parsed.success || !isValidTile(...parsed.data)) {

@@ -21,6 +21,13 @@ const PERIOD_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 export const ROLLING_PERIOD = "60-jours";
 export const ROLLING_DAYS = 60;
 
+/**
+ * Carte des cultures (ADR-0021) : les 12 derniers mois, une saison des pluies entière et la
+ * contre-saison. Seule période de cette couche, qui n'a pas de mois.
+ */
+export const CROP_MAP_PERIOD = "12-mois";
+export const CROP_MAP_DAYS = 365;
+
 export function isPeriod(value: string): boolean {
   return PERIOD_PATTERN.test(value);
 }
@@ -31,9 +38,10 @@ export function periodOf(date: Date): string {
 
 /** Bornes du mois, la fin plafonnée à `now` pour le mois en cours. */
 export function periodRange(period: string, now: Date): { from: string; to: string } {
-  if (period === ROLLING_PERIOD) {
+  if (period === ROLLING_PERIOD || period === CROP_MAP_PERIOD) {
+    const days = period === ROLLING_PERIOD ? ROLLING_DAYS : CROP_MAP_DAYS;
     return {
-      from: new Date(now.getTime() - ROLLING_DAYS * 86_400_000).toISOString(),
+      from: new Date(now.getTime() - days * 86_400_000).toISOString(),
       to: now.toISOString(),
     };
   }
@@ -65,14 +73,25 @@ export function isOfferedPeriod(period: string, now: Date): boolean {
   return period === ROLLING_PERIOD || recentPeriods(now).includes(period);
 }
 
+/** Périodes admises par couche : la carte des cultures n'a que ses 12 derniers mois. */
+export function isOfferedFor(
+  layer: "TRUE_COLOR" | "NDVI" | "CROP_CLASSES",
+  period: string,
+  now: Date,
+): boolean {
+  if (layer === "CROP_CLASSES") return period === CROP_MAP_PERIOD;
+  return isOfferedPeriod(period, now);
+}
+
 /** Vrai si la période reçoit encore de nouveaux passages (cache à échéance). */
 export function isCurrentPeriod(period: string, now: Date): boolean {
-  return period === ROLLING_PERIOD || period === periodOf(now);
+  return period === ROLLING_PERIOD || period === CROP_MAP_PERIOD || period === periodOf(now);
 }
 
 /** Libellé français : « septembre 2026 ». */
 export function periodLabel(period: string): string {
   if (period === ROLLING_PERIOD) return `${ROLLING_DAYS} derniers jours`;
+  if (period === CROP_MAP_PERIOD) return "12 derniers mois";
   const match = PERIOD_PATTERN.exec(period);
   if (!match) throw new RangeError(`Période invalide : ${period}`);
   return new Intl.DateTimeFormat("fr-FR", {

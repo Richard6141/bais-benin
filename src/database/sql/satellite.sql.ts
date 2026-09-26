@@ -3,7 +3,7 @@ import { prisma } from "@/database/client";
 
 // Vue du ciel (ADR-0016) : cache des images Copernicus et décompte du quota de traitement.
 
-export type SatelliteLayerCode = "TRUE_COLOR" | "NDVI";
+export type SatelliteLayerCode = "TRUE_COLOR" | "NDVI" | "CROP_CLASSES";
 export type SatelliteRequestKind = "IMAGE" | "STATISTICS" | "PROPOSAL";
 
 export interface CachedImage {

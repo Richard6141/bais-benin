@@ -2,7 +2,9 @@ export { getImageryCatalog, type ImageryCatalog } from "./catalog";
 export { getDetailTile, getOverviewImage, type ImageryOutcome } from "./imagery";
 export {
   BENIN_IMAGERY_BBOX,
+  CROP_MAP_PERIOD,
   defaultPeriod,
+  isOfferedFor,
   isOfferedPeriod,
   isPeriod,
   periodLabel,

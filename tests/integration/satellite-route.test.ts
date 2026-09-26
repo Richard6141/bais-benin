@@ -8,8 +8,7 @@ import { recentPeriods } from "@/modules/satellite";
 // déclarées passent, jamais une clé héritée de l'objet ; une tuile détaillée exige une session,
 // avant tout appel au cache ou à Copernicus.
 
-function call(layer: string, tile: string[]) {
-  const period = recentPeriods(new Date())[1]!;
+function call(layer: string, tile: string[], period = recentPeriods(new Date())[1]!) {
   const url = `http://localhost/api/satellite/${layer}/${period}/${tile.join("/")}`;
   return GET(new NextRequest(url), { params: Promise.resolve({ layer, period, tile }) });
 }
@@ -27,5 +26,11 @@ describe("route des images satellite", () => {
 
   it("exige une session pour une tuile détaillée", async () => {
     expect((await call("ndvi", ["11", "1033", "965.png"])).status).toBe(401);
+  });
+
+  it("n'offre la carte des cultures que sur ses 12 derniers mois, en image d'ensemble", async () => {
+    expect((await call("cultures", ["overview.png"])).status).toBe(400);
+    expect((await call("ndvi", ["overview.png"], "12-mois")).status).toBe(400);
+    expect((await call("cultures", ["11", "1033", "965.png"], "12-mois")).status).toBe(404);
   });
 });

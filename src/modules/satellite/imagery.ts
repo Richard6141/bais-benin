@@ -22,7 +22,7 @@ import {
   BENIN_IMAGERY_BBOX,
   ROLLING_PERIOD,
   isCurrentPeriod,
-  isOfferedPeriod,
+  isOfferedFor,
   periodOf,
   periodRange,
 } from "./periods";
@@ -36,6 +36,8 @@ import { DETAIL_TILE_SIZE, isDetailTileInBenin, overviewSize, rectTouchesOutline
 const MAX_CLOUD_COVER = 80;
 /** Le mois en cours reçoit de nouveaux passages : ses images sont redemandées après ce délai. */
 const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
+/** Carte des cultures : douze mois de série, une semaine de cache suffit (ADR-0021). */
+const CROP_MAP_TTL_MS = 7 * 86_400_000;
 /** Après un échec de Copernicus, pas de nouvel essai (ni de réservation) avant ce délai. */
 const FAILURE_HOLD_MS = 3_600_000;
 
@@ -140,7 +142,8 @@ async function renderCached(
     });
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
     const permanent = !isCurrentPeriod(target.period, now);
-    const expiresAt = permanent ? null : new Date(now.getTime() + CURRENT_PERIOD_TTL_MS);
+    const ttl = target.layer === "CROP_CLASSES" ? CROP_MAP_TTL_MS : CURRENT_PERIOD_TTL_MS;
+    const expiresAt = permanent ? null : new Date(now.getTime() + ttl);
     await storeCachedImage(target.layer, target.period, tileKey, result?.image ?? null, expiresAt);
     return result ? { status: "ok", image: result.image, permanent } : { status: "empty" };
   } catch (error) {
@@ -162,7 +165,7 @@ async function renderCached(
 
 function render(target: RenderTarget, now: Date, requesterId?: string): Promise<ImageryOutcome> {
   // Hors des mois proposés : refus avant le cache, le quota et Copernicus.
-  if (!isOfferedPeriod(target.period, now))
+  if (!isOfferedFor(target.layer, target.period, now))
     return Promise.resolve({ status: "period-not-offered" });
   const key = `${target.layer}/${target.period}/${target.tileKey}`;
   const pending = inflight.get(key);
@@ -208,7 +211,10 @@ export async function getDetailTile(
   options: { now?: Date; requesterId?: string } = {},
 ): Promise<ImageryOutcome> {
   const now = options.now ?? new Date();
-  if (!isOfferedPeriod(period, now)) return { status: "period-not-offered" };
+  // Carte des cultures : image d'ensemble seulement, des tuiles dépasseraient la part des images.
+  if (layer === "CROP_CLASSES" || !isOfferedFor(layer, period, now)) {
+    return { status: "period-not-offered" };
+  }
   if (!isDetailTileInBenin(z, x, y)) return { status: "empty" };
   const envelope = tileToEnvelope3857(z, x, y);
   const border = await countryOutline();
