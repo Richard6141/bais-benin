@@ -66,6 +66,41 @@ function parcelPixels(ring: number[][]): number {
   return Math.max(1, Math.round(Math.abs(twice) / 2 / 100));
 }
 
+/** Écart de vigueur au pic, au plus, de part et d'autre de la série moyenne. */
+const VIGOUR_RANGE = 0.1;
+
+/**
+ * Vigueur synthétique d'une parcelle, entre -VIGOUR_RANGE et +VIGOUR_RANGE : 60 % tient à sa
+ * commune (sols, pluies, pratiques), 40 % à la parcelle elle-même. Ainsi certaines communes, et
+ * donc certains départements, ressortent meilleurs que d'autres, de façon reproductible. Zéro
+ * sans clés de démonstration.
+ */
+export function demoVigour(keys: { commune: string; parcel: string } | undefined): number {
+  if (!keys) return 0;
+  const unit = (value: string) => (avalanche(hashString(value)) / 0xffffffff) * 2 - 1;
+  return (
+    VIGOUR_RANGE * (0.6 * unit(`commune:${keys.commune}`) + 0.4 * unit(`parcelle:${keys.parcel}`))
+  );
+}
+
+// Brassage final (murmur3) : des identifiants voisins (UUID v7, codes de commune qui ne
+// diffèrent que d'un chiffre) donnent sinon des valeurs groupées.
+function avalanche(hash: number): number {
+  let value = hash;
+  value ^= value >>> 16;
+  value = Math.imul(value, 0x85ebca6b);
+  value ^= value >>> 13;
+  value = Math.imul(value, 0xc2b2ae35);
+  value ^= value >>> 16;
+  return value >>> 0;
+}
+
+/** Applique la vigueur au couvert au-dessus du sol nu (0,2) : le pic bouge, pas la base. */
+function withVigour(cover: number, vigour: number, peakAmplitude: number): number {
+  if (vigour === 0) return cover;
+  return 0.2 + (cover - 0.2) * (1 + vigour / peakAmplitude);
+}
+
 /**
  * Couvert synthétique d'une culture annuelle à une date : autour de la période de pic de la
  * culture quand l'appelant la donne, sinon selon le régime des pluies de la latitude.
@@ -197,6 +232,7 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       const seed = hashString(JSON.stringify(ring));
       const bare = seed % 8 === 0;
       const pixels = parcelPixels(ring);
+      const vigour = demoVigour(request.demoKeys);
       const intervals: RadarInterval[] = [];
       const step = request.intervalDays * DAY_MS;
       for (let time = Date.parse(request.from); time < Date.parse(request.to); time += step) {
@@ -205,8 +241,12 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
         const cover = bare
           ? 0.2
           : request.expectedCover === "PERMANENT"
-            ? 0.55
-            : 0.2 + (seasonalCover(latitude, middle, request.expectedPeak) - 0.2) * 0.7;
+            ? withVigour(0.55, vigour * 0.7, 0.35)
+            : withVigour(
+                0.2 + (seasonalCover(latitude, middle, request.expectedPeak) - 0.2) * 0.7,
+                vigour * 0.7,
+                0.35,
+              );
         const rvi = Number((cover + (noise(seed, index + 200) - 0.5) * 0.04).toFixed(3));
         intervals.push({
           from: new Date(time).toISOString(),
@@ -229,6 +269,7 @@ function syntheticNdvi(request: VegetationStatisticsRequest): VegetationInterval
   const seed = hashString(JSON.stringify(ring));
   const bare = seed % 8 === 0;
   const pixels = parcelPixels(ring);
+  const vigour = demoVigour(request.demoKeys);
   const intervals: VegetationInterval[] = [];
   const step = request.intervalDays * DAY_MS;
   for (let time = Date.parse(request.from); time < Date.parse(request.to); time += step) {
@@ -236,11 +277,12 @@ function syntheticNdvi(request: VegetationStatisticsRequest): VegetationInterval
     const middle = new Date(time + step / 2);
     // Un intervalle sur cinq entièrement nuageux, comme en pleine saison des pluies.
     const cloudy = noise(seed, index) < 0.2;
+    // Amplitude au pic : 0,5 pour le couvert saisonnier, 0,36 pour une plantation (0,56).
     const expected = bare
       ? 0.16
       : request.expectedCover === "PERMANENT"
-        ? 0.56
-        : seasonalCover(latitude, middle, request.expectedPeak);
+        ? withVigour(0.56, vigour, 0.36)
+        : withVigour(seasonalCover(latitude, middle, request.expectedPeak), vigour, 0.5);
     const value = expected + (noise(seed, index + 100) - 0.5) * 0.06;
     intervals.push({
       from: new Date(time).toISOString(),

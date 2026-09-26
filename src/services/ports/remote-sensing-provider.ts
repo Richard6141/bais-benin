@@ -84,6 +84,11 @@ export interface VegetationStatisticsRequest {
   expectedCover?: "SEASONAL" | "PERMANENT";
   /** Période où le couvert doit culminer, pour la seule fixture. */
   expectedPeak?: { from: string; to: string };
+  /**
+   * Clés de la démonstration, pour la seule fixture : vigueur synthétique reproductible par
+   * commune et par parcelle. Un vrai fournisseur mesure et l'ignore.
+   */
+  demoKeys?: { commune: string; parcel: string };
 }
 
 /** Sens d'orbite Sentinel-1 : une parcelle est toujours vue dans le même, pour comparer. */
@@ -100,6 +105,11 @@ export interface RadarStatisticsRequest {
   expectedCover?: "SEASONAL" | "PERMANENT";
   /** Période où le couvert doit culminer, pour la seule fixture. */
   expectedPeak?: { from: string; to: string };
+  /**
+   * Clés de la démonstration, pour la seule fixture : vigueur synthétique reproductible par
+   * commune et par parcelle. Un vrai fournisseur mesure et l'ignore.
+   */
+  demoKeys?: { commune: string; parcel: string };
 }
 
 /** Indice de végétation radar d'une géométrie sur un intervalle (Sentinel-1, ADR-0019). */
