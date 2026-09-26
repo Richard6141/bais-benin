@@ -98,6 +98,24 @@ describe("classification phénologique d'un pixel", () => {
     expect(classOf(savanna)).toBe(CROP_CLASS_CODES.NATURAL);
   });
 
+  it("ne compte pas comme cultivée une savane du nord qui reverdit progressivement", () => {
+    // Verte de juillet à octobre, pic en septembre, comme le coton, mais déjà à 0,45 en juin.
+    const shrub: Record<number, number> = {
+      5: 0.38,
+      6: 0.47,
+      7: 0.57,
+      8: 0.63,
+      9: 0.66,
+      10: 0.58,
+      11: 0.4,
+    };
+    const code = classOf((m) => ({ ndvi: shrub[m] ?? 0.28 }));
+    expect(code).toBe(CROP_CLASS_CODES.NATURAL);
+    // Brûlée en saison sèche : sol presque nu en janvier, même reverdissement lent.
+    const burnt: Record<number, number> = { 12: 0.12, 1: 0.12, 2: 0.15, ...shrub };
+    expect(classOf((m) => ({ ndvi: burnt[m] ?? 0.22 }))).toBe(CROP_CLASS_CODES.NATURAL);
+  });
+
   it("reconnaît le maraîchage de contre-saison", () => {
     const garden: Record<number, number> = { 1: 0.5, 2: 0.55, 3: 0.45, 12: 0.4 };
     expect(classOf((m) => ({ ndvi: garden[m] ?? 0.25 }))).toBe(CROP_CLASS_CODES.GARDEN);

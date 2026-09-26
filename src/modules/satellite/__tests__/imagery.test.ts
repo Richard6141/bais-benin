@@ -199,7 +199,7 @@ describe("carte des cultures en quatre quarts", () => {
     expect(sql.storeCachedImage).toHaveBeenCalledWith(
       "CROP_CLASSES",
       "12-mois",
-      "crop-m2:q0",
+      "crop-m3:q0",
       new Uint8Array([1]),
       new Date("2026-10-01T00:00:00Z"),
     );

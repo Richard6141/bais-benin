@@ -39,9 +39,17 @@ export const CROP_AREA_RESOLUTION_M = 120;
 /**
  * Version de la méthode : 2 écarte les pixels hors du contour de la commune (ils passaient pour
  * « non classés » et faisaient baisser toutes les surfaces) et lit un passage par trace et par
- * mois. Une estimation d'une version antérieure est refaite au lot suivant.
+ * mois ; 3 exige d'une culture annuelle une montée rapide au verdissement (ADR-0027), pour ne
+ * plus compter la savane du nord comme cultivée. Une estimation d'une version antérieure est
+ * refaite au lot suivant.
  */
-export const CROP_AREA_METHOD_VERSION = 2;
+export const CROP_AREA_METHOD_VERSION = 3;
+/**
+ * Faux tant que la règle n'a pas été recalée sur les parcelles vérifiées (matrice de confusion) :
+ * les écrans disent alors que les surfaces ne sont pas à citer. Le passage à vrai est une
+ * décision du ministère, après une passe réelle jugée crédible.
+ */
+export const CROP_MAP_CALIBRATED = false;
 /** Douze mois de série : une saison des pluies entière et la contre-saison qui la précède. */
 const WINDOW_DAYS = 365;
 const MAX_CONSECUTIVE_ERRORS = 3;
