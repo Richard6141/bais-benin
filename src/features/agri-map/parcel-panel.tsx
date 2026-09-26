@@ -114,7 +114,7 @@ export function ParcelPanel({ parcelId, onClose, onLoaded, farmHref }: ParcelPan
 
       {state.status === "loading" ? <PanelSkeleton /> : null}
       {state.status === "error" ? (
-        <p className="rounded-md border bg-muted/40 p-3 text-sm">{state.message}</p>
+        <p className="rounded-sm border bg-muted/40 p-3 text-sm">{state.message}</p>
       ) : null}
       {state.status === "ready" ? <ParcelDetail parcel={state.parcel} farmHref={farmHref} /> : null}
     </div>
@@ -316,12 +316,12 @@ function YieldLine({ crop }: { crop: Inspection["crops"][number] }) {
       {crop.communeMedianTPerHa !== null && share !== null ? (
         <>
           <div
-            className="relative h-1.5 overflow-hidden rounded-full bg-muted"
+            className="relative h-1.5 overflow-hidden rounded-sm bg-muted"
             role="img"
             aria-label={`Meilleur rendement que ${percent.format(share)} des parcelles comparables`}
           >
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-forest"
+              className="absolute inset-y-0 left-0 rounded-sm bg-forest"
               style={{ width: `${Math.round(share * 100)}%` }}
             />
           </div>
