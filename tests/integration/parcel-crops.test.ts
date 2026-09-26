@@ -3,9 +3,11 @@ import { prisma } from "@/database/client";
 import { loadActor } from "@/modules/identity";
 import {
   collectParcelSeries,
+  getParcelCropOverview,
   getParcelCropPrediction,
   trainAndPredictCrops,
 } from "@/modules/satellite";
+import { crossValidationSchema } from "@/modules/satellite/parcel-crop-accuracy";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 
 // Cultures par parcelle (ADR-0030) sur la vraie base, avec la fixture : séries des parcelles d'une
@@ -41,12 +43,19 @@ describe("cultures par parcelle", () => {
     expect(model.trainingParcels).toBeGreaterThan(50);
     expect(model.outOfBagAccuracy).toBeGreaterThan(0.6);
     expect(model.predicted).toBeGreaterThanOrEqual(model.trainingParcels);
+    // Précision affichée : chaque commune pilote jugée par un modèle qui ne l'a pas vue.
+    expect(model.crossValidatedAccuracy).not.toBeNull();
+    expect(model.crossValidatedAccuracy!).toBeGreaterThan(0.5);
     const stored = await prisma.cropModel.findUniqueOrThrow({
       where: { version: model.version! },
-      select: { classes: true, featureNames: true, trainingParcels: true },
+      select: { classes: true, featureNames: true, trainingParcels: true, metrics: true },
     });
     expect(stored.classes).toEqual(model.classes);
     expect(stored.trainingParcels).toBe(model.trainingParcels);
+    const metrics = stored.metrics as { crossValidation?: unknown };
+    const crossValidation = crossValidationSchema.parse(metrics.crossValidation);
+    expect(crossValidation.folds).toBeGreaterThanOrEqual(2);
+    expect(crossValidation.accuracy).toBe(model.crossValidatedAccuracy);
   }, 180_000);
 
   it("rend la culture mesurée au ministère, et rien pour une parcelle sans mesure", async () => {
@@ -69,6 +78,30 @@ describe("cultures par parcelle", () => {
     expect(
       await getParcelCropPrediction(ministry, "00000000-0000-0000-0000-000000000000"),
     ).toBeNull();
+  });
+
+  it("donne au ministère précision par commune, accord et surfaces, et rien à un agent", async () => {
+    const overview = await getParcelCropOverview(await actorForPhone(MINISTRY_PHONE));
+    expect(overview).not.toBeNull();
+    expect(overview!.accuracy!.folds).toBeGreaterThanOrEqual(2);
+    expect(overview!.accuracy!.communes.every((commune) => commune.name !== commune.code)).toBe(
+      true,
+    );
+    expect(overview!.agreement.parcels).toBe(
+      await prisma.parcelCropPrediction.count({
+        where: { campaign: { status: "OPEN" }, parcel: { archivedAt: null } },
+      }),
+    );
+    const confidences = overview!.disagreements.map((entry) => entry.confidence);
+    expect(confidences.every((value) => value >= 0.6)).toBe(true);
+    expect([...confidences].sort((a, b) => b - a)).toEqual(confidences);
+    // Les surfaces pondérées par culture et par commune sont la même surface, autrement rangée.
+    const byCrop = overview!.areas.byCrop.reduce((sum, entry) => sum + entry.weightedHa, 0);
+    const byCommune = overview!.areas.byCommune.reduce((sum, entry) => sum + entry.measuredHa, 0);
+    expect(byCrop).toBeGreaterThan(0);
+    expect(Math.abs(byCrop - byCommune)).toBeLessThan(1);
+
+    expect(await getParcelCropOverview(await actorForPhone(AGENT_PHONE))).toBeNull();
   });
 
   it("ne montre rien à un agent hors des exploitations qu'il a enregistrées (ADR-0014)", async () => {

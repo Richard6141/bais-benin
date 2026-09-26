@@ -286,3 +286,87 @@ export async function predictionForParcel(parcelId: string) {
      LIMIT 1`;
   return rows[0] ? parcelPredictionSchema.parse(rows[0]) : null;
 }
+
+// --- Vue du ministère (ADR-0032) : accord, désaccords et surfaces mesurées ----------------------
+
+const agreementSchema = z.object({
+  declared_group: z.string().nullable(),
+  agreement: z.enum(["AGREES", "DIFFERS", "UNCERTAIN"]),
+  parcels: z.coerce.number(),
+});
+
+/** Parcelles mesurées par culture déclarée et par accord avec la déclaration. */
+export async function predictionAgreementCounts(campaignId: string) {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT pr."declared_group", pr."agreement"::text AS agreement, count(*) AS parcels
+      FROM "parcel_crop_prediction" pr
+      JOIN "parcel" p ON p."id" = pr."parcel_id" AND p."archived_at" IS NULL
+     WHERE pr."campaign_id" = ${campaignId}::uuid
+     GROUP BY pr."declared_group", pr."agreement"`;
+  return rows.map((row) => agreementSchema.parse(row));
+}
+
+const disagreementSchema = z.object({
+  parcel_id: z.string(),
+  parcel_code: z.string(),
+  commune_name: z.string(),
+  crop_group: z.string(),
+  declared_group: z.string().nullable(),
+  confidence: z.coerce.number(),
+});
+
+/** Parcelles vues autrement que déclarées, les plus sûres d'abord. Aucun nom de producteur. */
+export async function listPredictionDisagreements(campaignId: string, limit: number) {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT pr."parcel_id", p."code" AS parcel_code, co."name" AS commune_name, pr."crop_group",
+           pr."declared_group", pr."confidence"
+      FROM "parcel_crop_prediction" pr
+      JOIN "parcel" p ON p."id" = pr."parcel_id" AND p."archived_at" IS NULL
+      JOIN "farm" f ON f."id" = p."farm_id" AND f."archived_at" IS NULL
+      JOIN "commune" co ON co."id" = f."commune_id"
+     WHERE pr."campaign_id" = ${campaignId}::uuid AND pr."agreement" = 'DIFFERS'
+     ORDER BY pr."confidence" DESC, p."code"
+     LIMIT ${limit}`;
+  return rows.map((row) => disagreementSchema.parse(row));
+}
+
+const measuredAreaSchema = z.object({
+  commune_id: z.string(),
+  commune_code: z.string(),
+  commune_name: z.string(),
+  crop_group: z.string(),
+  /** Surface de chaque parcelle comptée pour la probabilité de la culture. */
+  weighted_ha: z.coerce.number(),
+  /** Surface des parcelles dont c'est la culture mesurée. */
+  classified_ha: z.coerce.number(),
+  classified_parcels: z.coerce.number(),
+  /** Surface des parcelles dont c'est la culture déclarée. */
+  declared_ha: z.coerce.number(),
+});
+
+/**
+ * Surfaces mesurées par commune et par culture : chaque parcelle compte pour sa surface relevée
+ * (à défaut déclarée), répartie selon les probabilités du modèle.
+ */
+export async function measuredCropAreas(campaignId: string) {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH measured AS (
+      SELECT f."commune_id", pr."crop_group", pr."declared_group", pr."probabilities",
+             coalesce(p."computed_area_ha", p."declared_area_ha") AS area_ha
+        FROM "parcel_crop_prediction" pr
+        JOIN "parcel" p ON p."id" = pr."parcel_id" AND p."archived_at" IS NULL
+        JOIN "farm" f ON f."id" = p."farm_id" AND f."archived_at" IS NULL
+       WHERE pr."campaign_id" = ${campaignId}::uuid
+    )
+    SELECT m."commune_id", co."code" AS commune_code, co."name" AS commune_name,
+           prob.key AS crop_group,
+           sum(m.area_ha * prob.value::numeric) AS weighted_ha,
+           sum(CASE WHEN m."crop_group" = prob.key THEN m.area_ha ELSE 0 END) AS classified_ha,
+           count(*) FILTER (WHERE m."crop_group" = prob.key) AS classified_parcels,
+           sum(CASE WHEN m."declared_group" = prob.key THEN m.area_ha ELSE 0 END) AS declared_ha
+      FROM measured m
+      JOIN "commune" co ON co."id" = m."commune_id"
+     CROSS JOIN LATERAL jsonb_each_text(m."probabilities") AS prob(key, value)
+     GROUP BY m."commune_id", co."code", co."name", prob.key`;
+  return rows.map((row) => measuredAreaSchema.parse(row));
+}

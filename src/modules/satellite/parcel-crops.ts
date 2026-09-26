@@ -12,6 +12,7 @@ import {
 } from "@/database/sql/parcel-crops.sql";
 import { addProcessingUnits, reserveProcessingRequest } from "@/database/sql/satellite.sql";
 import { getServerEnv } from "@/lib/env";
+import { crossValidateByGroup } from "@/lib/ml/cross-validation";
 import { logger } from "@/lib/logger";
 import {
   DEFAULT_FOREST,
@@ -34,6 +35,7 @@ import {
   visitPriority,
 } from "./parcel-crop-rules";
 import { processingBudget } from "./imagery";
+import { crossValidationMetrics } from "./parcel-crop-accuracy";
 import {
   FEATURE_NAMES,
   FEATURE_VERSION,
@@ -265,7 +267,10 @@ export interface ModelRunResult {
   version: number | null;
   trainingParcels: number;
   classes: string[];
+  /** Précision hors sac : interne, elle flatte le modèle (voisines de la même commune). */
   outOfBagAccuracy: number | null;
+  /** Précision affichée : chaque commune jugée par un modèle entraîné sans elle (ADR-0032). */
+  crossValidatedAccuracy: number | null;
   predicted: number;
   byAgreement: Record<"AGREES" | "DIFFERS" | "UNCERTAIN", number>;
   /** Classes écartées faute de parcelles vérifiées. */
@@ -290,6 +295,7 @@ export async function trainAndPredictCrops(
     trainingParcels: 0,
     classes: [],
     outOfBagAccuracy: null,
+    crossValidatedAccuracy: null,
     predicted: 0,
     byAgreement: { AGREES: 0, DIFFERS: 0, UNCERTAIN: 0 },
     skippedClasses: {},
@@ -316,8 +322,10 @@ export async function trainAndPredictCrops(
   // Empreinte des données : sans nouvelle visite, étiquette ni série, pas de nouvelle version.
   const latest = (value: Date | null, next: Date | null) =>
     next && (!value || next > value) ? next : value;
+  // « cv-commune » : un modèle d'avant la validation croisée par commune est refait une fois.
   const fingerprint = [
     FEATURE_VERSION,
+    "cv-commune",
     training.length,
     result.fieldVisitLabels,
     training
@@ -337,7 +345,12 @@ export async function trainAndPredictCrops(
     select: { version: true, metrics: true, classes: true, trainingParcels: true },
   });
   const previousMetrics = previous?.metrics as
-    { fingerprint?: string; outOfBagAccuracy?: number | null } | undefined;
+    | {
+        fingerprint?: string;
+        outOfBagAccuracy?: number | null;
+        crossValidation?: { accuracy?: number | null } | null;
+      }
+    | undefined;
   if (previous && previousMetrics?.fingerprint === fingerprint && !options.force) {
     // Rien de nouveau : le modèle en place reste, ses chiffres sont rendus tels quels.
     Object.assign(result, {
@@ -345,19 +358,34 @@ export async function trainAndPredictCrops(
       trainingParcels: previous.trainingParcels,
       classes: previous.classes,
       outOfBagAccuracy: previousMetrics.outOfBagAccuracy ?? null,
+      crossValidatedAccuracy: previousMetrics.crossValidation?.accuracy ?? null,
       unchanged: true,
     });
     return result;
   }
 
   const params = options.params ?? DEFAULT_FOREST;
-  const { model, outOfBagAccuracy } = trainRandomForest(
-    training.map((entry) => featureVector(entry.signature.features)),
-    training.map((entry) => entry.group),
-    FEATURE_NAMES,
-    params,
-    training.map((entry) => entry.weight),
-  );
+  const X = training.map((entry) => featureVector(entry.signature.features));
+  const labels = training.map((entry) => entry.group);
+  const weights = training.map((entry) => entry.weight);
+  const { model, outOfBagAccuracy } = trainRandomForest(X, labels, FEATURE_NAMES, params, weights);
+  // Précision affichée (ADR-0032) : chaque commune jugée par un modèle qui ne l'a jamais vue.
+  // Cinq plis au plus : cinq entraînements de plus, quelques secondes, sans appel à Copernicus.
+  const communes = training.map((entry) => entry.signature.commune_code);
+  const folds = crossValidateByGroup(X, labels, communes, FEATURE_NAMES, params, {
+    sampleWeights: weights,
+  });
+  const crossValidation = folds
+    ? crossValidationMetrics(
+        folds.folds,
+        training.map((entry, row) => ({
+          reference: entry.group,
+          commune: communes[row]!,
+          predicted: folds.predictions[row] ?? null,
+        })),
+        UNCERTAIN_BELOW,
+      )
+    : null;
   const synthetic = signatures.some((signature) => signature.source_id === "BAIS_SEED");
   const version = await nextModelVersion();
   const stored = await prisma.cropModel.create({
@@ -373,6 +401,7 @@ export async function trainAndPredictCrops(
       trainingParcels: training.length,
       metrics: {
         outOfBagAccuracy,
+        crossValidation,
         classCounts: Object.fromEntries(counts),
         fieldVisitLabels: result.fieldVisitLabels,
         fingerprint,
@@ -416,6 +445,7 @@ export async function trainAndPredictCrops(
     trainingParcels: training.length,
     classes: model.classes,
     outOfBagAccuracy,
+    crossValidatedAccuracy: crossValidation?.accuracy ?? null,
     predicted: rows.length,
   });
   return result;

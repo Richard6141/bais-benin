@@ -34,3 +34,5 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0029 | Contours de champs de référence (Fields of The World), import filtré et mesure de qualité | acceptée, complète 0016 |
 | 0030 | Culture de chaque parcelle, mesurée par satellite et apprise des parcelles vérifiées (forêt aléatoire) | acceptée, complète 0016, 0019 et 0021 |
 | 0031 | Cultures par parcelle : culture constatée à la visite, apprentissage actif, coût mesuré des séries | acceptée, complète 0030 |
+| 0032 | Cultures par parcelle : précision jugée sur des communes jamais vues, accord et surfaces pondérées | acceptée, complète 0030 et 0031 |
+| 0033 | Surfaces par culture : base de sondage aréolaire (points tirés, constat de terrain) et estimateur par régression | acceptée, complète 0021, 0030 et 0032 |

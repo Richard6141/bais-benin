@@ -106,3 +106,4 @@ export {
   trainingLabel,
   visitPriority,
 } from "./parcel-crop-rules";
+export { getParcelCropOverview, type ParcelCropOverview } from "./parcel-crop-overview";
