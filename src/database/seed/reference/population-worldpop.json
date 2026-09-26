@@ -1,0 +1,397 @@
+{
+  "source": "WORLDPOP",
+  "dataset": "WorldPop Global2 R2025A v1, estimation contrainte à 100 m",
+  "year": 2026,
+  "licence": "CC BY 4.0",
+  "extractedOn": "2026-09-26",
+  "doi": "10.5258/SOTON/WP00839",
+  "url": "https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2026/BEN/v1/100m/constrained/ben_pop_2026_CN_100m_R2025A_v1.tif",
+  "nationalTotal": 14991374,
+  "communes": [
+    {
+      "code": "BJ-ALI-001",
+      "name": "Banikoara",
+      "population": 409358
+    },
+    {
+      "code": "BJ-ALI-002",
+      "name": "Gogounou",
+      "population": 242576
+    },
+    {
+      "code": "BJ-ALI-003",
+      "name": "Kandi",
+      "population": 312659
+    },
+    {
+      "code": "BJ-ALI-004",
+      "name": "Karimama",
+      "population": 60145
+    },
+    {
+      "code": "BJ-ALI-005",
+      "name": "Malanville",
+      "population": 152303
+    },
+    {
+      "code": "BJ-ALI-006",
+      "name": "Ségbana",
+      "population": 106985
+    },
+    {
+      "code": "BJ-ATA-001",
+      "name": "Boukoumbé",
+      "population": 107396
+    },
+    {
+      "code": "BJ-ATA-002",
+      "name": "Cobly",
+      "population": 64181
+    },
+    {
+      "code": "BJ-ATA-003",
+      "name": "Kérou",
+      "population": 161472
+    },
+    {
+      "code": "BJ-ATA-004",
+      "name": "Kouandé",
+      "population": 146381
+    },
+    {
+      "code": "BJ-ATA-005",
+      "name": "Matéri",
+      "population": 129252
+    },
+    {
+      "code": "BJ-ATA-006",
+      "name": "Natitingou",
+      "population": 201892
+    },
+    {
+      "code": "BJ-ATA-007",
+      "name": "Péhunco",
+      "population": 108789
+    },
+    {
+      "code": "BJ-ATA-008",
+      "name": "Tanguiéta",
+      "population": 107092
+    },
+    {
+      "code": "BJ-ATA-009",
+      "name": "Toucountouna",
+      "population": 47746
+    },
+    {
+      "code": "BJ-ATL-001",
+      "name": "Abomey-Calavi",
+      "population": 1961413
+    },
+    {
+      "code": "BJ-ATL-002",
+      "name": "Allada",
+      "population": 159177
+    },
+    {
+      "code": "BJ-ATL-003",
+      "name": "Kpomassè",
+      "population": 99693
+    },
+    {
+      "code": "BJ-ATL-004",
+      "name": "Ouidah",
+      "population": 275031
+    },
+    {
+      "code": "BJ-ATL-005",
+      "name": "Sô-Ava",
+      "population": 22159
+    },
+    {
+      "code": "BJ-ATL-006",
+      "name": "Toffo",
+      "population": 119522
+    },
+    {
+      "code": "BJ-ATL-007",
+      "name": "Tori-Bossito",
+      "population": 91878
+    },
+    {
+      "code": "BJ-ATL-008",
+      "name": "Zè",
+      "population": 134679
+    },
+    {
+      "code": "BJ-BOR-001",
+      "name": "Bembèrèkè",
+      "population": 216834
+    },
+    {
+      "code": "BJ-BOR-002",
+      "name": "Kalalé",
+      "population": 169348
+    },
+    {
+      "code": "BJ-BOR-003",
+      "name": "N'Dali",
+      "population": 162927
+    },
+    {
+      "code": "BJ-BOR-004",
+      "name": "Nikki",
+      "population": 240036
+    },
+    {
+      "code": "BJ-BOR-005",
+      "name": "Parakou",
+      "population": 671042
+    },
+    {
+      "code": "BJ-BOR-006",
+      "name": "Pèrèrè",
+      "population": 114918
+    },
+    {
+      "code": "BJ-BOR-007",
+      "name": "Sinendé",
+      "population": 116164
+    },
+    {
+      "code": "BJ-BOR-008",
+      "name": "Tchaourou",
+      "population": 321001
+    },
+    {
+      "code": "BJ-COL-001",
+      "name": "Bantè",
+      "population": 115122
+    },
+    {
+      "code": "BJ-COL-002",
+      "name": "Dassa-Zoumè",
+      "population": 148870
+    },
+    {
+      "code": "BJ-COL-003",
+      "name": "Glazoué",
+      "population": 144499
+    },
+    {
+      "code": "BJ-COL-004",
+      "name": "Ouèssè",
+      "population": 150132
+    },
+    {
+      "code": "BJ-COL-005",
+      "name": "Savalou",
+      "population": 178118
+    },
+    {
+      "code": "BJ-COL-006",
+      "name": "Savè",
+      "population": 112826
+    },
+    {
+      "code": "BJ-COU-001",
+      "name": "Aplahoué",
+      "population": 169014
+    },
+    {
+      "code": "BJ-COU-002",
+      "name": "Djakotomey",
+      "population": 95227
+    },
+    {
+      "code": "BJ-COU-003",
+      "name": "Dogbo",
+      "population": 95892
+    },
+    {
+      "code": "BJ-COU-004",
+      "name": "Klouékanmè",
+      "population": 132421
+    },
+    {
+      "code": "BJ-COU-005",
+      "name": "Lalo",
+      "population": 76827
+    },
+    {
+      "code": "BJ-COU-006",
+      "name": "Toviklin",
+      "population": 58617
+    },
+    {
+      "code": "BJ-DON-001",
+      "name": "Bassila",
+      "population": 158828
+    },
+    {
+      "code": "BJ-DON-002",
+      "name": "Copargo",
+      "population": 77702
+    },
+    {
+      "code": "BJ-DON-003",
+      "name": "Djougou",
+      "population": 418795
+    },
+    {
+      "code": "BJ-DON-004",
+      "name": "Ouaké",
+      "population": 93269
+    },
+    {
+      "code": "BJ-LIT-001",
+      "name": "Cotonou",
+      "population": 938071
+    },
+    {
+      "code": "BJ-MON-001",
+      "name": "Athiémé",
+      "population": 36147
+    },
+    {
+      "code": "BJ-MON-002",
+      "name": "Bopa",
+      "population": 84836
+    },
+    {
+      "code": "BJ-MON-003",
+      "name": "Comè",
+      "population": 130037
+    },
+    {
+      "code": "BJ-MON-004",
+      "name": "Grand-Popo",
+      "population": 64847
+    },
+    {
+      "code": "BJ-MON-005",
+      "name": "Houéyogbé",
+      "population": 114208
+    },
+    {
+      "code": "BJ-MON-006",
+      "name": "Lokossa",
+      "population": 131998
+    },
+    {
+      "code": "BJ-OUE-001",
+      "name": "Adjarra",
+      "population": 241264
+    },
+    {
+      "code": "BJ-OUE-002",
+      "name": "Adjohoun",
+      "population": 87981
+    },
+    {
+      "code": "BJ-OUE-003",
+      "name": "Aguégués",
+      "population": 9736
+    },
+    {
+      "code": "BJ-OUE-004",
+      "name": "Akpro-Missérété",
+      "population": 226060
+    },
+    {
+      "code": "BJ-OUE-005",
+      "name": "Avrankou",
+      "population": 191602
+    },
+    {
+      "code": "BJ-OUE-006",
+      "name": "Bonou",
+      "population": 32631
+    },
+    {
+      "code": "BJ-OUE-007",
+      "name": "Dangbo",
+      "population": 63256
+    },
+    {
+      "code": "BJ-OUE-008",
+      "name": "Porto-Novo",
+      "population": 605720
+    },
+    {
+      "code": "BJ-OUE-009",
+      "name": "Sèmè-Kpodji",
+      "population": 665311
+    },
+    {
+      "code": "BJ-PLA-001",
+      "name": "Adja-Ouèrè",
+      "population": 99561
+    },
+    {
+      "code": "BJ-PLA-002",
+      "name": "Ifangni",
+      "population": 120283
+    },
+    {
+      "code": "BJ-PLA-003",
+      "name": "Kétou",
+      "population": 201085
+    },
+    {
+      "code": "BJ-PLA-004",
+      "name": "Pobè",
+      "population": 99602
+    },
+    {
+      "code": "BJ-PLA-005",
+      "name": "Sakété",
+      "population": 128293
+    },
+    {
+      "code": "BJ-ZOU-001",
+      "name": "Abomey",
+      "population": 259363
+    },
+    {
+      "code": "BJ-ZOU-002",
+      "name": "Agbangnizoun",
+      "population": 83892
+    },
+    {
+      "code": "BJ-ZOU-003",
+      "name": "Bohicon",
+      "population": 364068
+    },
+    {
+      "code": "BJ-ZOU-004",
+      "name": "Covè",
+      "population": 76345
+    },
+    {
+      "code": "BJ-ZOU-005",
+      "name": "Djidja",
+      "population": 135416
+    },
+    {
+      "code": "BJ-ZOU-006",
+      "name": "Ouinhi",
+      "population": 39782
+    },
+    {
+      "code": "BJ-ZOU-007",
+      "name": "Za-Kpota",
+      "population": 132062
+    },
+    {
+      "code": "BJ-ZOU-008",
+      "name": "Zagnanado",
+      "population": 55908
+    },
+    {
+      "code": "BJ-ZOU-009",
+      "name": "Zogbodomey",
+      "population": 96391
+    }
+  ]
+}

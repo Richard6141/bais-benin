@@ -23,6 +23,11 @@ import {
 
 /** Sous ce nombre de points observés, une surface n'est jamais à citer. */
 export const MIN_POINTS_TO_CITE = 30;
+/**
+ * Sous ce nombre de points où la culture est vue, la variance n'est pas fiable : deux points de
+ * riz que la carte voit aussi donnent une marge nulle. Le chiffre n'est alors jamais cité.
+ */
+export const MIN_POSITIVES_TO_CITE = 10;
 /** Coefficients de variation : à citer, indicatif, au-delà à ne pas citer. */
 export const CV_CITE = 0.1;
 export const CV_INDICATIVE = 0.2;
@@ -40,7 +45,17 @@ const SHARED_CLASSES = new Set<string>(
 );
 
 /** Cibles : chaque classe du modèle de culture, et l'ensemble des terres cultivées. */
-export const SURVEY_TARGETS = [...CROP_GROUPS.map((group) => group.key), "CULTIVATED"] as const;
+export const SURVEY_TARGETS = [
+  ...CROP_GROUPS.map((group) => group.key),
+  "STAPLES",
+  "CULTIVATED",
+] as const;
+
+/**
+ * Céréales, racines et tubercules (ADR-0035) : la base du bilan alimentaire. Réunies, elles sont
+ * vues sur assez de points pour une marge étroite, même là où chaque culture seule ne l'est pas.
+ */
+export const STAPLE_GROUPS = ["MAIZE", "SORGHUM_MILLET", "RICE", "ROOTS"] as const;
 export type SurveyTarget = (typeof SURVEY_TARGETS)[number];
 
 export type CitationStatus = "cite" | "indicative" | "do-not-cite";
@@ -49,6 +64,8 @@ export interface TargetEstimate extends AreaEstimate {
   target: SurveyTarget;
   /** Points observés (hors inaccessibles) ayant servi au calcul. */
   points: number;
+  /** Points où l'agent a vu la cible. */
+  positives: number;
   method: "regression" | "direct" | "mixed";
   /** Rapport des variances sans et avec la carte ; null sans régression. */
   gain: number | null;
@@ -88,6 +105,7 @@ export interface SurveyEstimates {
 /** Classes de la carte qui portent une cible. */
 function mapClassesOf(target: SurveyTarget): readonly string[] {
   if (target === "CULTIVATED") return CULTIVATED_CLASSES;
+  if (target === "STAPLES") return ["ANNUAL", "RICE"];
   const crops = CROP_GROUPS.find((group) => group.key === target)?.crops ?? [];
   return [cropMapClassOf(crops[0] ?? target)];
 }
@@ -96,11 +114,19 @@ function mapClassesOf(target: SurveyTarget): readonly string[] {
 function seen(point: SurveyPointRecord, target: SurveyTarget): boolean {
   if (point.land_cover !== "CROP") return false;
   if (target === "CULTIVATED") return true;
-  return point.crop_code ? cropGroupOf(point.crop_code) === target : false;
+  const group = point.crop_code ? cropGroupOf(point.crop_code) : null;
+  if (target === "STAPLES") return (STAPLE_GROUPS as readonly string[]).includes(group ?? "");
+  return group === target;
 }
 
-export function citationStatus(cv: number | null, points: number): CitationStatus {
-  if (points < MIN_POINTS_TO_CITE || cv === null) return "do-not-cite";
+export function citationStatus(
+  cv: number | null,
+  points: number,
+  positives: number,
+): CitationStatus {
+  if (points < MIN_POINTS_TO_CITE || positives < MIN_POSITIVES_TO_CITE || cv === null) {
+    return "do-not-cite";
+  }
   if (cv <= CV_CITE) return "cite";
   if (cv <= CV_INDICATIVE) return "indicative";
   return "do-not-cite";
@@ -133,6 +159,7 @@ function communeTarget(
   const populationMean = map
     ? classes.reduce((sum, key) => sum + (map.shares.get(key) ?? 0), 0)
     : null;
+  const positives = sample.filter((point) => seen(point, target)).length;
   const estimate = estimateProportion(
     sample.map((point) => (seen(point, target) ? 1 : 0)),
     mapUsable ? sample.map((point) => (classes.includes(point.map_class!) ? 1 : 0)) : null,
@@ -146,14 +173,15 @@ function communeTarget(
     target,
     ...area,
     points: estimate.n,
+    positives,
     method: estimate.method,
     gain:
       estimate.method === "regression" && estimate.variance > 0
         ? estimate.directVariance / estimate.variance
         : null,
     mapHa: populationMean === null ? null : areaHa * populationMean,
-    mapShared: target !== "CULTIVATED" && SHARED_CLASSES.has(classes[0]!),
-    status: citationStatus(area.cv, estimate.n),
+    mapShared: target !== "CULTIVATED" && classes.some((key) => SHARED_CLASSES.has(key)),
+    status: citationStatus(area.cv, estimate.n, positives),
     varianceHa2,
     directVarianceHa2,
   };
@@ -193,6 +221,7 @@ export function estimateSurvey(
       strata: { areaHa: number; varianceHa2: number }[];
       direct: number;
       points: number;
+      positives: number;
       methods: Set<string>;
       mapHa: number | null;
     }
@@ -212,12 +241,14 @@ export function estimateSurvey(
         strata: [],
         direct: 0,
         points: 0,
+        positives: 0,
         methods: new Set<string>(),
         mapHa: 0,
       };
       total.strata.push({ areaHa: estimate.areaHa, varianceHa2 });
       total.direct += directVarianceHa2;
       total.points += estimate.points;
+      total.positives += estimate.positives;
       total.methods.add(estimate.method);
       total.mapHa =
         total.mapHa === null || estimate.mapHa === null ? null : total.mapHa + estimate.mapHa;
@@ -243,14 +274,16 @@ export function estimateSurvey(
       target,
       ...area,
       points: total.points,
+      positives: total.positives,
       method:
         total.methods.size > 1
           ? "mixed"
           : (([...total.methods][0] ?? "direct") as "regression" | "direct"),
       gain: total.methods.has("regression") && variance > 0 ? total.direct / variance : null,
       mapHa: total.mapHa,
-      mapShared: target !== "CULTIVATED" && SHARED_CLASSES.has(mapClassesOf(target)[0]!),
-      status: citationStatus(area.cv, total.points),
+      mapShared:
+        target !== "CULTIVATED" && mapClassesOf(target).some((key) => SHARED_CLASSES.has(key)),
+      status: citationStatus(area.cv, total.points, total.positives),
     };
   });
 

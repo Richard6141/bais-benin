@@ -123,6 +123,14 @@ docker run --rm --network bais_default --env-file app.env \
   ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:seed
 ```
 
+**Population du bilan alimentaire** (ADR-0035 ; sans rejouer le seed, idempotent) :
+```bash
+docker run --rm --network bais_default --env-file app.env \
+  ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:reference:population
+```
+Charge la source WorldPop et les 77 totaux par commune. Sans elle, le bilan alimentaire affiche
+« Population inconnue » partout.
+
 **Déploiement à la main d'images déjà présentes** (construction de secours sur le serveur, jamais
 depuis la clé de la CI) : `./deploy.sh deploy-local <sha>`.
 

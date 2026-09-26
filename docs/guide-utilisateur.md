@@ -293,6 +293,28 @@ Sur la carte (`/carte`), choisissez « Carte des cultures » dans le réglage **
   à confirmer ». Les agents confirment sur le terrain.
 - Elle est calculée une fois par mois et visible par tous, même sans connexion. Tant qu'elle
   n'est pas prête, la légende l'indique (« Carte en préparation »).
+- Pour comparer, le fond « Terres cultivées 2021 (ESA WorldCereal) » montre la carte mondiale de
+  l'Agence spatiale européenne : les cultures temporaires de 2021, à environ 75 m, au Bénin
+  seulement. C'est une année passée, pas la campagne en cours ; la légende le rappelle, avec la
+  source et sa licence (CC BY 4.0). Les champs détectés peuvent s'afficher par-dessus.
+
+### Bilan alimentaire
+
+La page **Bilan alimentaire** (`/pilotage/bilan-alimentaire`) repère, avant la récolte, les
+communes où la production vivrière attendue ne couvrira pas les besoins de leur population.
+
+> **Attention.** Le bilan mesure la couverture des besoins par la production locale, pas la faim :
+> marchés, stocks, achats et importations n'y sont pas. Le chiffre dit où regarder d'abord.
+
+- Pour chaque commune : la couverture des besoins en céréales, racines et tubercules, avec sa
+  fourchette, et un statut : « Déficit grave » (moins de 78 % des besoins), « Tension » (de 78 à
+  100 %) ou « Couverte ». « À confirmer » signale une fourchette qui chevauche un seuil.
+- Les surfaces viennent de toute la commune : l'enquête aréolaire, sinon la dernière statistique
+  DSA importée. Le registre seul ne fait jamais un bilan ; une commune sans ces surfaces est
+  « Non évaluée ».
+- Population : WorldPop 2026 (CC BY 4.0). Coefficients : FAO et FAO/INFOODS ; le bouton « ? »
+  de chaque colonne donne la source et l'année.
+- Si FAOSTAT est importé, un contrôle national applique la même méthode à la production du pays.
 
 ### Fiche d'une parcelle depuis la carte
 

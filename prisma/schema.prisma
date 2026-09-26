@@ -225,6 +225,7 @@ model DataSource {
   areaFramePoints       AreaFramePoint[]
   areaFrameObservations AreaFrameObservation[]
   officialStatistics    OfficialCropStatistic[]
+  communePopulations    CommunePopulation[]
   rules                 Rule[]
   alerts                Alert[]
 
@@ -325,6 +326,7 @@ model Commune {
   fireDetections         FireDetection[]
   referenceFields        ReferenceField[]
   areaFramePoints        AreaFramePoint[]
+  populations            CommunePopulation[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -2090,4 +2092,23 @@ model OfficialCropStatistic {
   @@unique([sourceId, campaignCode, territoryCode, cropId, metric])
   @@index([territoryCode, cropId])
   @@map("official_crop_statistic")
+}
+
+// Population d'une commune pour une année (ADR-0035) : estimation WorldPop additionnée sur le
+// contour de la commune, pour les besoins du bilan alimentaire. Une ligne par commune, année et
+// source ; la source et l'année sont toujours affichées avec le chiffre.
+model CommunePopulation {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  communeId  String     @map("commune_id") @db.Uuid
+  commune    Commune    @relation(fields: [communeId], references: [id])
+  year       Int
+  population Int
+  sourceId   String     @map("source_id")
+  source     DataSource @relation(fields: [sourceId], references: [id])
+  // Jeu de données exact (« WorldPop Global2 R2025A v1, estimation contrainte à 100 m »).
+  dataset    String
+  loadedAt   DateTime   @default(now()) @map("loaded_at")
+
+  @@unique([communeId, year, sourceId])
+  @@map("commune_population")
 }

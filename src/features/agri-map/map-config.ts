@@ -126,8 +126,10 @@ export const ROLLING_SKY_PERIOD = "60-jours";
 // mois, calculée par Copernicus, en image d'ensemble du pays seulement (environ 380 m par pixel).
 // Même fenêtre que modules/satellite (periods.ts, CROP_MAP_PERIOD).
 export const CROP_MAP_LAYER = "cultures";
-/** Fond de carte choisi : communes (null), vue du ciel, ou carte des cultures. */
-export type BaseLayer = SkyLayer | typeof CROP_MAP_LAYER;
+/** Terres cultivées 2021 (ESA WorldCereal) : carte de référence, en images statiques. */
+export const WORLDCEREAL_LAYER = "worldcereal-2021";
+/** Fond de carte choisi : communes (null), vue du ciel, carte des cultures ou WorldCereal. */
+export type BaseLayer = SkyLayer | typeof CROP_MAP_LAYER | typeof WORLDCEREAL_LAYER;
 export const CROP_MAP_PERIOD = "12-mois";
 
 const mercatorY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
@@ -160,6 +162,20 @@ export const CROP_MAP_QUARTERS = (() => {
     layer: `bais-crop-map-q${index}-layer`,
   }));
 })();
+
+// Terres cultivées 2021 (ESA WorldCereal, cultures temporaires) : la carte mondiale à 10 m, réduite
+// à environ 75 m et découpée au contour du Bénin (scripts/extract-worldcereal-2021.mjs), en quatre
+// images statiques sur les mêmes quarts que la carte des cultures. Une année passée, pas la
+// campagne en cours.
+export const WORLDCEREAL_COLOR = "#b8327a";
+export const WORLDCEREAL_QUARTERS = CROP_MAP_QUARTERS.map((quarter, index) => ({
+  url: `/cartes/worldcereal-2021/q${index}.png`,
+  coordinates: quarter.coordinates,
+  source: `bais-worldcereal-q${index}`,
+  layer: `bais-worldcereal-q${index}-layer`,
+}));
+/** Mention exigée par la licence CC BY 4.0 de WorldCereal. */
+export const WORLDCEREAL_ATTRIBUTION = "ESA WorldCereal 2021, CC BY 4.0, via Digital Earth Africa";
 
 /** Classes de la légende, cultures d'abord ; l'absence de classe reste transparente. */
 export const CROP_MAP_CLASSES = [

@@ -77,6 +77,6 @@ describe("PilotageNav", () => {
     expect(select).toHaveValue("/pilotage/groupes");
     const groups = Array.from(select.querySelectorAll("optgroup")).map((group) => group.label);
     expect(groups).toEqual(["Situation", "Cultures", "Producteurs", "Administration"]);
-    expect(select.querySelectorAll("option")).toHaveLength(14);
+    expect(select.querySelectorAll("option")).toHaveLength(15);
   });
 });

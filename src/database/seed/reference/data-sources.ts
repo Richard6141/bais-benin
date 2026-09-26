@@ -29,6 +29,15 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "OFFICIAL",
   },
   {
+    // Population par commune du bilan alimentaire (ADR-0035), additionnée sur le raster.
+    id: "WORLDPOP",
+    name: "WorldPop Global2 (population à 100 m, 2015-2030)",
+    organization: "WorldPop, Université de Southampton",
+    url: "https://hub.worldpop.org/geodata/listing?id=135",
+    licence: "CC BY 4.0, DOI 10.5258/SOTON/WP00839",
+    kind: "PUBLIC_OPEN_DATA",
+  },
+  {
     // Statistiques nationales reprises par la FAO (ADR-0034), importées par le ministère.
     id: "FAOSTAT",
     name: "FAOSTAT, cultures et produits animaux (QCL)",
