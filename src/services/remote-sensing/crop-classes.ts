@@ -83,6 +83,21 @@ function preProcessScenes(collections) {
   collections.scenes.orbits = chosen.map(function (entry) { return entry.orbit; });
   return collections;
 }
+// Mois de mai à octobre vus au moins une fois sans nuage : ce que la règle a pu lire de la
+// saison des pluies.
+function rainySeen(samples, scenes) {
+  const seen = {};
+  let count = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.dataMask === 0 || MASKED.indexOf(s.SCL) !== -1) continue;
+    const month = new Date(scenes.orbits[i].dateFrom).getUTCMonth() + 1;
+    if (month < 5 || month > 10 || seen[month]) continue;
+    seen[month] = true;
+    count++;
+  }
+  return count;
+}
 function classify(samples, scenes) {
   const ndvi = {};
   const flood = {};
@@ -204,6 +219,7 @@ function setup() {
     ${INPUT},
     output: [
       { id: "crop", bands: 1, sampleType: "UINT8" },
+      { id: "rainy", bands: 1, sampleType: "UINT8" },
       { id: "dataMask", bands: 1 }
     ],
     mosaicking: "ORBIT"
@@ -216,6 +232,10 @@ function evaluatePixel(samples, scenes) {
   for (let i = 0; i < samples.length; i++) {
     if (samples[i].dataMask === 1) { inside = 1; break; }
   }
-  return { crop: [classify(samples, scenes)], dataMask: [inside] };
+  return {
+    crop: [classify(samples, scenes)],
+    rainy: [rainySeen(samples, scenes)],
+    dataMask: [inside]
+  };
 }`;
 }

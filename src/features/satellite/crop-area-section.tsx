@@ -6,6 +6,7 @@ import type { CropAreaComparison, CropAreaFigures } from "@/modules/satellite";
 
 const hectares = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
+const months = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 const date = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "medium",
   timeZone: "Africa/Porto-Novo",
@@ -84,9 +85,12 @@ export function CropAreaSection({ comparison }: { comparison: CropAreaComparison
         name: { display: commune.name, sort: commune.name },
         departement: { display: commune.departementName, sort: commune.departementName },
         ...figureCells(commune),
-        clouds: {
-          display: percent.format(commune.unclassifiedShare),
-          sort: commune.unclassifiedShare,
+        rainy: {
+          display:
+            commune.rainyMonthsSeen === null
+              ? "Non mesuré"
+              : `${months.format(commune.rainyMonthsSeen)} sur 6`,
+          sort: commune.rainyMonthsSeen,
         },
       },
     }));
@@ -158,7 +162,7 @@ export function CropAreaSection({ comparison }: { comparison: CropAreaComparison
           { key: "name", label: "Commune" },
           { key: "departement", label: "Département" },
           ...FIGURE_COLUMNS,
-          { key: "clouds", label: "Non classé", align: "right" },
+          { key: "rainy", label: "Mois de pluie vus", align: "right" },
         ]}
         rows={communeRows}
       />

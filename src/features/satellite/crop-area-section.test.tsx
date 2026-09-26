@@ -27,6 +27,7 @@ const comparison: CropAreaComparison = {
       name: "Banikoara",
       departementName: "Alibori",
       unclassifiedShare: 0.04,
+      rainyMonthsSeen: 3.4,
       ...figures(9_000, 1_000),
     },
     {
@@ -34,6 +35,7 @@ const comparison: CropAreaComparison = {
       name: "Gogounou",
       departementName: "Alibori",
       unclassifiedShare: 0.02,
+      rainyMonthsSeen: null,
       ...figures(3_000, 2_000),
     },
   ],
@@ -56,6 +58,8 @@ describe("surfaces par satellite face au registre", () => {
     const table = screen.getByRole("table", { name: /Communes où envoyer les agents/ });
     const rows = within(table).getAllByRole("row");
     expect(rows[1]).toHaveTextContent("Banikoara");
+    expect(rows[1]).toHaveTextContent("3,4 sur 6");
+    expect(rows[2]).toHaveTextContent("Non mesuré");
     expect(rows[2]).toHaveTextContent("Gogounou");
   });
 

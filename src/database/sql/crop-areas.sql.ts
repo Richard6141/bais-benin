@@ -116,6 +116,8 @@ export interface CropAreaRow {
   methodVersion: number;
   /** Part de rizière vue par le radar, sur la ligne RICE seulement. */
   radarRiceShare?: number | null;
+  /** Mois de saison des pluies vus sans nuage, en moyenne par pixel de la commune. */
+  rainyMonthsSeen?: number | null;
 }
 
 /** Communes dont la campagne a déjà une estimation mesurée (hors démonstration). */
@@ -134,12 +136,12 @@ export async function upsertCropAreas(rows: readonly CropAreaRow[]): Promise<voi
     INSERT INTO "crop_area_estimate" (
       "id", "commune_id", "campaign_id", "crop_class", "area_ha", "pixel_share",
       "unclassified_share", "resolution_m", "window_from", "window_to", "source_id",
-      "reliability", "computed_at", "method_version", "radar_rice_share"
+      "reliability", "computed_at", "method_version", "radar_rice_share", "rainy_months_seen"
     )
     SELECT gen_random_uuid(), t.commune_id, t.campaign_id, t.crop_class::"CropMapClass",
            t.area_ha, t.pixel_share, t.unclassified_share, t.resolution_m, t.window_from,
            t.window_to, t.source_id, t.reliability::"Reliability", t.computed_at,
-           t.method_version, t.radar_rice_share
+           t.method_version, t.radar_rice_share, t.rainy_months_seen
       FROM unnest(
         ${rows.map((r) => r.communeId)}::uuid[],
         ${rows.map((r) => r.campaignId)}::uuid[],
@@ -154,10 +156,11 @@ export async function upsertCropAreas(rows: readonly CropAreaRow[]): Promise<voi
         ${rows.map((r) => r.reliability)}::text[],
         ${rows.map((r) => r.computedAt)}::timestamp[],
         ${rows.map((r) => r.methodVersion)}::int[],
-        ${rows.map((r) => r.radarRiceShare ?? null)}::numeric[]
+        ${rows.map((r) => r.radarRiceShare ?? null)}::numeric[],
+        ${rows.map((r) => r.rainyMonthsSeen ?? null)}::numeric[]
       ) AS t(commune_id, campaign_id, crop_class, area_ha, pixel_share, unclassified_share,
              resolution_m, window_from, window_to, source_id, reliability, computed_at,
-             method_version, radar_rice_share)
+             method_version, radar_rice_share, rainy_months_seen)
     ON CONFLICT ("commune_id", "campaign_id", "crop_class") DO UPDATE SET
       "area_ha" = EXCLUDED."area_ha", "pixel_share" = EXCLUDED."pixel_share",
       "unclassified_share" = EXCLUDED."unclassified_share",
@@ -165,7 +168,8 @@ export async function upsertCropAreas(rows: readonly CropAreaRow[]): Promise<voi
       "window_to" = EXCLUDED."window_to", "source_id" = EXCLUDED."source_id",
       "reliability" = EXCLUDED."reliability", "computed_at" = EXCLUDED."computed_at",
       "method_version" = EXCLUDED."method_version",
-      "radar_rice_share" = EXCLUDED."radar_rice_share"`;
+      "radar_rice_share" = EXCLUDED."radar_rice_share",
+      "rainy_months_seen" = EXCLUDED."rainy_months_seen"`;
 }
 
 const declaredSchema = z.object({
@@ -198,6 +202,7 @@ const estimateSchema = z.object({
   unclassified_share: z.coerce.number(),
   resolution_m: z.coerce.number(),
   radar_rice_share: z.coerce.number().nullable(),
+  rainy_months_seen: z.coerce.number().nullable(),
   source_id: z.string(),
   computed_at: z.date(),
 });
@@ -208,7 +213,8 @@ export async function cropAreaEstimates(campaignId: string) {
     SELECT e."commune_id", c."code" AS commune_code, c."name" AS commune_name,
            d."code" AS departement_code, d."name" AS departement_name,
            e."crop_class"::text AS crop_class, e."area_ha", e."unclassified_share",
-           e."resolution_m", e."radar_rice_share", e."source_id", e."computed_at"
+           e."resolution_m", e."radar_rice_share", e."rainy_months_seen", e."source_id",
+           e."computed_at"
       FROM "crop_area_estimate" e
       JOIN "commune" c ON c."id" = e."commune_id"
       JOIN "departement" d ON d."id" = c."departement_id"

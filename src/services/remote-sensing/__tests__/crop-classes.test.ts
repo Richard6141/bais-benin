@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCropAreaBody, parseCropArea } from "../cdse";
+import { buildCropAreaBody, parseCropArea, parseRainyMonths } from "../cdse";
 import {
   CROP_CLASS_CODES,
   cropClassifierSource,
@@ -216,6 +216,20 @@ describe("couverture des traces Sentinel-2", () => {
     expect(classifier().classify(covered, scenes)).toBe(CROP_CLASS_CODES.NATURAL);
   });
 
+  it("compte les mois de saison des pluies vus sans nuage", () => {
+    // Évalue notre propre script constant, sans aucune donnée extérieure : test seulement.
+    const evaluate = new Function(
+      `${cropClassStatisticsEvalscript(0)}; return evaluatePixel;`,
+    )() as (samples: Sample[], scenes: { orbits: { dateFrom: string }[] }) => { rainy: number[] };
+    const { samples, scenes } = pixel(() => ({ ndvi: 0.6 }));
+    // Juillet et août couverts : quatre mois de mai à octobre restent lisibles.
+    const cloudy = samples.map((entry, index) => {
+      const month = Number(scenes.orbits[index]!.dateFrom.slice(5, 7));
+      return month === 7 || month === 8 ? { ...entry, SCL: 9 } : entry;
+    });
+    expect(evaluate(cloudy, scenes).rainy).toEqual([4]);
+  });
+
   it("ne compte pas les pixels hors du contour de la commune", () => {
     // Évalue notre propre script constant, sans aucune donnée extérieure : test seulement.
     const evaluate = new Function(
@@ -227,7 +241,7 @@ describe("couverture des traces Sentinel-2", () => {
     const { samples, scenes } = pixel(() => ({ ndvi: 0.25 }));
     expect(evaluate(samples, scenes).dataMask).toEqual([1]);
     const outside = samples.map((entry) => ({ ...entry, dataMask: 0 }));
-    expect(evaluate(outside, scenes)).toEqual({ crop: [0], dataMask: [0] });
+    expect(evaluate(outside, scenes)).toEqual({ crop: [0], rainy: [0], dataMask: [0] });
   });
 });
 
@@ -286,5 +300,30 @@ describe("surfaces par commune", () => {
       ],
     });
     expect(pixels).toEqual([12, 40, 900, 0, 0, 0, 0, 0, 0, 5]);
+  });
+
+  it("donne la moyenne des mois de pluie vus, ou rien sans cette sortie", () => {
+    const histogram = (bins: { lowEdge: number; count: number }[]) => ({
+      bands: {
+        B0: { histogram: { bins: bins.map((bin) => ({ ...bin, highEdge: bin.lowEdge + 1 })) } },
+      },
+    });
+    const crop = histogram([{ lowEdge: 2, count: 10 }]);
+    expect(
+      parseRainyMonths({
+        data: [
+          {
+            outputs: {
+              crop,
+              rainy: histogram([
+                { lowEdge: 2, count: 30 },
+                { lowEdge: 5, count: 10 },
+              ]),
+            },
+          },
+        ],
+      }),
+    ).toBeCloseTo(2.75, 5);
+    expect(parseRainyMonths({ data: [{ outputs: { crop } }] })).toBeNull();
   });
 });

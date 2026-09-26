@@ -129,6 +129,7 @@ export function cropAreaRows(
     sourceId: string;
     reliability: "ESTIMATED" | "SYNTHETIC";
     computedAt: Date;
+    rainyMonthsSeen?: number | null;
   },
 ): CropAreaRow[] {
   const total = pixels.reduce((sum, count) => sum + count, 0);
@@ -142,6 +143,10 @@ export function cropAreaRows(
     reliability: context.reliability,
     computedAt: context.computedAt,
     methodVersion: CROP_AREA_METHOD_VERSION,
+    rainyMonthsSeen:
+      context.rainyMonthsSeen === undefined || context.rainyMonthsSeen === null
+        ? null
+        : round2(context.rainyMonthsSeen),
   };
   // Aucun pixel exploitable : la commune est marquée entièrement non classée, pour que le curseur
   // passe à la suivante au lieu de la redemander à chaque lot.
@@ -348,6 +353,7 @@ export async function runCropAreaEstimates(options: {
         sourceId: options.provider.provenance.sourceId,
         reliability: options.provider.provenance.reliability,
         computedAt: now,
+        rainyMonthsSeen: measure.rainyMonthsSeen,
       }),
       radar,
       commune.area_ha,
@@ -443,6 +449,7 @@ export async function writeDemoCropAreaEstimates(now = new Date()): Promise<numb
         reliability: "SYNTHETIC",
         computedAt: now,
         methodVersion: CROP_AREA_METHOD_VERSION,
+        rainyMonthsSeen: round2((commune.latitude >= 9 ? 3.8 : 2.6) + (seed % 13) / 10),
       });
     }
   }
@@ -506,6 +513,8 @@ export interface CropAreaComparison {
     name: string;
     departementName: string;
     unclassifiedShare: number;
+    /** Mois de saison des pluies vus sans nuage, de 0 à 6 ; null avant cette mesure. */
+    rainyMonthsSeen: number | null;
   })[];
   sources: { sourceId: string; computedAt: Date; resolutionM: number }[];
   /** Vrai si le riz d'au moins une commune a été complété par le radar Sentinel-1. */
@@ -564,6 +573,7 @@ export async function getCropAreaComparison(
     satellite: number;
     declared: number;
     unclassifiedShare: number;
+    rainyMonthsSeen: number | null;
   }
   const communes = new Map<string, CommuneAccumulator>();
   const byClass = new Map<CultivatedClass, { satellite: number; declared: number }>(
@@ -584,6 +594,7 @@ export async function getCropAreaComparison(
       satellite: 0,
       declared: 0,
       unclassifiedShare: row.unclassified_share,
+      rainyMonthsSeen: row.rainy_months_seen,
     };
     communes.set(row.commune_id, commune);
     const key = row.crop_class as CultivatedClass;
@@ -641,6 +652,7 @@ export async function getCropAreaComparison(
         name: commune.name,
         departementName: commune.departementName,
         unclassifiedShare: commune.unclassifiedShare,
+        rainyMonthsSeen: commune.rainyMonthsSeen,
         ...figures(commune.satellite, commune.declared),
       }))
       .sort((a, b) => b.gapHa - a.gapHa),

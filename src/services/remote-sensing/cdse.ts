@@ -231,25 +231,37 @@ export function buildCropAreaBody(request: CropAreaRequest) {
   };
 }
 
+const histogramOutput = z.object({
+  bands: z.object({
+    B0: z.object({
+      histogram: z.object({
+        bins: z.array(z.object({ lowEdge: z.number(), highEdge: z.number(), count: z.number() })),
+      }),
+    }),
+  }),
+});
+
 const cropAreaSchema = z.object({
   data: z.array(
     z.object({
-      outputs: z.object({
-        crop: z.object({
-          bands: z.object({
-            B0: z.object({
-              histogram: z.object({
-                bins: z.array(
-                  z.object({ lowEdge: z.number(), highEdge: z.number(), count: z.number() }),
-                ),
-              }),
-            }),
-          }),
-        }),
-      }),
+      outputs: z.object({ crop: histogramOutput, rainy: histogramOutput.optional() }),
     }),
   ),
 });
+
+/** Mois de pluie vus, en moyenne sur les pixels de la commune ; null sans cette sortie. */
+export function parseRainyMonths(payload: unknown): number | null {
+  const parsed = cropAreaSchema.parse(payload);
+  let months = 0;
+  let pixels = 0;
+  for (const entry of parsed.data) {
+    for (const bin of entry.outputs.rainy?.bands.B0.histogram.bins ?? []) {
+      months += Math.round(bin.lowEdge) * bin.count;
+      pixels += bin.count;
+    }
+  }
+  return pixels > 0 ? months / pixels : null;
+}
 
 /** Pixels par code de classe (0 à 9), cumulés sur les intervalles renvoyés. */
 export function parseCropArea(payload: unknown): number[] {
@@ -711,10 +723,15 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         "application/json",
         request.timeoutMs,
       );
+      const payload = await readResponse("Surfaces des cultures CDSE", () => response.json());
       const classPixels = await readResponse("Surfaces des cultures CDSE", async () =>
-        parseCropArea(await response.json()),
+        parseCropArea(payload),
       );
-      return { classPixels, processingUnits: spentUnits(response) };
+      return {
+        classPixels,
+        rainyMonthsSeen: parseRainyMonths(payload),
+        processingUnits: spentUnits(response),
+      };
     },
 
     async riceRadarStatistics(request): Promise<RiceRadarResult> {
