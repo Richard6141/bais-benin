@@ -27,10 +27,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # Aucune base n'est contactée au build : le client Prisma est généré à partir du schéma, et les
-# routes ne se connectent qu'à la première requête. La configuration Prisma et le module de base
-# exigent pourtant une DATABASE_URL à l'import ; une adresse factice, propre à cette commande,
-# leur suffit et n'est pas gardée dans l'image finale.
+# routes ne se connectent qu'à la première requête. La configuration Prisma, le module de base et
+# celui de l'authentification exigent pourtant DATABASE_URL et AUTH_SECRET à l'import : une
+# adresse factice et un secret tiré au hasard, propres à cette commande, leur suffisent. Rien
+# n'est gardé dans l'image finale ; l'application lit les vraies valeurs à son démarrage.
 RUN export DATABASE_URL=postgresql://build:build@localhost:5432/build \
+  && export AUTH_SECRET="$(head -c 48 /dev/urandom | base64 | tr -d '\n')" \
   && pnpm db:generate && pnpm build
 
 FROM base AS tools

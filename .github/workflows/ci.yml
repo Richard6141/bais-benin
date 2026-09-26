@@ -81,6 +81,7 @@ jobs:
     needs: [quality]
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+      AUTH_SECRET: ci-build-secret-sans-usage-ci-build-secret-sans-usage
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
