@@ -2,8 +2,8 @@
 
 Phase 0 de la feuille de route : le producteur signale un problème sur une parcelle, l'agent
 vient constater, le ministère suit l'ensemble. Ce document couvre l'étape 1 (signalement et suite
-donnée). La détection des foyers (étape 2, ADR-0015) et les demandes d'assistance (étape 3) y
-seront ajoutées.
+donnée) et l'étape 2 (détection des foyers, ADR-0015, section 8). Les demandes d'assistance
+(étape 3) y seront ajoutées.
 
 ## 1. Parcours
 
@@ -76,3 +76,32 @@ hors de portée répond comme inexistant (404), en lecture comme en décision.
 `report.created` (détail : exploitation, type, présence d'une photo, appareil) et
 `report.reviewed` (décision) dans `audit_log` ; événements `REPORT_SUBMITTED` et
 `REPORT_REVIEWED` dans le fil d'activité de l'exploitation.
+
+## 8. Détection des foyers (ADR-0015)
+
+Un signalement isolé n'est jamais une alerte. Plusieurs signalements du même type, dans la même
+zone, sur une période courte, lèvent une alerte « épidémie probable » par le moteur de règles
+existant (ADR-0011), avec sa diffusion (producteurs de la commune, agents, relais oral).
+
+- **Indicateur `report_cluster`** : pour une commune, le plus grand nombre d'exploitations
+  distinctes ayant signalé ce type de problème à moins du rayon d'un signalement de la commune,
+  sur la durée qui se termine à la date de référence. Les signalements écartés ne comptent pas ;
+  `confirmedOnly` restreint aux signalements confirmés. Calcul PostGIS
+  (`src/database/sql/report-clusters.sql.ts`).
+- **Règles par défaut** : `PEST_OUTBREAK`, `CROP_DISEASE_OUTBREAK`, `ANIMAL_DISEASE_OUTBREAK`,
+  3 exploitations, 5 km, 7 jours, gravité « avertissement ». Catégories d'alerte `PEST`,
+  `CROP_DISEASE`, `ANIMAL_DISEASE` (migration `20260926020000_alert_disease_categories`).
+- **Réglages** : dans « Règles d'alerte », le ministère ajuste le nombre d'exploitations (2 au
+  moins), le rayon (1 à 50 km) et la durée (1 à 60 jours) ; chaque changement crée une version et
+  se simule sur l'historique avant mise en service.
+- **Délai** : évaluation quotidienne, et évaluation immédiate après chaque lot synchronisé qui
+  apporte des signalements (`evaluateNewReports`, lancé après la réponse par `after()`), pour les
+  communes voisines dans le plus grand rayon des règles actives. L'envoi des messages suit au
+  prochain passage de la diffusion.
+- **Météo** : une météo ancienne ne bloque jamais une règle qui ne lit que des signalements.
+- **Provenance** : source `BAIS_SIGNALEMENTS`, fiabilité déclarative (vérifiée par un agent si
+  la règle ne compte que des signalements confirmés).
+- **Tests** : `tests/integration/outbreak-detection.test.ts` (une exploitation ou deux ne suffisent
+  pas, la troisième lève l'alerte, pas de doublon, simulation) ; tests unitaires des règles par
+  défaut et de l'éditeur de seuils.
+

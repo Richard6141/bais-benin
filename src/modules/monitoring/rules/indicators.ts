@@ -152,5 +152,7 @@ export function computeIndicators(input: IndicatorInput): IndicatorValues {
     zae_in: input.zoneCode,
     crop_in: cropCodes,
     crop_stage_in: stages,
+    // Dépend des paramètres de chaque condition : calculé à part (evaluation.ts, ADR-0015).
+    report_cluster: null,
   };
 }

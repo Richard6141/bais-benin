@@ -9,7 +9,15 @@ import { explainTrace, type TraceEntry } from "./rules";
 // communes de ses exploitations.
 
 export type AlertSeverity = "INFO" | "WATCH" | "WARNING" | "CRITICAL";
-export type AlertCategory = "WATER_STRESS" | "FLOOD" | "HEAT" | "PEST" | "MARKET" | "ADMIN";
+export type AlertCategory =
+  | "WATER_STRESS"
+  | "FLOOD"
+  | "HEAT"
+  | "PEST"
+  | "CROP_DISEASE"
+  | "ANIMAL_DISEASE"
+  | "MARKET"
+  | "ADMIN";
 
 export interface AlertListItem {
   id: string;

@@ -15,6 +15,7 @@ import {
   evaluateRule,
   findDefaultRule,
   renderMessage,
+  usesReports,
   type CropPresence,
   type IndicatorValues,
 } from "..";
@@ -123,12 +124,13 @@ const CASES: Case[] = [
 ];
 
 describe("règles par défaut", () => {
-  it("sont six, valides, avec des codes uniques et versionnés", () => {
-    expect(DEFAULT_RULES).toHaveLength(6);
-    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(6);
-    expect(DEFAULT_RULES.map((r) => r.code).sort()).toEqual(CASES.map((c) => c.code).sort());
+  it("sont neuf, valides, avec des codes uniques : six règles météo, trois de regroupement", () => {
+    expect(DEFAULT_RULES).toHaveLength(9);
+    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(9);
+    const weather = DEFAULT_RULES.filter((r) => !usesReports(r.definition));
+    expect(weather.map((r) => r.code).sort()).toEqual(CASES.map((c) => c.code).sort());
     expect(new Set(DEFAULT_RULES.map((r) => r.category))).toEqual(
-      new Set(["WATER_STRESS", "FLOOD", "HEAT", "PEST"]),
+      new Set(["WATER_STRESS", "FLOOD", "HEAT", "PEST", "CROP_DISEASE", "ANIMAL_DISEASE"]),
     );
   });
 
@@ -174,3 +176,38 @@ describe("renderMessage", () => {
     expect(text).toMatch(/^Djougou : 2,5 mm, bilan −?-?1\s235 mm, —\.$/);
   });
 });
+
+// ADR-0015 : les règles de regroupement ne lisent que les signalements, jamais la météo.
+describe.each(["PEST_OUTBREAK_V1", "CROP_DISEASE_OUTBREAK_V1", "ANIMAL_DISEASE_OUTBREAK_V1"])(
+  "%s",
+  (code) => {
+    const rule = findDefaultRule(code);
+    if (!rule) throw new Error(`Règle ${code} absente`);
+    const noWeather = computeIndicators({
+      observed: [],
+      forecast: [],
+      referenceDate: "2026-07-15",
+      zoneCode: null,
+      crops: [],
+    });
+
+    it("se déclenche à partir de 3 exploitations, jamais sur 2", () => {
+      expect(evaluateRule(rule.definition, noWeather, () => 3).matched).toBe(true);
+      expect(evaluateRule(rule.definition, noWeather, () => 2).matched).toBe(false);
+      // Sans valeur de regroupement connue, la condition est non évaluable, jamais vraie.
+      expect(evaluateRule(rule.definition, noWeather).matched).toBe(false);
+    });
+
+    it("rend des messages complets, le court en 160 caractères au plus", () => {
+      const context = { commune: "Akpro-Missérété", report_cluster: 4, radius_km: 5, days: 7 };
+      const short = renderMessage(rule.messageShort, noWeather, context);
+      const long = renderMessage(rule.messageFr, noWeather, context);
+      expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
+      expect(long).toContain("4 exploitations");
+      for (const message of [short, long]) {
+        expect(message).toContain("Akpro-Missérété");
+        expect(message).not.toMatch(/[{}]|—|NaN|undefined/);
+      }
+    });
+  },
+);

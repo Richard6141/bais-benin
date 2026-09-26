@@ -27,6 +27,7 @@ const base: IndicatorValues = {
   zae_in: "ZAE_5",
   crop_in: ["MAIZE", "YAM"],
   crop_stage_in: ["GROWING", "SOWN"],
+  report_cluster: null,
 };
 
 const cond = (indicator: string, op: string | undefined, value: unknown) =>
