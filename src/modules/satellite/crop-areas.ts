@@ -26,7 +26,7 @@ import { periodOf } from "./periods";
 
 // Surfaces des cultures par commune, estimées par satellite (ADR-0021, étape 3) : un histogramme
 // de la classification phénologique par commune, calculé par l'API Statistical sur les 12 derniers
-// mois, pixels de 100 m. Passe mensuelle : chaque lot reprend les communes pas encore calculées ce
+// mois, pixels de 120 m. Passe mensuelle : chaque lot reprend les communes pas encore calculées ce
 // mois-ci (le curseur est la date du dernier calcul) et s'arrête net quand la part des statistiques
 // ou le plafond d'unités est atteint. Une estimation, à confirmer par les agents.
 
@@ -35,9 +35,19 @@ import { periodOf } from "./periods";
  * (ADR-0023). À 100 m, la passe coûterait 1 250 unités.
  */
 export const CROP_AREA_RESOLUTION_M = 120;
+/**
+ * Version de la méthode : 2 écarte les pixels hors du contour de la commune (ils passaient pour
+ * « non classés » et faisaient baisser toutes les surfaces) et lit un passage par trace et par
+ * mois. Une estimation d'une version antérieure est refaite au lot suivant.
+ */
+export const CROP_AREA_METHOD_VERSION = 2;
 /** Douze mois de série : une saison des pluies entière et la contre-saison qui la précède. */
 const WINDOW_DAYS = 365;
 const MAX_CONSECUTIVE_ERRORS = 3;
+/** Une commune demande quelques secondes à Copernicus, parfois une minute. */
+const REQUEST_TIMEOUT_MS = 90_000;
+/** Le lot s'arrête avant la limite de 300 s de la route ; le suivant reprend. */
+const RUN_BUDGET_MS = 200_000;
 
 /** Classes cultivées, celles que le ministère compare au registre. */
 export const CULTIVATED_CLASSES = ["RICE", "ANNUAL", "COTTON", "PERENNIAL", "GARDEN"] as const;
@@ -66,7 +76,8 @@ const geometrySchema = z.union([
   }),
 ]);
 
-type CropAreaStop = "share-exhausted" | "units-exhausted" | "throttled" | "provider-unavailable";
+type CropAreaStop =
+  "share-exhausted" | "units-exhausted" | "throttled" | "provider-unavailable" | "time-budget";
 
 export interface CropAreaRunResult {
   campaignCode: string | null;
@@ -109,6 +120,7 @@ export function cropAreaRows(
     sourceId: context.sourceId,
     reliability: context.reliability,
     computedAt: context.computedAt,
+    methodVersion: CROP_AREA_METHOD_VERSION,
   };
   // Aucun pixel exploitable : la commune est marquée entièrement non classée, pour que le curseur
   // passe à la suivante au lieu de la redemander à chaque lot.
@@ -171,6 +183,7 @@ export async function runCropAreaEstimates(options: {
   const cursor = {
     campaignId: campaign.id,
     staleBefore: monthStart(now),
+    methodVersion: CROP_AREA_METHOD_VERSION,
     replaceSynthetic: options.provider.provenance.sourceId !== "BAIS_SEED",
   };
   const communes = await listCommunesForCropAreas({ ...cursor, limit: options.limit });
@@ -178,8 +191,13 @@ export async function runCropAreaEstimates(options: {
   const metered = options.provider.id === "cdse";
   const windowFrom = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);
   let consecutiveErrors = 0;
+  const started = Date.now();
 
   for (const commune of communes) {
+    if (Date.now() - started > RUN_BUDGET_MS) {
+      result.stopped = "time-budget";
+      break;
+    }
     const geometry = geometrySchema.safeParse(JSON.parse(commune.geometry));
     if (!geometry.success) {
       result.errors += 1;
@@ -201,6 +219,7 @@ export async function runCropAreaEstimates(options: {
         resolutionM: CROP_AREA_RESOLUTION_M,
         latitude: commune.latitude,
         zoneOffset: zoneOffset(commune.zone_code),
+        timeoutMs: REQUEST_TIMEOUT_MS,
       });
     } catch (error) {
       if (!(error instanceof RemoteSensingProviderError)) throw error;
@@ -253,6 +272,7 @@ export async function writeDemoCropAreaEstimates(now = new Date()): Promise<numb
     listCommunesForCropAreas({
       campaignId: campaign.id,
       staleBefore: farFuture(),
+      methodVersion: CROP_AREA_METHOD_VERSION,
       replaceSynthetic: false,
       limit: 1000,
     }),
@@ -305,6 +325,7 @@ export async function writeDemoCropAreaEstimates(now = new Date()): Promise<numb
         sourceId: "BAIS_SEED",
         reliability: "SYNTHETIC",
         computedAt: now,
+        methodVersion: CROP_AREA_METHOD_VERSION,
       });
     }
   }

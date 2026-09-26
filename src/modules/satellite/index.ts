@@ -1,5 +1,13 @@
 export { getImageryCatalog, type ImageryCatalog } from "./catalog";
-export { getDetailTile, getOverviewImage, type ImageryOutcome } from "./imagery";
+export {
+  CROP_MAP_QUARTERS,
+  getCropMapQuarter,
+  getDetailTile,
+  getOverviewImage,
+  renderCropMap,
+  type CropMapRenderResult,
+  type ImageryOutcome,
+} from "./imagery";
 export {
   BENIN_IMAGERY_BBOX,
   CROP_MAP_PERIOD,

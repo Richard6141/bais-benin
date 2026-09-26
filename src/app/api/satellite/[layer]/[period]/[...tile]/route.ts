@@ -5,6 +5,7 @@ import { clientAddress } from "@/lib/client-address";
 import { isValidTile } from "@/lib/geo/tile-math";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import {
+  getCropMapQuarter,
   getDetailTile,
   getOverviewImage,
   isOfferedFor,
@@ -18,8 +19,8 @@ export const dynamic = "force-dynamic";
 // - /api/satellite/{couche}/{AAAA-MM|60-jours}/{z}/{x}/{y}.png : tuile de 512 px, réservée aux
 //   agents et au ministère (revue R2 : producteurs, coopératives et acheteurs n'ont que l'image
 //   d'ensemble), avec un plafond mensuel par compte sur les tuiles à calculer (imagery.ts).
-// - /api/satellite/cultures/12-mois/overview.png : carte des cultures (ADR-0021), image
-//   d'ensemble seulement.
+// - /api/satellite/cultures/12-mois/q{0-3}.png : carte des cultures (ADR-0021), quatre quarts du
+//   pays calculés par une commande planifiée ; servis depuis le cache seulement.
 
 const LAYERS = {
   "couleur-naturelle": "TRUE_COLOR",
@@ -104,7 +105,14 @@ export async function GET(request: NextRequest, context: { params: Promise<Image
   if (!layer || !isOfferedFor(layer, period, new Date())) {
     return NextResponse.json({ error: "Couche ou période invalide" }, { status: 400 });
   }
-  if (tile.length === 1 && tile[0] === "overview.png") {
+  const quarter = layer === "CROP_CLASSES" ? /^q([0-3])\.png$/.exec(tile.join("/")) : null;
+  if (layer === "CROP_CLASSES" && !quarter) {
+    return NextResponse.json(
+      { error: "Carte des cultures : quarts q0.png à q3.png seulement" },
+      { status: 404 },
+    );
+  }
+  if (quarter || (tile.length === 1 && tile[0] === "overview.png")) {
     // Sans relais de confiance, l'adresse est inconnue : pas de compteur commun à tous les
     // visiteurs, qu'un seul script bloquerait pour le pays entier. Le coût reste borné : 26 images
     // au plus, gardées en base, que les demandes répétées ne font pas recalculer.
@@ -118,12 +126,9 @@ export async function GET(request: NextRequest, context: { params: Promise<Image
         { status: 429, headers: { "Retry-After": String(OVERVIEW_RATE_LIMIT.windowSeconds) } },
       );
     }
-    return respond(await getOverviewImage(layer, period), "public");
-  }
-  if (layer === "CROP_CLASSES") {
-    return NextResponse.json(
-      { error: "Carte des cultures en image d'ensemble seulement" },
-      { status: 404 },
+    return respond(
+      quarter ? await getCropMapQuarter(Number(quarter[1])) : await getOverviewImage(layer, period),
+      "public",
     );
   }
   const parsed = tileSchema.safeParse([tile[0], tile[1], tile[2]?.replace(/\.png$/, "")]);

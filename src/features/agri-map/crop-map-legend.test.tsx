@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ImageryCatalog } from "@/modules/satellite";
 import { CropMapLegend } from "./crop-map-legend";
 import { SkyControl } from "./sky-control";
@@ -40,7 +40,15 @@ describe("carte des cultures", () => {
     expect(screen.queryByLabelText("Mois")).not.toBeInTheDocument();
   });
 
-  it("donne ses classes, l'avertissement et la mention Copernicus", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("donne ses classes, l'avertissement et la mention Copernicus", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ status: 200 })),
+    );
     render(<CropMapLegend />);
     const classes = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(classes).toHaveLength(9);
@@ -49,5 +57,16 @@ describe("carte des cultures", () => {
     expect(
       screen.getByText(/^Contains modified Copernicus Sentinel data \d{4}-\d{4}$/),
     ).toBeInTheDocument();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    expect(screen.queryByText("Carte en préparation")).not.toBeInTheDocument();
+  });
+
+  it("annonce une carte pas encore calculée", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ status: 204 })),
+    );
+    render(<CropMapLegend />);
+    expect(await screen.findByText("Carte en préparation")).toBeInTheDocument();
   });
 });

@@ -56,6 +56,8 @@ export interface ImageryRequest {
   to: string;
   /** Scènes plus nuageuses ignorées, en pour cent. */
   maxCloudCover: number;
+  /** Délai de la requête, en millisecondes (30 s par défaut). */
+  timeoutMs?: number;
   /**
    * Mosaïque sans nuages : chaque pixel pris au passage le plus récent où il est dégagé, parmi
    * les passages les moins nuageux de la période (fenêtre glissante des 60 jours).
@@ -141,6 +143,8 @@ export interface CropAreaRequest {
   latitude: number;
   /** Abaissement des seuils de végétation dans les zones les plus sèches. */
   zoneOffset: number;
+  /** Délai de la requête, en millisecondes (30 s par défaut). */
+  timeoutMs?: number;
 }
 
 export interface CropAreaResult {

@@ -41,27 +41,46 @@ function median(values) {
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
-// Un passage par mois, celui dont les carreaux sont les moins nuageux, sur les douze derniers
-// mois : chaque passage retenu est facturé (365 jours touchent treize mois calendaires).
+function orbitCloud(orbit) {
+  const tiles = orbit.tiles || [];
+  if (tiles.length === 0) return 50;
+  let sum = 0;
+  for (let t = 0; t < tiles.length; t++) {
+    sum += typeof tiles[t].cloudCoverage === "number" ? tiles[t].cloudCoverage : 50;
+  }
+  return sum / tiles.length;
+}
+// Un passage par mois et par trace Sentinel-2, le moins nuageux, sur les douze derniers mois.
+// Une même trace est survolée tous les cinq jours : le jour modulo 5 la désigne. Un seul passage
+// par mois ne couvrirait qu'une trace, et une zone à cheval sur deux perdrait la moitié de ses
+// mois. Chaque passage retenu est facturé (365 jours touchent treize mois calendaires).
 function preProcessScenes(collections) {
   const best = {};
+  const seen = {};
   const orbits = collections.scenes.orbits;
   for (let i = 0; i < orbits.length; i++) {
     const orbit = orbits[i];
     const month = orbit.dateFrom.slice(0, 7);
-    const tiles = orbit.tiles || [];
-    let cloud = 50;
-    if (tiles.length > 0) {
-      let sum = 0;
-      for (let t = 0; t < tiles.length; t++) {
-        sum += typeof tiles[t].cloudCoverage === "number" ? tiles[t].cloudCoverage : 50;
-      }
-      cloud = sum / tiles.length;
+    const track = Math.floor(Date.parse(orbit.dateFrom) / 86400000) % 5;
+    const key = month + "|" + track;
+    const cloud = orbitCloud(orbit);
+    seen[month] = true;
+    if (!best[key] || cloud < best[key].cloud) {
+      best[key] = { orbit: orbit, cloud: cloud, month: month };
     }
-    if (!best[month] || cloud < best[month].cloud) best[month] = { orbit: orbit, cloud: cloud };
   }
-  collections.scenes.orbits = Object.keys(best).sort().slice(-12)
-    .map(function (m) { return best[m].orbit; });
+  const months = Object.keys(seen).sort().slice(-12);
+  const chosen = [];
+  for (const key in best) {
+    if (months.indexOf(best[key].month) !== -1) chosen.push(best[key]);
+  }
+  // Par mois, le passage le moins nuageux d'abord : c'est lui que lit la règle quand un pixel
+  // est vu par deux traces.
+  chosen.sort(function (a, b) {
+    if (a.month !== b.month) return a.month < b.month ? -1 : 1;
+    return a.cloud - b.cloud;
+  });
+  collections.scenes.orbits = chosen.map(function (entry) { return entry.orbit; });
   return collections;
 }
 function classify(samples, scenes) {
@@ -75,6 +94,8 @@ function classify(samples, scenes) {
     if (s.dataMask === 0 || MASKED.indexOf(s.SCL) !== -1) continue;
     if (s.B08 + s.B04 <= 0 || s.B11 + s.B08 <= 0) continue;
     const month = new Date(scenes.orbits[i].dateFrom).getUTCMonth() + 1;
+    // Déjà vu ce mois-ci par un passage moins nuageux (autre trace).
+    if (ndvi[month] !== undefined) continue;
     const v = (s.B08 - s.B04) / (s.B08 + s.B04);
     // LSWI : l'eau sous le couvert abaisse le proche infrarouge moins que l'infrarouge moyen.
     const lswi = (s.B08 - s.B11) / (s.B08 + s.B11);
@@ -174,7 +195,13 @@ function setup() {
     mosaicking: "ORBIT"
   };
 }
+// Hors du contour de la commune, tous les échantillons ont dataMask 0 : ces pixels du rectangle
+// englobant ne comptent pas, sinon ils passeraient pour « non classés ».
 function evaluatePixel(samples, scenes) {
-  return { crop: [classify(samples, scenes)], dataMask: [1] };
+  let inside = 0;
+  for (let i = 0; i < samples.length; i++) {
+    if (samples[i].dataMask === 1) { inside = 1; break; }
+  }
+  return { crop: [classify(samples, scenes)], dataMask: [inside] };
 }`;
 }

@@ -30,6 +30,8 @@ export type CropAreaCommune = z.infer<typeof communeSchema>;
 interface CursorOptions {
   campaignId: string;
   staleBefore: Date;
+  /** Version de méthode en vigueur : une estimation plus ancienne compte comme absente. */
+  methodVersion: number;
   /** Vrai pour une mesure réelle : les estimations de démonstration comptent comme absentes. */
   replaceSynthetic: boolean;
 }
@@ -50,7 +52,8 @@ export async function listCommunesForCropAreas(
       FROM "commune" c
       LEFT JOIN "agro_ecological_zone" z ON z."id" = c."agro_ecological_zone_id"
       LEFT JOIN LATERAL (
-        SELECT max(e."computed_at") AS computed_at
+        SELECT CASE WHEN min(e."method_version") < ${options.methodVersion} THEN NULL
+                    ELSE max(e."computed_at") END AS computed_at
           FROM "crop_area_estimate" e
          WHERE e."commune_id" = c."id" AND e."campaign_id" = ${options.campaignId}::uuid
            AND (NOT ${options.replaceSynthetic} OR e."source_id" <> 'BAIS_SEED')
@@ -72,6 +75,7 @@ export async function countCommunesForCropAreas(options: CursorOptions): Promise
          SELECT 1 FROM "crop_area_estimate" e
           WHERE e."commune_id" = c."id" AND e."campaign_id" = ${options.campaignId}::uuid
             AND e."computed_at" >= ${options.staleBefore}
+            AND e."method_version" >= ${options.methodVersion}
             AND (NOT ${options.replaceSynthetic} OR e."source_id" <> 'BAIS_SEED')
        )`;
   return Number(rows[0]?.count ?? 0);
@@ -91,6 +95,7 @@ export interface CropAreaRow {
   reliability: "ESTIMATED" | "SYNTHETIC";
   /** Date du calcul : le curseur de la passe mensuelle. */
   computedAt: Date;
+  methodVersion: number;
 }
 
 /** Communes dont la campagne a déjà une estimation mesurée (hors démonstration). */
@@ -109,11 +114,12 @@ export async function upsertCropAreas(rows: readonly CropAreaRow[]): Promise<voi
     INSERT INTO "crop_area_estimate" (
       "id", "commune_id", "campaign_id", "crop_class", "area_ha", "pixel_share",
       "unclassified_share", "resolution_m", "window_from", "window_to", "source_id",
-      "reliability", "computed_at"
+      "reliability", "computed_at", "method_version"
     )
     SELECT gen_random_uuid(), t.commune_id, t.campaign_id, t.crop_class::"CropMapClass",
            t.area_ha, t.pixel_share, t.unclassified_share, t.resolution_m, t.window_from,
-           t.window_to, t.source_id, t.reliability::"Reliability", t.computed_at
+           t.window_to, t.source_id, t.reliability::"Reliability", t.computed_at,
+           t.method_version
       FROM unnest(
         ${rows.map((r) => r.communeId)}::uuid[],
         ${rows.map((r) => r.campaignId)}::uuid[],
@@ -126,15 +132,18 @@ export async function upsertCropAreas(rows: readonly CropAreaRow[]): Promise<voi
         ${rows.map((r) => r.windowTo)}::date[],
         ${rows.map((r) => r.sourceId)}::text[],
         ${rows.map((r) => r.reliability)}::text[],
-        ${rows.map((r) => r.computedAt)}::timestamp[]
+        ${rows.map((r) => r.computedAt)}::timestamp[],
+        ${rows.map((r) => r.methodVersion)}::int[]
       ) AS t(commune_id, campaign_id, crop_class, area_ha, pixel_share, unclassified_share,
-             resolution_m, window_from, window_to, source_id, reliability, computed_at)
+             resolution_m, window_from, window_to, source_id, reliability, computed_at,
+             method_version)
     ON CONFLICT ("commune_id", "campaign_id", "crop_class") DO UPDATE SET
       "area_ha" = EXCLUDED."area_ha", "pixel_share" = EXCLUDED."pixel_share",
       "unclassified_share" = EXCLUDED."unclassified_share",
       "resolution_m" = EXCLUDED."resolution_m", "window_from" = EXCLUDED."window_from",
       "window_to" = EXCLUDED."window_to", "source_id" = EXCLUDED."source_id",
-      "reliability" = EXCLUDED."reliability", "computed_at" = EXCLUDED."computed_at"`;
+      "reliability" = EXCLUDED."reliability", "computed_at" = EXCLUDED."computed_at",
+      "method_version" = EXCLUDED."method_version"`;
 }
 
 const declaredSchema = z.object({

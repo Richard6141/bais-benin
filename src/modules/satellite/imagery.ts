@@ -20,6 +20,7 @@ import {
 import { getRemoteSensingProvider } from "@/services/remote-sensing";
 import {
   BENIN_IMAGERY_BBOX,
+  CROP_MAP_PERIOD,
   ROLLING_PERIOD,
   isCurrentPeriod,
   isOfferedFor,
@@ -36,11 +37,6 @@ import { DETAIL_TILE_SIZE, isDetailTileInBenin, overviewSize, rectTouchesOutline
 const MAX_CLOUD_COVER = 80;
 /** Le mois en cours reçoit de nouveaux passages : ses images sont redemandées après ce délai. */
 const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
-/**
- * Carte des cultures : douze mois de série, refaite une fois par mois comme les surfaces par
- * commune (ADR-0022) ; environ 115 unités par image.
- */
-const CROP_MAP_TTL_MS = 30 * 86_400_000;
 /** Après un échec de Copernicus, pas de nouvel essai (ni de réservation) avant ce délai. */
 const FAILURE_HOLD_MS = 3_600_000;
 
@@ -145,8 +141,7 @@ async function renderCached(
     });
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
     const permanent = !isCurrentPeriod(target.period, now);
-    const ttl = target.layer === "CROP_CLASSES" ? CROP_MAP_TTL_MS : CURRENT_PERIOD_TTL_MS;
-    const expiresAt = permanent ? null : new Date(now.getTime() + ttl);
+    const expiresAt = permanent ? null : new Date(now.getTime() + CURRENT_PERIOD_TTL_MS);
     await storeCachedImage(target.layer, target.period, tileKey, result?.image ?? null, expiresAt);
     return result ? { status: "ok", image: result.image, permanent } : { status: "empty" };
   } catch (error) {
@@ -167,8 +162,9 @@ async function renderCached(
 }
 
 function render(target: RenderTarget, now: Date, requesterId?: string): Promise<ImageryOutcome> {
-  // Hors des mois proposés : refus avant le cache, le quota et Copernicus.
-  if (!isOfferedFor(target.layer, target.period, now))
+  // Hors des mois proposés : refus avant le cache, le quota et Copernicus. La carte des cultures
+  // n'est jamais calculée à la demande (renderCropMap).
+  if (target.layer === "CROP_CLASSES" || !isOfferedFor(target.layer, target.period, now))
     return Promise.resolve({ status: "period-not-offered" });
   const key = `${target.layer}/${target.period}/${target.tileKey}`;
   const pending = inflight.get(key);
@@ -234,4 +230,140 @@ export async function getDetailTile(
     now,
     options.requesterId,
   );
+}
+
+// --- Carte des cultures (ADR-0021) ------------------------------------------------------------
+// Douze mois de série par pixel sur tout le pays : trop long pour la requête d'un visiteur (la
+// requête de 30 s expirait). L'image est calculée par une commande planifiée, en quatre quarts du
+// pays, chacun avec un long délai ; la route publique ne sert que ces images en cache.
+
+export const CROP_MAP_QUARTERS = 4;
+/** Clé des quarts en cache ; à changer avec la règle de classification. */
+const CROP_MAP_CACHE_KEY = "crop-m2";
+/** Délai d'un quart : une série de douze mois et deux traces à lire chez Copernicus. */
+const CROP_MAP_QUARTER_TIMEOUT_MS = 200_000;
+/** Temps de calcul d'un appel, sous la limite de 300 s de la route ; l'appel suivant reprend. */
+const CROP_MAP_RUN_BUDGET_MS = 250_000;
+
+function cropMapTileKey(index: number): string {
+  return `${CROP_MAP_CACHE_KEY}:q${index}`;
+}
+
+/**
+ * Emprise d'un quart en EPSG:3857 : 0 au nord-ouest, 1 au nord-est, 2 au sud-ouest, 3 au
+ * sud-est, coupés au milieu du rectangle en mètres (les coins de la carte en dépendent).
+ */
+export function cropMapQuarterEnvelope(index: number): readonly [number, number, number, number] {
+  const [xmin, ymin, xmax, ymax] = bboxToEnvelope3857(BENIN_IMAGERY_BBOX);
+  const xmid = (xmin + xmax) / 2;
+  const ymid = (ymin + ymax) / 2;
+  const east = index % 2 === 1;
+  const south = index >= 2;
+  return [east ? xmid : xmin, south ? ymin : ymid, east ? xmax : xmid, south ? ymid : ymax];
+}
+
+/** Quart de la carte des cultures, depuis le cache seulement : jamais de calcul à la demande. */
+export async function getCropMapQuarter(index: number): Promise<ImageryOutcome> {
+  if (!Number.isInteger(index) || index < 0 || index >= CROP_MAP_QUARTERS) {
+    return { status: "period-not-offered" };
+  }
+  const cached = await findCachedImage("CROP_CLASSES", CROP_MAP_PERIOD, cropMapTileKey(index));
+  return cached?.image
+    ? { status: "ok", image: cached.image, permanent: false }
+    : { status: "empty" };
+}
+
+export interface CropMapRenderResult {
+  quarters: {
+    index: number;
+    status: "rendered" | "cached" | "empty" | "failed" | "budget-exhausted" | "throttled";
+    processingUnits: number | null;
+  }[];
+  processingUnits: number;
+  /** Quarts restant à calculer : l'appel suivant les reprend. */
+  remaining: number;
+}
+
+/** Début du mois suivant (UTC) : la carte est refaite une fois par mois. */
+function nextMonthStart(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+}
+
+/**
+ * Calcule les quarts manquants ou périmés de la carte des cultures (commande planifiée). Chaque
+ * quart réserve sa place dans la part des images ; `force` refait aussi les quarts à jour.
+ */
+export async function renderCropMap(
+  options: { now?: Date; force?: boolean } = {},
+): Promise<CropMapRenderResult | null> {
+  const provider = getRemoteSensingProvider();
+  if (!provider.canProcess) return null;
+  const now = options.now ?? new Date();
+  const started = Date.now();
+  const { width, height } = overviewSize();
+  const { from, to } = periodRange(CROP_MAP_PERIOD, now);
+  const month = periodOf(now);
+  const clip = (await countryOutline()) ?? undefined;
+  const result: CropMapRenderResult = { quarters: [], processingUnits: 0, remaining: 0 };
+
+  for (let index = 0; index < CROP_MAP_QUARTERS; index += 1) {
+    const tileKey = cropMapTileKey(index);
+    const cached = await findCachedImage("CROP_CLASSES", CROP_MAP_PERIOD, tileKey);
+    const fresh = cached?.image && cached.expiresAt && cached.expiresAt.getTime() > now.getTime();
+    if (fresh && !options.force) {
+      result.quarters.push({ index, status: "cached", processingUnits: null });
+      continue;
+    }
+    const left = CROP_MAP_RUN_BUDGET_MS - (Date.now() - started);
+    if (left < 60_000) {
+      result.remaining += 1;
+      continue;
+    }
+    const reservation = await reserveProcessingRequest(month, "IMAGE", processingBudget(), now);
+    if (reservation !== "reserved") {
+      result.quarters.push({
+        index,
+        status: reservation === "throttled" ? "throttled" : "budget-exhausted",
+        processingUnits: null,
+      });
+      result.remaining += 1;
+      continue;
+    }
+    try {
+      const rendered = await provider.renderImage({
+        layer: "CROP_CLASSES",
+        envelope: cropMapQuarterEnvelope(index),
+        clip,
+        width: Math.round(width / 2),
+        height: Math.round(height / 2),
+        from,
+        to,
+        maxCloudCover: MAX_CLOUD_COVER,
+        timeoutMs: Math.min(CROP_MAP_QUARTER_TIMEOUT_MS, left),
+      });
+      if (rendered?.processingUnits) await addProcessingUnits(month, rendered.processingUnits);
+      // Une réponse vide ne remplace pas une carte déjà servie.
+      if (rendered) {
+        await storeCachedImage(
+          "CROP_CLASSES",
+          CROP_MAP_PERIOD,
+          tileKey,
+          rendered.image,
+          nextMonthStart(now),
+        );
+      }
+      result.quarters.push({
+        index,
+        status: rendered ? "rendered" : "empty",
+        processingUnits: rendered?.processingUnits ?? null,
+      });
+      result.processingUnits += rendered?.processingUnits ?? 0;
+    } catch (error) {
+      if (!(error instanceof RemoteSensingProviderError)) throw error;
+      logger.warn({ err: error, quarter: index }, "Carte des cultures indisponible");
+      result.quarters.push({ index, status: "failed", processingUnits: null });
+      result.remaining += 1;
+    }
+  }
+  return result;
 }

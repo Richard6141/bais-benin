@@ -23,8 +23,7 @@ import {
   BENIN_CENTER,
   CHOROPLETH_SCALE,
   COMMUNE_FILL_OPACITY,
-  CROP_MAP_IDS,
-  CROP_MAP_URL,
+  CROP_MAP_QUARTERS,
   NO_DATA_COLOR,
   FARM_COLORS,
   HIRES_IMAGERY,
@@ -615,42 +614,42 @@ export function MapCanvas({
   // Carte des cultures : une image d'ensemble du pays, sous les limites et les parcelles, pixels
   // nets (classes, pas de dégradé). Déclarée après la vue du ciel, qui remet les communes en
   // couleur quand elle se retire : cet effet les rend transparentes ensuite.
+  // Quatre images, une par quart du pays, calculées à l'avance ; un quart pas encore prêt reste
+  // simplement vide.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !cropMap) return;
-    const [minLon, minLat, maxLon, maxLat] = SATELLITE_BOUNDS;
     map.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", 0);
-    map.addSource(CROP_MAP_IDS.source, {
-      type: "image",
-      url: CROP_MAP_URL,
-      coordinates: [
-        [minLon, maxLat],
-        [maxLon, maxLat],
-        [maxLon, minLat],
-        [minLon, minLat],
-      ],
-    });
-    map.addLayer(
-      {
-        id: CROP_MAP_IDS.layer,
-        type: "raster",
-        source: CROP_MAP_IDS.source,
-        paint: {
-          "raster-fade-duration": 0,
-          "raster-resampling": "nearest",
-          "raster-opacity": 0.85,
+    for (const quarter of CROP_MAP_QUARTERS) {
+      map.addSource(quarter.source, {
+        type: "image",
+        url: quarter.url,
+        coordinates: quarter.coordinates,
+      });
+      map.addLayer(
+        {
+          id: quarter.layer,
+          type: "raster",
+          source: quarter.source,
+          paint: {
+            "raster-fade-duration": 0,
+            "raster-resampling": "nearest",
+            "raster-opacity": 0.85,
+          },
         },
-      },
-      LAYER_IDS.communeFill,
-    );
+        LAYER_IDS.communeFill,
+      );
+    }
     const extras = extrasRef.current;
     extras.crops = cropMapAttribution();
     refreshAttribution(map);
     return () => {
       const current = mapRef.current;
       if (!current) return;
-      if (current.getLayer(CROP_MAP_IDS.layer)) current.removeLayer(CROP_MAP_IDS.layer);
-      if (current.getSource(CROP_MAP_IDS.source)) current.removeSource(CROP_MAP_IDS.source);
+      for (const quarter of CROP_MAP_QUARTERS) {
+        if (current.getLayer(quarter.layer)) current.removeLayer(quarter.layer);
+        if (current.getSource(quarter.source)) current.removeSource(quarter.source);
+      }
       current.setPaintProperty(LAYER_IDS.communeFill, "fill-opacity", COMMUNE_FILL_OPACITY);
       extras.crops = null;
       refreshAttribution(current);

@@ -10,6 +10,7 @@ Trois routes de l'application sont appelées à intervalles fixes (docs/modules/
 | `POST /api/v1/fires/ingest` | toutes les 30 minutes | feux actifs NASA FIRMS des dernières 24 h (fichiers publics, sans clé), dédoublonnés, rattachés aux communes ; alertes « feu de brousse » pour les exploitations à moins de 1 km (ADR-0022) |
 | `POST /api/v1/satellite/vegetation-checks` | chaque jour à 6 h 00, heure de Porto-Novo (5 h 00 UTC) | confrontation déclaration / satellite de 150 parcelles relevées (ADR-0016) ; répond 503 tant que le compte CDSE n'est pas configuré |
 | `POST /api/v1/satellite/crop-areas` | du 1er au 8 de chaque mois à 6 h 30, heure de Porto-Novo (5 h 30 UTC) | surfaces des cultures par commune (ADR-0021), 12 communes par lot ; chaque lot reprend les communes pas encore calculées ce mois-ci et s'arrête quand la part des statistiques est épuisée ; répond 503 sans compte CDSE |
+| `POST /api/v1/satellite/crop-map` | du 1er au 8 de chaque mois à 7 h 00, heure de Porto-Novo (6 h 00 UTC) | carte des cultures (ADR-0021), quatre quarts du pays calculés hors des requêtes des visiteurs ; un quart à jour ne coûte rien ; `?force=1` refait tout ; répond 503 sans compte CDSE |
 
 Chaque appel porte l'en-tête `Authorization: Bearer <CRON_SECRET>`. Sans secret configuré côté application, ces routes restent fermées.
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildCropAreaBody, parseCropArea } from "../cdse";
-import { CROP_CLASS_CODES, cropClassifierSource } from "../crop-classes";
+import {
+  CROP_CLASS_CODES,
+  cropClassifierSource,
+  cropClassStatisticsEvalscript,
+} from "../crop-classes";
 
 // La règle de classification est exécutée telle qu'envoyée à Copernicus : son source JavaScript
 // est évalué ici sur des séries mensuelles synthétiques de pixels, une par classe.
@@ -166,6 +170,46 @@ describe("classification phénologique d'un pixel", () => {
       "2026-07-18T10:00:00Z",
       "2026-08-02T10:00:00Z",
     ]);
+  });
+});
+
+describe("couverture des traces Sentinel-2", () => {
+  it("garde chaque mois le meilleur passage de chaque trace, le moins nuageux d'abord", () => {
+    // Le 3 et le 18 juillet : même trace (15 jours d'écart) ; le 5 : trace voisine.
+    const result = classifier().preProcessScenes({
+      scenes: {
+        orbits: [
+          { dateFrom: "2026-07-03T10:00:00Z", tiles: [{ cloudCoverage: 70 }] },
+          { dateFrom: "2026-07-05T10:00:00Z", tiles: [{ cloudCoverage: 30 }] },
+          { dateFrom: "2026-07-18T10:00:00Z", tiles: [{ cloudCoverage: 12 }] },
+        ],
+      },
+    });
+    expect(result.scenes.orbits.map((orbit) => orbit.dateFrom.slice(8, 10))).toEqual(["18", "05"]);
+  });
+
+  it("lit un pixel vu par une seule des deux traces du mois", () => {
+    // Chaque mois : passage de l'autre trace d'abord (hors de sa couverture), puis le sien.
+    const months = ORDER.flatMap((month) => [month, month]);
+    const { samples, scenes } = pixel(() => ({ ndvi: 0.78 }), months);
+    const covered = samples.map((entry, index) =>
+      index % 2 === 0 ? { ...entry, dataMask: 0 } : entry,
+    );
+    expect(classifier().classify(covered, scenes)).toBe(CROP_CLASS_CODES.NATURAL);
+  });
+
+  it("ne compte pas les pixels hors du contour de la commune", () => {
+    // Évalue notre propre script constant, sans aucune donnée extérieure : test seulement.
+    const evaluate = new Function(
+      `${cropClassStatisticsEvalscript(0)}; return evaluatePixel;`,
+    )() as (
+      samples: Sample[],
+      scenes: { orbits: { dateFrom: string }[] },
+    ) => { crop: number[]; dataMask: number[] };
+    const { samples, scenes } = pixel(() => ({ ndvi: 0.25 }));
+    expect(evaluate(samples, scenes).dataMask).toEqual([1]);
+    const outside = samples.map((entry) => ({ ...entry, dataMask: 0 }));
+    expect(evaluate(outside, scenes)).toEqual({ crop: [0], dataMask: [0] });
   });
 });
 
