@@ -8,6 +8,7 @@ Trois routes de l'application sont appelées à intervalles fixes (docs/modules/
 | `POST /api/v1/monitoring/dispatch` | toutes les 10 minutes | envoi des messages en attente, reprise après le silence nocturne, relances |
 | `POST /api/v1/assistant/maintenance` | chaque jour à 4 h 00, heure de Porto-Novo (3 h 00 UTC) | purge des conversations de l'assistant de plus de 12 mois |
 | `POST /api/v1/satellite/vegetation-checks` | chaque jour à 6 h 00, heure de Porto-Novo (5 h 00 UTC) | confrontation déclaration / satellite de 150 parcelles relevées (ADR-0016) ; répond 503 tant que le compte CDSE n'est pas configuré |
+| `POST /api/v1/satellite/crop-areas` | du 1er au 8 de chaque mois à 6 h 30, heure de Porto-Novo (5 h 30 UTC) | surfaces des cultures par commune (ADR-0021), 12 communes par lot ; chaque lot reprend les communes pas encore calculées ce mois-ci et s'arrête quand la part des statistiques est épuisée ; répond 503 sans compte CDSE |
 
 Chaque appel porte l'en-tête `Authorization: Bearer <CRON_SECRET>`. Sans secret configuré côté application, ces routes restent fermées.
 
@@ -39,6 +40,7 @@ CRON_TZ=UTC
 */10 * * * * . /etc/bais/cron.env && curl -fsS --retry 3 --max-time 300 -X POST -H "Authorization: Bearer $CRON_SECRET" https://bais.example.bj/api/v1/monitoring/dispatch >> /var/log/bais/cron.log 2>&1
 0 3 * * *    . /etc/bais/cron.env && curl -fsS --retry 3 --max-time 300 -X POST -H "Authorization: Bearer $CRON_SECRET" https://bais.example.bj/api/v1/assistant/maintenance >> /var/log/bais/cron.log 2>&1
 0 5 * * *    . /etc/bais/cron.env && curl -fsS --retry 3 --max-time 300 -X POST -H "Authorization: Bearer $CRON_SECRET" https://bais.example.bj/api/v1/satellite/vegetation-checks >> /var/log/bais/cron.log 2>&1
+30 5 1-8 * * . /etc/bais/cron.env && curl -fsS --retry 3 --max-time 300 -X POST -H "Authorization: Bearer $CRON_SECRET" https://bais.example.bj/api/v1/satellite/crop-areas >> /var/log/bais/cron.log 2>&1
 ```
 
 ## Sur Vercel

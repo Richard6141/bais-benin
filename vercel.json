@@ -4,6 +4,7 @@
     { "path": "/api/v1/monitoring/ingest", "schedule": "0 4 * * *" },
     { "path": "/api/v1/monitoring/dispatch", "schedule": "*/10 * * * *" },
     { "path": "/api/v1/assistant/maintenance", "schedule": "0 3 * * *" },
-    { "path": "/api/v1/satellite/vegetation-checks", "schedule": "0 5 * * *" }
+    { "path": "/api/v1/satellite/vegetation-checks", "schedule": "0 5 * * *" },
+    { "path": "/api/v1/satellite/crop-areas", "schedule": "30 5 1-8 * *" }
   ]
 }

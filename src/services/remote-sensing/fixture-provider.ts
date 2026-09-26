@@ -159,7 +159,10 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
     // Répartition synthétique des classes, proportionnelle à la surface de la géométrie :
     // cultures annuelles, savane et jachère dominent ; coton au nord seulement.
     async cropAreaStatistics(request) {
-      const ring = request.geometry.coordinates[0] ?? [];
+      const ring =
+        request.geometry.type === "Polygon"
+          ? (request.geometry.coordinates[0] ?? [])
+          : (request.geometry.coordinates[0]?.[0] ?? []);
       const seed = hashString(JSON.stringify(ring).slice(0, 400));
       const total = Math.round(
         (parcelPixels(ring) * 100) / (request.resolutionM * request.resolutionM),

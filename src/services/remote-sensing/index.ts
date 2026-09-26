@@ -13,6 +13,7 @@ export {
 } from "./cdse";
 export { createFixtureRemoteSensingProvider, seasonalNdvi } from "./fixture-provider";
 export { MASKED_SCL_CLASSES } from "./evalscripts";
+export { CROP_CLASS_CODES, CROP_CLASSES, type CropClass } from "./crop-classes";
 
 let provider: RemoteSensingProvider | null = null;
 

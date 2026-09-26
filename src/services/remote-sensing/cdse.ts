@@ -7,6 +7,7 @@ import {
   type CropAreaResult,
   type FieldFeatures,
   type FieldFeaturesRequest,
+  type MultiPolygonGeometry,
   type RadarInterval,
   type RadarStatisticsRequest,
   type StatisticsResult,
@@ -202,7 +203,7 @@ export function buildCropAreaBody(request: CropAreaRequest) {
   const resolution = request.resolutionM / Math.cos((request.latitude * Math.PI) / 180);
   return {
     input: {
-      bounds: { geometry: projectPolygon(request.geometry), properties: { crs: CRS_3857 } },
+      bounds: { geometry: projectAny(request.geometry), properties: { crs: CRS_3857 } },
       data: [
         {
           type: COLLECTION,
@@ -254,6 +255,18 @@ export function parseCropArea(payload: unknown): number[] {
     }
   }
   return pixels;
+}
+
+function projectAny(
+  geometry: PolygonGeometry | MultiPolygonGeometry,
+): PolygonGeometry | MultiPolygonGeometry {
+  if (geometry.type === "Polygon") return projectPolygon(geometry);
+  return {
+    type: "MultiPolygon",
+    coordinates: geometry.coordinates.map(
+      (polygon) => projectPolygon({ type: "Polygon", coordinates: polygon }).coordinates,
+    ),
+  };
 }
 
 function projectPolygon(geometry: PolygonGeometry): PolygonGeometry {

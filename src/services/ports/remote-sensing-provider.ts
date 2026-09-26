@@ -109,9 +109,15 @@ export interface RadarInterval {
   maskedPixels: number;
 }
 
+export interface MultiPolygonGeometry {
+  type: "MultiPolygon";
+  coordinates: number[][][][];
+}
+
 /** Surfaces par classe de culture sur une géométrie (carte des cultures, ADR-0021). */
 export interface CropAreaRequest {
-  geometry: PolygonGeometry;
+  /** Commune entière, parfois en plusieurs morceaux. */
+  geometry: PolygonGeometry | MultiPolygonGeometry;
   from: string;
   to: string;
   /** Côté du pixel au sol, en mètres (100 : un hectare par pixel). */

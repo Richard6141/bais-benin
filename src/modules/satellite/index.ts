@@ -47,3 +47,12 @@ export {
   type RadarCalibrationResult,
 } from "./radar-calibration";
 export { evaluateRadar, expectedRadarProfile } from "./crop-profiles";
+export {
+  CROP_AREA_RESOLUTION_M,
+  CULTIVATED_CLASSES,
+  cropMapClassOf,
+  runCropAreaEstimates,
+  writeDemoCropAreaEstimates,
+  type CropAreaRunResult,
+  type CultivatedClass,
+} from "./crop-areas";

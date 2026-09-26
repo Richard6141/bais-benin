@@ -1,6 +1,10 @@
 import { prisma } from "@/database/client";
 import { getServerEnv } from "@/lib/env";
-import { runVegetationChecks, type VegetationRunResult } from "@/modules/satellite";
+import {
+  runVegetationChecks,
+  writeDemoCropAreaEstimates,
+  type VegetationRunResult,
+} from "@/modules/satellite";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 
 // Confrontation déclaration / satellite de démonstration (ADR-0016) : verdicts calculés sur des
@@ -20,4 +24,12 @@ export async function seedVegetationChecks(): Promise<VegetationRunResult | null
     provider: createFixtureRemoteSensingProvider(),
     limit: DEMO_PARCELS,
   });
+}
+
+// Surfaces des cultures de démonstration (ADR-0021) : déduites des surfaces déclarées, pour que
+// la vue du ministère montre des taux d'enrôlement et un classement dès l'installation. Même
+// garde que les verdicts : jamais en production, et une mesure réelle n'est jamais remplacée.
+export async function seedCropAreaEstimates(): Promise<number | null> {
+  if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
+  return writeDemoCropAreaEstimates();
 }

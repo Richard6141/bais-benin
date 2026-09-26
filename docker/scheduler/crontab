@@ -7,3 +7,5 @@
 0 3 * * * /usr/local/bin/call-app.sh assistant-maintenance
 # Confrontation déclaration / satellite d'un lot de parcelles : chaque jour à 6 h 00 à Porto-Novo.
 0 5 * * * /usr/local/bin/call-app.sh vegetation-checks
+# Surfaces des cultures par commune : passe mensuelle en lots, du 1er au 8 à 6 h 30 à Porto-Novo.
+30 5 1-8 * * /usr/local/bin/call-app.sh crop-areas

@@ -59,6 +59,11 @@ const PERMANENT_MIN_MEDIAN = 0.4;
 // Zones les plus sèches : couvert naturellement plus clair, seuils abaissés d'autant.
 const ZONE_OFFSETS: Record<string, number> = { ZAE_1: 0.08, ZAE_2: 0.04 };
 
+/** Abaissement des seuils de NDVI dans une zone agro-écologique (0 hors des zones sèches). */
+export function zoneOffset(zoneCode: string | null): number {
+  return zoneCode ? (ZONE_OFFSETS[zoneCode] ?? 0) : 0;
+}
+
 /** Profil attendu d'une culture dans une zone agro-écologique. */
 export function expectedProfile(crop: CropProfileInput, zoneCode: string | null): ExpectedProfile {
   const offset = zoneCode ? (ZONE_OFFSETS[zoneCode] ?? 0) : 0;
