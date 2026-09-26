@@ -188,9 +188,9 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
       const { width, height } = request;
       const seed = hashString(request.envelope.map((v) => Math.round(v)).join(","));
       const fieldW = 10 + (seed % 11);
-      const fieldH = 10 + ((seed >> 4) % 11);
-      const left = Math.floor(width / 2) - Math.floor(fieldW / 2) - ((seed >> 8) % 3);
-      const top = Math.floor(height / 2) - Math.floor(fieldH / 2) - ((seed >> 10) % 3);
+      const fieldH = 10 + ((seed >>> 4) % 11);
+      const left = Math.floor(width / 2) - Math.floor(fieldW / 2) - ((seed >>> 8) % 3);
+      const top = Math.floor(height / 2) - Math.floor(fieldH / 2) - ((seed >>> 10) % 3);
       const peak = new Float32Array(width * height);
       const low = new Float32Array(width * height);
       const swir = new Float32Array(width * height);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lonLatTo3857 } from "@/lib/geo/tile-math";
+import { segmentField } from "@/modules/satellite/field-segmentation";
 import { createFixtureRemoteSensingProvider, seasonalNdvi } from "../fixture-provider";
 
 function square(lon: number, lat: number) {
@@ -51,6 +52,30 @@ describe("fournisseur de télédétection fixture", () => {
         maxCloudCover: 80,
       }),
     ).toBeNull();
+  });
+});
+
+describe("champ synthétique", () => {
+  // Le hachage des emprises dépasse 2^31 une fois sur deux : un décalage signé rendait alors un
+  // champ trop petit ou décentré, et la délimitation assistée échouait sur un point sur cinq.
+  it("place toujours un champ délimitable sous le point désigné", async () => {
+    const provider = createFixtureRemoteSensingProvider();
+    const failures: string[] = [];
+    for (let i = 0; i < 200; i += 1) {
+      const cx = 200_000 + ((i * 7919) % 300_000);
+      const cy = 700_000 + ((i * 104_729) % 600_000);
+      const envelope = [cx - 320, cy - 320, cx + 320, cy + 320] as const;
+      const grid = await provider.fieldFeatures({
+        envelope,
+        width: 64,
+        height: 64,
+        from: "",
+        to: "",
+      });
+      const result = segmentField(grid, { col: 32, row: 32 }, 100);
+      if (!result.ok) failures.push(`${cx},${cy}: ${result.reason}`);
+    }
+    expect(failures).toEqual([]);
   });
 });
 
