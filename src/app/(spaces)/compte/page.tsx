@@ -44,7 +44,11 @@ export default async function AccountPage() {
           <CardContent className="flex flex-col gap-3 text-sm">
             <Row
               label="Téléphone"
-              value={user.phoneNumber ? `+229 ${formatNational(user.phoneNumber.slice(4))}` : "—"}
+              value={
+                user.phoneNumber
+                  ? `+229 ${formatNational(user.phoneNumber.slice(4))}`
+                  : "Non renseigné"
+              }
             />
             {isPhoneAccount ? null : <Row label="E-mail" value={user.email} />}
             <Row

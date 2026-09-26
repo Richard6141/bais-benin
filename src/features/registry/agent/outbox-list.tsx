@@ -117,7 +117,7 @@ function ConflictSummary({ result }: { result: unknown }) {
       <ul className="mt-1 text-muted-foreground">
         {Object.entries(conflict.fields).map(([field, value]) => (
           <li key={field}>
-            {field} : {String(value ?? "—")}
+            {field} : {String(value ?? "non renseigné")}
           </li>
         ))}
       </ul>

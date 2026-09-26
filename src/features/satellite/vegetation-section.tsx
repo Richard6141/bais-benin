@@ -1,3 +1,4 @@
+import { NoValue } from "@/components/data-display/no-value";
 import { SortableTable } from "@/components/data-display/sortable-table";
 import { SourceCaption } from "@/components/data-display/source-caption";
 import { StatTile } from "@/components/data-display/stat-tile";
@@ -50,7 +51,11 @@ export function VegetationSection({ summary }: { summary: VegetationSummary }) {
         <StatTile
           label="À vérifier sur le terrain"
           value={toVerify}
-          source={judged > 0 ? `${share.format(toVerify / judged)} des parcelles jugées` : "—"}
+          source={
+            judged > 0
+              ? `${share.format(toVerify / judged)} des parcelles jugées`
+              : "Aucune parcelle jugée"
+          }
           reliability="ESTIMATED"
         />
         <StatTile
@@ -83,7 +88,11 @@ export function VegetationSection({ summary }: { summary: VegetationSummary }) {
               toVerify: { display: String(commune.to_verify), sort: commune.to_verify },
               share: {
                 display:
-                  commune.checked > 0 ? share.format(commune.to_verify / commune.checked) : "—",
+                  commune.checked > 0 ? (
+                    share.format(commune.to_verify / commune.checked)
+                  ) : (
+                    <NoValue />
+                  ),
                 sort: commune.checked > 0 ? commune.to_verify / commune.checked : null,
               },
             },
@@ -113,7 +122,7 @@ export function VegetationSection({ summary }: { summary: VegetationSummary }) {
                 display: `${row.crop_name} (${SUB_SEASONS[row.sub_season] ?? row.sub_season})`,
                 sort: row.crop_name,
               },
-              reason: { display: reasonLabel(row.reason) ?? "—", sort: row.reason },
+              reason: { display: reasonLabel(row.reason) ?? <NoValue />, sort: row.reason },
               peak: { display: formatNdvi(row.peak_ndvi), sort: row.peak_ndvi },
               gap: {
                 display: `≥ ${formatNdvi(row.expected_ndvi)}`,
@@ -124,7 +133,7 @@ export function VegetationSection({ summary }: { summary: VegetationSummary }) {
         />
       ) : null}
       <SourceCaption
-        source={sources.length > 0 ? sources.join(" ; ") : "—"}
+        source={sources.length > 0 ? sources.join(" ; ") : "Non renseignée"}
         date={last ? `calcul du ${date.format(last)}` : undefined}
       />
       <p className="text-xs text-muted-foreground">

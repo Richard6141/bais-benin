@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMediaQuery } from "@/lib/use-media-query";
 import type { HoveredCommune } from "./map-canvas";
 import { CropMapLegend } from "./crop-map-legend";
 import {
@@ -17,7 +18,13 @@ import {
   type MetricKey,
   type SkyLayer,
 } from "./map-config";
-import { MapFiltersBar, type FilterOptions } from "./map-filters";
+import {
+  MapFiltersBar,
+  MapSecondaryFilters,
+  secondaryFiltersActive,
+  type FilterOptions,
+} from "./map-filters";
+import { MapLayersSheet, MapLegendToggle } from "./map-layers-sheet";
 import { MapLegend, SkyLegend } from "./map-legend";
 import { MapPanelDrawer } from "./map-panel-drawer";
 import { MapSidePanel } from "./map-side-panel";
@@ -182,23 +189,78 @@ export function AgriMap({
   };
 
   const hoveredStats = hovered ? stats.byCode.get(hovered.code) : undefined;
+  const isWide = useMediaQuery("(min-width: 1024px)");
+
+  const filterProps = {
+    options,
+    filters,
+    metric,
+    showFarms,
+    canShowFarms,
+    onChange: (next: MapFilters) => {
+      setSelectedCode(null);
+      pushState(next, metric, null);
+    },
+    onMetricChange: (next: MetricKey) => pushState(filters, next, selectedCode),
+    onShowFarmsChange: setShowFarms,
+  };
+  // Réglages des couches et légende : sur la carte en grand écran, dans la feuille « Couches » et
+  // la légende repliable sur téléphone (un seul exemplaire rendu à la fois).
+  const layerControls = (
+    <>
+      <div className="pointer-events-auto">
+        <SkyControl
+          catalog={catalog}
+          layer={skyParams.layer}
+          period={skyPeriod}
+          onLayerChange={(layer) =>
+            pushState(filters, metric, selectedCode, { layer, period: skyParams.period })
+          }
+          onPeriodChange={(period) =>
+            pushState(filters, metric, selectedCode, { layer: skyParams.layer, period })
+          }
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <FireControl
+          value={fireWindow}
+          onChange={(next) => pushState(filters, metric, selectedCode, skyParams, parcelId, next)}
+        />
+      </div>
+      {canInspectParcels ? (
+        <div className="pointer-events-auto">
+          <FieldsControl
+            checked={showFields}
+            zoom={zoom}
+            onChange={(next) =>
+              pushState(filters, metric, selectedCode, skyParams, parcelId, fireWindow, next)
+            }
+          />
+        </div>
+      ) : null}
+    </>
+  );
+  const legends = (
+    <>
+      {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
+      {cropMap ? (
+        <CropMapLegend />
+      ) : sky ? (
+        <SkyLegend
+          view={sky}
+          periodLabel={skyPeriodEntry?.label ?? sky.period}
+          detail={canSeeSkyDetail}
+        />
+      ) : (
+        <MapLegend metric={metric} breaks={breaks} showFarms={showFarms && canShowFarms} />
+      )}
+    </>
+  );
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b bg-card px-4 py-3 sm:px-6">
-        <MapFiltersBar
-          options={options}
-          filters={filters}
-          metric={metric}
-          showFarms={showFarms}
-          canShowFarms={canShowFarms}
-          onChange={(next) => {
-            setSelectedCode(null);
-            pushState(next, metric, null);
-          }}
-          onMetricChange={(next) => pushState(filters, next, selectedCode)}
-          onShowFarmsChange={setShowFarms}
-        />
+        <MapFiltersBar {...filterProps} />
       </div>
       {/* Rangée de hauteur bornée : la carte la remplit et le panneau défile seul. Sur téléphone,
           la carte laisse sous elle la place du tiroir replié. */}
@@ -230,52 +292,32 @@ export function AgriMap({
               Rapprochez-vous d&apos;un village pour voir les champs
             </p>
           ) : null}
-          <div className="pointer-events-none absolute top-3 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col gap-2">
-            <div className="pointer-events-auto">
-              <SkyControl
-                catalog={catalog}
-                layer={skyParams.layer}
-                period={skyPeriod}
-                onLayerChange={(layer) =>
-                  pushState(filters, metric, selectedCode, { layer, period: skyParams.period })
-                }
-                onPeriodChange={(period) =>
-                  pushState(filters, metric, selectedCode, { layer: skyParams.layer, period })
-                }
-              />
+          {/* Grand écran : réglages et légende empilés sur la carte. Téléphone et tablette : un
+              bouton « Couches » et une légende repliée, pour que la carte garde l'écran. */}
+          {isWide ? (
+            <div className="pointer-events-none absolute top-3 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col gap-2">
+              {layerControls}
+              {legends}
             </div>
-            <div className="pointer-events-auto">
-              <FireControl
-                value={fireWindow}
-                onChange={(next) =>
-                  pushState(filters, metric, selectedCode, skyParams, parcelId, next)
+          ) : isWide === false ? (
+            <>
+              <MapLayersSheet
+                className="absolute top-3 left-3 z-10"
+                activeCount={
+                  (skyParams.layer ? 1 : 0) +
+                  (fireWindow ? 1 : 0) +
+                  (showFields ? 1 : 0) +
+                  secondaryFiltersActive(filters, metric, showFarms)
                 }
-              />
-            </div>
-            {canInspectParcels ? (
-              <div className="pointer-events-auto">
-                <FieldsControl
-                  checked={showFields}
-                  zoom={zoom}
-                  onChange={(next) =>
-                    pushState(filters, metric, selectedCode, skyParams, parcelId, fireWindow, next)
-                  }
-                />
-              </div>
-            ) : null}
-            {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
-            {cropMap ? (
-              <CropMapLegend />
-            ) : sky ? (
-              <SkyLegend
-                view={sky}
-                periodLabel={skyPeriodEntry?.label ?? sky.period}
-                detail={canSeeSkyDetail}
-              />
-            ) : (
-              <MapLegend metric={metric} breaks={breaks} showFarms={showFarms && canShowFarms} />
-            )}
-          </div>
+              >
+                {layerControls}
+                <div className="grid grid-cols-2 items-end gap-3 rounded-lg border bg-card p-3">
+                  <MapSecondaryFilters {...filterProps} idPrefix="couches" />
+                </div>
+              </MapLayersSheet>
+              <MapLegendToggle className="absolute bottom-3 left-3 z-10">{legends}</MapLegendToggle>
+            </>
+          ) : null}
           {hovered ? (
             <div
               className="pointer-events-none absolute z-10 rounded-md border bg-card px-3 py-2 text-xs shadow-raised"

@@ -17,7 +17,7 @@ const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
 /** Délai lisible : en heures sous deux jours, en jours au-delà. */
 export function formatDelay(hours: number | null): string {
-  if (hours === null) return "—";
+  if (hours === null) return "n.d.";
   return hours < 48 ? `${decimal.format(hours)} h` : `${decimal.format(hours / 24)} j`;
 }
 

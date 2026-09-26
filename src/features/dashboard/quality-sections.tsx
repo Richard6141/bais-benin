@@ -1,5 +1,6 @@
 import { BarList } from "@/components/data-display/bar-list";
 import { MaskedValue } from "@/components/data-display/masked-value";
+import { NoValue } from "@/components/data-display/no-value";
 import { SortableTable, type SortableCell } from "@/components/data-display/sortable-table";
 import { StatTile } from "@/components/data-display/stat-tile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,9 +12,11 @@ const masked = (): SortableCell => ({ display: <MaskedValue />, sort: null });
 const count = (value: number | null | undefined): SortableCell =>
   typeof value === "number"
     ? { display: formatInteger(value), sort: value }
-    : { display: "—", sort: null };
+    : { display: <NoValue />, sort: null };
 const share = (value: number | null): SortableCell =>
-  value === null ? { display: "—", sort: null } : { display: formatShare(value), sort: value };
+  value === null
+    ? { display: <NoValue />, sort: null }
+    : { display: formatShare(value), sort: value };
 
 /** Lien d'une commune : fiche du pilotage par défaut ; null hors du pilotage (espace agent). */
 type CommuneHref = ((code: string) => string) | null;
@@ -34,8 +37,8 @@ export function GapsSection({
       <p className="text-sm">
         {formatInteger(gaps.measuredParcels)} parcelles relevées au GPS ; écart médian{" "}
         {gaps.medianGap === null ? "non calculé" : formatShare(gaps.medianGap)} ;{" "}
-        {gaps.flaggedShare === null ? "—" : formatShare(gaps.flaggedShare)} signalées (écart de 20 %
-        ou plus).
+        {gaps.flaggedShare === null ? "n.d." : formatShare(gaps.flaggedShare)} signalées (écart de
+        20 % ou plus).
       </p>
       <BarList
         label="Parcelles par tranche d'écart"
@@ -186,7 +189,8 @@ export function CoverageSection({
         />
         <StatTile
           label="Doublons probables"
-          value={duplicates?.probablePairs ?? "—"}
+          value={duplicates?.probablePairs ?? "Non calculé"}
+          wordValue={duplicates?.probablePairs === undefined}
           source="Même nom, même commune, naissance proche"
         />
       </div>

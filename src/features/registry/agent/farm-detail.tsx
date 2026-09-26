@@ -127,7 +127,8 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
             />
             <StatTile
               label="Superficie mesurée"
-              value={farm.computedAreaHa === null ? "—" : formatHa(farm.computedAreaHa)}
+              value={farm.computedAreaHa === null ? "Non mesurée" : formatHa(farm.computedAreaHa)}
+              wordValue={farm.computedAreaHa === null}
               source={farm.computedAreaHa === null ? "Aucun relevé" : "Relevé des parcelles"}
               reliability={farm.computedAreaHa === null ? undefined : "FIELD_VERIFIED"}
             />

@@ -47,7 +47,12 @@ export function FarmPicker({ farms, value, onChange }: FarmPickerProps) {
             aria-labelledby="exploitation-label"
             className="h-11 w-full justify-between font-normal sm:max-w-md"
           >
-            <span className="truncate">
+            {/* Seule coupure gardée : le bouton d'un sélecteur, dont la liste montre le texte
+                entier ; il est aussi rendu en entier au survol. */}
+            <span
+              className="truncate"
+              title={selected ? `${selected.code} (${selected.label})` : undefined}
+            >
               {selected ? `${selected.code} (${selected.label})` : "Sans exploitation"}
             </span>
             <ChevronsUpDown className="opacity-50" aria-hidden />
@@ -80,7 +85,7 @@ export function FarmPicker({ farms, value, onChange }: FarmPickerProps) {
                   >
                     <Check className={cn(value === farm.code ? "opacity-100" : "opacity-0")} />
                     <span className="font-mono text-xs">{farm.code}</span>
-                    <span className="truncate">{farm.label}</span>
+                    <span className="break-words">{farm.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

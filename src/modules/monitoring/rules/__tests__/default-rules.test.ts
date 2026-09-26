@@ -182,20 +182,20 @@ describe("règles par défaut", () => {
       expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
       for (const message of [short, long]) {
         expect(message).toContain("Akpro-Missérété");
-        expect(message).not.toMatch(/[{}]|—|NaN|undefined/);
+        expect(message).not.toMatch(/[{}]|n\.d\.|NaN|undefined/);
       }
     });
   });
 });
 
 describe("renderMessage", () => {
-  it("formate les nombres en français et remplace les marqueurs inconnus par un tiret", () => {
+  it("formate les nombres en français et remplace les marqueurs inconnus par « n.d. »", () => {
     const text = renderMessage(
       "{commune} : {rain_sum_10d} mm, bilan {water_balance_10d} mm, {inconnu}.",
       { rain_sum_10d: 2.46, water_balance_10d: -1234.5 },
       { commune: "Djougou" },
     );
-    expect(text).toMatch(/^Djougou : 2,5 mm, bilan −?-?1\s235 mm, —\.$/);
+    expect(text).toMatch(/^Djougou : 2,5 mm, bilan −?-?1\s235 mm, n\.d\.\.$/);
   });
 });
 
@@ -228,7 +228,7 @@ describe.each(["PEST_OUTBREAK_V1", "CROP_DISEASE_OUTBREAK_V1", "ANIMAL_DISEASE_O
       expect(long).toContain("4 producteurs");
       for (const message of [short, long]) {
         expect(message).toContain("Akpro-Missérété");
-        expect(message).not.toMatch(/[{}]|—|NaN|undefined/);
+        expect(message).not.toMatch(/[{}]|n\.d\.|NaN|undefined/);
       }
     });
   },

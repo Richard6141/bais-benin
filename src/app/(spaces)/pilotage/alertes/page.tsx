@@ -96,7 +96,10 @@ export default async function AlertCenterPage(props: PageProps<"/pilotage/alerte
         />
         <StatTile
           label="Taux de lecture"
-          value={overview.readRate === null ? "—" : percentFormatter.format(overview.readRate)}
+          value={
+            overview.readRate === null ? "Non mesuré" : percentFormatter.format(overview.readRate)
+          }
+          wordValue={overview.readRate === null}
           source="Destinataires ayant lu l'alerte"
         />
         <StatTile

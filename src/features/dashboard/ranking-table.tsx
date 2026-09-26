@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { MaskedValue } from "@/components/data-display/masked-value";
+import { NoValue } from "@/components/data-display/no-value";
 import {
   SortableTable,
   type SortableCell,
@@ -22,7 +24,7 @@ function valueCell(
   row: TerritoryRankingRow,
   value: number | null,
   format: (v: number) => string,
-  empty = "—",
+  empty: ReactNode = <NoValue />,
 ): SortableCell {
   if (row.masked) return { display: <MaskedValue />, sort: null };
   return { display: value === null ? empty : format(value), sort: value };
@@ -35,9 +37,11 @@ function toRow(row: TerritoryRankingRow, href: string | undefined): SortableRow 
     : {
         // Déclaré et mesuré côte à côte : la part relevée dit sur quoi repose le mesuré.
         display:
-          row.measuredAreaHa === null
-            ? "—"
-            : `${formatHectares(row.measuredAreaHa)}${row.measuredParcelShare === null ? "" : ` (${formatShare(row.measuredParcelShare)})`}`,
+          row.measuredAreaHa === null ? (
+            <NoValue />
+          ) : (
+            `${formatHectares(row.measuredAreaHa)}${row.measuredParcelShare === null ? "" : ` (${formatShare(row.measuredParcelShare)})`}`
+          ),
         sort: row.measuredAreaHa,
       };
   return {
@@ -47,7 +51,7 @@ function toRow(row: TerritoryRankingRow, href: string | undefined): SortableRow 
     cells: {
       name: { display: row.name, sort: row.name },
       zone: {
-        display: row.zoneCode ? <Badge variant="outline">{row.zoneCode}</Badge> : "—",
+        display: row.zoneCode ? <Badge variant="outline">{row.zoneCode}</Badge> : <NoValue />,
         sort: row.zoneCode,
       },
       farms: none

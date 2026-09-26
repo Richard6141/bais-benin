@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
+import { NoValue } from "@/components/data-display/no-value";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -74,11 +75,11 @@ export function ForecastTable({
                   {tonnes.format(row.lowT)} – {tonnes.format(row.highT)}
                 </TableCell>
                 <TableCell className="tabular text-right">
-                  {row.previousT === null ? "—" : tonnes.format(row.previousT)}
+                  {row.previousT === null ? <NoValue /> : tonnes.format(row.previousT)}
                 </TableCell>
                 <TableCell className="tabular text-right whitespace-nowrap">
                   {row.changePct === null ? (
-                    "—"
+                    <NoValue />
                   ) : row.deficit ? (
                     <Badge variant="warning">{signed.format(row.changePct)} % (déficit)</Badge>
                   ) : (
@@ -90,9 +91,11 @@ export function ForecastTable({
                 </TableCell>
                 {byDepartement ? null : (
                   <TableCell className="tabular text-sm whitespace-nowrap">
-                    {row.satelliteFlagShare === null
-                      ? "—"
-                      : `${Math.round(row.satelliteFlagShare * 100)} % à vérifier`}
+                    {row.satelliteFlagShare === null ? (
+                      <NoValue />
+                    ) : (
+                      `${Math.round(row.satelliteFlagShare * 100)} % à vérifier`
+                    )}
                   </TableCell>
                 )}
               </TableRow>

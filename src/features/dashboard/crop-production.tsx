@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { BarList } from "@/components/data-display/bar-list";
 import { CROP_CODES, CropGlyph, type CropCode } from "@/components/data-display/crop-glyph";
 import { MaskedValue } from "@/components/data-display/masked-value";
+import { NoValue } from "@/components/data-display/no-value";
 import { SortableTable, type SortableRow } from "@/components/data-display/sortable-table";
 import type { AnalyticsProvenance, CropProductionRow } from "@/modules/analytics";
 import {
@@ -55,7 +57,7 @@ const cell = (
   row: CropProductionRow,
   value: number | null,
   format: (v: number) => string,
-  empty = "—",
+  empty: ReactNode = <NoValue />,
 ) =>
   row.masked
     ? { display: <MaskedValue />, sort: null }

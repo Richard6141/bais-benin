@@ -44,10 +44,10 @@ export function FarmList({ items, emptyTitle, emptyDescription, hrefFor }: FarmL
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="truncate font-semibold">{farm.farmer.displayName}</span>
+                    <span className="font-semibold break-words">{farm.farmer.displayName}</span>
                     <VerificationStatusBadge status={farm.verificationStatus} />
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                  <p className="mt-0.5 text-sm break-words text-muted-foreground">
                     <span className="font-mono text-xs">{farm.code}</span> ({farm.commune.name}
                     {farm.village ? `, ${farm.village}` : ""})
                   </p>

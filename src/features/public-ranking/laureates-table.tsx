@@ -1,3 +1,4 @@
+import { NoValue } from "@/components/data-display/no-value";
 import {
   Table,
   TableBody,
@@ -60,7 +61,11 @@ export function LaureatesTable({
               </TableCell>
               {byYield ? (
                 <TableCell className="tabular text-right">
-                  {laureate.yieldTPerHa === null ? "—" : yields.format(laureate.yieldTPerHa)}
+                  {laureate.yieldTPerHa === null ? (
+                    <NoValue />
+                  ) : (
+                    yields.format(laureate.yieldTPerHa)
+                  )}
                 </TableCell>
               ) : null}
             </TableRow>

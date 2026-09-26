@@ -34,7 +34,7 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
       </div>
       <div className="bg-band text-band-foreground">
         <div className="mx-auto flex h-11 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-          <p className="truncate text-xs font-semibold tracking-wide uppercase">
+          <p className="text-xs leading-tight font-semibold tracking-wide uppercase">
             {user.primaryRole ? SPACE_LABELS[user.primaryRole] : "Mon compte"}
           </p>
           <div className="flex shrink-0 items-center gap-1">
@@ -43,7 +43,9 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
               className="inline-flex h-11 items-center gap-2 rounded-sm px-2 text-sm font-medium hover:bg-white/10 focus-visible:bg-white/15 focus-visible:outline-none"
             >
               <UserRound className="size-4" aria-hidden />
-              <span className="hidden max-w-48 truncate sm:inline">{user.name}</span>
+              <span className="hidden max-w-48 truncate sm:inline" title={user.name}>
+                {user.name}
+              </span>
               <span className="sm:hidden">Compte</span>
             </Link>
             <SignOutButton className="hidden text-band-foreground hover:bg-white/10 hover:text-band-foreground sm:inline-flex" />

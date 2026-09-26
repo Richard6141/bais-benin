@@ -71,8 +71,9 @@ export default async function FarmerWeatherPage() {
       <WeatherStrip days={weather.strip} source={weather.source} sourceDate={sourceDate} />
       <StatTile
         label="Pluie des 10 derniers jours"
-        value={weather.rain10dMm ?? "—"}
+        value={weather.rain10dMm ?? "Données incomplètes"}
         unit={weather.rain10dMm === null ? undefined : "mm"}
+        wordValue={weather.rain10dMm === null}
         source={weather.source}
         sourceDate={sourceDate}
         reliability={weather.reliability === "SYNTHETIC" ? "SYNTHETIC" : "ESTIMATED"}

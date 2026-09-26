@@ -1,3 +1,4 @@
+import { NoValue } from "@/components/data-display/no-value";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,10 +191,10 @@ export function ProducerRankingTable({
               <TableCell className="tabular text-right">{hectares.format(row.areaHa)}</TableCell>
               <TableCell className="tabular text-right">{tonnes.format(row.productionT)}</TableCell>
               <TableCell className="tabular text-right">
-                {row.yieldTPerHa === null ? "—" : yields.format(row.yieldTPerHa)}
+                {row.yieldTPerHa === null ? <NoValue /> : yields.format(row.yieldTPerHa)}
               </TableCell>
               <TableCell className="tabular text-sm whitespace-nowrap">
-                {row.phone ?? "—"}
+                {row.phone ?? <NoValue />}
               </TableCell>
               <TableCell>
                 <Badge variant={row.verified ? "success" : "outline"}>
@@ -201,7 +202,7 @@ export function ProducerRankingTable({
                 </Badge>
               </TableCell>
               <TableCell className="text-sm whitespace-nowrap">
-                {row.publicConsent ? "Accord donné" : "—"}
+                {row.publicConsent ? "Accord donné" : "Sans accord"}
               </TableCell>
             </TableRow>
           ))}

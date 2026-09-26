@@ -35,7 +35,7 @@ export function reasonLabel(reason: string | null): string | null {
 const ndvi = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function formatNdvi(value: number | null): string {
-  return value === null ? "—" : ndvi.format(value);
+  return value === null ? "n.d." : ndvi.format(value);
 }
 
 /** Provenance affichée : mesure Copernicus, ou série synthétique de démonstration. */

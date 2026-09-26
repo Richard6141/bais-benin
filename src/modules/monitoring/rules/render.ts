@@ -3,7 +3,7 @@ import type { IndicatorValues } from "./definition";
 // Rendu des messages d'alerte : les gabarits contiennent des marqueurs `{commune}`,
 // `{rain_sum_10d}`… remplacés par le contexte ou par les indicateurs, avec les nombres au
 // format français (virgule décimale, arrondi à l'unité pour les millimètres et les jours).
-// Un marqueur inconnu ou sans valeur est remplacé par un tiret, jamais laissé tel quel.
+// Un marqueur inconnu ou sans valeur est remplacé par « n.d. », jamais laissé tel quel.
 
 export interface MessageContext {
   commune: string;
@@ -34,7 +34,7 @@ export function renderMessage(
       const fromContext = formatValue(context[key]);
       if (fromContext !== null) return fromContext;
       const fromIndicators = formatValue(indicators[key as keyof IndicatorValues]);
-      return fromIndicators ?? "—";
+      return fromIndicators ?? "n.d.";
     })
     .replace(/\s{2,}/g, " ")
     .trim();

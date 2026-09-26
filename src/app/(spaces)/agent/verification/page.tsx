@@ -53,14 +53,14 @@ export default async function VerificationQueuePage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="truncate font-semibold">{farm.farmer.displayName}</span>
+                      <span className="font-semibold break-words">{farm.farmer.displayName}</span>
                       {reasons.map((reason) => (
                         <Badge key={reason} variant={reason === "AREA_GAP" ? "warning" : "watch"}>
                           {PRIORITY_LABELS[reason]}
                         </Badge>
                       ))}
                     </div>
-                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                    <p className="mt-0.5 text-sm break-words text-muted-foreground">
                       {farm.commune.name}
                       {farm.village ? `, ${farm.village}` : ""}, déclarée le{" "}
                       {formatDate(farm.createdAt)}
@@ -96,7 +96,7 @@ export default async function VerificationQueuePage() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="truncate font-mono text-sm font-semibold">
+                        <span className="font-mono text-sm font-semibold break-all">
                           {farm.farm_code}
                         </span>
                         <Badge variant="warning">
@@ -104,7 +104,7 @@ export default async function VerificationQueuePage() {
                           vérifier
                         </Badge>
                       </div>
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      <p className="mt-0.5 text-sm break-words text-muted-foreground">
                         {farm.commune_name}
                         {farm.village ? `, ${farm.village}` : ""}, {farm.crop_names.join(", ")}
                       </p>
