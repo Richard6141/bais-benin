@@ -154,5 +154,7 @@ export function computeIndicators(input: IndicatorInput): IndicatorValues {
     crop_stage_in: stages,
     // Dépend des paramètres de chaque condition : calculé à part (evaluation.ts, ADR-0015).
     report_cluster: null,
+    // Dépend des détections de feux des dernières 24 heures : calculé à part (ADR-0022).
+    fire_near_parcels: null,
   };
 }

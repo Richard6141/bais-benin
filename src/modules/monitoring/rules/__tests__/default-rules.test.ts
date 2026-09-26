@@ -15,7 +15,9 @@ import {
   evaluateRule,
   findDefaultRule,
   renderMessage,
+  usesFires,
   usesReports,
+  usesWeather,
   type CropPresence,
   type IndicatorValues,
 } from "..";
@@ -124,14 +126,34 @@ const CASES: Case[] = [
 ];
 
 describe("règles par défaut", () => {
-  it("sont neuf, valides, avec des codes uniques : six règles météo, trois de regroupement", () => {
-    expect(DEFAULT_RULES).toHaveLength(9);
-    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(9);
-    const weather = DEFAULT_RULES.filter((r) => !usesReports(r.definition));
+  it("sont dix, valides, avec des codes uniques : six météo, trois de regroupement, un feu", () => {
+    expect(DEFAULT_RULES).toHaveLength(10);
+    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(10);
+    const weather = DEFAULT_RULES.filter(
+      (r) => !usesReports(r.definition) && !usesFires(r.definition),
+    );
     expect(weather.map((r) => r.code).sort()).toEqual(CASES.map((c) => c.code).sort());
     expect(new Set(DEFAULT_RULES.map((r) => r.category))).toEqual(
-      new Set(["WATER_STRESS", "FLOOD", "HEAT", "PEST", "CROP_DISEASE", "ANIMAL_DISEASE"]),
+      new Set(["WATER_STRESS", "FLOOD", "HEAT", "PEST", "CROP_DISEASE", "ANIMAL_DISEASE", "FIRE"]),
     );
+  });
+
+  it("lève l'alerte « feu de brousse » dès une exploitation à moins de 1 km d'un feu", () => {
+    const rule = findDefaultRule("FIRE_NEAR_PARCELS_V1");
+    expect(rule?.category).toBe("FIRE");
+    expect(usesWeather(rule!.definition)).toBe(false);
+    const empty = computeIndicators({
+      observed: [],
+      forecast: [],
+      referenceDate: "2026-07-15",
+      zoneCode: null,
+      crops: [],
+    });
+    const values = (farms: number | null) => ({ ...empty, fire_near_parcels: farms });
+    expect(evaluateRule(rule!.definition, values(1)).matched).toBe(true);
+    expect(evaluateRule(rule!.definition, values(0)).matched).toBe(false);
+    const short = renderMessage(rule!.messageShort, values(2), { commune: "Djougou" });
+    expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
   });
 
   describe.each(CASES)("$code", ({ code, zone, ref, crops, scenario }) => {

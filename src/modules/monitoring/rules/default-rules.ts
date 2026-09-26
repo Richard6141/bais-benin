@@ -18,6 +18,8 @@ import { ruleSchema, type Rule, type RuleSpec } from "./definition";
 // - épidémie probable (ADR-0015) : 3 producteurs distincts signalant le même problème à moins
 //   de 5 km en 7 jours, valeurs de départ de la feuille de route, à ajuster avec l'ATDA et les
 //   services vétérinaires une fois les premiers signalements reçus.
+// - feu de brousse (ADR-0022) : un feu détecté par satellite (confiance nominale ou haute) à moins
+//   de 1 km d'une parcelle enregistrée, dans les dernières 24 heures ; une exploitation suffit.
 
 const specs: RuleSpec[] = [
   {
@@ -230,6 +232,23 @@ const specs: RuleSpec[] = [
       "BAIS {commune} : maladie animale signalée par plusieurs élevages proches. Isolez les bêtes malades, ne les vendez pas.",
     adviceFr:
       "Isolez les animaux malades, ne vendez et ne déplacez aucun animal malade, ne consommez pas la viande d'un animal mort de maladie et prévenez l'agent ou le vétérinaire.",
+  },
+  {
+    code: "FIRE_NEAR_PARCELS_V1",
+    version: 1,
+    name: "Feu de brousse près des parcelles",
+    description:
+      "Un feu actif détecté par satellite à moins de 1 km d'au moins une parcelle enregistrée, dans les dernières 24 heures (NASA FIRMS).",
+    severity: "WARNING",
+    category: "FIRE",
+    cooldownHours: 12,
+    definition: { all: [{ indicator: "fire_near_parcels", op: ">=", value: 1 }] },
+    messageFr:
+      "{commune} : feu actif détecté par satellite à moins de 1 km de {fire_farms} exploitation(s). Vérifiez vos parcelles, protégez les récoltes et les animaux.",
+    messageShort:
+      "BAIS {commune} : feu de brousse détecté près de vos parcelles. Protégez récoltes et animaux, prévenez vos voisins.",
+    adviceFr:
+      "Éloignez les animaux et les récoltes stockées, dégagez un pare-feu autour des greniers si vous le pouvez sans danger, prévenez vos voisins et votre agent. Ne restez pas face au feu.",
   },
 ];
 

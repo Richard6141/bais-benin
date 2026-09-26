@@ -67,6 +67,11 @@ const serverSchema = z
     OPEN_METEO_BASE_URL: z.url().default("https://api.open-meteo.com"),
     CRON_SECRET: z.string().min(32, "CRON_SECRET doit faire au moins 32 caractères").optional(),
 
+    // Feux actifs (ADR-0022) : fichiers publics de NASA FIRMS, sans clé (vérifié le 26/09/2026) ;
+    // fixture pour les tests et la démonstration hors réseau.
+    FIRE_PROVIDER: z.enum(["firms", "fixture"]).default("firms"),
+    FIRMS_BASE_URL: z.url().default("https://firms.modaps.eosdis.nasa.gov"),
+
     // Vue du ciel (ADR-0016) : Copernicus Data Space Ecosystem, sans intermédiaire commercial.
     // Le catalogue STAC est public ; les images et statistiques NDVI demandent un client OAuth
     // du compte CDSE gratuit (tableau de bord CDSE, « User Settings », « OAuth clients »).
