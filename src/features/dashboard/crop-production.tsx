@@ -42,7 +42,7 @@ function yieldDetail(row: CropProductionRow): string {
     parts.push(`rendement indicatif ${formatDecimal(row.yieldTPerHa)} t/ha${gap}`);
   }
   if (row.verifiedShare !== null) parts.push(`${formatShare(row.verifiedShare)} vérifiée`);
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 function verifiedDetail(row: CropProductionRow): string {

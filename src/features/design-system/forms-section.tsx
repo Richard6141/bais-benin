@@ -31,7 +31,11 @@ export function FormsSection() {
           <Label htmlFor="demo-recherche">Recherche</Label>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="demo-recherche" className="pl-9" placeholder="Commune, agriculteur, code…" />
+            <Input
+              id="demo-recherche"
+              className="pl-9"
+              placeholder="Commune, agriculteur ou code"
+            />
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -57,7 +61,7 @@ export function FormsSection() {
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="demo-notes">Observations</Label>
-          <Textarea id="demo-notes" placeholder="Relevé effectué en présence du producteur…" />
+          <Textarea id="demo-notes" placeholder="Relevé effectué en présence du producteur." />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="demo-erreur">Téléphone (état d&apos;erreur)</Label>

@@ -60,7 +60,7 @@ export function AlertsSummary({ overview }: { overview: MonitoringOverview }) {
       <StatTile
         label="Alertes actives"
         value={active}
-        source={`${s.CRITICAL} graves · ${s.WARNING} alertes · ${s.WATCH} vigilances`}
+        source={`${s.CRITICAL} graves, ${s.WARNING} alertes, ${s.WATCH} vigilances`}
         sourceDate={date}
       />
       <StatTile

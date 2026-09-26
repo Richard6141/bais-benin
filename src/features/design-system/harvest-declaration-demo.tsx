@@ -149,7 +149,7 @@ export function HarvestDeclarationDemo() {
               <FormItem>
                 <FormLabel>Observations</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Pertes, qualité, stockage…" rows={3} {...field} />
+                  <Textarea placeholder="Pertes, qualité, stockage" rows={3} {...field} />
                 </FormControl>
                 <FormDescription>Facultatif. Visible par votre agent.</FormDescription>
                 <FormMessage />

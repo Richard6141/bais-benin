@@ -80,7 +80,7 @@ export function ForecastTable({
                   {row.changePct === null ? (
                     "—"
                   ) : row.deficit ? (
-                    <Badge variant="warning">{signed.format(row.changePct)} % · déficit</Badge>
+                    <Badge variant="warning">{signed.format(row.changePct)} % (déficit)</Badge>
                   ) : (
                     `${signed.format(row.changePct)} %`
                   )}

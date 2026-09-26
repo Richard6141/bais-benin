@@ -12,7 +12,7 @@ export function PendingReports({ userId }: { userId: string }) {
   return (
     <p role="status" className="rounded-md border px-4 py-3 text-sm">
       {sync.pending > 0
-        ? `${sync.pending} envoi${plural(sync.pending)} en attente${sync.online ? "…" : " : départ au retour du réseau."}`
+        ? `${sync.pending} envoi${plural(sync.pending)} en attente${sync.online ? ", envoi en cours" : " : départ au retour du réseau."}`
         : `${sync.failed} envoi${plural(sync.failed)} refusé${plural(sync.failed)} par le serveur : refaites la saisie.`}
     </p>
   );

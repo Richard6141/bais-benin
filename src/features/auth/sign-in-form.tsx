@@ -106,7 +106,7 @@ export function SignInForm({ nextPath, demo }: SignInFormProps) {
           className="h-12 w-full text-base"
           disabled={pending || code.length !== 6}
         >
-          {pending ? "Vérification…" : "Me connecter"}
+          {pending ? "Vérification en cours" : "Me connecter"}
         </Button>
         <div className="flex items-center justify-between text-sm">
           <Button
@@ -200,7 +200,7 @@ export function SignInForm({ nextPath, demo }: SignInFormProps) {
           className="h-12 w-full text-base"
           disabled={pending || npi.length === 0 || digits.length < 10}
         >
-          {pending ? "Envoi du code…" : "Recevoir mon code sur WhatsApp"}
+          {pending ? "Envoi du code en cours" : "Recevoir mon code sur WhatsApp"}
         </Button>
       </form>
       {demo ? (

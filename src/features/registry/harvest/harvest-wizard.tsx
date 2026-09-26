@@ -275,7 +275,7 @@ export function HarvestWizard({ seasons, parcelCount }: HarvestWizardProps) {
             </Alert>
           ) : null}
           <Button type="submit" className={bigButton} disabled={pending}>
-            {pending ? "Enregistrement…" : "Enregistrer ma récolte"}
+            {pending ? "Enregistrement en cours" : "Enregistrer ma récolte"}
           </Button>
           <Button
             type="submit"

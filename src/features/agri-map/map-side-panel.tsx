@@ -48,7 +48,7 @@ export function MapSidePanel({ stats, selected, cropNames, onClearSelection }: M
     <div className="flex h-full flex-col gap-6 overflow-y-auto">
       <section aria-labelledby="synthese-titre">
         <h2 id="synthese-titre" className="text-sm font-medium text-muted-foreground">
-          {stats.status === "loading" ? "Calcul en cours…" : "Pour ces filtres"}
+          {stats.status === "loading" ? "Calcul en cours" : "Pour ces filtres"}
         </h2>
         <dl className="mt-2 grid grid-cols-2 gap-3">
           <Figure label="Exploitations" value={integer.format(totals.farmCount)} />

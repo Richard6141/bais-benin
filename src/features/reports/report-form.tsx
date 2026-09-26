@@ -271,7 +271,7 @@ export function ReportForm({ userId, farms, cropNames }: ReportFormProps) {
       ) : null}
       <Button type="submit" size="lg" className="h-12 text-base" disabled={stage === "saving"}>
         <Send aria-hidden />
-        {stage === "saving" ? "Enregistrement…" : "Envoyer le signalement"}
+        {stage === "saving" ? "Enregistrement en cours" : "Envoyer le signalement"}
       </Button>
     </form>
   );

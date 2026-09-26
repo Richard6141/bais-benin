@@ -34,7 +34,7 @@ export function AlertsTeaser({ alerts }: { alerts: readonly AlertListItem[] }) {
             </span>
             <span className="tabular text-sm text-muted-foreground">
               {alerts.length} en cours
-              {unread > 0 ? ` · ${unread} non lue${unread > 1 ? "s" : ""}` : " · toutes lues"}
+              {unread > 0 ? `, ${unread} non lue${unread > 1 ? "s" : ""}` : ", toutes lues"}
             </span>
           </>
         ) : (

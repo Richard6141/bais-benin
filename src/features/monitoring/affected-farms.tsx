@@ -166,7 +166,7 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
                 </div>
                 <p className="text-sm text-muted-foreground">
                   <span className="font-mono text-xs">{farm.farmCode}</span>
-                  {farm.village ? ` · ${farm.village}` : ""}
+                  {farm.village ? ` (${farm.village})` : ""}
                 </p>
                 <p className="flex flex-wrap gap-1.5">
                   {Object.entries(farm.channels).map(([channel, status]) => {

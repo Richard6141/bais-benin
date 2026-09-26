@@ -83,7 +83,7 @@ export default async function FarmerSpacePage() {
       <PageHeader
         eyebrow="Mon exploitation"
         title={farm.name ?? farm.farmer.displayName}
-        description={`${farm.commune.name}${farm.village ? `, ${farm.village}` : ""} · code ${farm.code}`}
+        description={`${farm.commune.name}${farm.village ? `, ${farm.village}` : ""} (code ${farm.code})`}
       />
       {farms.length > 1 ? (
         <p className="text-sm text-muted-foreground">

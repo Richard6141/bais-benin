@@ -27,7 +27,7 @@ export default async function AgentAssistantPage(props: PageProps<"/agent/assist
   // Libellé d'exploitation : nom ou producteur, et commune ; jamais de téléphone.
   const options = farms.items.map((farm) => ({
     code: farm.code,
-    label: `${farm.name ?? farm.farmer.displayName} · ${farm.commune.name}`,
+    label: `${farm.name ?? farm.farmer.displayName} (${farm.commune.name})`,
   }));
   const requested = typeof params.exploitation === "string" ? params.exploitation : null;
   const initialFarmCode = options.some((o) => o.code === requested) ? requested : null;

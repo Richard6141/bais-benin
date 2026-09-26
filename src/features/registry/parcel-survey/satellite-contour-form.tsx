@@ -197,7 +197,7 @@ export function SatelliteContourForm({ userId, farm, parcel }: SatelliteContourF
             className="h-12 w-full"
           >
             <Satellite aria-hidden />
-            {loading ? "Calcul en cours…" : proposal ? "Proposer à nouveau" : "Proposer un contour"}
+            {loading ? "Calcul en cours" : proposal ? "Proposer à nouveau" : "Proposer un contour"}
           </Button>
           {imageryMissing ? (
             <p className="text-sm text-muted-foreground">

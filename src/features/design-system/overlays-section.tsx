@@ -69,7 +69,7 @@ export function OverlaysSection() {
           </SheetTrigger>
           <SheetContent>
             <SheetHeader>
-              <SheetTitle>Parcelle P-02 · 1,8 ha</SheetTitle>
+              <SheetTitle>Parcelle P-02 (1,8 ha)</SheetTitle>
               <SheetDescription>
                 Maïs, campagne 2025-2026, relevé GPS du 12 septembre 2026 (précision 4 m).
               </SheetDescription>

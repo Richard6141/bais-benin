@@ -39,7 +39,7 @@ export function AlertDetailView({ alert, audit = false, farmsSlot }: AlertDetail
           {audit ? (
             <CardDescription>
               Règle <span className="font-mono">{alert.ruleCode}</span>, version {alert.ruleVersion}
-              {alert.resolvedReason ? ` · levée : ${alert.resolvedReason}` : ""}
+              {alert.resolvedReason ? `, levée : ${alert.resolvedReason}` : ""}
             </CardDescription>
           ) : null}
         </CardHeader>

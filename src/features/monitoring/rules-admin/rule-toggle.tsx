@@ -111,7 +111,7 @@ export function RuleToggle({ code, name, enabled, critical }: RuleToggleProps) {
               disabled={pending || reasonMissing || (critical && !confirmed)}
               onClick={() => run(false, reason.trim() || undefined)}
             >
-              {pending ? "Désactivation…" : "Désactiver"}
+              {pending ? "Désactivation en cours" : "Désactiver"}
             </Button>
           </DialogFooter>
         </DialogContent>

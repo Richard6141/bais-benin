@@ -149,7 +149,7 @@ export function RequestForm({
               value={communeCode}
               onChange={(event) => setCommuneCode(event.target.value)}
             >
-              <option value="">Choisir…</option>
+              <option value="">Choisir</option>
               {context.communes.map((commune) => (
                 <option key={commune.code} value={commune.code}>
                   {commune.name}
@@ -179,7 +179,7 @@ export function RequestForm({
       ) : null}
       <Button type="submit" size="lg" className="h-12 text-base" disabled={stage === "saving"}>
         <Send aria-hidden />
-        {stage === "saving" ? "Enregistrement…" : "Envoyer ma demande"}
+        {stage === "saving" ? "Enregistrement en cours" : "Envoyer ma demande"}
       </Button>
     </form>
   );
