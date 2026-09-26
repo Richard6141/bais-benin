@@ -125,3 +125,62 @@ export async function readReferenceFields(
     },
   };
 }
+
+export type ReferenceFieldSplit =
+  | { status: "ok"; parts: Array<{ geometry: z.infer<typeof polygonSchema>; areaHa: number }> }
+  | { status: "not_found" }
+  | { status: "invalid_cut" };
+
+export type CutLine = readonly [readonly [number, number], readonly [number, number]];
+
+/** Prolongement de la ligne de coupe de chaque côté, pour qu'elle traverse tout le champ. */
+const CUT_EXTENSION_METERS = 500;
+/** Une moitié plus petite que cela n'est qu'un éclat : la coupe est refusée. */
+const MIN_PART_HA = 0.01;
+
+const partSchema = z.object({ geojson: z.string(), area_ha: z.number() });
+
+/**
+ * Coupe un champ détecté en deux le long de la droite passant par deux points touchés par l'agent
+ * (deux parcelles voisines de deux producteurs). Même portée de lecture que `readReferenceFields`.
+ * La coupe doit donner exactement deux morceaux de taille utile, sinon `invalid_cut`.
+ */
+export async function splitReferenceField(
+  actor: Actor,
+  id: string,
+  cut: CutLine,
+): Promise<ReferenceFieldSplit> {
+  const read = await readReferenceFields(actor, [id]);
+  if (read.status !== "ok") return { status: "not_found" };
+  const [[lng1, lat1], [lng2, lat2]] = cut;
+  const rows = await prisma.$queryRaw<unknown[]>`
+    WITH pts AS (
+      SELECT ST_Transform(ST_SetSRID(ST_MakePoint(${lng1}::float8, ${lat1}::float8), 4326), 32631) AS a,
+             ST_Transform(ST_SetSRID(ST_MakePoint(${lng2}::float8, ${lat2}::float8), 4326), 32631) AS b
+    ), line AS (
+      SELECT CASE WHEN ST_Distance(a, b) < 1 THEN NULL ELSE ST_MakeLine(
+        ST_Translate(a, (ST_X(a) - ST_X(b)) / ST_Distance(a, b) * ${CUT_EXTENSION_METERS}::float8,
+                        (ST_Y(a) - ST_Y(b)) / ST_Distance(a, b) * ${CUT_EXTENSION_METERS}::float8),
+        ST_Translate(b, (ST_X(b) - ST_X(a)) / ST_Distance(a, b) * ${CUT_EXTENSION_METERS}::float8,
+                        (ST_Y(b) - ST_Y(a)) / ST_Distance(a, b) * ${CUT_EXTENSION_METERS}::float8)
+      ) END AS l FROM pts
+    ), pieces AS (
+      SELECT (ST_Dump(ST_Split(ST_Transform(f."geom"::geometry, 32631), line.l))).geom AS g
+      FROM "reference_field" f, line WHERE f."id" = ${id}::bigint AND line.l IS NOT NULL
+    )
+    SELECT ST_AsGeoJSON(ST_Transform(g, 4326), 7) AS geojson,
+           ST_Area(ST_Transform(g, 4326)::geography) / 10000 AS area_ha
+    FROM pieces WHERE GeometryType(g) = 'POLYGON'
+    ORDER BY ST_X(ST_Centroid(g)), ST_Y(ST_Centroid(g))`;
+  const parts = rows.map((raw) => {
+    const row = partSchema.parse(raw);
+    return {
+      geometry: polygonSchema.parse(JSON.parse(row.geojson)),
+      areaHa: Math.round(row.area_ha * 1000) / 1000,
+    };
+  });
+  if (parts.length !== 2 || parts.some((part) => part.areaHa < MIN_PART_HA)) {
+    return { status: "invalid_cut" };
+  }
+  return { status: "ok", parts };
+}

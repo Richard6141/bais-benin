@@ -35,6 +35,7 @@ import { SkyControl } from "./sky-control";
 import { useFires } from "./use-fires";
 import { useImageryCatalog } from "./use-imagery-catalog";
 import { FieldAttributionSheet } from "@/features/registry/parcel-survey/field-attribution-sheet";
+import { FieldMultiBar, type FieldMode } from "./field-multi-bar";
 import { FieldsControl } from "./fields-control";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
 
@@ -143,7 +144,37 @@ export function AgriMap({
     !(catalog.status === "ready" && !catalog.catalog.imageryAvailable);
   const [showFarms, setShowFarms] = useState(false);
   // Champ(s) touché(s) avant attribution (ADR-0029) : la feuille s'ouvre dès le premier geste.
-  const [touchedFieldIds, setTouchedFieldIds] = useState<string[] | null>(null);
+  const [touchedFieldIds, setTouchedFieldIds] = useState<string[]>([]);
+  const [fieldMode, setFieldMode] = useState<FieldMode>("single");
+  const [cutPoints, setCutPoints] = useState<Array<[number, number]>>([]);
+  const [attributionOpen, setAttributionOpen] = useState(false);
+  // Un toucher seul attribue tout de suite ; en mode « plusieurs champs », il ajoute ou retire
+  // le champ de la sélection, et l'agent attribue l'ensemble d'un geste.
+  const selectField = (id: string, position: [number, number]) => {
+    if (fieldMode === "split") {
+      // Les deux points de la coupe tombent dans le même champ ; un autre champ recommence.
+      const same = touchedFieldIds[0] === id;
+      const points = same ? [...cutPoints, position] : [position];
+      setTouchedFieldIds([id]);
+      setCutPoints(points);
+      if (points.length === 2) setAttributionOpen(true);
+      return;
+    }
+    if (fieldMode === "multiple") {
+      setTouchedFieldIds((current) =>
+        current.includes(id) ? current.filter((other) => other !== id) : [...current, id],
+      );
+      return;
+    }
+    setTouchedFieldIds([id]);
+    setAttributionOpen(true);
+  };
+  const clearFieldSelection = () => {
+    setTouchedFieldIds([]);
+    setCutPoints([]);
+    setFieldMode("single");
+    setAttributionOpen(false);
+  };
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
   // Parcelle ouverte, dans l'adresse aussi (?parcelle=<id>) : un lien mène droit au champ.
@@ -295,11 +326,24 @@ export function AgriMap({
             onZoomChange={setZoom}
             fires={fires}
             showFields={showFields}
-            touchedFieldId={touchedFieldIds?.[0] ?? null}
-            onSelectField={
-              canAttributeFields && userId ? (id) => setTouchedFieldIds([id]) : undefined
-            }
+            touchedFieldIds={touchedFieldIds}
+            onSelectField={canAttributeFields && userId ? selectField : undefined}
           />
+          {canAttributeFields && userId && showFields ? (
+            <FieldMultiBar
+              mode={fieldMode}
+              count={touchedFieldIds.length}
+              cutPoints={cutPoints.length}
+              onMode={(mode) => {
+                setFieldMode(mode);
+                setTouchedFieldIds([]);
+                setCutPoints([]);
+                setAttributionOpen(false);
+              }}
+              onAttribute={() => setAttributionOpen(true)}
+              onClear={() => setTouchedFieldIds([])}
+            />
+          ) : null}
           {canInspectParcels && zoom !== null && zoom < PARCEL_MIN_ZOOM - 3 ? (
             <p className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border bg-card/95 px-3 py-1.5 text-xs font-medium shadow-raised sm:block">
               Rapprochez-vous d&apos;un village pour voir les champs
@@ -351,10 +395,15 @@ export function AgriMap({
         {userId ? (
           <FieldAttributionSheet
             userId={userId}
-            fieldIds={touchedFieldIds}
-            onClose={() => setTouchedFieldIds(null)}
+            fieldIds={attributionOpen ? touchedFieldIds : null}
+            cut={fieldMode === "split" && cutPoints.length === 2 ? cutPoints : null}
+            onClose={() => {
+              setAttributionOpen(false);
+              setCutPoints([]);
+              if (fieldMode === "single") setTouchedFieldIds([]);
+            }}
             onAttributed={(farmId) => {
-              setTouchedFieldIds(null);
+              clearFieldSelection();
               if (farmHrefBase) router.push(`${farmHrefBase}/${farmId}` as Route);
             }}
           />

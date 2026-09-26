@@ -30,7 +30,7 @@ interface Contour {
 type Load =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; contour: Contour };
+  | { status: "ready"; contours: Contour[] };
 
 // Un seul geste : l'agent touche un champ détecté (ou plusieurs voisins), puis tape directement
 // l'exploitation dans cette liste pour l'attribuer, pas d'écran de confirmation séparé. La
@@ -38,28 +38,38 @@ type Load =
 export function FieldAttributionSheet({
   userId,
   fieldIds,
+  cut = null,
   onClose,
   onAttributed,
 }: {
   userId: string;
   fieldIds: string[] | null;
+  /** Ligne de coupe (deux points lng, lat) : le champ se divise en deux parts à attribuer. */
+  cut?: ReadonlyArray<readonly [number, number]> | null;
   onClose: () => void;
   onAttributed: (farmId: string) => void;
 }) {
-  const key = fieldIds ? fieldIds.join(",") : null;
+  const cutQuery = cut && cut.length === 2 ? cut.flat().join(",") : null;
+  const key = fieldIds ? `${fieldIds.join(",")}${cutQuery ? `|${cutQuery}` : ""}` : null;
   // Tant que la réponse n'est pas encore arrivée pour ce jeu de champs, l'écran affiche le
   // chargement : dérivé au rendu, jamais posé directement dans l'effet.
   const [loaded, setLoaded] = useState<{ key: string; state: Load } | null>(null);
   const load: Load = loaded?.key === key ? loaded.state : { status: "loading" };
   const [query, setQuery] = useState("");
+  // Parts déjà attribuées d'un champ divisé, pour ce jeu de champs seulement.
+  const [progress, setProgress] = useState<{ key: string; done: number } | null>(null);
+  const done = progress?.key === key ? progress.done : 0;
   const open = fieldIds !== null;
 
   useEffect(() => {
     if (!fieldIds || !key) return;
     const controller = new AbortController();
-    fetch(`/api/v1/registry/reference-fields?ids=${fieldIds.join(",")}`, {
-      signal: controller.signal,
-    })
+    fetch(
+      `/api/v1/registry/reference-fields?ids=${fieldIds.join(",")}${cutQuery ? `&cut=${cutQuery}` : ""}`,
+      {
+        signal: controller.signal,
+      },
+    )
       .then(async (response) => {
         if (response.status === 404) {
           return setLoaded({
@@ -72,15 +82,18 @@ export function FieldAttributionSheet({
             key,
             state: {
               status: "error",
-              message: "Ces champs ne se touchent pas : choisissez des champs voisins.",
+              message: cutQuery
+                ? "Cette ligne ne coupe pas le champ en deux parts utiles : recommencez."
+                : "Ces champs ne se touchent pas : choisissez des champs voisins.",
             },
           });
         }
         if (!response.ok) {
           return setLoaded({ key, state: { status: "error", message: "Chargement impossible." } });
         }
-        const body = (await response.json()) as { contour: Contour };
-        setLoaded({ key, state: { status: "ready", contour: body.contour } });
+        const body = (await response.json()) as { contour?: Contour; parts?: Contour[] };
+        const contours = body.parts ?? (body.contour ? [body.contour] : []);
+        setLoaded({ key, state: { status: "ready", contours } });
       })
       .catch(() => {
         if (!controller.signal.aborted) {
@@ -88,7 +101,7 @@ export function FieldAttributionSheet({
         }
       });
     return () => controller.abort();
-  }, [fieldIds, key]);
+  }, [fieldIds, key, cutQuery]);
 
   const db = getAgentDatabase(userId);
   const matches = useLiveQuery(
@@ -107,16 +120,23 @@ export function FieldAttributionSheet({
   );
 
   async function attribute(farmId: string) {
-    if (load.status !== "ready") return;
+    if (load.status !== "ready" || !key) return;
+    const contour = load.contours[done];
+    if (!contour) return;
     const built = buildFieldAttributionCommand({
       farmId,
       parcelId: crypto.randomUUID(),
       referenceFieldIds: fieldIds ?? [],
-      geometry: load.contour.geometry,
-      declaredAreaHa: load.contour.areaHa,
+      geometry: contour.geometry,
+      declaredAreaHa: contour.areaHa,
     });
     if (!built.ok) return;
     await built.enqueue(db);
+    if (done + 1 < load.contours.length) {
+      setProgress({ key, done: done + 1 });
+      setQuery("");
+      return;
+    }
     onAttributed(farmId);
   }
 
@@ -132,10 +152,10 @@ export function FieldAttributionSheet({
     >
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl">
         <SheetHeader className="px-0">
-          <SheetTitle>Attribuer ce champ</SheetTitle>
+          <SheetTitle>{cutQuery ? "Attribuer une part du champ" : "Attribuer ce champ"}</SheetTitle>
           <SheetDescription>
-            {load.status === "ready"
-              ? `Environ ${load.contour.areaHa.toFixed(2)} ha. Touchez une exploitation pour l'attribuer.`
+            {load.status === "ready" && load.contours[done]
+              ? `${cutQuery ? `Part ${done + 1} sur ${load.contours.length}, environ` : "Environ"} ${load.contours[done].areaHa.toFixed(2)} ha. Touchez une exploitation pour l'attribuer.`
               : "Recherchez l'exploitation à qui attribuer ce champ."}
           </SheetDescription>
         </SheetHeader>

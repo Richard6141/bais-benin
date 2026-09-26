@@ -5,7 +5,7 @@ import {
   insertReferenceFields,
 } from "@/database/reference-fields-store";
 import { loadActor } from "@/modules/identity";
-import { readReferenceFields } from "@/modules/reference-fields/read";
+import { readReferenceFields, splitReferenceField } from "@/modules/reference-fields/read";
 
 // Lecture des champs détectés pour l'agent (ADR-0029) : portée par compte, contour complet, fusion
 // de champs contigus. Les géométries de test se posent à Djougou, commune de l'agent de démonstration.
@@ -88,5 +88,37 @@ describe("lecture des champs détectés", () => {
   it("refuse de fusionner des champs qui ne se touchent pas", async () => {
     const result = await readReferenceFields(await actorOf(AGENT), [ids.a, ids.far]);
     expect(result.status).toBe("not_contiguous");
+  });
+
+  it("coupe un champ en deux parts le long d'une ligne qui le traverse", async () => {
+    const result = await splitReferenceField(await actorOf(AGENT), ids.a, [
+      [1.6704555, 9.70005],
+      [1.6704555, 9.70085],
+    ]);
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.parts).toHaveLength(2);
+    const [west, east] = result.parts;
+    expect(west!.areaHa).toBeGreaterThan(0.4);
+    expect(east!.areaHa).toBeGreaterThan(0.4);
+    expect(west!.areaHa + east!.areaHa).toBeCloseTo(1, 0);
+  });
+
+  it("refuse une ligne qui ne coupe pas le champ, et un champ hors portée", async () => {
+    const outside = await splitReferenceField(await actorOf(AGENT), ids.a, [
+      [1.669, 9.70005],
+      [1.669, 9.70085],
+    ]);
+    expect(outside.status).toBe("invalid_cut");
+    const same = await splitReferenceField(await actorOf(AGENT), ids.a, [
+      [1.67045, 9.70045],
+      [1.67045, 9.70045],
+    ]);
+    expect(same.status).toBe("invalid_cut");
+    const farmer = await splitReferenceField(await actorOf(FARMER), ids.a, [
+      [1.6704555, 9.70005],
+      [1.6704555, 9.70085],
+    ]);
+    expect(farmer.status).toBe("not_found");
   });
 });
