@@ -225,6 +225,7 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
       ) : null}
       {step === 6 && data.result ? (
         <StepDone
+          userId={userId}
           result={data.result}
           farmerLabel={farmerLabel}
           sync={sync}

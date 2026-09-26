@@ -2,6 +2,7 @@
 
 import { Send } from "lucide-react";
 import { useState } from "react";
+import { NextSteps } from "@/components/feedback/next-steps";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -69,16 +70,24 @@ export function RequestForm({
 
   if (stage === "queued" || stage === "sent") {
     return (
-      <Alert variant={stage === "sent" ? "success" : "info"} role="status">
-        <AlertTitle>{stage === "sent" ? "Demande envoyée" : "Demande enregistrée"}</AlertTitle>
-        <AlertDescription>
-          <p>
-            {stage === "sent"
-              ? "Les agents de votre commune l'ont reçue. Suivez sa prise en charge dans « Mes demandes »."
-              : "Elle partira automatiquement dès que le téléphone retrouvera le réseau."}
-          </p>
-        </AlertDescription>
-      </Alert>
+      <div className="flex flex-col gap-5">
+        <Alert variant={stage === "sent" ? "success" : "info"} role="status">
+          <AlertTitle>{stage === "sent" ? "Demande envoyée" : "Demande enregistrée"}</AlertTitle>
+          <AlertDescription>
+            <p>
+              {stage === "sent"
+                ? "Les agents de votre commune l'ont reçue. Suivez sa prise en charge dans « Mes demandes »."
+                : "Elle partira automatiquement dès que le téléphone retrouvera le réseau."}
+            </p>
+          </AlertDescription>
+        </Alert>
+        <NextSteps
+          steps={[
+            { label: "Suivre ma demande", href: "/agriculteur/demandes" },
+            { label: "Retour à l'accueil", href: "/agriculteur" },
+          ]}
+        />
+      </div>
     );
   }
 

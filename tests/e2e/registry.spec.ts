@@ -147,6 +147,11 @@ test.describe("espace agent", () => {
     // Retour du réseau : la file part seule, puis le producteur apparaît côté serveur.
     await context.setOffline(false);
     await waitForSync(page);
+    // Une fois reçue par le serveur, la fiche de l'exploitation s'ouvre d'elle-même.
+    await expect(page).toHaveURL(/\/agent\/exploitations\/[0-9a-f-]{36}\?nouvelle=1$/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/^Exploitation enregistrée, code /)).toBeVisible();
 
     // La liste est rendue par le serveur : sous charge (suite complète en parallèle), on recharge
     // jusqu'à voir le producteur, dans une limite de 20 s.

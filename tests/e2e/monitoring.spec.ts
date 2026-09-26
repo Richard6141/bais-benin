@@ -77,12 +77,14 @@ test.describe("monitoring, espace agent", () => {
 
   test("la navigation de l'espace agent mène aux alertes", async ({ page }, testInfo) => {
     await openAs(page, testInfo, "agent");
-    await page
-      .getByRole("navigation", { name: "Espace agent" })
-      .getByRole("link", { name: "Alertes" })
-      .filter({ visible: true })
-      .first()
-      .click();
+    const nav = page.getByRole("navigation", { name: "Espace agent" });
+    if (testInfo.project.name === "mobile") {
+      // Sur téléphone, les alertes sont sous « Plus » : la barre basse garde la tournée.
+      await nav.getByRole("button", { name: "Plus" }).click();
+      await page.getByRole("dialog").getByRole("link", { name: "Alertes" }).click();
+    } else {
+      await nav.getByRole("link", { name: "Alertes" }).filter({ visible: true }).first().click();
+    }
     await expect(page).toHaveURL(/\/agent\/alertes$/);
   });
 });
