@@ -89,10 +89,36 @@ Les deux, à des places différentes, et d'abord avec les cartes gratuites de 20
 
 ## Recommandation
 
-1. **Maintenant, sans coût en PU ni en crédits** : télécharger les couches 2021 sur le Bénin (étendue des cultures temporaires, terres cultivées actives, maïs de saison principale), avec l'accord du chef d'équipe pour le téléchargement.
-2. **Mesurer leur précision sur nos données** : parcelles vérifiées, cultures constatées, points d'enquête, par commune, avec la même matrice de confusion que pour nos cartes.
+1. **Fait le 26/09/2026, sans coût en PU ni en crédits** : l'étendue des cultures temporaires 2021 est sur `/carte`, fond « Terres cultivées 2021 (ESA WorldCereal) » (voir plus bas).
+2. **Mesurer sa précision sur nos données**, une fois les vraies visites faites, selon le protocole ci-dessous. Pas avant : sur les parcelles de démonstration, synthétiques, le chiffre n'aurait aucun sens.
 3. **Si la corrélation est bonne** : les brancher comme variable auxiliaire du sondage et comme variable du modèle par parcelle, puis lire le gain.
 4. **Plus tard, sur décision** : un modèle personnalisé entraîné sur nos parcelles, seulement après une mesure du coût en crédits (protocole ci-dessus) et une décision du ministère sur le partage des données.
+
+## La couche « Terres cultivées 2021 » sur la carte
+
+- **Donnée** : étendue des cultures temporaires 2021 (`esa_worldcereal_temporarycrops`), lue dans les fichiers COG publics de Digital Earth Africa, par lectures fenêtrées sur l'emprise du Bénin : 34,7 Mo lus le 26/09/2026, aucun fichier mondial.
+- **Traitement** (`scripts/extract-worldcereal-2021.mjs`, qui reproduit les images à l'octet près) : niveau réduit du fichier (environ 75 m), mosaïque des cinq zones agro-écologiques qui touchent le Bénin, découpe au contour du pays, reprojection en Web Mercator, quatre images PNG à deux couleurs (1,2 Mo en tout) sur les mêmes quarts que la carte des cultures.
+- **Service** : images statiques (`public/cartes/worldcereal-2021/`), sans calcul ni base de données : le plus léger pour le serveur.
+- **À l'écran** : la légende et l'attribution disent « ESA WorldCereal 2021, CC BY 4.0, via Digital Earth Africa » et « Carte de 2021, pas la campagne en cours ». Les champs détectés se superposent pour comparer.
+- **Ce qu'on y voit** : 22,8 % des pixels du Bénin en cultures temporaires. Des coupures nettes apparaissent entre zones de calcul de WorldCereal, notamment au nord-ouest : c'est un défaut de la carte source, pas du traitement.
+
+## Protocole de mesure, quand les vraies visites existeront
+
+1. **Données de référence** : seulement du terrain réel.
+   - Jeu principal : les points d'enquête constatés (ADR-0033). Tirés au hasard, ils donnent une précision sans biais, commune par commune.
+   - Jeu secondaire : les cultures constatées sur les parcelles (ADR-0031). Choisies là où le modèle doute, elles ne sont pas un échantillon : leurs chiffres se publient à part, jamais comme « la » précision.
+   - Jamais les déclarations vérifiées au bureau, ni les lignes de démonstration (`BAIS_SEED`).
+2. **Correspondance des classes** : « culture temporaire » au terrain = une culture annuelle (maïs, sorgho, mil, riz, coton, soja, niébé, arachide, sésame, igname, manioc, patate douce, maraîchage). Anacarde, palmier, karité, plantain et ananas, jachère, savane, eau et bâti comptent comme « autre ».
+3. **Lecture de WorldCereal au point** : à 10 m, dans le fichier d'origine (lecture fenêtrée d'un pixel par point, 0 PU), pas dans l'image d'affichage à 75 m.
+4. **Mesures** :
+   - matrice de confusion à deux classes, précision globale, exactitudes de l'usager et du producteur, chacune avec son intervalle de Wilson à 95 %, par commune et toutes communes réunies ;
+   - les mêmes chiffres pour notre carte des pixels, aux mêmes points ;
+   - pour le sondage : corrélation entre WorldCereal et le terrain, et gain de variance attendu (environ 1 / (1 - r²)), face à celui de notre carte.
+5. **Lecture honnête** : WorldCereal date de 2021. Un désaccord mêle l'erreur de la carte et le changement réel (jachère, défrichement, rotation). Le chiffre s'appelle « accord avec la carte 2021 », pas « précision ».
+6. **Seuils avant publication** : au moins 30 points constatés par commune et 100 en tout, sinon « trop peu ».
+7. **Décision** :
+   - variable auxiliaire du sondage si son gain dépasse celui de notre carte, ou si la régression à deux variables réduit la marge ;
+   - variable du modèle par parcelle si la validation croisée par commune (ADR-0032) gagne au-delà de sa marge.
 
 ## Sources
 
