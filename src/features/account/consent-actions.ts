@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
 import { setWhatsappConsent } from "@/modules/notifications";
+import { setRankingConsent } from "@/modules/public-ranking";
 
 export interface ConsentActionState {
   status: "idle" | "success" | "error";
@@ -11,7 +12,7 @@ export interface ConsentActionState {
 }
 
 const schema = z.object({
-  consent: z.enum(["WHATSAPP"]),
+  consent: z.enum(["WHATSAPP", "RANKING"]),
   granted: z.enum(["1", "0"]).transform((value) => value === "1"),
 });
 
@@ -33,11 +34,15 @@ export async function setConsentAction(
     granted: formData.get("granted"),
   });
   if (!parsed.success) return { status: "error", message: "Demande invalide." };
-  const result = await setWhatsappConsent(user.actor, parsed.data.granted);
+  const { consent, granted } = parsed.data;
+  const result =
+    consent === "WHATSAPP"
+      ? await setWhatsappConsent(user.actor, granted)
+      : await setRankingConsent(user.actor, granted);
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
   revalidatePath("/compte");
   return {
     status: "success",
-    message: parsed.data.granted ? "Accord enregistré." : "Accord retiré.",
+    message: granted ? "Accord enregistré." : "Accord retiré.",
   };
 }

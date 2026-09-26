@@ -7,7 +7,7 @@ import { setConsentAction, type ConsentActionState } from "./consent-actions";
 const initialState: ConsentActionState = { status: "idle" };
 
 export interface ConsentRowProps {
-  consent: "WHATSAPP";
+  consent: "WHATSAPP" | "RANKING";
   title: string;
   description: string;
   /** Date de l'accord, déjà formulée (« 26 septembre 2026 »), ou null sans accord. */
