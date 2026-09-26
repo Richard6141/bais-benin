@@ -54,7 +54,7 @@ export function FieldCoverageSection({ profile }: { profile: CommuneProfile }) {
           label="Part vérifiée"
           value={
             profile.figures.masked || profile.figures.verifiedShare === null
-              ? "—"
+              ? "n.d."
               : formatShare(profile.figures.verifiedShare)
           }
           source="Vérifiées par un agent ou sur le terrain"

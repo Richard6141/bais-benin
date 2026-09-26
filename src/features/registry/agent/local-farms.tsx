@@ -28,12 +28,12 @@ export function LocalFarms({ userId }: { userId: string }) {
             <Card className="flex min-h-16 flex-row items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-semibold">{farm.farmerName}</span>
+                  <span className="font-semibold break-words">{farm.farmerName}</span>
                   <Badge variant="info">
                     <CloudUpload aria-hidden />À synchroniser
                   </Badge>
                 </div>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                <p className="mt-0.5 text-sm break-words text-muted-foreground">
                   <span className="font-mono text-xs">{farm.code}</span> ({farm.communeName})
                 </p>
                 <p className="tabular mt-1 text-sm">

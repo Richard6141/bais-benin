@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { MaskedValue } from "@/components/data-display/masked-value";
+import { NoValue } from "@/components/data-display/no-value";
 import { cn } from "@/lib/utils";
 
 export interface BarListItem {
@@ -46,7 +47,7 @@ export function BarList({ items, label, max, className }: BarListProps) {
         const title = (
           <span className="flex min-w-0 items-center gap-2 font-medium">
             {item.leading}
-            <span className="truncate">{item.label}</span>
+            <span className="break-words">{item.label}</span>
           </span>
         );
         return (
@@ -66,7 +67,7 @@ export function BarList({ items, label, max, className }: BarListProps) {
                 {item.value === "masked" ? (
                   <MaskedValue />
                 ) : item.value === null ? (
-                  <span className="text-muted-foreground">{item.emptyLabel ?? "—"}</span>
+                  <span className="text-muted-foreground">{item.emptyLabel ?? <NoValue />}</span>
                 ) : (
                   (item.display ?? String(item.value))
                 )}

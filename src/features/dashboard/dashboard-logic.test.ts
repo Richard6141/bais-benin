@@ -97,7 +97,7 @@ describe("secret statistique et formats", () => {
     expect(isMasked(masked)).toBe(true);
     expect(numeric(masked)).toBeNull();
     expect(displayCell(masked, String)).toBe(MASKED_LABEL);
-    expect(displayCell(null, String)).toBe("—");
+    expect(displayCell(null, String)).toBe("n.d.");
     expect(displayCell(12, (v) => `${v} ha`)).toBe("12 ha");
   });
 

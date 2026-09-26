@@ -76,7 +76,8 @@ export function AlertsSummary({ overview }: { overview: MonitoringOverview }) {
       />
       <StatTile
         label="Taux de lecture"
-        value={overview.readRate === null ? "—" : formatShare(overview.readRate)}
+        value={overview.readRate === null ? "Non mesuré" : formatShare(overview.readRate)}
+        wordValue={overview.readRate === null}
         source="Destinataires ayant lu l'alerte"
       />
     </div>
@@ -94,7 +95,8 @@ export function QualityGlance({ quality }: { quality: DataQuality }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile
           label="Écart médian déclaré / mesuré"
-          value={gap === null ? "—" : formatShare(gap)}
+          value={gap === null ? "Non mesuré" : formatShare(gap)}
+          wordValue={gap === null}
           source={`${formatInteger(quality.gaps.measuredParcels)} parcelles relevées, signalement à 20 %`}
           reliability={gap !== null && gap >= 0.2 ? "DECLARED" : "FIELD_VERIFIED"}
         />
@@ -105,7 +107,8 @@ export function QualityGlance({ quality }: { quality: DataQuality }) {
         />
         <StatTile
           label="Communes sans agent actif"
-          value={withoutAgent ?? "—"}
+          value={withoutAgent ?? "Non calculé"}
+          wordValue={withoutAgent === null}
           source="sur 77 communes"
         />
       </div>

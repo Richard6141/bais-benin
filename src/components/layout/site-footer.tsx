@@ -5,6 +5,7 @@ const PLATFORM_LINKS = [
   { href: "/carte", label: "Carte agricole" },
   { href: "/palmares", label: "Palmarès des producteurs" },
   { href: "/#qui-etes-vous", label: "Qui êtes-vous ?" },
+  { href: "/verifier", label: "Vérifier une attestation" },
   { href: "/connexion", label: "Se connecter" },
 ] as const;
 

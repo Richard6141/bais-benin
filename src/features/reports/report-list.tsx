@@ -49,7 +49,7 @@ export function ReportList({ reports, detailBase, showFarmer = true, empty }: Re
                 <Camera aria-label="Photo jointe" className="size-4 text-muted-foreground" />
               ) : null}
             </div>
-            <p className="line-clamp-2 text-sm">{report.description}</p>
+            <p className="text-sm">{report.description}</p>
             <p className="text-sm text-muted-foreground">
               {[
                 dateFormatter.format(report.observedAt),

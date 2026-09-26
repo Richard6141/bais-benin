@@ -30,7 +30,7 @@ export function AlertsTeaser({ alerts }: { alerts: readonly AlertListItem[] }) {
           <>
             <span className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={top.severity} />
-              <span className="truncate text-base">{top.title}</span>
+              <span className="text-base">{top.title}</span>
             </span>
             <span className="tabular text-sm text-muted-foreground">
               {alerts.length} en cours

@@ -210,7 +210,7 @@ export function diffRules(before: RuleSnapshot, after: RuleSnapshot): RuleChange
       changes.push({
         field: `definition.${field.path}`,
         label: field.label,
-        before: previous ? `${previous.op} ${previous.value}` : "—",
+        before: previous ? `${previous.op} ${previous.value}` : "aucun",
         after: `${field.op} ${field.value}`,
       });
     }

@@ -65,7 +65,7 @@ describe("RequestForm", () => {
 
 describe("formatDelay", () => {
   it("parle en heures sous deux jours, en jours au-delà", () => {
-    expect(formatDelay(null)).toBe("—");
+    expect(formatDelay(null)).toBe("n.d.");
     expect(formatDelay(5.25)).toBe("5,3 h");
     expect(formatDelay(72)).toBe("3 j");
   });

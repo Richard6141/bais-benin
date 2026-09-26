@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { MaskedValue } from "@/components/data-display/masked-value";
+import { NoValue } from "@/components/data-display/no-value";
 import { cn } from "@/lib/utils";
 
 export interface CampaignPoint {
@@ -85,7 +86,7 @@ export function CampaignComparison({ series, metricLabel, className }: CampaignC
                     {point.value === "masked" ? (
                       <MaskedValue />
                     ) : point.value === null ? (
-                      <span className="text-muted-foreground">—</span>
+                      <NoValue />
                     ) : (
                       (point.display ?? String(point.value))
                     )}

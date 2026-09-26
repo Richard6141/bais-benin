@@ -100,17 +100,17 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 export function formatHa(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "Non renseignée";
   return `${areaFormatter.format(value)} ha`;
 }
 
 export function formatDate(value: Date | string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "Non renseignée";
   return dateFormatter.format(new Date(value));
 }
 
 export function formatDateTime(value: Date | string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "Non renseignée";
   return dateTimeFormatter.format(new Date(value));
 }
 
@@ -121,7 +121,7 @@ const coordinateFormatter = new Intl.NumberFormat("fr-FR", {
 
 // Position lisible : « 9,70000° N, 1,67000° E » (le Bénin est entièrement au nord et à l'est).
 export function formatPosition(point: { lat: number; lng: number } | null): string {
-  if (!point) return "—";
+  if (!point) return "Position non relevée";
   const lat = `${coordinateFormatter.format(Math.abs(point.lat))}° ${point.lat >= 0 ? "N" : "S"}`;
   const lng = `${coordinateFormatter.format(Math.abs(point.lng))}° ${point.lng >= 0 ? "E" : "O"}`;
   return `${lat}, ${lng}`;

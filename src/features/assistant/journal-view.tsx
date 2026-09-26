@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
+import { NoValue } from "@/components/data-display/no-value";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -105,7 +106,7 @@ export function JournalView({ entries, basePath, outcome }: JournalViewProps) {
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <Badge variant={entry.outcome === "ANSWERED" ? "success" : "watch"}>
-                    {OUTCOME_LABELS[entry.outcome ?? ""] ?? "—"}
+                    {OUTCOME_LABELS[entry.outcome ?? ""] ?? <NoValue />}
                   </Badge>
                   {entry.confidenceLabel ? (
                     <span className="block text-xs text-muted-foreground">

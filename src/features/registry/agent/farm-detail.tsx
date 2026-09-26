@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  FileBadge,
   MapPin,
   MapPinned,
   MessageCircleQuestion,
@@ -98,6 +99,12 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
               Poser une question
             </Link>
           </Button>
+          <Button asChild variant="outline" className="h-12">
+            <Link href={`/agent/exploitations/${farm.id}/attestation` as Route}>
+              <FileBadge aria-hidden />
+              Attestation
+            </Link>
+          </Button>
           {farm.verificationStatus === "DECLARED" || farm.verificationStatus === "DISPUTED" ? (
             <Button asChild className="h-12">
               <Link href={`/agent/verification/${farm.id}` as Route}>
@@ -127,7 +134,8 @@ export function FarmDetailView({ farm, userId, vegetation = [] }: FarmDetailView
             />
             <StatTile
               label="Superficie mesurée"
-              value={farm.computedAreaHa === null ? "—" : formatHa(farm.computedAreaHa)}
+              value={farm.computedAreaHa === null ? "Non mesurée" : formatHa(farm.computedAreaHa)}
+              wordValue={farm.computedAreaHa === null}
               source={farm.computedAreaHa === null ? "Aucun relevé" : "Relevé des parcelles"}
               reliability={farm.computedAreaHa === null ? undefined : "FIELD_VERIFIED"}
             />

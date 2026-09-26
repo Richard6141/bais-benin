@@ -23,7 +23,7 @@ export function formatDataDate(date: Date | null | undefined): string {
 }
 
 export function formatShortDate(date: Date | null | undefined): string {
-  return date ? dateOnly.format(date) : "—";
+  return date ? dateOnly.format(date) : "date inconnue";
 }
 
 /** Propriétés de provenance d'une StatTile. */
@@ -33,12 +33,12 @@ export function tileProvenance(provenance: AnalyticsProvenance, source = "Regist
   return { source, sourceDate: formatShortDate(date), reliability };
 }
 
-/** Valeur d'une tuile : « moins de 5 » expliqué si la ligne est masquée, tiret si absente. */
+/** Valeur d'une tuile : « moins de 5 » expliqué si la ligne est masquée, « n.d. » si absente. */
 export function tileValue(
   value: number | null | undefined,
   masked: boolean,
   format: (value: number) => string = String,
-  empty = "—",
+  empty = "n.d.",
 ): ReactNode {
   if (masked) return <MaskedValue />;
   return typeof value === "number" ? format(value) : empty;

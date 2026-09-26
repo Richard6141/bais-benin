@@ -152,11 +152,11 @@ export const formatHectares = (value: number) =>
 export const formatTonnesFromKg = (kg: number) =>
   `${kg >= 100_000 ? integerFormat.format(kg / 1000) : decimalFormat.format(kg / 1000)} t`;
 
-/** Texte d'une cellule : « moins de 5 », tiret pour une absence, sinon la valeur formatée. */
+/** Texte d'une cellule : « moins de 5 », « n.d. » pour une absence, sinon la valeur formatée. */
 export function displayCell(cell: Cell | undefined, format: (value: number) => string): string {
   if (isMasked(cell)) return MASKED_LABEL;
   const value = numeric(cell);
-  return value === null ? "—" : format(value);
+  return value === null ? "n.d." : format(value);
 }
 
 /** Variation relative en %, ou null si l'une des deux campagnes n'a pas de donnée comparable. */
