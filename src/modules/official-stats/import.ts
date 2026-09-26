@@ -39,7 +39,7 @@ export async function importOfficialStatistics(
     return { ok: false, errors: [{ line: 0, message: "Import réservé au ministère" }] };
   }
   if (new TextEncoder().encode(file.text).length > MAX_BYTES) {
-    return { ok: false, errors: [{ line: 0, message: "Fichier de plus de 2 Mo : coupez-le" }] };
+    return { ok: false, errors: [{ line: 0, message: "Fichier de plus de 900 ko : coupez-le" }] };
   }
   const { lookups, cropIds } = await loadLookups();
   const parsed = parseOfficialCsv(file.text, lookups);

@@ -3,7 +3,8 @@
 // Tout ou rien : chaque erreur est rendue avec son numéro de ligne.
 
 export const MAX_ROWS = 20_000;
-export const MAX_BYTES = 2_000_000;
+/** Sous la limite de 1 Mo des actions serveur de Next. */
+export const MAX_BYTES = 900_000;
 
 export type OfficialMetric = "AREA_HA" | "PRODUCTION_T" | "YIELD_T_HA";
 export type OfficialLevel = "NATIONAL" | "DEPARTEMENT" | "COMMUNE";

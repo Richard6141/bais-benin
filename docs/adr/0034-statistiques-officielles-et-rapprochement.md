@@ -24,7 +24,7 @@ Aucun de ces chiffres officiels n'est dans le dépôt. Les inventer, même « po
    - Séparateur virgule ou point-virgule ; décimale point ou virgule.
    - Tout ou rien : une seule ligne invalide et rien n'est importé ; chaque erreur est rendue avec son numéro de ligne.
    - Une ligne qui existe déjà (même source, campagne, territoire, culture, indicateur) est remplacée : un fichier corrigé se réimporte.
-   - Au plus 20 000 lignes et 2 Mo par fichier.
+   - Au plus 20 000 lignes et 900 ko par fichier (limite des envois de formulaire), soit environ 15 000 lignes : un fichier plus gros se coupe en plusieurs.
 3. **Aucune donnée officielle dans le seed** ni dans le dépôt. Sans import, l'onglet dit quelles données demander, et à qui.
 4. **Rapprochement**, pour chaque culture et chaque territoire où une surface officielle existe, avec sa dernière campagne connue :
    - surface déclarée au registre pour la campagne ouverte, et sa part de la surface officielle : c'est la couverture du registre ;
