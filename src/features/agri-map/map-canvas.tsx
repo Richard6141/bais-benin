@@ -105,6 +105,10 @@ interface MapCanvasProps {
   onZoomChange?: (zoom: number) => void;
   /** Champs détectés (contours de référence) à partir du zoom 12, non nominatifs. */
   showFields?: boolean;
+  /** Champ touché avant attribution (ADR-0029) : trait vif et épais. */
+  touchedFieldId?: string | null;
+  /** Un agent touche un champ détecté pour l'attribuer ; absent : la couche n'est pas cliquable. */
+  onSelectField?: (id: string) => void;
   /** Feux actifs à afficher au-dessus de tout (ADR-0022) ; null : pas de couche de feux. */
   fires?: FireCollection | null;
 }
@@ -131,6 +135,8 @@ export function MapCanvas({
   onZoomChange,
   fires = null,
   showFields = false,
+  touchedFieldId = null,
+  onSelectField,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -166,10 +172,10 @@ export function MapCanvas({
   const [ready, setReady] = useState(false);
   // Les gestionnaires de la carte sont posés une fois, au chargement : ils lisent les rappels
   // courants par cette référence plutôt que ceux du premier rendu.
-  const callbacksRef = useRef({ onSelectCommune, onSelectParcel, onZoomChange });
+  const callbacksRef = useRef({ onSelectCommune, onSelectParcel, onSelectField, onZoomChange });
   useEffect(() => {
-    callbacksRef.current = { onSelectCommune, onSelectParcel, onZoomChange };
-  }, [onSelectCommune, onSelectParcel, onZoomChange]);
+    callbacksRef.current = { onSelectCommune, onSelectParcel, onSelectField, onZoomChange };
+  }, [onSelectCommune, onSelectParcel, onSelectField, onZoomChange]);
 
   useEffect(() => {
     if (!supported || !containerRef.current || mapRef.current) return;
@@ -286,8 +292,20 @@ export function MapCanvas({
         minzoom: FIELD_MIN_ZOOM,
         layout: { visibility: "none" },
         paint: {
-          "fill-color": FIELD_COLORS.toRegister,
-          "fill-opacity": ["case", ["boolean", ["get", "registered"], false], 0, 0.08],
+          "fill-color": [
+            "case",
+            ["boolean", ["feature-state", "touched"], false],
+            FIELD_COLORS.touched,
+            FIELD_COLORS.toRegister,
+          ],
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "touched"], false],
+            0.32,
+            ["boolean", ["get", "registered"], false],
+            0,
+            0.08,
+          ],
         },
       });
       map.addLayer({
@@ -298,13 +316,23 @@ export function MapCanvas({
         minzoom: FIELD_MIN_ZOOM,
         layout: { visibility: "none", "line-join": "round" },
         paint: {
+          // Touché par l'agent : trait vif et épais, lisible au soleil, avant l'attribution.
           "line-color": [
             "case",
+            ["boolean", ["feature-state", "touched"], false],
+            FIELD_COLORS.touched,
             ["boolean", ["get", "registered"], false],
             FIELD_COLORS.registered,
             FIELD_COLORS.toRegister,
           ],
-          "line-width": ["case", ["boolean", ["get", "registered"], false], 0.6, 1],
+          "line-width": [
+            "case",
+            ["boolean", ["feature-state", "touched"], false],
+            3.5,
+            ["boolean", ["get", "registered"], false],
+            0.6,
+            1,
+          ],
           "line-opacity": 0.85,
         },
       });
@@ -431,6 +459,24 @@ export function MapCanvas({
         const id = typeof feature?.id === "string" ? feature.id : null;
         if (id) callbacksRef.current.onSelectParcel?.(id);
       });
+      // Toucher un champ détecté (ADR-0029) : une parcelle déjà ouverte au même point l'emporte.
+      map.on("click", LAYER_IDS.fieldFill, (event: MapLayerMouseEvent) => {
+        if (
+          map.getLayoutProperty(LAYER_IDS.parcelFill, "visibility") === "visible" &&
+          map.queryRenderedFeatures(event.point, { layers: [LAYER_IDS.parcelFill] }).length > 0
+        ) {
+          return;
+        }
+        const feature = event.features?.[0];
+        const id = typeof feature?.id === "string" ? feature.id : null;
+        if (id) callbacksRef.current.onSelectField?.(id);
+      });
+      map.on("mouseenter", LAYER_IDS.fieldFill, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", LAYER_IDS.fieldFill, () => {
+        map.getCanvas().style.cursor = "";
+      });
       let hoveredParcel: string | null = null;
       map.on("mousemove", LAYER_IDS.parcelFill, (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0];
@@ -553,6 +599,26 @@ export function MapCanvas({
     }
     selectedParcelRef.current = selectedParcelId;
   }, [selectedParcelId, ready]);
+
+  const touchedFieldRef = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const previous = touchedFieldRef.current;
+    if (previous && previous !== touchedFieldId) {
+      map.setFeatureState(
+        { source: SOURCE_IDS.fields, sourceLayer: "fields", id: previous },
+        { touched: false },
+      );
+    }
+    if (touchedFieldId) {
+      map.setFeatureState(
+        { source: SOURCE_IDS.fields, sourceLayer: "fields", id: touchedFieldId },
+        { touched: true },
+      );
+    }
+    touchedFieldRef.current = touchedFieldId;
+  }, [touchedFieldId, ready]);
 
   // Cadrage demandé (fiche ouverte depuis un lien) : la parcelle entière, sans trop grossir.
   const focusKey = focusBounds ? focusBounds.join(",") : null;

@@ -119,3 +119,55 @@ export function buildSatelliteContourCommand(input: SatelliteContourInput): Buil
     },
   };
 }
+
+export interface FieldAttributionInput {
+  farmId: string;
+  parcelId: string;
+  referenceFieldIds: string[];
+  /** Contour du champ, ou fusion des champs choisis, tel que renvoyé par le serveur. */
+  geometry: SyncPayload["parcel.create"]["geometry"];
+  declaredAreaHa: number;
+}
+
+/**
+ * Attribution d'un champ détecté (ADR-0029) : un seul geste, le contour vient du champ touché
+ * (fusionné s'il y en a plusieurs), pas d'un relevé. Le serveur la reconnaît par sa méthode
+ * (REFERENCE_FIELD) et lui donne la fiabilité AGENT_VERIFIED, jamais FIELD_VERIFIED.
+ */
+export type BuiltFieldAttribution =
+  | {
+      ok: true;
+      payload: SyncPayload["parcel.create"];
+      areaHa: number;
+      enqueue: (db: AgentDatabase) => Promise<void>;
+    }
+  | { ok: false; error: string };
+
+export function buildFieldAttributionCommand(input: FieldAttributionInput): BuiltFieldAttribution {
+  const payload: SyncPayload["parcel.create"] = {
+    id: input.parcelId,
+    farmId: input.farmId,
+    declaredAreaHa: input.declaredAreaHa,
+    geometry: input.geometry,
+    captureMethod: "REFERENCE_FIELD",
+    referenceFieldIds: input.referenceFieldIds,
+    // Sans irrigation connue à ce stade ; l'agent la précise plus tard depuis la fiche.
+    irrigation: "NONE",
+  };
+  return {
+    ok: true,
+    payload,
+    areaHa: input.declaredAreaHa,
+    enqueue: async (db) => {
+      await enqueueCommand(db, { id: input.parcelId, type: "parcel.create", payload });
+      await db.farms
+        .where("id")
+        .equals(input.farmId)
+        .modify((farm) => {
+          farm.syncState = farm.syncState === "SYNCED" ? "MODIFIED" : farm.syncState;
+          farm.parcelCount += 1;
+          farm.updatedAt = new Date().toISOString();
+        });
+    },
+  };
+}

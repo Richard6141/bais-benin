@@ -97,7 +97,7 @@ export function ParcelPanel({ parcelId, onClose, onLoaded, farmHref }: ParcelPan
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Parcelle
           </p>
-          <h2 className="tabular truncate text-lg font-semibold">
+          <h2 className="tabular text-lg font-semibold break-words">
             {state.status === "ready" ? state.parcel.code : "Chargement"}
           </h2>
         </div>
@@ -176,8 +176,11 @@ function ParcelDetail({
           value={formatHa(parcel.computedAreaHa)}
           help="Calculée sur le contour relevé (marche GPS, dessin ou proposition satellite validée)."
         />
-        <Figure label="Contour" value={CAPTURE_METHOD_LABELS[parcel.captureMethod] ?? "—"} />
-        <Figure label="Eau" value={IRRIGATION_LABELS[parcel.irrigation] ?? "—"} />
+        <Figure
+          label="Contour"
+          value={CAPTURE_METHOD_LABELS[parcel.captureMethod] ?? "Non renseigné"}
+        />
+        <Figure label="Eau" value={IRRIGATION_LABELS[parcel.irrigation] ?? "Non renseignée"} />
       </dl>
 
       {parcel.overlaps.length > 0 ? (
@@ -288,7 +291,7 @@ function CropRow({ crop }: { crop: Inspection["crops"][number] }) {
             className="inline-block size-3 shrink-0 rounded-sm border border-black/10"
             style={{ backgroundColor: crop.colorHex ?? "#9aa3ad" }}
           />
-          <span className="truncate">{crop.cropName}</span>
+          <span className="break-words">{crop.cropName}</span>
         </span>
         <span className="tabular shrink-0 text-muted-foreground">{formatHa(crop.areaHa)}</span>
       </div>

@@ -133,6 +133,8 @@ enum ParcelCaptureMethod {
   DECLARED_ONLY
   // Contour proposé depuis l'image Sentinel-2 et validé par l'agent (ADR-0016, phase 3).
   SATELLITE_ASSISTED
+  // Contour d'un champ détecté (Fields of The World, ADR-0029), touché puis attribué par l'agent.
+  REFERENCE_FIELD
 }
 
 enum IrrigationType {

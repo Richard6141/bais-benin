@@ -47,7 +47,14 @@ export const parcelCreatePayload = z.object({
   declaredAreaHa: z.number().positive().max(10_000),
   geometry: polygon.optional(),
   centroid: lngLat.optional(),
-  captureMethod: z.enum(["GPS_WALK", "MAP_DRAW", "DECLARED_ONLY"]),
+  // REFERENCE_FIELD : contour d'un champ détecté (ADR-0029), touché sur la carte puis attribué.
+  captureMethod: z.enum(["GPS_WALK", "MAP_DRAW", "DECLARED_ONLY", "REFERENCE_FIELD"]),
+  // Champs détectés dont le contour vient (fusion possible) ; exigés pour REFERENCE_FIELD.
+  referenceFieldIds: z
+    .array(z.string().regex(/^\d{1,19}$/))
+    .min(1)
+    .max(50)
+    .optional(),
   gpsAccuracyM: z.number().min(0).max(5000).optional(),
   irrigation: z.enum(["NONE", "MANUAL", "DRIP", "FLOOD"]).default("NONE"),
   soilType: z.string().trim().max(60).optional(),
