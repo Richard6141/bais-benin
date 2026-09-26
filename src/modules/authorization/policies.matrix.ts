@@ -58,6 +58,8 @@ export const ACTIONS = [
   "assistance.request",
   "assistance.read",
   "assistance.handle",
+  // Accords que le producteur donne ou retire depuis son compte (messages WhatsApp).
+  "consent.manage",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -100,6 +102,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    "consent.manage": "NONE",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -142,6 +145,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "SCOPE",
     "assistance.handle": "SCOPE",
+    "consent.manage": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -176,6 +180,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "SELF",
     "assistance.read": "SELF",
     "assistance.handle": "NONE",
+    // Accords du producteur sur son propre compte : messages WhatsApp.
+    "consent.manage": "SELF",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -210,6 +216,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    "consent.manage": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -244,5 +251,6 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    "consent.manage": "NONE",
   },
 };

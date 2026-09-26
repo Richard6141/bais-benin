@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
+import { sendFarmerNotificationsQuietly } from "@/modules/notifications";
 import { reviewReport } from "@/modules/reports";
+import { getMessagingChannel } from "@/services/messaging";
 
 export interface ReviewActionState {
   status: "idle" | "success" | "error";
@@ -24,7 +27,8 @@ const MESSAGES: Record<string, string> = {
 };
 
 // Suite donnée à un signalement après la visite (agent, ou ministère pour un signalement
-// qu'aucun agent ne suit). Le service vérifie le droit et journalise.
+// qu'aucun agent ne suit). Le service vérifie le droit et journalise ; le message WhatsApp au
+// producteur part après la réponse.
 export async function reviewReportAction(
   _previous: ReviewActionState,
   formData: FormData,
@@ -43,6 +47,7 @@ export async function reviewReportAction(
     parsed.data.note,
   );
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
+  after(() => sendFarmerNotificationsQuietly(getMessagingChannel, [result.notificationId]));
   revalidatePath("/agent/signalements");
   revalidatePath("/pilotage/signalements");
   return {

@@ -46,6 +46,9 @@ describe("demandes d'assistance", () => {
   }, 180_000);
 
   afterAll(async () => {
+    await prisma.farmerNotification.deleteMany({
+      where: { subjectId: { in: Object.values(ids) } },
+    });
     await prisma.assistanceRequest.deleteMany({ where: { id: { in: Object.values(ids) } } });
     await prisma.farmEvent.deleteMany({ where: { kind: "ASSISTANCE_REQUESTED" } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
@@ -112,7 +115,7 @@ describe("demandes d'assistance", () => {
       ok: false,
       code: "FORBIDDEN",
     });
-    expect(await takeChargeOfRequest(agent, ids.withFarm)).toEqual({ ok: true });
+    expect(await takeChargeOfRequest(agent, ids.withFarm)).toMatchObject({ ok: true });
     expect(await takeChargeOfRequest(agent, ids.withFarm)).toEqual({
       ok: false,
       code: "INVALID_STATE",
@@ -123,11 +126,11 @@ describe("demandes d'assistance", () => {
     });
     expect(
       await resolveRequest(agent, ids.withFarm, "Semences livrées au magasin de Djougou lundi"),
-    ).toEqual({ ok: true });
+    ).toMatchObject({ ok: true });
     // Résolue directement, sans étape « en cours ».
-    expect(await resolveRequest(agent, ids.withoutFarm, "Semez dès les premières pluies")).toEqual({
-      ok: true,
-    });
+    expect(
+      await resolveRequest(agent, ids.withoutFarm, "Semez dès les premières pluies"),
+    ).toMatchObject({ ok: true });
 
     const [resolved] = (await listAssistanceForActor(farmer)).filter((r) => r.id === ids.withFarm);
     expect(resolved).toMatchObject({

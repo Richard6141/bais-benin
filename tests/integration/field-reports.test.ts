@@ -75,6 +75,9 @@ describe("signalements de terrain", () => {
         occurredAt: { gte: new Date(AT) },
       },
     });
+    await prisma.farmerNotification.deleteMany({
+      where: { subjectId: { in: Object.values(ids) } },
+    });
     await prisma.fieldReport.deleteMany({ where: { id: { in: Object.values(ids) } } });
     await prisma.syncCommand.deleteMany({ where: { deviceId: DEVICE } });
     await prisma.farmEvent.deleteMany({ where: { farmId: ids.farm } });
@@ -215,9 +218,9 @@ describe("signalements de terrain", () => {
       ok: false,
       code: "NOTE_REQUIRED",
     });
-    expect(await reviewReport(agent, ids.byAgent, "CONFIRMED", "Chenilles vues sur place")).toEqual(
-      { ok: true },
-    );
+    expect(
+      await reviewReport(agent, ids.byAgent, "CONFIRMED", "Chenilles vues sur place"),
+    ).toMatchObject({ ok: true });
     expect(await reviewReport(agent, ids.byAgent, "DISMISSED", "Changement d'avis")).toEqual({
       ok: false,
       code: "ALREADY_REVIEWED",

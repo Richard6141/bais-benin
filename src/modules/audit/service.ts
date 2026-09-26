@@ -65,7 +65,9 @@ export type AuditAction =
   | "assistant.journal.read"
   | "analytics.export"
   | "analytics.ranking.read"
-  | "analytics.ranking.export";
+  | "analytics.ranking.export"
+  | "consent.whatsapp.granted"
+  | "consent.whatsapp.revoked";
 
 export interface AuditEntry {
   action: AuditAction;

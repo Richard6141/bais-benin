@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
 import { resolveRequest, takeChargeOfRequest } from "@/modules/assistance";
+import { sendFarmerNotificationsQuietly } from "@/modules/notifications";
+import { getMessagingChannel } from "@/services/messaging";
 
 export interface HandleActionState {
   status: "idle" | "success" | "error";
@@ -24,7 +27,8 @@ const MESSAGES: Record<string, string> = {
 };
 
 // Prise en charge puis résolution d'une demande par un agent de la commune. Le service vérifie
-// le droit (assistance.handle) et journalise chaque passage.
+// le droit (assistance.handle) et journalise chaque passage ; le message WhatsApp au producteur
+// part après la réponse, sans la retarder.
 export async function handleAssistanceAction(
   _previous: HandleActionState,
   formData: FormData,
@@ -42,6 +46,7 @@ export async function handleAssistanceAction(
       ? await takeChargeOfRequest(user.actor, requestId)
       : await resolveRequest(user.actor, requestId, note);
   if (!result.ok) return { status: "error", message: MESSAGES[result.code] };
+  after(() => sendFarmerNotificationsQuietly(getMessagingChannel, [result.notificationId]));
   revalidatePath("/agent/demandes");
   return {
     status: "success",
