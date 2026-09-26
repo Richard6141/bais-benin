@@ -232,6 +232,23 @@ async function cleanSuiteWrites(
       .count,
   );
 
+  // Avis des testeurs donnés par les comptes de la suite (tests/e2e/avis.spec.ts) : sans ce
+  // nettoyage, ils resteraient dans /pilotage/avis et dans son compteur sur la démonstration.
+  add(
+    "tester_feedback",
+    (
+      await tx.testerFeedback.deleteMany({
+        where: {
+          createdAt: { gte: since },
+          OR: [
+            { authorId: { in: userIds } },
+            ...SUITE_EMAIL_SUFFIXES.map((suffix) => ({ author: { email: { endsWith: suffix } } })),
+          ],
+        },
+      })
+    ).count,
+  );
+
   await cleanRuleChanges(tx, since, add);
   await cleanAssistantConversations(tx, since, SUITE_PHONES, add);
 }
