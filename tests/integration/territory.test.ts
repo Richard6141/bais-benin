@@ -19,7 +19,7 @@ describe("référentiels et territoire", () => {
 
   it("charge les volumes attendus", () => {
     expect(summary).toMatchObject({
-      dataSources: 12,
+      dataSources: 13,
       zones: 8,
       departements: 12,
       communes: 77,

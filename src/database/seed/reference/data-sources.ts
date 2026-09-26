@@ -29,6 +29,15 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     kind: "OFFICIAL",
   },
   {
+    // Statistiques nationales reprises par la FAO (ADR-0034), importées par le ministère.
+    id: "FAOSTAT",
+    name: "FAOSTAT, cultures et produits animaux (QCL)",
+    organization: "Organisation des Nations unies pour l'alimentation et l'agriculture (FAO)",
+    url: "https://www.fao.org/faostat",
+    licence: "Conditions d'utilisation des bases de données statistiques de la FAO",
+    kind: "PUBLIC_OPEN_DATA",
+  },
+  {
     id: "GEOBOUNDARIES",
     name: "geoBoundaries gbOpen (limites administratives ADM1 et ADM2)",
     organization: "William & Mary geoLab",

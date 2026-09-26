@@ -224,6 +224,7 @@ model DataSource {
   cropObservations      ParcelCropObservation[]
   areaFramePoints       AreaFramePoint[]
   areaFrameObservations AreaFrameObservation[]
+  officialStatistics    OfficialCropStatistic[]
   rules                 Rule[]
   alerts                Alert[]
 
@@ -364,6 +365,7 @@ model Crop {
   cropPredictions       ParcelCropPrediction[]
   cropObservations      ParcelCropObservation[]
   areaFrameObservations AreaFrameObservation[]
+  officialStatistics    OfficialCropStatistic[]
 
   @@map("crop")
 }
@@ -455,10 +457,11 @@ model User {
   publishedRankings PublishedRanking[] @relation("rankingPublisher")
   withdrawnRankings PublishedRanking[] @relation("rankingWithdrawer")
 
-  createdProducerGroups ProducerGroup[]        @relation("producerGroupCreator")
-  issuedAttestations    FarmAttestation[]      @relation("attestationIssuer")
-  producerGroupMessages ProducerGroupMessage[] @relation("producerGroupMessageSender")
+  createdProducerGroups ProducerGroup[]         @relation("producerGroupCreator")
+  issuedAttestations    FarmAttestation[]       @relation("attestationIssuer")
+  producerGroupMessages ProducerGroupMessage[]  @relation("producerGroupMessageSender")
   areaFrameObservations AreaFrameObservation[]
+  importedStatistics    OfficialCropStatistic[]
 
   @@map("user")
 }
@@ -2046,4 +2049,45 @@ model AreaFrameObservation {
 
   @@index([pointId, observedAt])
   @@map("area_frame_observation")
+}
+
+// Indicateur et niveau d'une statistique agricole officielle (ADR-0034).
+enum OfficialStatMetric {
+  AREA_HA
+  PRODUCTION_T
+  YIELD_T_HA
+}
+
+enum OfficialStatLevel {
+  NATIONAL
+  DEPARTEMENT
+  COMMUNE
+}
+
+// Statistique agricole officielle importée par le ministère (ADR-0034) : DSA, FAOSTAT. Jamais
+// inventée ni semée : chaque ligne vient d'un fichier importé, avec sa source, sa référence et
+// son auteur. Un nouvel import de la même clé remplace la valeur.
+model OfficialCropStatistic {
+  id            String             @id @default(uuid(7)) @db.Uuid
+  sourceId      String             @map("source_id")
+  source        DataSource         @relation(fields: [sourceId], references: [id])
+  // Campagne telle que la source l'écrit : « 2024-2025 », ou l'année pour FAOSTAT.
+  campaignCode  String             @map("campaign_code")
+  level         OfficialStatLevel
+  // BJ pour le pays, code du département ou de la commune.
+  territoryCode String             @map("territory_code")
+  cropId        String             @map("crop_id") @db.Uuid
+  crop          Crop               @relation(fields: [cropId], references: [id])
+  metric        OfficialStatMetric
+  value         Decimal            @db.Decimal(14, 3)
+  // Document ou jeu de données d'origine (« Annuaire DSA 2024 », « FAOSTAT QCL, extrait du … »).
+  reference     String?
+  fileName      String             @map("file_name")
+  importedAt    DateTime           @default(now()) @map("imported_at")
+  importedById  String             @map("imported_by_id") @db.Uuid
+  importedBy    User               @relation(fields: [importedById], references: [id])
+
+  @@unique([sourceId, campaignCode, territoryCode, cropId, metric])
+  @@index([territoryCode, cropId])
+  @@map("official_crop_statistic")
 }
