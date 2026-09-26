@@ -1658,6 +1658,9 @@ model CropAreaEstimate {
   resolutionM       Int                  @map("resolution_m")
   windowFrom        DateTime             @map("window_from") @db.Date
   windowTo          DateTime             @map("window_to") @db.Date
+  // Version de la méthode de calcul : une estimation d'une version antérieure est refaite au
+  // lot suivant (2 : pixels hors du contour écartés, un passage par trace et par mois).
+  methodVersion     Int                  @default(1) @map("method_version")
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])

@@ -473,10 +473,15 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
   const canProcess = Boolean(clientId && clientSecret);
   let token: { value: string; expiresAt: number } | null = null;
 
-  async function send(url: string, init: RequestInit, what: string): Promise<Response> {
+  async function send(
+    url: string,
+    init: RequestInit,
+    what: string,
+    timeoutMs = TIMEOUT_MS,
+  ): Promise<Response> {
     let response: Response;
     try {
-      response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+      response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     } catch (error) {
       throw new RemoteSensingProviderError(
         `${what} : Copernicus injoignable (${error instanceof Error ? error.message : "erreur réseau"})`,
@@ -519,7 +524,12 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
     return token.value;
   }
 
-  async function processing(path: string, body: unknown, accept: string): Promise<Response> {
+  async function processing(
+    path: string,
+    body: unknown,
+    accept: string,
+    timeoutMs?: number,
+  ): Promise<Response> {
     const bearer = await accessToken();
     return send(
       `${processingUrl}${path}`,
@@ -533,6 +543,7 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         body: JSON.stringify(body),
       },
       path.includes("statistics") ? "Statistiques CDSE" : "Image CDSE",
+      timeoutMs,
     );
   }
 
@@ -585,7 +596,12 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
     },
 
     async renderImage(request): Promise<ImageryResult> {
-      const response = await processing("/api/v1/process", buildProcessBody(request), "image/png");
+      const response = await processing(
+        "/api/v1/process",
+        buildProcessBody(request),
+        "image/png",
+        request.timeoutMs,
+      );
       const spent = Number(response.headers.get("x-processingunits-spent"));
       const image = await readResponse(
         "Image CDSE",
@@ -611,6 +627,7 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
         "/api/v1/statistics",
         buildCropAreaBody(request),
         "application/json",
+        request.timeoutMs,
       );
       const classPixels = await readResponse("Surfaces des cultures CDSE", async () =>
         parseCropArea(await response.json()),
