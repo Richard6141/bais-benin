@@ -6,10 +6,18 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HoveredCommune } from "./map-canvas";
-import { METRICS, SKY_LAYERS, quantileBreaks, type MetricKey, type SkyLayer } from "./map-config";
+import {
+  METRICS,
+  PARCEL_MIN_ZOOM,
+  SKY_LAYERS,
+  quantileBreaks,
+  type MetricKey,
+  type SkyLayer,
+} from "./map-config";
 import { MapFiltersBar, type FilterOptions } from "./map-filters";
 import { MapLegend, SkyLegend } from "./map-legend";
 import { MapSidePanel } from "./map-side-panel";
+import { ParcelPanel } from "./parcel-panel";
 import { SkyControl } from "./sky-control";
 import { useImageryCatalog } from "./use-imagery-catalog";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
@@ -27,6 +35,10 @@ interface AgriMapProps {
   canFilterByStatus: boolean;
   /** Tuiles satellite détaillées : agents et ministère seulement (quota Copernicus, revue R2). */
   canSeeSkyDetail: boolean;
+  /** Contours des parcelles et fiche au clic : comptes qui lisent le registre (farm.read). */
+  canInspectParcels?: boolean;
+  /** Début de l'adresse de la fiche d'exploitation de l'espace, quand il en a une (agent). */
+  farmHrefBase?: string;
 }
 
 const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
@@ -67,6 +79,8 @@ export function AgriMap({
   canShowFarms,
   canFilterByStatus,
   canSeeSkyDetail,
+  canInspectParcels = false,
+  farmHrefBase,
 }: AgriMapProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -94,6 +108,15 @@ export function AgriMap({
   const [showFarms, setShowFarms] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(searchParams.get("commune"));
   const [hovered, setHovered] = useState<HoveredCommune | null>(null);
+  // Parcelle ouverte, dans l'adresse aussi (?parcelle=<id>) : un lien mène droit au champ.
+  const [parcelId, setParcelId] = useState<string | null>(() =>
+    canInspectParcels ? searchParams.get("parcelle") : null,
+  );
+  // Cadrage sur la parcelle seulement quand la fiche vient d'un lien : après un clic, la carte
+  // montre déjà le champ et ne doit pas bouger.
+  const [focusFromLink, setFocusFromLink] = useState(parcelId !== null);
+  const [focusBounds, setFocusBounds] = useState<[number, number, number, number] | null>(null);
+  const [zoom, setZoom] = useState<number | null>(null);
 
   const stats = useTerritoryStats(filters);
   const cropNames = useMemo(
@@ -112,17 +135,25 @@ export function AgriMap({
       nextMetric: MetricKey,
       nextCommune: string | null,
       nextSky: SkyParams = skyParams,
+      nextParcel: string | null = parcelId,
     ) => {
       const params = filtersToSearchParams(nextFilters);
       if (nextMetric !== "farmCount") params.set("metric", nextMetric);
       if (nextCommune) params.set("commune", nextCommune);
       if (nextSky.layer) params.set("ciel", nextSky.layer);
       if (nextSky.layer && nextSky.period) params.set("mois", nextSky.period);
+      if (nextParcel) params.set("parcelle", nextParcel);
       const query = params.toString();
       router.replace((query ? `${pathname}?${query}` : pathname) as Route, { scroll: false });
     },
-    [router, pathname, skyParams],
+    [router, pathname, skyParams, parcelId],
   );
+
+  const selectParcel = (id: string | null) => {
+    setParcelId(id);
+    setFocusFromLink(false);
+    pushState(filters, metric, selectedCode, skyParams, id);
+  };
 
   const hoveredStats = hovered ? stats.byCode.get(hovered.code) : undefined;
 
@@ -157,7 +188,17 @@ export function AgriMap({
             onHoverCommune={setHovered}
             sky={sky}
             skyDetail={canSeeSkyDetail}
+            showParcels={canInspectParcels}
+            selectedParcelId={parcelId}
+            onSelectParcel={selectParcel}
+            focusBounds={focusBounds}
+            onZoomChange={setZoom}
           />
+          {canInspectParcels && zoom !== null && zoom < PARCEL_MIN_ZOOM - 3 ? (
+            <p className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border bg-card/95 px-3 py-1.5 text-xs font-medium shadow-raised sm:block">
+              Rapprochez-vous d&apos;un village pour voir les champs
+            </p>
+          ) : null}
           <div className="pointer-events-none absolute top-3 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col gap-2">
             <div className="pointer-events-auto">
               <SkyControl
@@ -203,15 +244,26 @@ export function AgriMap({
           className="border-t bg-background p-4 lg:border-t-0 lg:border-l"
           aria-label="Lecture de la carte"
         >
-          <MapSidePanel
-            stats={stats}
-            selected={selected}
-            cropNames={cropNames}
-            onClearSelection={() => {
-              setSelectedCode(null);
-              pushState(filters, metric, null);
-            }}
-          />
+          {parcelId ? (
+            <ParcelPanel
+              parcelId={parcelId}
+              onClose={() => selectParcel(null)}
+              onLoaded={(bbox) => {
+                if (focusFromLink && bbox) setFocusBounds(bbox);
+              }}
+              farmHref={farmHrefBase ? (id) => `${farmHrefBase}/${id}` : undefined}
+            />
+          ) : (
+            <MapSidePanel
+              stats={stats}
+              selected={selected}
+              cropNames={cropNames}
+              onClearSelection={() => {
+                setSelectedCode(null);
+                pushState(filters, metric, null);
+              }}
+            />
+          )}
         </aside>
       </div>
     </div>

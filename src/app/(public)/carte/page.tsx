@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { AgriMap } from "@/features/agri-map/agri-map";
 import { getCurrentUser } from "@/features/auth/session";
 import { canFilterByStatus } from "@/modules/analytics";
-import { can } from "@/modules/authorization";
+import { can, scopeFilter } from "@/modules/authorization";
 import { listCampaigns, listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
 
@@ -29,6 +29,10 @@ export default async function MapPage() {
   const canShowFarms = user
     ? can(user.actor, "farm.read", {}) || user.actor.grants.some((g) => g.scopeType !== "SELF")
     : false;
+  // Contours et fiches des parcelles : tout compte qui lit une part du registre (les tuiles et la
+  // fiche appliquent ensuite sa portée : pays, ses enregistrements ou ses propres parcelles).
+  const canInspectParcels = user ? scopeFilter(user.actor, "farm.read").kind !== "none" : false;
+  const isAgent = user?.actor.grants.some((grant) => grant.role === "AGENT_AGRICULTURE") ?? false;
 
   return (
     <>
@@ -43,6 +47,8 @@ export default async function MapPage() {
             }}
             canShowFarms={canShowFarms}
             canFilterByStatus={canFilterByStatus(user?.actor ?? null)}
+            canInspectParcels={canInspectParcels}
+            farmHrefBase={isAgent ? "/agent/exploitations" : undefined}
             canSeeSkyDetail={
               // Tuiles satellite détaillées : agents et ministère seulement (revue R2).
               user?.actor.grants.some(

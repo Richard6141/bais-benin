@@ -113,6 +113,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
               canShowFarms
               canFilterByStatus
               canSeeSkyDetail
+              canInspectParcels
             />
           </Suspense>
         </div>

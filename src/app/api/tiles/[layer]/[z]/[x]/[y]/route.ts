@@ -2,13 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { isValidTile } from "@/lib/geo/tile-math";
 import { getApiActor } from "@/features/auth/api-actor";
+import { scopeFilter } from "@/modules/authorization";
 import { scopedCommuneIds } from "@/modules/registry";
 import { renderTile, type FarmTileScope } from "@/modules/territory/tiles";
 
 export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({
-  layer: z.enum(["communes", "departements", "farms"]),
+  layer: z.enum(["communes", "departements", "farms", "parcels"]),
   z: z.coerce.number().int().min(0).max(18),
   x: z.coerce.number().int().min(0),
   y: z.coerce.number().int().min(0),
@@ -16,10 +17,11 @@ const paramsSchema = z.object({
 
 // Les tuiles des limites administratives sont publiques et stables : cache long partagé.
 // Les points d'exploitations changent avec les saisies : cache court.
-const cacheControl: Record<"communes" | "departements" | "farms", string> = {
+const cacheControl: Record<"communes" | "departements" | "farms" | "parcels", string> = {
   communes: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
   departements: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
   farms: "private, max-age=60",
+  parcels: "private, max-age=60",
 };
 
 interface TileParams {
@@ -29,13 +31,28 @@ interface TileParams {
   y: string;
 }
 
-// Les points d'exploitations sont des données individuelles : ils ne sont servis qu'à un compte
-// connecté, dans son périmètre (docs/06 §3). Un visiteur anonyme reçoit une tuile vide.
+// Exploitations et parcelles sont des données individuelles : elles ne sont servies qu'à un
+// compte connecté, avec la même portée que la lecture du registre (farm.read) : tout le pays
+// pour le ministère, ses propres enregistrements pour l'agent (ADR-0014), ses exploitations pour
+// le producteur. Un visiteur anonyme reçoit une tuile vide.
 async function farmScopeFor(request: NextRequest): Promise<FarmTileScope> {
   const api = await getApiActor(request.headers);
   if (!api) return [];
-  const ids = await scopedCommuneIds(api.actor);
-  return ids === "all" ? null : ids;
+  const filter = scopeFilter(api.actor, "farm.read");
+  switch (filter.kind) {
+    case "all":
+      return null;
+    case "none":
+      return [];
+    case "registered":
+      return { registeredBy: filter.userId };
+    case "self":
+      return { ownerUserId: filter.userId };
+    case "territory": {
+      const ids = await scopedCommuneIds(api.actor);
+      return ids === "all" ? null : ids;
+    }
+  }
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<TileParams> }) {
@@ -45,7 +62,8 @@ export async function GET(request: NextRequest, context: { params: Promise<TileP
     return NextResponse.json({ error: "Tuile invalide" }, { status: 400 });
   }
   const { layer, z: zoom, x, y } = parsed.data;
-  const farmScope = layer === "farms" ? await farmScopeFor(request) : undefined;
+  const farmScope =
+    layer === "farms" || layer === "parcels" ? await farmScopeFor(request) : undefined;
   const tile = await renderTile(layer, zoom, x, y, { farmScope });
   if (!tile) {
     return new NextResponse(null, {

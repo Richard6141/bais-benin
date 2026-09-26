@@ -46,6 +46,7 @@ export type AuditAction =
   | "registry.crop.declared"
   | "registry.harvest.declared"
   | "registry.farm.verified"
+  | "registry.parcel.inspected"
   | "sync.batch.received"
   | "alert.raised"
   | "alert.released"
