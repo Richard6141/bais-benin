@@ -16,6 +16,7 @@ import { seedMonitoring, type MonitoringSeedSummary } from "./steps/monitoring.s
 import {
   seedCropAreaEstimates,
   seedCropClassChecks,
+  seedAreaSurvey,
   seedParcelCrops,
   seedVegetationChecks,
 } from "./steps/satellite.seed";
@@ -39,6 +40,7 @@ export interface SeedSummary {
   cropAreaCommunes: number | null;
   cropClassChecks: number | null;
   parcelSignatures: number | null;
+  surveyPoints: number | null;
 }
 
 // Chargement des référentiels. Chaque étape est idempotente (upsert) : relancer le seed
@@ -64,6 +66,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   const cropAreaCommunes = await seedCropAreaEstimates();
   const cropClassChecks = await seedCropClassChecks();
   const parcelSignatures = await seedParcelCrops();
+  const surveyPoints = await seedAreaSurvey();
   return {
     dataSources,
     zones,
@@ -80,6 +83,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
     cropAreaCommunes,
     cropClassChecks,
     parcelSignatures,
+    surveyPoints,
   };
 }
 

@@ -53,7 +53,8 @@ export type AuditActionOfRegistry =
   | "registry.farm.verified"
   | "alert.relayed"
   | "report.created"
-  | "assistance.requested";
+  | "assistance.requested"
+  | "survey.point.observed";
 
 /** Cible d'une commande : l'action à autoriser et la ressource sur laquelle l'évaluer. */
 export interface CommandTarget {

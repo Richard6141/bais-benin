@@ -10,6 +10,7 @@
     { "path": "/api/v1/satellite/crop-accuracy", "schedule": "30 6 9 * *" },
     { "path": "/api/v1/satellite/parcel-series", "schedule": "0 7 10-19 * *" },
     { "path": "/api/v1/satellite/crop-model", "schedule": "0 2 * * *" },
+    { "path": "/api/v1/satellite/survey-frame", "schedule": "30 7 20-26 * *" },
     { "path": "/api/v1/fires/ingest", "schedule": "*/30 * * * *" }
   ]
 }

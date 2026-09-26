@@ -101,6 +101,15 @@ dernières mises à jour et le fil d'activité en direct.
 8. **Demandes** (`/agent/demandes`) : une seule boîte pour les demandes d'aide adressées à l'État
    et les questions transmises depuis l'assistant. Chaque demande dit son origine ; les filtres
    « À traiter », « En cours » et « Toutes » donnent leur nombre.
+9. **Points d'enquête** (`/agent/sondage`) : les points tirés au hasard dans vos communes pour
+   mesurer les surfaces de chaque culture. Ceux à visiter viennent en premier.
+   - Rendez-vous au point (le bouton ouvre l'application de cartes du téléphone), puis
+     « Utiliser ma position » : l'écran affiche la distance au point.
+   - À moins de 50 m, notez ce que vous voyez au point même : une culture (et laquelle), une
+     jachère, de la savane ou de la forêt, de l'eau, du bâti.
+   - Si le point ne peut pas être atteint, choisissez « Inaccessible » et dites pourquoi.
+   - Le constat part avec la synchronisation, comme une visite. Un point ne désigne aucun
+     producteur.
 
 **Se déconnecter sur un appareil partagé** : le bouton « Se déconnecter » vide les données mises
 en cache de votre compte sur cet appareil (registre local, pages hors ligne). S'il reste des
@@ -236,8 +245,8 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   enregistrer » (vue mais pas encore déclarée).
 - Le tableau « Communes où envoyer les agents en premier » classe les communes selon l'écart entre
   ce qui est vu et ce qui est déclaré. Un clic ouvre la fiche de la commune.
-- La page a quatre onglets : « Surfaces », « Précision de la carte », « Par parcelle » et
-  « Surfaces par parcelle ». L'onglet ouvert reste dans l'adresse.
+- La page a cinq onglets : « Surfaces », « Précision de la carte », « Par parcelle »,
+  « Surfaces par parcelle » et « Sondage ». L'onglet ouvert reste dans l'adresse.
 - L'onglet « Précision de la carte » dit combien de parcelles vérifiées sont bien reconnues.
 - L'onglet « Par parcelle » concerne les communes pilotes, où la culture est mesurée sur le contour
   de chaque parcelle :
@@ -247,6 +256,12 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   - les « Désaccords à vérifier » : un clic sur une parcelle l'ouvre sur la carte.
 - L'onglet « Surfaces par parcelle » donne les surfaces par culture de ces parcelles. Il les met
   face à la carte des pixels de la commune.
+- L'onglet « Sondage » donne les surfaces par culture des communes d'enquête, tirées des points
+  que les agents ont constatés et corrigées par la carte des pixels :
+  - chaque surface avec sa marge à 95 % et son coefficient de variation (CV) ;
+  - la colonne « Usage » dit ce qu'on peut en faire : « À citer » (CV de 10 % au plus, avec sa
+    marge), « Indicatif » (jusqu'à 20 %), « À ne pas citer » ;
+  - les chiffres des communes réunies sont plus sûrs que ceux d'une commune seule.
 - Les surfaces sont recalculées une fois par mois, pendant les huit premiers jours.
 - Le bouton « Carte des cultures » ouvre la carte correspondante.
 

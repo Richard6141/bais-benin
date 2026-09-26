@@ -9,6 +9,7 @@ import { verificationRecord } from "./verification-record";
 import { alertRelay } from "./alert-relay";
 import { assistanceRequest } from "./assistance-request";
 import { fieldReportCreate } from "./field-report-create";
+import { surveyPointObserve } from "./survey-point-observe";
 
 export const syncHandlers: SyncHandlers = {
   "farmer.create": farmerCreate,
@@ -21,6 +22,7 @@ export const syncHandlers: SyncHandlers = {
   "alert.relay": alertRelay,
   "fieldReport.create": fieldReportCreate,
   "assistance.request": assistanceRequest,
+  "surveyPoint.observe": surveyPointObserve,
 };
 
 export { HARVEST_UNIT_FACTORS_KG, quantityToKg } from "./harvest-declare";

@@ -57,7 +57,8 @@ function dayOfYear(date: Date): number {
 // Confusions plausibles de la classification, par code de classe : coton et céréales se
 // ressemblent, un riz mal repéré passe en culture annuelle, un verger en savane, un jardin
 // de contre-saison en jachère.
-const FIXTURE_CONFUSION: Record<number, number> = { 1: 2, 2: 3, 3: 2, 4: 7, 5: 6 };
+/** Confusion la plus plausible de chaque classe (codes), reprise par le seed de l'enquête. */
+export const FIXTURE_CLASS_CONFUSION: Record<number, number> = { 1: 2, 2: 3, 3: 2, 4: 7, 5: 6 };
 
 /**
  * Parcelle d'une exploitation vérifiée (matrice de confusion) : la classe déclarée domine quatre
@@ -65,7 +66,7 @@ const FIXTURE_CONFUSION: Record<number, number> = { 1: 2, 2: 3, 3: 2, 4: 7, 5: 6
  */
 function parcelClassPixels(expected: number, total: number, seed: number): number[] {
   const pixels = new Array<number>(10).fill(0);
-  const confused = FIXTURE_CONFUSION[expected] ?? 6;
+  const confused = FIXTURE_CLASS_CONFUSION[expected] ?? 6;
   const [major, minor] = seed % 100 < 80 ? [expected, confused] : [confused, expected];
   pixels[major] = Math.round(total * 0.7);
   pixels[minor] = (pixels[minor] ?? 0) + Math.round(total * 0.18);

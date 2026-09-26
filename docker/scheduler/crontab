@@ -18,5 +18,8 @@
 0 7 10-19 * * /usr/local/bin/call-app.sh parcel-series
 # Modèle de culture réentraîné chaque nuit s'il y a du nouveau (visites, séries), sans Copernicus.
 0 2 * * * /usr/local/bin/call-app.sh crop-model
+# Enquête aréolaire (ADR-0033) : tirage des points, puis classe de la carte aux points, du 20 au
+# 26, 100 points par jour.
+30 7 20-26 * * /usr/local/bin/call-app.sh survey-frame
 # Feux actifs NASA FIRMS (ADR-0022) : ingestion et alertes « feu de brousse », toutes les 30 minutes.
 */30 * * * * /usr/local/bin/call-app.sh fires
