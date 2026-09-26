@@ -1,6 +1,8 @@
 import { prisma } from "@/database/client";
+import { logger } from "@/lib/logger";
 import { recordAudit } from "@/modules/audit";
 import { authorize, type Actor } from "@/modules/authorization";
+import { releaseOutbreakAlertsForReport } from "@/modules/monitoring";
 import {
   queueFarmerNotification,
   reportConfirmedText,
@@ -12,7 +14,9 @@ import { reportResource } from "./queries";
 // l'écarte, avec une note. Seul un signalement confirmé compte pour la détection des foyers
 // quand la règle l'exige (ADR-0015). Une décision n'est prise qu'une fois ; une erreur se
 // corrige par un nouveau signalement, pas en réécrivant l'historique. La décision met en file,
-// dans la même transaction, le message WhatsApp au producteur de l'exploitation.
+// dans la même transaction, le message WhatsApp au producteur de l'exploitation. Une confirmation
+// libère aussi les foyers retenus dont le signalement fait partie : leur diffusion aux
+// producteurs attendait la visite d'un agent (ADR-0015).
 
 export type ReviewDecision = "CONFIRMED" | "DISMISSED";
 
@@ -82,5 +86,11 @@ export async function reviewReport(
     resourceId: reportId,
     details: { decision },
   });
+  if (decision === "CONFIRMED") {
+    // La décision est enregistrée : un échec ici se rattrape à la prochaine confirmation.
+    await releaseOutbreakAlertsForReport(reportId, now).catch((error: unknown) =>
+      logger.error({ err: error, reportId }, "Libération des foyers impossible"),
+    );
+  }
   return { ok: true, notificationId };
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/database/client";
+import { Prisma } from "@/generated/prisma/client";
 
 // Regroupements de signalements de terrain (ADR-0015). Pour chaque signalement d'une commune,
 // dans la fenêtre de temps, on compte les producteurs distincts dont une exploitation a signalé
@@ -68,4 +69,42 @@ export async function communesNearReports(
     SELECT fresh."commune_id"::text FROM "field_report" fresh
     WHERE fresh."id" = ANY(${reportIds as string[]}::uuid[])`;
   return rows.map((r) => r.commune_id);
+}
+
+export interface FoyerQuery {
+  communeId: string;
+  type: ClusterQuery["type"];
+  radiusKm: number;
+  days: number;
+  /** Fin de la fenêtre, exclue. */
+  until: Date;
+  /** Seulement ce signalement confirmé (celui qu'un agent vient de confirmer). */
+  reportId?: string;
+}
+
+/**
+ * Vrai si un signalement confirmé appartient au foyer d'une commune : même type, dans la fenêtre,
+ * à moins du rayon d'un signalement non écarté de la commune (ADR-0015, diffusion après
+ * confirmation).
+ */
+export async function confirmedReportInFoyer(query: FoyerQuery): Promise<boolean> {
+  const since = new Date(query.until.getTime() - query.days * 86_400_000);
+  const rows = await prisma.$queryRaw<{ found: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM "field_report" c
+      JOIN "field_report" r1
+        ON r1."type" = c."type"
+       AND r1."commune_id" = ${query.communeId}::uuid
+       AND r1."location" IS NOT NULL
+       AND r1."status"::text <> 'DISMISSED'
+       AND r1."observed_at" >= ${since} AND r1."observed_at" < ${query.until}
+       AND ST_DWithin(r1."location", c."location", ${query.radiusKm * 1000})
+      WHERE c."status"::text = 'CONFIRMED'
+        AND c."type"::text = ${query.type}
+        AND c."location" IS NOT NULL
+        AND c."observed_at" >= ${since} AND c."observed_at" < ${query.until}
+        ${query.reportId ? Prisma.sql`AND c."id" = ${query.reportId}::uuid` : Prisma.empty}
+    ) AS found`;
+  return rows[0]?.found ?? false;
 }

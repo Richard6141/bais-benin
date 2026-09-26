@@ -6,7 +6,8 @@ import { explainTrace, type TraceEntry } from "./rules";
 
 // Lecture des alertes par rôle (monitoring §2.A-C). Le périmètre est appliqué en base :
 // ministère = tout le territoire ; agent, coopérative = communes du périmètre ; producteur =
-// communes de ses exploitations.
+// communes de ses exploitations. Un foyer en attente de confirmation (ADR-0015) n'est montré
+// qu'à ceux qui encadrent la diffusion (agent, ministère : droit alert.relay).
 
 export type AlertSeverity = "INFO" | "WATCH" | "WARNING" | "CRITICAL";
 export type AlertCategory =
@@ -37,6 +38,8 @@ export interface AlertListItem {
   sourceDate: string;
   reliability: string;
   readAt: string | null;
+  /** Foyer pas encore diffusé aux producteurs : il attend la confirmation d'un agent. */
+  awaitingConfirmation: boolean;
 }
 
 export interface AlertListFilters {
@@ -57,6 +60,15 @@ const SOURCE_LABELS: Record<string, string> = {
   OPEN_METEO: "Open-Meteo",
   BAIS_SEED: "Données de démonstration",
 };
+
+/** Foyers retenus : visibles seulement de ceux qui encadrent la diffusion. */
+function seesHeldAlerts(actor: Actor): boolean {
+  return scopeFilter(actor, "alert.relay").kind !== "none";
+}
+
+function heldFilter(actor: Actor): Prisma.AlertWhereInput {
+  return seesHeldAlerts(actor) ? {} : { awaitingConfirmation: false };
+}
 
 /** Communes visibles par l'acteur pour les alertes ; "all" pour le ministère. */
 export async function alertCommuneIds(actor: Actor): Promise<"all" | string[]> {
@@ -88,6 +100,7 @@ const listSelect = {
   sourceId: true,
   sourceDate: true,
   reliability: true,
+  awaitingConfirmation: true,
   commune: { select: { code: true, name: true } },
 } satisfies Prisma.AlertSelect;
 
@@ -112,6 +125,7 @@ function toItem(row: ListRow, readAt: Date | null): AlertListItem {
     sourceDate: row.sourceDate.toISOString(),
     reliability: row.reliability,
     readAt: readAt?.toISOString() ?? null,
+    awaitingConfirmation: row.awaitingConfirmation,
   };
 }
 
@@ -132,6 +146,7 @@ export async function listAlertsForActor(
   if (communes !== "all" && communes.length === 0) return [];
   const since = new Date(Date.now() - 30 * 86_400_000);
   const where: Prisma.AlertWhereInput = {
+    ...heldFilter(actor),
     ...(communes === "all" ? {} : { communeId: { in: communes } }),
     ...(filters.status === "RECENT" ? { startsAt: { gte: since } } : { status: "ACTIVE" }),
     ...(filters.severity ? { severity: filters.severity } : {}),
@@ -186,7 +201,7 @@ export async function getAlertDetail(actor: Actor, alertId: string): Promise<Ale
       rule: { select: { code: true } },
     },
   });
-  if (!row) return null;
+  if (!row || (row.awaitingConfirmation && !seesHeldAlerts(actor))) return null;
   const communes = await alertCommuneIds(actor);
   if (communes !== "all" && !communes.includes(row.communeId)) return null;
   const marks = await readMarks(actor.userId, [row.id]);
@@ -227,7 +242,10 @@ export interface MonitoringOverview {
 
 export async function getMonitoringOverview(actor: Actor): Promise<MonitoringOverview> {
   const communes = await alertCommuneIds(actor);
-  const scope: Prisma.AlertWhereInput = communes === "all" ? {} : { communeId: { in: communes } };
+  const scope: Prisma.AlertWhereInput = {
+    ...heldFilter(actor),
+    ...(communes === "all" ? {} : { communeId: { in: communes } }),
+  };
   const active = await prisma.alert.findMany({
     where: { ...scope, status: "ACTIVE" },
     select: {

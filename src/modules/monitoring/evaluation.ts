@@ -9,6 +9,7 @@ import {
 } from "@/database/sql/weather.sql";
 import { recordAudit } from "@/modules/audit";
 import { addDays, beninToday, isoDate } from "./dates";
+import { releaseIfConfirmed } from "./outbreak-release";
 import { clusterResolver, computeClusterValues, reportAlertProvenance } from "./report-clusters";
 import {
   computeIndicators,
@@ -90,6 +91,8 @@ export interface CommuneContext {
   sourceDate: Date;
   /** Marqueurs de message propres à la règle (regroupement de signalements). */
   messageValues?: Record<string, number>;
+  /** Foyer sur signalements non vérifiés : diffusé aux producteurs après confirmation. */
+  awaitingConfirmation?: boolean;
 }
 
 export function buildContext(
@@ -240,6 +243,8 @@ export async function evaluateCommunes(
     if (outcome.kind === "raised") {
       summary.raised.push(outcome.alertId);
       if (outcome.superseded) summary.superseded += 1;
+      // Foyer dont un signalement était déjà confirmé par un agent : diffusé tout de suite.
+      if (item.context.awaitingConfirmation) await releaseIfConfirmed(outcome.alertId, now);
       if (deps.planRecipients) await deps.planRecipients(outcome.alertId);
     } else if (outcome.kind === "extended") {
       summary.extended += 1;
@@ -346,6 +351,7 @@ export async function raiseOrExtend(
           sourceId: context.sourceId,
           sourceDate: context.sourceDate,
           reliability: context.reliability,
+          awaitingConfirmation: context.awaitingConfirmation ?? false,
         },
       });
       await tx.ruleEvaluation.update({

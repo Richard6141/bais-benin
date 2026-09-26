@@ -33,6 +33,7 @@ export function toCardData(alert: AlertListItem): AlertCardData {
     source: alert.source,
     sourceDate: formatSourceDate(alert.sourceDate),
     readAt: alert.readAt,
+    awaitingConfirmation: alert.awaitingConfirmation,
   };
 }
 

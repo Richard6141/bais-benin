@@ -60,7 +60,8 @@ async function communeFacts(communeId: string): Promise<ContextFact[]> {
   if (!commune) return [];
   const [alerts, weather] = await Promise.all([
     prisma.alert.findMany({
-      where: { communeId, status: "ACTIVE" },
+      // Un foyer en attente de confirmation n'est jamais cité : il n'est pas encore diffusé.
+      where: { communeId, status: "ACTIVE", awaitingConfirmation: false },
       select: { title: true, severity: true },
       orderBy: { startsAt: "desc" },
       take: 3,

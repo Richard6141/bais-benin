@@ -48,6 +48,7 @@ export type AuditAction =
   | "registry.farm.verified"
   | "sync.batch.received"
   | "alert.raised"
+  | "alert.released"
   | "alert.acknowledged"
   | "alert.relayed"
   | "alert.resolved"

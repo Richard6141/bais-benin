@@ -30,6 +30,8 @@ export interface AlertCardData {
   sourceDate?: string;
   /** Date ISO de lecture ; null si pas encore lue. */
   readAt?: string | null;
+  /** Foyer pas encore diffusé aux producteurs : il attend la confirmation d'un agent. */
+  awaitingConfirmation?: boolean;
 }
 
 interface AlertCardProps {
@@ -88,6 +90,13 @@ export function AlertCard({ alert, variant = "full", onMarkRead, className }: Al
       >
         {alert.title}
       </h3>
+
+      {alert.awaitingConfirmation ? (
+        <p className="text-sm font-medium">
+          En attente de confirmation : diffusée aux producteurs dès qu&apos;un agent confirme un
+          signalement de ce foyer.
+        </p>
+      ) : null}
 
       {!compact ? <p className={farmer ? "text-lg" : "text-sm"}>{alert.message}</p> : null}
 

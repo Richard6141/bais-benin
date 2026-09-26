@@ -2,14 +2,21 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import { seedReferenceData } from "@/database/seed";
 import { loadActor } from "@/modules/identity";
-import { beninToday, evaluateNewReports, seedDefaultRules } from "@/modules/monitoring";
+import {
+  beninToday,
+  evaluateNewReports,
+  listAlertsForActor,
+  seedDefaultRules,
+} from "@/modules/monitoring";
 import { simulateRule } from "@/modules/monitoring/rule-admin";
+import { reviewReport } from "@/modules/reports";
 
 // Détection des foyers (ADR-0015) sur Glazoué, commune qu'aucun autre test n'utilise : trois
 // signalements d'une même exploitation ne font pas un foyer ; trois exploitations d'un même
 // producteur non plus, ni deux producteurs ; trois producteurs proches en 7 jours lèvent une
 // alerte « épidémie probable » de ravageurs, provenance « signalements », avec un message qui dit
-// combien de producteurs.
+// combien de producteurs. L'alerte reste aux agents et au ministère jusqu'à ce qu'un agent
+// confirme un signalement du foyer ; la confirmation la diffuse aux producteurs.
 
 const COMMUNE = "BJ-COL-003";
 const PREFIX = "019284a0-0000-7000-8000-0000000e";
@@ -93,12 +100,16 @@ describe("détection des foyers par regroupement de signalements", () => {
       where: { communeId, rule: { code: { endsWith: "_OUTBREAK" } } },
       select: { id: true },
     });
+    await prisma.auditLog.deleteMany({
+      where: { action: "alert.released", resourceId: { in: alerts.map((a) => a.id) } },
+    });
     await prisma.alert.deleteMany({ where: { id: { in: alerts.map((a) => a.id) } } });
     await prisma.ruleEvaluation.deleteMany({
       where: { communeId, rule: { code: { endsWith: "_OUTBREAK" } } },
     });
     await prisma.simulationRun.deleteMany({ where: { rule: { code: { endsWith: "_OUTBREAK" } } } });
     await prisma.fieldReport.deleteMany({ where: { id: { in: ids.reports } } });
+    await prisma.farmEvent.deleteMany({ where: { farmId: { in: ids.farms } } });
     await prisma.farm.deleteMany({ where: { id: { in: ids.farms } } });
     await prisma.farmer.deleteMany({ where: { id: { in: ids.farmers } } });
     await prisma.$disconnect();
@@ -143,6 +154,38 @@ describe("détection des foyers par regroupement de signalements", () => {
     // Une deuxième évaluation ne relance pas d'alerte : elle prolonge l'épisode en cours.
     const again = await evaluateNewReports([ids.reports[6]!], now);
     expect(again?.raised).toEqual([]);
+  });
+
+  it("garde le foyer aux agents et au ministère tant qu'aucun signalement n'est confirmé", async () => {
+    const alert = await activePestAlert();
+    expect(alert).toMatchObject({ awaitingConfirmation: true, releasedAt: null });
+    const recipients = await prisma.alertRecipient.findMany({ where: { alertId: alert!.id } });
+    // Aucun producteur : ni WhatsApp, ni SMS, ni relais, ni ligne dans l'application. Seuls les
+    // agents de la commune, s'il y en a, reçoivent l'alerte dans l'application.
+    expect(recipients.filter((r) => r.farmId !== null || r.channel !== "IN_APP")).toEqual([]);
+
+    const ministry = await loadActor(
+      (await prisma.user.findUniqueOrThrow({ where: { email: "ministere@bais.demo" } })).id,
+    );
+    const listed = await listAlertsForActor(ministry, { communeCode: COMMUNE });
+    expect(listed.find((a) => a.id === alert!.id)?.awaitingConfirmation).toBe(true);
+  });
+
+  it("diffuse le foyer aux producteurs dès qu'un agent confirme un de ses signalements", async () => {
+    const ministry = await loadActor(
+      (await prisma.user.findUniqueOrThrow({ where: { email: "ministere@bais.demo" } })).id,
+    );
+    const alert = await activePestAlert();
+    expect(
+      await reviewReport(ministry, ids.reports[6]!, "CONFIRMED", "Chenilles vues sur place", now),
+    ).toMatchObject({ ok: true });
+    const released = await prisma.alert.findUniqueOrThrow({ where: { id: alert!.id } });
+    expect(released).toMatchObject({ awaitingConfirmation: false });
+    expect(released.releasedAt).not.toBeNull();
+    const producers = await prisma.alertRecipient.count({
+      where: { alertId: alert!.id, farmId: { in: ids.farms } },
+    });
+    expect(producers).toBeGreaterThan(0);
   });
 
   it("se simule sur la journée, sans être bloquée par la météo", async () => {
