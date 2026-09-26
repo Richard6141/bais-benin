@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageTabs } from "@/components/layout/page-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/features/auth/session";
@@ -30,10 +31,12 @@ export const metadata: Metadata = { title: "Tableau de bord de mon périmètre" 
 
 // Version réduite du tableau de bord (pilotage-parcours-ux §2.F) : les indicateurs des seules
 // communes de l'agent. Les services appliquent le périmètre et le secret statistique ; pas de
-// classement national ni de comparaison avec d'autres communes nommées.
+// classement national ni de comparaison avec d'autres communes nommées. Quatre chiffres, puis un
+// volet à la fois : les déclarations à vérifier d'abord, le travail de l'agent.
 export default async function AgentDashboardPage(props: PageProps<"/agent/tableau-de-bord">) {
   const user = await requireRole("AGENT_AGRICULTURE", { returnTo: "/agent/tableau-de-bord" });
-  const params = parseDashboardFilters(await props.searchParams);
+  const search = await props.searchParams;
+  const params = parseDashboardFilters(search);
   // Le territoire est celui de l'agent : un filtre de département dans l'adresse est ignoré.
   const filters = { ...params, departementCode: undefined };
   const query = filtersQuery(filters);
@@ -51,11 +54,15 @@ export default async function AgentDashboardPage(props: PageProps<"/agent/tablea
     scopedCommunes(user.actor),
   ]);
   const communes = Array.isArray(scope) ? scope.map((c) => c.name).join(", ") : "votre périmètre";
+  // Le lien d'une culture filtre la page et rouvre l'onglet de la production.
   const cropHref = (cropCode: string) =>
-    withQuery("/agent/tableau-de-bord", filtersQuery(filters, { cropCode })) + "#production";
+    withQuery(
+      "/agent/tableau-de-bord",
+      [filtersQuery(filters, { cropCode }), "onglet=production"].join("&"),
+    );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Espace agent de terrain"
         title="Tableau de bord de mon périmètre"
@@ -73,40 +80,74 @@ export default async function AgentDashboardPage(props: PageProps<"/agent/tablea
         />
       </Suspense>
 
-      <OverviewTiles overview={overview} query={query} linked={false} />
+      <OverviewTiles
+        overview={overview}
+        query={query}
+        linked={false}
+        only={["producteurs", "exploitations", "declaree", "mesuree"]}
+      />
 
-      <DashboardSection id="production" title="Production par culture">
-        <CropProduction
-          rows={production.rows}
-          provenance={production.provenance}
-          hrefForCrop={cropHref}
-        />
-      </DashboardSection>
-
-      <DashboardSection
-        id="verification"
-        title="Déclarations à vérifier"
-        description="Exploitations de vos communes encore au statut déclaré, par ancienneté."
-        action={
-          <Button asChild variant="outline" className="h-11">
-            <Link href={"/agent/verification" as Route}>Ouvrir la file de vérification</Link>
-          </Button>
-        }
-      >
-        <AgeingSection ageing={quality.ageing} communeHref={null} />
-      </DashboardSection>
-
-      <DashboardSection
-        id="ecarts"
-        title="Écarts entre déclaré et mesuré"
-        description="Parcelles de vos communes relevées au GPS, comparées à la superficie déclarée."
-      >
-        <GapsSection gaps={quality.gaps} communeHref={null} />
-      </DashboardSection>
-
-      <DashboardSection id="campagnes" title="Campagne contre campagne">
-        <CampaignBlock data={comparison} />
-      </DashboardSection>
+      <PageTabs
+        label="Volets du tableau de bord"
+        initial={typeof search.onglet === "string" ? search.onglet : null}
+        tabs={[
+          {
+            value: "verification",
+            label: "À vérifier",
+            content: (
+              <DashboardSection
+                id="verification"
+                title="Déclarations à vérifier"
+                description="Exploitations de vos communes encore au statut déclaré, par ancienneté."
+                action={
+                  <Button asChild variant="outline" className="h-11">
+                    <Link href={"/agent/verification" as Route}>
+                      Ouvrir la file de vérification
+                    </Link>
+                  </Button>
+                }
+              >
+                <AgeingSection ageing={quality.ageing} communeHref={null} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "production",
+            label: "Production",
+            content: (
+              <DashboardSection id="production" title="Production par culture">
+                <CropProduction
+                  rows={production.rows}
+                  provenance={production.provenance}
+                  hrefForCrop={cropHref}
+                />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "ecarts",
+            label: "Écarts",
+            content: (
+              <DashboardSection
+                id="ecarts"
+                title="Écarts entre déclaré et mesuré"
+                description="Parcelles de vos communes relevées au GPS, comparées à la superficie déclarée."
+              >
+                <GapsSection gaps={quality.gaps} communeHref={null} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "campagnes",
+            label: "Campagnes",
+            content: (
+              <DashboardSection id="campagnes" title="Campagne contre campagne">
+                <CampaignBlock data={comparison} />
+              </DashboardSection>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
