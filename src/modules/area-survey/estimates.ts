@@ -32,6 +32,13 @@ export const MAX_NON_RESPONSE = 0.1;
 /** Classes dont la part change quand le radar corrige le riz (ADR-0026). */
 const RADAR_ADJUSTED = new Set(["RICE", "ANNUAL", "FALLOW", "NATURAL"]);
 
+/** Classes de la carte qui portent plusieurs classes du modèle de culture. */
+const SHARED_CLASSES = new Set<string>(
+  CROP_GROUPS.map((group) => cropMapClassOf(group.crops[0])).filter(
+    (key, index, all) => all.indexOf(key) !== index,
+  ),
+);
+
 /** Cibles : chaque classe du modèle de culture, et l'ensemble des terres cultivées. */
 export const SURVEY_TARGETS = [...CROP_GROUPS.map((group) => group.key), "CULTIVATED"] as const;
 export type SurveyTarget = (typeof SURVEY_TARGETS)[number];
@@ -47,6 +54,11 @@ export interface TargetEstimate extends AreaEstimate {
   gain: number | null;
   /** Surface que la carte des pixels donne seule ; null sans carte pour la campagne. */
   mapHa: number | null;
+  /**
+   * Vrai si cette surface est celle d'une classe de la carte partagée par plusieurs cultures
+   * (maïs, soja, niébé et igname tombent tous dans « cultures annuelles »).
+   */
+  mapShared: boolean;
   status: CitationStatus;
 }
 
@@ -140,6 +152,7 @@ function communeTarget(
         ? estimate.directVariance / estimate.variance
         : null,
     mapHa: populationMean === null ? null : areaHa * populationMean,
+    mapShared: target !== "CULTIVATED" && SHARED_CLASSES.has(classes[0]!),
     status: citationStatus(area.cv, estimate.n),
     varianceHa2,
     directVarianceHa2,
@@ -236,6 +249,7 @@ export function estimateSurvey(
           : (([...total.methods][0] ?? "direct") as "regression" | "direct"),
       gain: total.methods.has("regression") && variance > 0 ? total.direct / variance : null,
       mapHa: total.mapHa,
+      mapShared: target !== "CULTIVATED" && SHARED_CLASSES.has(mapClassesOf(target)[0]!),
       status: citationStatus(area.cv, total.points),
     };
   });

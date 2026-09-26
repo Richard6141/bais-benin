@@ -117,7 +117,12 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
                 sort: entry.gain,
               },
               map: {
-                display: entry.mapHa === null ? "Non mesurée" : hectares.format(entry.mapHa),
+                display:
+                  entry.mapHa === null
+                    ? "Non mesurée"
+                    : entry.mapShared
+                      ? `${hectares.format(entry.mapHa)} (annuelles)`
+                      : hectares.format(entry.mapHa),
                 sort: entry.mapHa,
               },
             },

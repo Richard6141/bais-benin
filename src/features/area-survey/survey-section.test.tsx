@@ -16,6 +16,7 @@ function estimate(target: string, overrides: Partial<TargetEstimate> = {}): Targ
     method: "regression",
     gain: 1.8,
     mapHa: 61_000,
+    mapShared: false,
     status: "cite",
     ...overrides,
   };
@@ -29,6 +30,7 @@ const survey: SurveyEstimates & { campaignCode: string } = {
   synthetic: false,
   totals: [
     estimate("CULTIVATED"),
+    estimate("MAIZE", { mapShared: true, mapHa: 40_000 }),
     estimate("RICE", {
       areaHa: 900,
       marginHa: 700,
@@ -63,6 +65,8 @@ describe("surfaces par sondage", () => {
     const cultivated = within(table).getByText("Terres cultivées").closest("tr")!;
     expect(within(cultivated).getByText("À citer")).toBeInTheDocument();
     expect(within(cultivated).getByText(/× 1,8/)).toBeInTheDocument();
+    const maize = within(table).getByText("Maïs").closest("tr")!;
+    expect(within(maize).getByText(/40\s000 \(annuelles\)/)).toBeInTheDocument();
   });
 
   it("montre la réponse et l'usage par commune", () => {

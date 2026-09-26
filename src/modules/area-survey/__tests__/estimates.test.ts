@@ -76,6 +76,11 @@ describe("surfaces par sondage", () => {
     expect(maize.areaHa).toBeCloseTo(10_000 * (0.35 - (0.75 - 5 / 60) * 0.05), 6);
     expect(maize.gain!).toBeGreaterThan(1.5);
     expect(maize.mapHa).toBeCloseTo(3500, 6);
+    // La classe « cultures annuelles » de la carte porte aussi soja, niébé et igname.
+    expect(maize.mapShared).toBe(true);
+    expect(
+      survey.communes[0]!.targets.find((entry) => entry.target === "CULTIVATED")!.mapShared,
+    ).toBe(false);
     expect(maize.marginHa).toBeGreaterThan(0);
   });
 
