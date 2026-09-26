@@ -14,8 +14,10 @@ import {
   GapsSection,
 } from "@/features/dashboard/quality-sections";
 import { ParcelOverlapsSection } from "@/features/dashboard/parcel-overlaps-section";
+import { VegetationSection } from "@/features/satellite/vegetation-section";
 import { getDataQuality } from "@/modules/analytics";
 import { listParcelOverlaps } from "@/modules/registry";
+import { getVegetationSummary } from "@/modules/satellite";
 import { listDepartements } from "@/modules/territory";
 
 export const metadata: Metadata = { title: "Qualité des données" };
@@ -25,10 +27,11 @@ export const metadata: Metadata = { title: "Qualité des données" };
 export default async function DataQualityPage(props: PageProps<"/pilotage/qualite">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/qualite" });
   const { departementCode } = parseDashboardFilters(await props.searchParams);
-  const [quality, departements, overlaps] = await Promise.all([
+  const [quality, departements, overlaps, vegetation] = await Promise.all([
     getDataQuality(user.actor, { departementCode }),
     listDepartements(),
     listParcelOverlaps(user.actor, { departementCode }),
+    getVegetationSummary(user.actor, { departementCode }),
   ]);
 
   return (
@@ -62,6 +65,16 @@ export default async function DataQualityPage(props: PageProps<"/pilotage/qualit
       >
         <GapsSection gaps={quality.gaps} />
       </DashboardSection>
+
+      {vegetation ? (
+        <DashboardSection
+          id="satellite"
+          title="Confrontation déclaration / satellite"
+          description="Végétation observée par Sentinel-2 sur chaque parcelle relevée, face à la culture déclarée."
+        >
+          <VegetationSection summary={vegetation} />
+        </DashboardSection>
+      ) : null}
 
       <DashboardSection
         id="anciennete"
