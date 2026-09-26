@@ -63,6 +63,21 @@ describe("textes des messages de suivi", () => {
     expect(quote("  deux\n lignes ")).toBe("deux lignes");
   });
 
+  it("retire liens, adresses et caractères invisibles de la réponse citée", () => {
+    expect(quote("Payez les frais sur https://bais-aide.xyz/paiement avant lundi")).toBe(
+      "Payez les frais sur [lien retiré] avant lundi",
+    );
+    expect(quote("Voir www.exemple.bj ou wa.me/22990000000")).toBe(
+      "Voir [lien retiré] ou [lien retiré]",
+    );
+    expect(quote("Écrivez à aide@exemple.com")).toBe("Écrivez à [adresse retirée]");
+    expect(quote("Semences​ livrées‮ lundi")).toBe("Semences livrées lundi");
+    // Un nombre décimal ou une abréviation ne sont pas des liens.
+    expect(quote("Dose de 1.5 l/ha, etc. Revenez lundi.")).toBe(
+      "Dose de 1.5 l/ha, etc. Revenez lundi.",
+    );
+  });
+
   it("annonce la confirmation et le motif d'un signalement écarté", () => {
     const observedAt = new Date("2026-09-23T23:30:00Z");
     // 23 h 30 UTC = 0 h 30 le lendemain à Porto-Novo.
