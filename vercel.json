@@ -8,6 +8,8 @@
     { "path": "/api/v1/satellite/crop-areas", "schedule": "30 5 1-8 * *" },
     { "path": "/api/v1/satellite/crop-map", "schedule": "0 6 1-8 * *" },
     { "path": "/api/v1/satellite/crop-accuracy", "schedule": "30 6 9 * *" },
+    { "path": "/api/v1/satellite/parcel-series", "schedule": "0 7 10-14 * *" },
+    { "path": "/api/v1/satellite/crop-model", "schedule": "0 8 15 * *" },
     { "path": "/api/v1/fires/ingest", "schedule": "*/30 * * * *" }
   ]
 }

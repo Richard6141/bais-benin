@@ -80,3 +80,21 @@ export {
   type CropClassCheckRunResult,
   type CropMapAccuracy,
 } from "./crop-accuracy";
+export {
+  CROP_GROUPS,
+  cropGroupLabel,
+  cropGroupOf,
+  isCropGroup,
+  singleCropOf,
+  type CropGroup,
+} from "./crop-groups";
+export {
+  MIN_CLASS_SAMPLES,
+  UNCERTAIN_BELOW,
+  collectParcelSeries,
+  getParcelCropPrediction,
+  trainAndPredictCrops,
+  type ModelRunResult,
+  type ParcelCropPrediction,
+  type SeriesRunResult,
+} from "./parcel-crops";
