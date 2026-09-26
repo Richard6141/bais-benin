@@ -58,7 +58,9 @@ export const ACTIONS = [
   "assistance.request",
   "assistance.read",
   "assistance.handle",
-  // Accords que le producteur donne ou retire depuis son compte (messages WhatsApp).
+  // Palmarès public (complément d'ADR-0018) : publier les lauréats consentants ; accords que le
+  // producteur donne ou retire depuis son compte (palmarès, messages WhatsApp).
+  "ranking.publish",
   "consent.manage",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
@@ -102,6 +104,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    // Publication d'un palmarès public : seulement les lauréats qui ont donné leur accord.
+    "ranking.publish": "ALL",
     "consent.manage": "NONE",
   },
   AGENT_AGRICULTURE: {
@@ -145,6 +149,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "SCOPE",
     "assistance.handle": "SCOPE",
+    "ranking.publish": "NONE",
     "consent.manage": "NONE",
   },
   FARMER: {
@@ -180,7 +185,8 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "SELF",
     "assistance.read": "SELF",
     "assistance.handle": "NONE",
-    // Accords du producteur sur son propre compte : messages WhatsApp.
+    "ranking.publish": "NONE",
+    // Accords du producteur sur son propre compte : messages WhatsApp, palmarès public.
     "consent.manage": "SELF",
   },
   COOPERATIVE: {
@@ -216,6 +222,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    "ranking.publish": "NONE",
     "consent.manage": "NONE",
   },
   BUYER: {
@@ -251,6 +258,7 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "assistance.request": "NONE",
     "assistance.read": "NONE",
     "assistance.handle": "NONE",
+    "ranking.publish": "NONE",
     "consent.manage": "NONE",
   },
 };
