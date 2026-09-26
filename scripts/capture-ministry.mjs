@@ -25,7 +25,7 @@ function npiFor(phoneDigits) {
 export async function requestDemoCode(page, baseUrl, phoneDigits) {
   await page.goto(`${baseUrl}/connexion`);
   await page.getByLabel("Votre NPI", { exact: true }).fill(npiFor(phoneDigits));
-  await page.getByLabel("Votre téléphone").fill(phoneDigits);
+  await page.getByLabel("Votre téléphone", { exact: true }).fill(phoneDigits);
   await page.getByRole("button", { name: "Recevoir mon code sur WhatsApp" }).click();
   await page.getByText(/Code reçu sur WhatsApp au \+229/).waitFor();
 }
