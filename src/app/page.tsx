@@ -5,6 +5,10 @@ import { QuestionsSection } from "@/features/landing/questions-section";
 import { TerritoryFigures } from "@/features/landing/territory-figures";
 import { WhoAreYou } from "@/features/landing/who-are-you";
 
+// Les chiffres du territoire sont lus dans la base à chaque visite : la page n'est jamais figée
+// au moment du build, qui tourne sans base (image Docker, intégration continue).
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <>

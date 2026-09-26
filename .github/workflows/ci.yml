@@ -72,6 +72,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      # L'image de service n'a que PostGIS ; la migration de l'assistant exige aussi pgvector,
+      # comme l'image docker/db utilisée en local et sur le serveur.
+      - name: Ajouter pgvector au service de base
+        run: >-
+          docker exec ${{ job.services.db.id }} sh -c
+          "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
       - run: pnpm db:migrate
       - run: pnpm test:integration
 
@@ -127,6 +133,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      # L'image de service n'a que PostGIS ; la migration de l'assistant exige aussi pgvector,
+      # comme l'image docker/db utilisée en local et sur le serveur.
+      - name: Ajouter pgvector au service de base
+        run: >-
+          docker exec ${{ job.services.db.id }} sh -c
+          "apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-16-pgvector"
       - run: pnpm db:migrate
       - run: pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
