@@ -206,6 +206,52 @@ export function ReportGroupsPanel({ summary }: { summary: WatchSummary }) {
   );
 }
 
+const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
+
+export function CropConditionPanel({ summary }: { summary: WatchSummary }) {
+  const condition = summary.cropCondition;
+  return (
+    <Panel
+      title="État des cultures"
+      help="Les trois cultures dont la part de surface en état faible est la plus haute, vue du satellite, sur la campagne en cours. Une culture observée sur moins de 5 parcelles n'est pas citée."
+    >
+      {!condition || condition.worst.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Pas encore assez de parcelles contrôlées pour cette campagne.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2 text-sm">
+          {condition.worst.map((crop) => (
+            <li key={crop.code} className="flex justify-between gap-3">
+              <span>{crop.name}</span>
+              <span className="tabular text-right">
+                <span className="font-medium">{percent.format(crop.poorShare)} faible</span>
+                <span className="block text-muted-foreground">
+                  sur {integer.format(Math.round(crop.observedHa))} ha observés
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        {condition ? (
+          <span className="text-muted-foreground">
+            Campagne {condition.campaignCode}
+            {condition.demo ? ", données de démonstration" : ""}
+          </span>
+        ) : null}
+        <Link
+          href={"/pilotage/etat-des-cultures" as Route}
+          className="font-medium underline underline-offset-4"
+        >
+          Voir l&apos;état des cultures
+        </Link>
+      </p>
+    </Panel>
+  );
+}
+
 const STATE_LABELS = { ok: "À jour", stale: "En retard", failed: "En échec" } as const;
 
 export function FreshnessPanel({ summary }: { summary: WatchSummary }) {
