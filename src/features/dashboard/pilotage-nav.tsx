@@ -14,6 +14,7 @@ const ENTRIES = [
     label: "Vue nationale",
     match: ["/pilotage", "/pilotage/fiche"],
   },
+  { href: "/pilotage/veille", label: "Centre de veille", match: ["/pilotage/veille"] },
   {
     href: "/pilotage/territoires",
     label: "Territoires",
