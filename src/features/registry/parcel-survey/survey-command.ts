@@ -71,3 +71,51 @@ export function buildParcelSurveyCommand(input: SurveyInput): BuiltSurvey {
     },
   };
 }
+
+export interface SatelliteContourInput {
+  farmId: string;
+  parcelId: string;
+  expectedVersion: number;
+  /** Anneau fermé [longitude, latitude] du contour proposé puis corrigé par l'agent. */
+  ring: [number, number][];
+}
+
+/**
+ * Contour proposé depuis l'image Sentinel-2 puis validé par l'agent (ADR-0016, phase 3) : même
+ * commande que le relevé à pied, avec le mode SATELLITE_ASSISTED. Le serveur lui donne la
+ * fiabilité AGENT_VERIFIED, jamais FIELD_VERIFIED, réservée à la marche sur place.
+ */
+export function buildSatelliteContourCommand(input: SatelliteContourInput): BuiltSurvey {
+  const open = input.ring.slice(0, -1);
+  if (open.length < MIN_SURVEY_CORNERS) {
+    return { ok: false, error: "Le contour doit garder au moins trois sommets." };
+  }
+  const corners = open.map(([lng, lat]) => ({ lng, lat }));
+  const ring = closeRing(corners);
+  const payload: SyncPayload["parcel.geometry.set"] = {
+    parcelId: input.parcelId,
+    geometry: {
+      type: "Polygon",
+      coordinates: [ring.map((point) => [point.lng, point.lat] as [number, number])],
+    },
+    captureMethod: "SATELLITE_ASSISTED",
+    expectedVersion: input.expectedVersion,
+  };
+  return {
+    ok: true,
+    payload,
+    areaHa: estimatePolygonAreaHa(corners),
+    enqueue: async (db) => {
+      await enqueueCommand(db, {
+        id: crypto.randomUUID(),
+        type: "parcel.geometry.set",
+        payload,
+        expectedVersion: input.expectedVersion,
+      });
+      await db.farms
+        .where("id")
+        .equals(input.farmId)
+        .modify({ syncState: "MODIFIED", updatedAt: new Date().toISOString() });
+    },
+  };
+}

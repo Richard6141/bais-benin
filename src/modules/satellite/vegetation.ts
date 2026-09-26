@@ -9,7 +9,6 @@ import {
   vegetationSummary,
   type FarmScopeParams,
 } from "@/database/sql/vegetation.sql";
-import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { authorize, scopeFilter, type Actor } from "@/modules/authorization";
 import {
@@ -23,6 +22,7 @@ import {
   seasonWindow,
   type VegetationCheckStatus,
 } from "./crop-profiles";
+import { processingBudget } from "./imagery";
 import { periodOf } from "./periods";
 
 // Confrontation déclaration / satellite (ADR-0016, étape 2) : pour chaque parcelle relevée, NDVI
@@ -84,7 +84,7 @@ export async function runVegetationChecks(options: {
     limit: options.limit,
     replaceSynthetic: options.provider.provenance.sourceId !== "BAIS_SEED",
   });
-  const budget = getServerEnv().SATELLITE_MONTHLY_REQUEST_BUDGET;
+  const budget = processingBudget();
   // Seul le vrai fournisseur consomme le quota Copernicus ; la fixture n'appelle personne.
   const metered = options.provider.id === "cdse";
 

@@ -2,6 +2,22 @@ import { measurePolygon, writeParcelGeometry } from "./geometry";
 import { farmTarget, findFarmOfParcel } from "./lookups";
 import { rejected, type SyncHandler } from "./types";
 
+/**
+ * Fiabilité d'un contour selon son relevé et le rôle qui l'envoie (C2) : la marche GPS d'un agent
+ * sur place vaut FIELD_VERIFIED ; un contour proposé depuis le satellite et validé par un agent,
+ * qui peut l'avoir fait au bureau, vaut AGENT_VERIFIED, jamais FIELD_VERIFIED ; le reste reste
+ * DECLARED.
+ */
+export function geometryReliability(
+  captureMethod: "GPS_WALK" | "MAP_DRAW" | "SATELLITE_ASSISTED",
+  grantRole: string | null | undefined,
+): "FIELD_VERIFIED" | "AGENT_VERIFIED" | "DECLARED" {
+  if (grantRole !== "AGENT_AGRICULTURE") return "DECLARED";
+  if (captureMethod === "GPS_WALK") return "FIELD_VERIFIED";
+  if (captureMethod === "SATELLITE_ASSISTED") return "AGENT_VERIFIED";
+  return "DECLARED";
+}
+
 // Remplacement du contour d'une parcelle existante. Verrou optimiste : la version attendue par
 // le client doit être la version serveur, sinon la commande est en conflit et renvoie l'état
 // serveur des champs qui divergent, pour que l'agent tranche.
@@ -55,10 +71,7 @@ export const parcelGeometrySet: SyncHandler<"parcel.geometry.set"> = {
         captureMethod: payload.captureMethod,
         gpsAccuracyM: payload.gpsAccuracyM ?? null,
         // C2 : même plafond que parcel-create.ts — voir son commentaire.
-        reliability:
-          payload.captureMethod === "GPS_WALK" && context.grantRole === "AGENT_AGRICULTURE"
-            ? "FIELD_VERIFIED"
-            : "DECLARED",
+        reliability: geometryReliability(payload.captureMethod, context.grantRole),
         version: { increment: 1 },
       },
       select: { id: true, code: true, version: true },

@@ -25,17 +25,32 @@ describe("imagerie satellite en base", () => {
   });
 
   it("refuse toute requête de traitement au-delà du plafond mensuel, même concurrente", async () => {
+    // Plafond de 10 : 3 pour les propositions, 7 pour les images et les statistiques.
+    const budget = { total: 10, proposalShare: 0.3 };
     const results = await Promise.all(
-      Array.from({ length: 6 }, (_, index) =>
-        reserveProcessingRequest(MONTH, index % 2 === 0 ? "IMAGE" : "STATISTICS", 4),
+      Array.from({ length: 10 }, (_, index) =>
+        reserveProcessingRequest(MONTH, index % 2 === 0 ? "IMAGE" : "STATISTICS", budget),
       ),
     );
-    expect(results.filter(Boolean)).toHaveLength(4);
+    expect(results.filter(Boolean)).toHaveLength(7);
     await addProcessingUnits(MONTH, 2.5);
     const usage = await readProcessingUsage(MONTH);
-    expect(usage.imageRequests + usage.statisticsRequests).toBe(4);
+    expect(usage.imageRequests + usage.statisticsRequests).toBe(7);
     expect(usage.processingUnits).toBeCloseTo(2.5);
-    expect(await reserveProcessingRequest(MONTH, "IMAGE", 0)).toBe(false);
+    expect(await reserveProcessingRequest(MONTH, "IMAGE", { total: 0, proposalShare: 0 })).toBe(
+      false,
+    );
+  });
+
+  it("garde aux propositions de contours leur part, que les autres usages ne prennent pas", async () => {
+    const budget = { total: 10, proposalShare: 0.3 };
+    // Les images et statistiques ont épuisé leur part au test précédent.
+    expect(await reserveProcessingRequest(MONTH, "IMAGE", budget)).toBe(false);
+    const proposals = await Promise.all(
+      Array.from({ length: 5 }, () => reserveProcessingRequest(MONTH, "PROPOSAL", budget)),
+    );
+    expect(proposals.filter(Boolean)).toHaveLength(3);
+    expect((await readProcessingUsage(MONTH)).proposalRequests).toBe(3);
   });
 
   it("garde une image et une zone sans donnée, avec ou sans échéance", async () => {

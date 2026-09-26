@@ -57,6 +57,15 @@ function countryOutline(): Promise<ClipGeometry | null> {
   return outline;
 }
 
+/** Plafond mensuel et part réservée aux propositions, lus dans la configuration. */
+export function processingBudget() {
+  const env = getServerEnv();
+  return {
+    total: env.SATELLITE_MONTHLY_REQUEST_BUDGET,
+    proposalShare: env.SATELLITE_PROPOSAL_SHARE,
+  };
+}
+
 // Deux demandes simultanées de la même tuile (plusieurs visiteurs) : un seul appel Copernicus.
 const inflight = new Map<string, Promise<ImageryOutcome>>();
 
@@ -85,8 +94,7 @@ async function renderCached(
   if (!provider.canProcess) return cached ? fromCache(cached) : { status: "not-configured" };
 
   const month = periodOf(now);
-  const budget = getServerEnv().SATELLITE_MONTHLY_REQUEST_BUDGET;
-  if (!(await reserveProcessingRequest(month, "IMAGE", budget))) {
+  if (!(await reserveProcessingRequest(month, "IMAGE", processingBudget()))) {
     // Plafond atteint : une image périmée vaut mieux que rien.
     return cached ? fromCache(cached) : { status: "budget-exhausted" };
   }

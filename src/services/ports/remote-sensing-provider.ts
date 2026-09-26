@@ -90,6 +90,29 @@ export interface VegetationInterval {
   maskedPixels: number;
 }
 
+/** Fenêtre de variables par pixel pour la délimitation assistée des champs (phase 3). */
+export interface FieldFeaturesRequest {
+  /** Emprise en EPSG:3857, centrée sur le point désigné par l'agent. */
+  envelope: Envelope3857;
+  width: number;
+  height: number;
+  from: string;
+  to: string;
+}
+
+/** Variables par pixel, ligne par ligne depuis le nord-ouest ; NaN là où rien n'a été vu. */
+export interface FieldFeatures {
+  width: number;
+  height: number;
+  /** NDVI le plus haut de la période. */
+  peak: Float32Array;
+  /** NDVI le plus bas de la période. */
+  low: Float32Array;
+  /** Réflectance moyenne B11 (infrarouge moyen), de 0 à 1. */
+  swir: Float32Array;
+  processingUnits: number | null;
+}
+
 export interface RemoteSensingProvenance {
   sourceId: "COPERNICUS_S2" | "BAIS_SEED";
   /** Mesure satellitaire interprétée (ESTIMATED) ou série synthétique (SYNTHETIC). */
@@ -108,6 +131,7 @@ export interface RemoteSensingProvider {
   /** Image de l'emprise ; null si le fournisseur ne produit pas d'image (fixture). */
   renderImage(request: ImageryRequest): Promise<ImageryResult | null>;
   vegetationStatistics(request: VegetationStatisticsRequest): Promise<VegetationInterval[]>;
+  fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
 }
 
 export class RemoteSensingProviderError extends Error {

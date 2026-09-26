@@ -28,7 +28,9 @@ const provider = vi.hoisted(() => ({
 
 vi.mock("@/database/sql/satellite.sql", () => sql);
 vi.mock("@/services/remote-sensing", () => ({ getRemoteSensingProvider: () => provider }));
-vi.mock("@/lib/env", () => ({ getServerEnv: () => ({ SATELLITE_MONTHLY_REQUEST_BUDGET: 9000 }) }));
+vi.mock("@/lib/env", () => ({
+  getServerEnv: () => ({ SATELLITE_MONTHLY_REQUEST_BUDGET: 9000, SATELLITE_PROPOSAL_SHARE: 0.3 }),
+}));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn() } }));
 
 const { getDetailTile, getOverviewImage } = await import("../imagery");
@@ -59,7 +61,10 @@ describe("images de la vue du ciel", () => {
     provider.renderImage.mockResolvedValue({ image: new Uint8Array([1]), processingUnits: 7.5 });
     const outcome = await getOverviewImage("NDVI", "2025-10", NOW);
     expect(outcome).toEqual({ status: "ok", image: new Uint8Array([1]), permanent: true });
-    expect(sql.reserveProcessingRequest).toHaveBeenCalledWith("2026-09", "IMAGE", 9000);
+    expect(sql.reserveProcessingRequest).toHaveBeenCalledWith("2026-09", "IMAGE", {
+      total: 9000,
+      proposalShare: 0.3,
+    });
     expect(sql.addProcessingUnits).toHaveBeenCalledWith("2026-09", 7.5);
     // Image découpée sur la frontière du pays, rangée sous la version v2 du cache.
     expect(provider.renderImage).toHaveBeenCalledWith(expect.objectContaining({ clip: OUTLINE }));

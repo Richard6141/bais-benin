@@ -34,3 +34,10 @@ export {
   type VegetationRunResult,
   type VegetationSummary,
 } from "./vegetation";
+export {
+  PROPOSALS_PER_DAY,
+  proposeFieldContours,
+  type FieldProposalOutcome,
+  type ProposedContour,
+} from "./field-proposals";
+export { segmentField, type CandidateLevel, type FeatureGrid } from "./field-segmentation";

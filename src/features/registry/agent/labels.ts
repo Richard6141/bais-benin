@@ -89,6 +89,7 @@ export const CAPTURE_METHOD_LABELS: Record<string, string> = {
   GPS_WALK: "Marche GPS",
   MAP_DRAW: "Dessin sur carte",
   DECLARED_ONLY: "Superficie déclarée",
+  SATELLITE_ASSISTED: "Proposé par satellite, validé par l'agent",
 };
 
 const areaFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });

@@ -53,6 +53,40 @@ export function renderEvalscript(layer: ImageryLayer): string {
 }
 
 /**
+ * Variables de délimitation des champs : sur tous les passages de la période (mosaïque par
+ * orbite), NDVI le plus haut et le plus bas, et réflectance B11 moyenne, nuages exclus. Codés
+ * sur 8 bits (NDVI : (v + 1) × 127,5 ; B11 : × 255) ; le quatrième canal compte les passages
+ * retenus, 0 là où rien n'a été vu.
+ */
+export const FIELD_FEATURES_EVALSCRIPT = `//VERSION=3
+const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
+function setup() {
+  return {
+    input: [{ bands: ["B04", "B08", "B11", "SCL", "dataMask"] }],
+    output: { bands: 4, sampleType: "UINT8" },
+    mosaicking: "ORBIT"
+  };
+}
+function evaluatePixel(samples) {
+  let peak = -1, low = 2, swir = 0, n = 0;
+  for (const s of samples) {
+    if (s.dataMask === 0 || MASKED.includes(s.SCL) || s.B08 + s.B04 <= 0) continue;
+    const ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+    if (ndvi > peak) peak = ndvi;
+    if (ndvi < low) low = ndvi;
+    swir += s.B11;
+    n += 1;
+  }
+  if (n === 0) return [0, 0, 0, 0];
+  return [
+    Math.round((peak + 1) * 127.5),
+    Math.round((low + 1) * 127.5),
+    Math.round(Math.min(1, swir / n) * 255),
+    Math.min(255, n)
+  ];
+}`;
+
+/**
  * Script de l'API Statistical : NDVI en flottant et masque des pixels retenus. Les pixels
  * nuageux (SCL) sortent du calcul au lieu de tirer la moyenne vers le bas.
  */
