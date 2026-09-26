@@ -30,6 +30,11 @@ const ENTRIES = [
     match: ["/pilotage/palmares"],
   },
   {
+    href: "/pilotage/groupes",
+    label: "Groupes",
+    match: ["/pilotage/groupes"],
+  },
+  {
     href: "/pilotage/qualite",
     label: "Qualité des données",
     match: ["/pilotage/qualite"],

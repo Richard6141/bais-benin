@@ -11,7 +11,9 @@ import {
   PublishRankingForm,
   PublishedRankingsList,
 } from "@/features/dashboard/ranking-publication";
+import { CreateGroupForm } from "@/features/producer-groups/create-group-form";
 import { getProducerRanking } from "@/modules/analytics";
+import { MAX_GROUP_NAME_LENGTH, suggestGroupName } from "@/modules/producer-groups";
 import { MAX_PUBLISHED_LAUREATES, listPublishedRankings } from "@/modules/public-ranking";
 import { listCampaigns, listCrops } from "@/modules/registry";
 import { listDepartements } from "@/modules/territory";
@@ -27,8 +29,9 @@ const shortDate = new Intl.DateTimeFormat("fr-FR", {
 
 // Palmarès nominatif des producteurs (ADR-0018) : ministère seulement, chaque consultation est
 // journalisée. L'adresse porte les critères, l'export CSV reprend exactement le même classement.
-// Sous le classement : publication d'un palmarès public (lauréats consentants seulement) et
-// retrait des palmarès déjà publiés.
+// Sous les critères : former un groupe avec les producteurs affichés (ADR-0024). Sous le
+// classement : publication d'un palmarès public (lauréats consentants seulement) et retrait des
+// palmarès déjà publiés.
 export default async function ProducerRankingPage(props: PageProps<"/pilotage/palmares">) {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/palmares" });
   const params = (await props.searchParams) as Record<string, string | string[] | undefined>;
@@ -83,6 +86,28 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
         campaigns={campaigns}
         departements={departements}
       />
+      {ranking.rows.length > 0 ? (
+        <CreateGroupForm
+          criteria={{
+            cropCode: ranking.filters.cropCode,
+            campaignCode: ranking.filters.campaignCode,
+            departementCode: ranking.filters.departementCode,
+            communeCode: ranking.filters.communeCode,
+            metric: ranking.filters.metric,
+            verifiedOnly: ranking.filters.verifiedOnly,
+            limit: ranking.filters.limit,
+          }}
+          suggestedName={suggestGroupName({
+            cropName,
+            scopeName: departementName,
+            campaignCode: ranking.filters.campaignCode,
+            count: ranking.rows.length,
+            metric: ranking.filters.metric,
+          })}
+          count={ranking.rows.length}
+          maxNameLength={MAX_GROUP_NAME_LENGTH}
+        />
+      ) : null}
       <ProducerRankingTable ranking={ranking} cropName={cropName} />
       {ranking.rows.length > 0 ? (
         <PublishRankingForm
