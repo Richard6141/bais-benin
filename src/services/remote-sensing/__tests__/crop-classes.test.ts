@@ -71,7 +71,7 @@ describe("classification phénologique d'un pixel", () => {
     };
     expect(classOf((m) => rice[m] ?? { ndvi: 0.2 })).toBe(CROP_CLASS_CODES.RICE);
     // Rizière encore en eau libre au repiquage.
-    const flooded = { ...rice, 6: { ndvi: 0.05, water: true } };
+    const flooded: Record<number, Month> = { ...rice, 6: { ndvi: 0.05, water: true } };
     expect(classOf((m) => flooded[m] ?? { ndvi: 0.2 })).toBe(CROP_CLASS_CODES.RICE);
   });
 
