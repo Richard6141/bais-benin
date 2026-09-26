@@ -213,6 +213,25 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
 
     // Répartition synthétique des classes, proportionnelle à la surface de la géométrie :
     // cultures annuelles, savane et jachère dominent ; coton au nord seulement.
+    // Riz de démonstration : 1 à 3 % de la commune au sud, moins au nord, toujours un peu plus
+    // que ce que l'optique retient (rizières de bas-fond sous les nuages).
+    async riceRadarStatistics(request) {
+      const ring =
+        request.geometry.type === "Polygon"
+          ? (request.geometry.coordinates[0] ?? [])
+          : (request.geometry.coordinates[0]?.[0] ?? []);
+      const seed = hashString(JSON.stringify(ring).slice(0, 400));
+      const observedPixels = Math.round(
+        (parcelPixels(ring) * 100) / (request.resolutionM * request.resolutionM),
+      );
+      const share = (request.latitude >= 9 ? 0.01 : 0.02) + noise(seed, 500) * 0.015;
+      return {
+        ricePixels: Math.round(observedPixels * share),
+        observedPixels,
+        processingUnits: null,
+      };
+    },
+
     async cropAreaStatistics(request) {
       const ring =
         request.geometry.type === "Polygon"

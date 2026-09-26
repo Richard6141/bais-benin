@@ -1665,6 +1665,9 @@ model CropAreaEstimate {
   // Version de la méthode de calcul : une estimation d'une version antérieure est refaite au
   // lot suivant (2 : pixels hors du contour écartés, un passage par trace et par mois).
   methodVersion     Int                  @default(1) @map("method_version")
+  // Part de la commune reconnue comme rizière par le radar Sentinel-1 (ADR-0026), sur la ligne
+  // RICE seulement ; null sans radar. La surface de riz retenue est la plus grande des deux.
+  radarRiceShare    Decimal?             @map("radar_rice_share") @db.Decimal(6, 4)
 
   sourceId    String      @map("source_id")
   source      DataSource  @relation(fields: [sourceId], references: [id])

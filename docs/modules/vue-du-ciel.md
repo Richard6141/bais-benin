@@ -166,6 +166,7 @@ L'État voit depuis son bureau ce qui est cultivé, par culture et par zone, san
   - Seuls les pixels du contour comptent, et chaque mois garde un passage par trace Sentinel-2 (ADR-0025).
   - Coût : environ 14 PU par commune en moyenne, 1 100 PU par passe nationale. La formule est dans ADR-0023.
   - Une estimation faite avec une méthode antérieure (`method_version`) est refaite au lot suivant.
+  - Riz par radar Sentinel-1 (ADR-0026), avec `SATELLITE_RADAR_RICE=1` : une requête de plus par commune, environ 2 PU. Le radar reconnaît la rizière à l'eau libre du repiquage puis à la montée du couvert, sous les nuages. La part de riz retenue est la plus grande de l'optique et du radar, reprise sur les cultures annuelles, la jachère puis la savane. La page le signale.
   - Résultats dans la table `crop_area_estimate`.
 - **Ministère** (`/pilotage/cultures`, « Surfaces par satellite ») : surfaces vues par culture et par département face aux surfaces déclarées au registre.
   - Taux d'enrôlement = surface déclarée rapportée à la surface vue. Il n'est pas calculé sous 50 ha vus.

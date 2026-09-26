@@ -101,6 +101,9 @@ const serverSchema = z
     // confrontation demande l'indice radar. Désactivé tant que le coût en unités de traitement
     // n'a pas été mesuré (POST /api/v1/satellite/radar-calibration).
     SATELLITE_RADAR_FALLBACK: z.enum(["0", "1"]).default("0"),
+    // Riz par radar Sentinel-1 dans les surfaces par commune (ADR-0026) : environ 2 unités de
+    // plus par commune. Désactivé tant qu'une mesure réelle n'a pas validé la règle.
+    SATELLITE_RADAR_RICE: z.enum(["0", "1"]).default("0"),
     // Tuiles détaillées absentes du cache qu'un même compte peut faire calculer par mois.
     SATELLITE_TILE_MISSES_PER_ACCOUNT: z.coerce.number().int().min(0).default(400),
 

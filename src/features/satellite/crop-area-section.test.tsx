@@ -38,6 +38,7 @@ const comparison: CropAreaComparison = {
     },
   ],
   sources: [{ sourceId: "COPERNICUS_S2", computedAt: new Date("2026-10-02"), resolutionM: 120 }],
+  radarRice: true,
 };
 
 describe("surfaces par satellite face au registre", () => {
@@ -47,6 +48,7 @@ describe("surfaces par satellite face au registre", () => {
     expect(screen.getByText("Taux d'enrôlement")).toBeInTheDocument();
     expect(screen.getByText("Estimation satellite, à confirmer")).toBeInTheDocument();
     expect(screen.getByText(/pixels de 120 m/)).toBeInTheDocument();
+    expect(screen.getByText(/riz complété par le radar Sentinel-1/)).toBeInTheDocument();
   });
 
   it("classe les communes au plus gros écart d'abord", () => {

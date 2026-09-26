@@ -22,7 +22,7 @@ export function cropClassLabel(key: string): string {
   return CLASS_LABELS.get(key) ?? key;
 }
 
-function sourceLabel(sources: CropAreaComparison["sources"]): string {
+function sourceLabel(sources: CropAreaComparison["sources"], radarRice: boolean): string {
   const demo = sources.some((source) => source.sourceId === "BAIS_SEED");
   const measured = sources.filter((source) => source.sourceId !== "BAIS_SEED");
   const last = measured.reduce<Date | null>(
@@ -36,6 +36,7 @@ function sourceLabel(sources: CropAreaComparison["sources"]): string {
       `Copernicus Sentinel-2, 12 derniers mois, pixels de ${resolution ?? 120} m, calcul du ${date.format(last)}`,
     );
   }
+  if (radarRice) parts.push("riz complété par le radar Sentinel-1");
   if (demo) parts.push("estimations de démonstration déduites du registre");
   return parts.join(", ");
 }
@@ -164,7 +165,7 @@ export function CropAreaSection({ comparison }: { comparison: CropAreaComparison
 
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium text-warning">Estimation satellite, à confirmer</p>
-        <SourceCaption source={sourceLabel(comparison.sources)} />
+        <SourceCaption source={sourceLabel(comparison.sources, comparison.radarRice)} />
       </div>
     </div>
   );
