@@ -123,7 +123,7 @@ export function SurveyForm({
           >
             <MapPin aria-hidden className={capturing ? "animate-pulse" : undefined} />
             {capturing
-              ? `Restez immobile… lecture ${sampleCount || 1}`
+              ? `Restez immobile, lecture ${sampleCount || 1}`
               : `Marquer ce coin (${corners.length})`}
           </Button>
 

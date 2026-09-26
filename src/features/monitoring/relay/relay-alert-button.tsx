@@ -151,7 +151,7 @@ export function RelayAlertButton({
             disabled={stage === "saving"}
             onClick={() => void submit()}
           >
-            {stage === "saving" ? "Enregistrement…" : "Enregistrer le relais"}
+            {stage === "saving" ? "Enregistrement en cours" : "Enregistrer le relais"}
           </Button>
         </SheetFooter>
       </SheetContent>

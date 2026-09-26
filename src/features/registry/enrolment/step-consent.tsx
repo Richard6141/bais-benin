@@ -56,7 +56,7 @@ export function StepConsent({
     <StepShell
       title="Vérifiez et enregistrez"
       description="Relisez avec le producteur. Chaque valeur indique d'où elle vient."
-      primaryLabel={submitting ? "Enregistrement…" : "Enregistrer"}
+      primaryLabel={submitting ? "Enregistrement en cours" : "Enregistrer"}
       primaryDisabled={!consent}
       primaryBusy={submitting}
       onPrimary={() => onSubmit(data.consentAt ?? new Date().toISOString())}

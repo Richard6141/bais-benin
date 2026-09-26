@@ -3,8 +3,8 @@ import type { FieldReportStatus, FieldReportType } from "@/modules/reports";
 // Libellés des signalements, partagés par les écrans du producteur, de l'agent et du ministère.
 
 export const REPORT_TYPE_LABELS: Record<FieldReportType, { label: string; hint: string }> = {
-  PEST: { label: "Ravageur", hint: "Chenilles, criquets, insectes, rongeurs…" },
-  CROP_DISEASE: { label: "Maladie des cultures", hint: "Taches, feuilles jaunies, pourriture…" },
+  PEST: { label: "Ravageur", hint: "Chenilles, criquets, insectes, rongeurs" },
+  CROP_DISEASE: { label: "Maladie des cultures", hint: "Taches, feuilles jaunies, pourriture" },
   ANIMAL_DISEASE: { label: "Maladie animale", hint: "Bétail ou volaille malades, morts" },
   OTHER: { label: "Autre problème", hint: "Tout autre souci sur la parcelle" },
 };

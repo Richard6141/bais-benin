@@ -111,7 +111,7 @@ export function LocationPicker({
         className="h-14 w-full text-base"
       >
         <LocateFixed aria-hidden className={status === "locating" ? "animate-pulse" : undefined} />
-        {status === "locating" ? "Recherche de la position…" : "Utiliser ma position"}
+        {status === "locating" ? "Recherche de la position en cours" : "Utiliser ma position"}
       </Button>
 
       {value ? (

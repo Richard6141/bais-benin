@@ -104,7 +104,10 @@ export function SimulationResult({ summary }: { summary: SimulationSummary }) {
                 .slice(0, 8)
                 .map((c) => c.name)
                 .join(", ")}
-              {summary.insufficientData.length > 8 ? "…" : "."} Ces jours ne lèvent aucune alerte.
+              {summary.insufficientData.length > 8
+                ? ` et ${summary.insufficientData.length - 8} autre${summary.insufficientData.length - 8 > 1 ? "s" : ""}.`
+                : "."}{" "}
+              Ces jours ne lèvent aucune alerte.
             </p>
           </AlertDescription>
         </Alert>

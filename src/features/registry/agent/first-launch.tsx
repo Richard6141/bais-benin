@@ -120,8 +120,8 @@ export function FirstLaunch({ userId, communes }: FirstLaunchProps) {
             <p className="flex items-center gap-2 text-sm" role="status" aria-live="polite">
               <Loader2 className="size-4 animate-spin" aria-hidden />
               {progress.block === "referentiel"
-                ? "Référentiel des communes et cultures…"
-                : `Exploitations : ${progress.loaded} reçues…`}
+                ? "Référentiel des communes et cultures en cours"
+                : `Exploitations reçues : ${progress.loaded}`}
             </p>
           ) : null}
 

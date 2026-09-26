@@ -135,7 +135,7 @@ export function AssistantPanel({
             className={farmer ? "h-14 w-full px-6 text-base sm:w-auto" : "h-11"}
           >
             <SendHorizontal aria-hidden />
-            {pending ? "Recherche dans les fiches…" : "Envoyer"}
+            {pending ? "Recherche en cours" : "Envoyer"}
           </Button>
         </div>
         {error ? (

@@ -87,7 +87,7 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
               router.refresh();
             }}
           >
-            {revokingOthers ? "Déconnexion…" : `Déconnecter les ${others} autres appareils`}
+            {revokingOthers ? "Déconnexion en cours" : `Déconnecter les ${others} autres appareils`}
           </Button>
         ) : null}
       </div>

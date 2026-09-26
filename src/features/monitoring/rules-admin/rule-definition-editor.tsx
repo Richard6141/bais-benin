@@ -276,7 +276,7 @@ export function RuleDefinitionEditor({
           disabled={pending || boundIssues.size > 0 || invalidNumber}
           onClick={simulate}
         >
-          {pending ? "Calcul…" : "Simuler sur 30 jours"}
+          {pending ? "Calcul en cours" : "Simuler sur 30 jours"}
         </Button>
         <Button disabled={pending || boundIssues.size > 0 || invalidNumber} onClick={save}>
           Enregistrer la version {base.version + 1}
