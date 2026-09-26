@@ -211,17 +211,19 @@ model DataSource {
   declarations  ProductionDeclaration[]
   verifications FarmVerification[]
 
-  weatherObservations WeatherObservation[]
-  vegetationChecks    ParcelVegetationCheck[]
-  cropAreaEstimates   CropAreaEstimate[]
-  cropClassChecks     ParcelCropClassCheck[]
-  parcelSignatures    ParcelSignature[]
-  cropModels          CropModel[]
-  cropPredictions     ParcelCropPrediction[]
-  referenceFields     ReferenceField[]
-  cropObservations    ParcelCropObservation[]
-  rules               Rule[]
-  alerts              Alert[]
+  weatherObservations   WeatherObservation[]
+  vegetationChecks      ParcelVegetationCheck[]
+  cropAreaEstimates     CropAreaEstimate[]
+  cropClassChecks       ParcelCropClassCheck[]
+  parcelSignatures      ParcelSignature[]
+  cropModels            CropModel[]
+  cropPredictions       ParcelCropPrediction[]
+  referenceFields       ReferenceField[]
+  cropObservations      ParcelCropObservation[]
+  areaFramePoints       AreaFramePoint[]
+  areaFrameObservations AreaFrameObservation[]
+  rules                 Rule[]
+  alerts                Alert[]
 
   @@map("data_source")
 }
@@ -319,6 +321,7 @@ model Commune {
   cropAreaEstimates      CropAreaEstimate[]
   fireDetections         FireDetection[]
   referenceFields        ReferenceField[]
+  areaFramePoints        AreaFramePoint[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -352,12 +355,13 @@ model Crop {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   archivedAt  DateTime?   @map("archived_at")
 
-  parcelCrops      ParcelCrop[]
-  vegetationChecks ParcelVegetationCheck[]
-  producerGroups   ProducerGroup[]
-  cropClassChecks  ParcelCropClassCheck[]
-  cropPredictions  ParcelCropPrediction[]
-  cropObservations ParcelCropObservation[]
+  parcelCrops           ParcelCrop[]
+  vegetationChecks      ParcelVegetationCheck[]
+  producerGroups        ProducerGroup[]
+  cropClassChecks       ParcelCropClassCheck[]
+  cropPredictions       ParcelCropPrediction[]
+  cropObservations      ParcelCropObservation[]
+  areaFrameObservations AreaFrameObservation[]
 
   @@map("crop")
 }
@@ -388,6 +392,7 @@ model AgriculturalCampaign {
   cropModels        CropModel[]
   cropPredictions   ParcelCropPrediction[]
   cropObservations  ParcelCropObservation[]
+  areaFramePoints   AreaFramePoint[]
 
   @@map("agricultural_campaign")
 }
@@ -451,6 +456,7 @@ model User {
   createdProducerGroups ProducerGroup[]        @relation("producerGroupCreator")
   issuedAttestations    FarmAttestation[]      @relation("attestationIssuer")
   producerGroupMessages ProducerGroupMessage[] @relation("producerGroupMessageSender")
+  areaFrameObservations AreaFrameObservation[]
 
   @@map("user")
 }
@@ -1967,4 +1973,75 @@ model ParcelCropObservation {
   @@unique([verificationId, parcelId])
   @@index([parcelId, campaignId, observedAt])
   @@map("parcel_crop_observation")
+}
+
+// Occupation du sol constatée par l'agent sur un point d'enquête (ADR-0033).
+enum AreaLandCover {
+  CROP
+  FALLOW
+  NATURAL
+  WATER
+  BUILT
+  INACCESSIBLE
+}
+
+// Base de sondage aréolaire (ADR-0033) : points tirés sur une grille systématique à origine
+// aléatoire dans chaque commune d'enquête, pour une campagne. Un point n'est ni une parcelle ni
+// une exploitation : aucun producteur. La classe de la carte des pixels au point sert de
+// variable auxiliaire à l'estimateur par régression.
+model AreaFramePoint {
+  id               String                                @id @default(uuid(7)) @db.Uuid
+  campaignId       String                                @map("campaign_id") @db.Uuid
+  campaign         AgriculturalCampaign                  @relation(fields: [campaignId], references: [id])
+  communeId        String                                @map("commune_id") @db.Uuid
+  commune          Commune                               @relation(fields: [communeId], references: [id])
+  // Code lisible sur le terrain : code de la commune et rang dans la grille (BJ-BOR-008-017).
+  code             String
+  geom             Unsupported("geography(Point, 4326)")
+  latitude         Decimal                               @db.Decimal(9, 6)
+  longitude        Decimal                               @db.Decimal(9, 6)
+  // Écart de la grille et origine tirée (UTM 31 N, en mètres) : de quoi refaire le tirage.
+  spacingM         Int                                   @map("spacing_m")
+  originXM         Int                                   @map("origin_x_m")
+  originYM         Int                                   @map("origin_y_m")
+  drawnAt          DateTime                              @default(now()) @map("drawn_at")
+  // Classe de la carte des pixels au point, même méthode que les surfaces par commune.
+  mapClass         CropMapClass?                         @map("map_class")
+  mapMethodVersion Int?                                  @map("map_method_version")
+  mapComputedAt    DateTime?                             @map("map_computed_at")
+  mapSourceId      String?                               @map("map_source_id")
+  mapSource        DataSource?                           @relation(fields: [mapSourceId], references: [id])
+  mapReliability   Reliability?                          @map("map_reliability")
+
+  observations AreaFrameObservation[]
+
+  @@unique([campaignId, code])
+  @@index([communeId, campaignId])
+  @@map("area_frame_point")
+}
+
+// Constat de l'agent sur un point d'enquête (ADR-0033), commande hors ligne. La dernière
+// observation d'un point fait foi ; un point inaccessible est une non-réponse.
+model AreaFrameObservation {
+  id           String         @id @db.Uuid
+  pointId      String         @map("point_id") @db.Uuid
+  point        AreaFramePoint @relation(fields: [pointId], references: [id])
+  landCover    AreaLandCover  @map("land_cover")
+  cropId       String?        @map("crop_id") @db.Uuid
+  crop         Crop?          @relation(fields: [cropId], references: [id])
+  // Raison d'un point inaccessible, en quelques mots.
+  reason       String?
+  observedAt   DateTime       @map("observed_at")
+  // Distance entre le téléphone et le point, contrôlée à 50 m au plus (sauf inaccessible).
+  distanceM    Int?           @map("distance_m")
+  observedById String         @map("observed_by_id") @db.Uuid
+  observedBy   User           @relation(fields: [observedById], references: [id])
+
+  sourceId    String      @map("source_id")
+  source      DataSource  @relation(fields: [sourceId], references: [id])
+  reliability Reliability
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([pointId, observedAt])
+  @@map("area_frame_observation")
 }
