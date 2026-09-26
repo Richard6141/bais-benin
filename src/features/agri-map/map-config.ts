@@ -283,3 +283,31 @@ export function classIndex(value: number | null, breaks: number[]): number {
   }
   return Math.min(index, CHOROPLETH_SCALE.length - 1);
 }
+
+// Relief 3D, optionnel : tuiles d'élévation publiques et gratuites (Terrain Tiles, encodage
+// Terrarium, dérivées de SRTM et de données ouvertes), sans aucune requête Copernicus. Remplaçable
+// par un miroir auto-hébergé via NEXT_PUBLIC_DEM_TILES_URL (ADR-0006).
+export const RELIEF = {
+  url:
+    process.env.NEXT_PUBLIC_DEM_TILES_URL ||
+    "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+  attribution: "Relief : Terrain Tiles (Mapzen, SRTM), données ouvertes",
+  sourceId: "bais-relief",
+  maxZoom: 12,
+  exaggeration: 1.5,
+  pitch: 55,
+  /** Sous ce nombre d'images par seconde, mesuré après `probeMs`, le relief se coupe seul. */
+  minFps: 14,
+  probeMs: 4_000,
+} as const;
+
+/** Vrai pour un appareil qui risque de saccader en 3D : peu de mémoire, peu de cœurs, économie de données. */
+export function isLowEndDevice(env: {
+  deviceMemory?: number;
+  hardwareConcurrency?: number;
+  saveData?: boolean;
+}): boolean {
+  if (env.saveData) return true;
+  if (env.deviceMemory !== undefined && env.deviceMemory <= 2) return true;
+  return env.hardwareConcurrency !== undefined && env.hardwareConcurrency <= 2;
+}

@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { HoveredCommune } from "./map-canvas";
@@ -39,7 +39,23 @@ import { useImageryCatalog } from "./use-imagery-catalog";
 import { FieldAttributionSheet } from "@/features/registry/parcel-survey/field-attribution-sheet";
 import { FieldMultiBar, type FieldMode } from "./field-multi-bar";
 import { FieldsControl } from "./fields-control";
+import { isLowEndDevice } from "./map-config";
+import { ReliefControl } from "./relief-control";
 import { filtersToSearchParams, useTerritoryStats, type MapFilters } from "./use-territory-stats";
+
+const subscribeNothing = () => () => {};
+
+function readReliefAvailable(): boolean {
+  const info = navigator as Navigator & {
+    deviceMemory?: number;
+    connection?: { saveData?: boolean };
+  };
+  return !isLowEndDevice({
+    deviceMemory: info.deviceMemory,
+    hardwareConcurrency: info.hardwareConcurrency,
+    saveData: info.connection?.saveData,
+  });
+}
 
 // MapLibre manipule window et WebGL : chargé côté client uniquement, hors du rendu serveur.
 const MapCanvas = dynamic(() => import("./map-canvas").then((module) => module.MapCanvas), {
@@ -157,6 +173,11 @@ export function AgriMap({
   const [showFarms, setShowFarms] = useState(false);
   // Champ(s) touché(s) avant attribution (ADR-0029) : la feuille s'ouvre dès le premier geste.
   const [touchedFieldIds, setTouchedFieldIds] = useState<string[]>([]);
+  // Relief 3D : local à la session, jamais dans l'adresse. Coupé seul si l'affichage saccade ;
+  // proposé seulement aux appareils assez puissants (faux au rendu serveur, puis mesuré).
+  const [relief, setRelief] = useState(false);
+  const [reliefSlow, setReliefSlow] = useState(false);
+  const reliefAvailable = useSyncExternalStore(subscribeNothing, readReliefAvailable, () => false);
   const [fieldMode, setFieldMode] = useState<FieldMode>("single");
   const [cutPoints, setCutPoints] = useState<Array<[number, number]>>([]);
   const [attributionOpen, setAttributionOpen] = useState(false);
@@ -279,6 +300,18 @@ export function AgriMap({
           onChange={(next) => pushState(filters, metric, selectedCode, skyParams, parcelId, next)}
         />
       </div>
+      {reliefAvailable ? (
+        <div className="pointer-events-auto">
+          <ReliefControl
+            checked={relief}
+            slowNotice={reliefSlow && !relief}
+            onChange={(next) => {
+              setReliefSlow(false);
+              setRelief(next);
+            }}
+          />
+        </div>
+      ) : null}
       {canInspectParcels ? (
         <div className="pointer-events-auto">
           <FieldsControl
@@ -341,6 +374,11 @@ export function AgriMap({
             onZoomChange={setZoom}
             fires={fires}
             showFields={showFields}
+            relief={relief}
+            onReliefSlow={() => {
+              setRelief(false);
+              setReliefSlow(true);
+            }}
             touchedFieldIds={touchedFieldIds}
             onSelectField={canAttributeFields && userId ? selectField : undefined}
           />

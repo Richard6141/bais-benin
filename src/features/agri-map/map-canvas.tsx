@@ -30,6 +30,7 @@ import {
   NO_DATA_COLOR,
   FARM_COLORS,
   HIRES_IMAGERY,
+  RELIEF,
   INITIAL_ZOOM,
   LAYER_IDS,
   MAP_STYLE_URL,
@@ -109,6 +110,9 @@ interface MapCanvasProps {
   onZoomChange?: (zoom: number) => void;
   /** Champs détectés (contours de référence) à partir du zoom 12, non nominatifs. */
   showFields?: boolean;
+  /** Relief 3D : terrain soulevé et vue inclinée ; `onReliefSlow` quand l'affichage saccade. */
+  relief?: boolean;
+  onReliefSlow?: () => void;
   /** Champs touchés avant attribution (ADR-0029) : trait vif et épais. */
   touchedFieldIds?: readonly string[];
   /** Un agent touche un champ détecté pour l'attribuer ; absent : la couche n'est pas cliquable. */
@@ -142,6 +146,8 @@ export function MapCanvas({
   onZoomChange,
   fires = null,
   showFields = false,
+  relief = false,
+  onReliefSlow,
   touchedFieldIds = NO_FIELDS,
   onSelectField,
 }: MapCanvasProps) {
@@ -155,12 +161,14 @@ export function MapCanvas({
     reference: string | null;
     fires: string | null;
     fields: string | null;
+    relief: string | null;
   }>({
     sky: null,
     crops: null,
     reference: null,
     fires: null,
     fields: null,
+    relief: null,
   });
   const refreshAttribution = (map: MapLibreMap) => {
     const {
@@ -169,10 +177,16 @@ export function MapCanvas({
       reference: referenceMention,
       fires: fireMention,
       fields: fieldMention,
+      relief: reliefMention,
     } = extrasRef.current;
-    const extras = [skyMention, cropMention, referenceMention, fireMention, fieldMention].filter(
-      (mention): mention is string => !!mention,
-    );
+    const extras = [
+      skyMention,
+      cropMention,
+      referenceMention,
+      fireMention,
+      fieldMention,
+      reliefMention,
+    ].filter((mention): mention is string => !!mention);
     attributionRef.current = swapAttribution(map, attributionRef.current, extras);
   };
   // WebGL2 absent : avis à la place de la carte, sans créer MapLibre (qui planterait).
@@ -182,10 +196,22 @@ export function MapCanvas({
   const [ready, setReady] = useState(false);
   // Les gestionnaires de la carte sont posés une fois, au chargement : ils lisent les rappels
   // courants par cette référence plutôt que ceux du premier rendu.
-  const callbacksRef = useRef({ onSelectCommune, onSelectParcel, onSelectField, onZoomChange });
+  const callbacksRef = useRef({
+    onSelectCommune,
+    onSelectParcel,
+    onSelectField,
+    onZoomChange,
+    onReliefSlow,
+  });
   useEffect(() => {
-    callbacksRef.current = { onSelectCommune, onSelectParcel, onSelectField, onZoomChange };
-  }, [onSelectCommune, onSelectParcel, onSelectField, onZoomChange]);
+    callbacksRef.current = {
+      onSelectCommune,
+      onSelectParcel,
+      onSelectField,
+      onZoomChange,
+      onReliefSlow,
+    };
+  }, [onSelectCommune, onSelectParcel, onSelectField, onZoomChange, onReliefSlow]);
 
   useEffect(() => {
     if (!supported || !containerRef.current || mapRef.current) return;
@@ -838,6 +864,51 @@ export function MapCanvas({
     };
     // Même règle que la carte des cultures : l'effet ne dépend que de worldCereal et de ready.
   }, [worldCereal, ready]);
+
+  // Relief 3D : source d'élévation, terrain soulevé et vue inclinée. Une sonde mesure la fluidité
+  // pendant les premières secondes et coupe le relief si l'appareil peine (`onReliefSlow`).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !relief) return;
+    if (!map.getSource(RELIEF.sourceId)) {
+      map.addSource(RELIEF.sourceId, {
+        type: "raster-dem",
+        tiles: [RELIEF.url],
+        tileSize: 256,
+        encoding: "terrarium",
+        maxzoom: RELIEF.maxZoom,
+      });
+    }
+    map.setTerrain({ source: RELIEF.sourceId, exaggeration: RELIEF.exaggeration });
+    map.easeTo({ pitch: RELIEF.pitch, duration: 800 });
+    const extras = extrasRef.current;
+    extras.relief = RELIEF.attribution;
+    refreshAttribution(map);
+
+    let frames = 0;
+    let frame = 0;
+    const started = performance.now();
+    const probe = () => {
+      frames += 1;
+      const elapsed = performance.now() - started;
+      if (elapsed >= RELIEF.probeMs) {
+        if ((frames * 1000) / elapsed < RELIEF.minFps) callbacksRef.current.onReliefSlow?.();
+        return;
+      }
+      frame = requestAnimationFrame(probe);
+    };
+    frame = requestAnimationFrame(probe);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      const current = mapRef.current;
+      if (!current) return;
+      current.setTerrain(null);
+      current.easeTo({ pitch: 0, duration: 500 });
+      extras.relief = null;
+      refreshAttribution(current);
+    };
+  }, [relief, ready]);
 
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
