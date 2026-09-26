@@ -7,6 +7,17 @@ set -eu
 . /run/scheduler/env
 
 task="$1"
+
+# Tâches désactivées sur ce serveur (SCHEDULER_DISABLED, liste séparée par des espaces), par
+# exemple les passes satellite coûteuses d'un serveur de démonstration : l'appel est sauté et
+# le journal le dit.
+case " ${SCHEDULER_DISABLED:-} " in
+  *" ${task} "*)
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${task} : désactivée (SCHEDULER_DISABLED)"
+    exit 0
+    ;;
+esac
+
 case "$task" in
   ingest|dispatch) path="/api/v1/monitoring/${task}" ;;
   assistant-maintenance) path="/api/v1/assistant/maintenance" ;;

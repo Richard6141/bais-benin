@@ -48,6 +48,10 @@ const serverSchema = z
       .string()
       .regex(/^\d{6}$/, "OTP_DEMO_CODE doit être un code à 6 chiffres")
       .optional(),
+    // Liste des comptes de démonstration sous le formulaire de connexion : affichée par défaut
+    // hors production. « 0 » la masque (serveur de démonstration ouvert au public, accès remis en
+    // privé) sans rien changer d'autre : le code de démonstration reste valable pour ces numéros.
+    DEMO_SIGNIN_PANEL: z.enum(["0", "1"]).optional(),
     // B4 : adresses IP ou plages CIDR du ou des relais inverses de confiance placés devant
     // l'application (nginx du docker-compose fourni, load balancer managé…), séparées par des
     // virgules. Sans ceci, better-auth ignore X-Forwarded-For par défaut — un client pourrait
