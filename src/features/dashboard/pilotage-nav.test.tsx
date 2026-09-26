@@ -34,7 +34,7 @@ describe("PilotageNav", () => {
     render(<PilotageNav />);
     // Les quatre thèmes sont des liens ordinaires (navigation clavier native), jamais un menu qui
     // en cacherait un derrière un défilement.
-    for (const theme of ["Situation", "Cultures et satellite", "Producteurs", "Administration"]) {
+    for (const theme of ["Situation", "Cultures", "Producteurs", "Administration"]) {
       expect(screen.getByRole("link", { name: theme })).toBeInTheDocument();
     }
   });
@@ -53,10 +53,7 @@ describe("PilotageNav", () => {
   it("bascule le sous-menu affiché selon le thème actif", () => {
     pathname = "/pilotage/previsions";
     render(<PilotageNav />);
-    expect(screen.getByRole("link", { name: "Cultures et satellite" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.getByRole("link", { name: "Cultures" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Prévisions" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -73,15 +70,13 @@ describe("PilotageNav", () => {
     );
   });
 
-  it("propose un menu déroulant par thème pour les petits écrans, sans rubrique cachée", () => {
+  it("propose une liste unique des rubriques, groupées par thème, pour les petits écrans", () => {
     pathname = "/pilotage/groupes";
     render(<PilotageNav />);
-    const select = screen.getByRole("combobox", { name: "Producteurs" });
+    const select = screen.getByRole("combobox", { name: "Rubrique du pilotage" });
     expect(select).toHaveValue("/pilotage/groupes");
-    const administration = screen.getByRole("combobox", { name: "Administration" });
-    expect(administration).toHaveValue("");
-    expect(
-      Array.from(administration.querySelectorAll("option")).map((option) => option.textContent),
-    ).toEqual(["Choisir", "Qualité", "Règles", "Assistant"]);
+    const groups = Array.from(select.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(groups).toEqual(["Situation", "Cultures", "Producteurs", "Administration"]);
+    expect(select.querySelectorAll("option")).toHaveLength(14);
   });
 });

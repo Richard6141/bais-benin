@@ -34,16 +34,26 @@ et le code de démonstration affiché remplace le message WhatsApp.
 
 Espace pensé pour un téléphone d'entrée de gamme, en réseau intermittent.
 
+**Se déplacer dans l'espace.** Sur téléphone, une barre en bas de l'écran donne l'accueil, vos
+champs, vos alertes et le signalement d'un problème ; le bouton « Plus » ouvre toutes les autres
+rubriques. Sur ordinateur, les mêmes rubriques sont en onglets en haut de la page.
+
 1. **Accueil** (`/agriculteur`) : vos exploitations, un raccourci vers la déclaration de récolte
    et vos alertes actives.
-2. **Déclarer une récolte** : choisissez la culture proposée pour la campagne en cours (les
+2. **Mes champs** (`/agriculteur/champs`) : chaque parcelle, sa surface déclarée et mesurée, ce
+   qui y pousse cette campagne, et un bouton qui l'ouvre sur la carte.
+3. **Déclarer une récolte** : choisissez la culture proposée pour la campagne en cours (les
    cultures et parcelles viennent de votre exploitation, pas d'une saisie libre), indiquez la
-   quantité et l'unité locale (sac de 50 ou 100 kg, tas, bassine, régime…), les pertes éventuelles.
-   La déclaration part immédiatement si vous êtes en ligne.
-3. **Météo** (`/agriculteur/meteo`) : prévisions et alertes en cours pour votre commune.
-4. **Alertes** (`/agriculteur/alertes`) : stress hydrique ou excès de pluie signalé pour votre
+   quantité et l'unité locale (sac de 50 ou 100 kg, tas, bassine ou régime), les pertes
+   éventuelles. La déclaration part immédiatement si vous êtes en ligne ; l'écran propose ensuite
+   de voir vos récoltes ou de revenir à l'accueil.
+4. **Météo** (`/agriculteur/meteo`) : prévisions et alertes en cours pour votre commune.
+5. **Alertes** (`/agriculteur/alertes`) : stress hydrique ou excès de pluie signalé pour votre
    zone et vos cultures, avec ce qu'il faut faire.
-5. **Historique** (`/agriculteur/historique`) : vos récoltes déclarées, campagne par campagne.
+6. **Historique** (`/agriculteur/historique`) : vos récoltes déclarées, campagne par campagne.
+
+Après un signalement ou une demande d'aide, l'écran propose la suite : suivre ce que vous venez
+d'envoyer, en envoyer un autre ou revenir à l'accueil.
 
 Capture : [accueil, mobile](rapports/captures/etape-5/agriculteur-accueil-mobile.png),
 [déclarer une récolte, mobile](rapports/captures/etape-5/agriculteur-recolte-mobile.png),
@@ -57,12 +67,19 @@ Capture : [accueil, mobile](rapports/captures/etape-5/agriculteur-accueil-mobile
 Le seul espace pensé pour fonctionner **hors ligne** : premier lancement en réseau, puis
 enregistrement, vérification et synchronisation même en zone blanche.
 
+**Se déplacer dans l'espace.** Sur téléphone, la barre du bas garde la tournée : accueil,
+exploitations, enregistrer, à vérifier. Le bouton « Plus » ouvre les autres rubriques (alertes,
+signalements, demandes, tableau de bord, assistant, synchronisation). Sur ordinateur, les
+rubriques courantes sont en onglets et les autres dans le menu « Plus ».
+
 1. **Premier lancement** (`/agent/premier-lancement`) : télécharge le référentiel (communes,
    cultures, campagnes) et vos exploitations assignées pour un usage hors ligne. À faire une fois,
    en réseau, avant une tournée de terrain.
 2. **Enregistrer une exploitation** (`/agent/enregistrer`) : parcours guidé en plusieurs étapes
    (producteur, exploitation, parcelle avec relevé GPS ou tracé à main levée, culture). Fonctionne
-   hors ligne ; chaque saisie part dans une file d'attente locale (l'« outbox »).
+   hors ligne ; chaque saisie part dans une file d'attente locale (l'« outbox »). Dès que
+   l'exploitation est reçue par le serveur, sa fiche s'ouvre d'elle-même et propose l'étape
+   suivante : relever le contour de la première parcelle.
 3. **Mes exploitations** (`/agent/exploitations`) : celles de votre commune, avec leur statut de
    vérification.
 4. **Vérification** (`/agent/verification`) : confirmez, corrigez ou contestez une exploitation
@@ -124,10 +141,11 @@ ouvert par l'administration, jamais par la connexion elle-même. Une session min
 ### Se repérer dans le pilotage
 
 Le pilotage est rangé en quatre thèmes. Choisissez d'abord un thème, puis une rubrique dans la
-ligne qui s'affiche dessous.
+ligne qui s'affiche dessous. Sur téléphone et tablette, une seule liste « Rubrique du pilotage »
+regroupe toutes les rubriques par thème.
 
 - **Situation** : Vue nationale, Veille, Territoires, Alertes, Signalements, Demandes.
-- **Cultures et satellite** : État des cultures, Surfaces satellite, Prévisions.
+- **Cultures** : État des cultures, Surfaces satellite, Prévisions.
 - **Producteurs** : Palmarès, Groupes.
 - **Administration** : Qualité, Règles, Assistant.
 

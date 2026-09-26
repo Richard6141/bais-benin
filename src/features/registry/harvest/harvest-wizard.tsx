@@ -83,7 +83,10 @@ export function HarvestWizard({ seasons, parcelCount }: HarvestWizardProps) {
             </Alert>
           ))}
           <Button asChild className={bigButton}>
-            <Link href="/agriculteur">Retour à mon exploitation</Link>
+            <Link href="/agriculteur/historique">Voir mes récoltes</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-12 w-full">
+            <Link href="/agriculteur">Retour à l&apos;accueil</Link>
           </Button>
         </CardContent>
       </Card>

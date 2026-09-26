@@ -104,7 +104,7 @@ export default async function FarmerSpacePage() {
         />
         <StatTile
           label="Superficie mesurée"
-          value={farm.computedAreaHa ?? "—"}
+          value={farm.computedAreaHa ?? "Non mesurée"}
           unit={farm.computedAreaHa === null ? undefined : "ha"}
           reliability={farm.computedAreaHa === null ? "DECLARED" : "FIELD_VERIFIED"}
           source={farm.computedAreaHa === null ? "Aucun contour relevé" : "Relevé GPS de l'agent"}

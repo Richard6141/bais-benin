@@ -2,6 +2,7 @@
 
 import { Camera, LocateFixed, Send } from "lucide-react";
 import { useState } from "react";
+import { NextSteps } from "@/components/feedback/next-steps";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -100,20 +101,39 @@ export function ReportForm({ userId, farms, cropNames }: ReportFormProps) {
     }
   }
 
+  function restart() {
+    setType(null);
+    setCropCode(null);
+    setDescription("");
+    setGps(null);
+    setPhoto(null);
+    setError(null);
+    setStage("editing");
+  }
+
   if (stage === "queued" || stage === "sent") {
     return (
-      <Alert variant={stage === "sent" ? "success" : "info"} role="status">
-        <AlertTitle>
-          {stage === "sent" ? "Signalement envoyé" : "Signalement enregistré"}
-        </AlertTitle>
-        <AlertDescription>
-          <p>
-            {stage === "sent"
-              ? "L'agent de votre commune en est informé et viendra constater sur place."
-              : "Il partira automatiquement dès que le téléphone retrouvera le réseau."}
-          </p>
-        </AlertDescription>
-      </Alert>
+      <div className="flex flex-col gap-5">
+        <Alert variant={stage === "sent" ? "success" : "info"} role="status">
+          <AlertTitle>
+            {stage === "sent" ? "Signalement envoyé" : "Signalement enregistré"}
+          </AlertTitle>
+          <AlertDescription>
+            <p>
+              {stage === "sent"
+                ? "L'agent de votre commune en est informé et viendra constater sur place."
+                : "Il partira automatiquement dès que le téléphone retrouvera le réseau."}
+            </p>
+          </AlertDescription>
+        </Alert>
+        <NextSteps
+          steps={[
+            { label: "Suivre mes signalements", href: "/agriculteur/signalements" },
+            { label: "Signaler un autre problème", onClick: restart },
+            { label: "Retour à l'accueil", href: "/agriculteur" },
+          ]}
+        />
+      </div>
     );
   }
 

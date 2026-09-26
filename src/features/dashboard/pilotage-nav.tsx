@@ -30,7 +30,7 @@ const GROUPS = [
     ],
   },
   {
-    label: "Cultures et satellite",
+    label: "Cultures",
     entries: [
       {
         href: "/pilotage/etat-des-cultures",
@@ -82,10 +82,16 @@ export function PilotageNav() {
   const router = useRouter();
   const groupIndex = activeGroupIndex(pathname);
   const group = GROUPS[groupIndex] ?? GROUPS[0];
+  const current = GROUPS.map((candidate) =>
+    (candidate.entries as readonly { href: string; match: readonly string[] }[]).find((entry) =>
+      isActiveEntry(pathname, entry.match),
+    ),
+  ).find(Boolean);
+  const currentHref = current?.href;
 
   return (
     <nav aria-label="Centre de pilotage" className="flex flex-col gap-1 print:hidden">
-      {/* Thèmes : visibles à partir de 1280 px, choix par menu déroulant en dessous. */}
+      {/* Grand écran (1024 px et plus) : les thèmes, puis les rubriques du thème actif. */}
       <ul className="hidden border-b lg:flex">
         {GROUPS.map((candidate, index) => (
           <li key={candidate.label} className="shrink-0">
@@ -113,7 +119,7 @@ export function PilotageNav() {
                 href={entry.href as Route}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "-mb-px inline-flex h-9 items-center border-b-2 px-3 text-xs font-semibold tracking-wide whitespace-nowrap uppercase transition-colors",
+                  "-mb-px inline-flex h-10 items-center border-b-2 px-3 text-sm font-semibold whitespace-nowrap transition-colors",
                   active
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
@@ -126,39 +132,29 @@ export function PilotageNav() {
         })}
       </ul>
 
-      {/* Téléphone et tablette : un menu déroulant par thème, pas de défilement caché. */}
-      <div className="grid grid-cols-2 gap-2 pb-2 lg:hidden">
-        {GROUPS.map((candidate) => {
-          const currentEntry = candidate.entries.find((entry) =>
-            isActiveEntry(pathname, entry.match),
-          );
-          return (
-            <label key={candidate.label} className="flex flex-col gap-1">
-              <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {candidate.label}
-              </span>
-              <select
-                aria-label={candidate.label}
-                className={cn(
-                  "h-10 rounded-sm border bg-background px-2 text-sm",
-                  currentEntry && "border-primary text-primary",
-                )}
-                value={currentEntry?.href ?? ""}
-                onChange={(event) => {
-                  if (event.target.value) router.push(event.target.value as Route);
-                }}
-              >
-                {!currentEntry ? <option value="">Choisir</option> : null}
-                {candidate.entries.map((entry) => (
-                  <option key={entry.href} value={entry.href}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
-      </div>
+      {/* Téléphone et tablette : une seule liste des rubriques, groupées par thème. Une ligne
+          au lieu de quatre, et aucune rubrique cachée derrière un défilement. */}
+      <label className="flex flex-col gap-1 pb-2 lg:hidden">
+        <span className="text-sm font-medium text-muted-foreground">Rubrique du pilotage</span>
+        <select
+          className="h-11 rounded-sm border border-primary bg-background px-3 text-base font-semibold text-primary"
+          value={currentHref ?? ""}
+          onChange={(event) => {
+            if (event.target.value) router.push(event.target.value as Route);
+          }}
+        >
+          {!currentHref ? <option value="">Choisir une rubrique</option> : null}
+          {GROUPS.map((candidate) => (
+            <optgroup key={candidate.label} label={candidate.label}>
+              {candidate.entries.map((entry) => (
+                <option key={entry.href} value={entry.href}>
+                  {entry.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
     </nav>
   );
 }

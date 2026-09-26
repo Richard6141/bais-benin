@@ -1,7 +1,6 @@
 import { WifiOff } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { OfflineSpaceLinks } from "@/components/feedback/offline-space-links";
 
 export const metadata: Metadata = { title: "Hors connexion" };
 
@@ -21,14 +20,7 @@ export default function OfflinePage() {
         Vos saisies enregistrées restent conservées sur cet appareil et partiront d&apos;elles-mêmes
         au retour de la connexion. Les pages que vous avez déjà ouvertes restent accessibles.
       </p>
-      <div className="flex w-full flex-col gap-3">
-        <Button asChild className="h-14 w-full text-base">
-          <Link href="/agent">Retour à ma tournée</Link>
-        </Button>
-        <Button asChild variant="outline" className="h-14 w-full text-base">
-          <Link href="/agriculteur">Mon exploitation</Link>
-        </Button>
-      </div>
+      <OfflineSpaceLinks />
     </main>
   );
 }
