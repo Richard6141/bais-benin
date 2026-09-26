@@ -215,6 +215,7 @@ model DataSource {
   vegetationChecks    ParcelVegetationCheck[]
   cropAreaEstimates   CropAreaEstimate[]
   cropClassChecks     ParcelCropClassCheck[]
+  referenceFields     ReferenceField[]
   rules               Rule[]
   alerts              Alert[]
 
@@ -313,6 +314,7 @@ model Commune {
   assistanceRequests     AssistanceRequest[]
   cropAreaEstimates      CropAreaEstimate[]
   fireDetections         FireDetection[]
+  referenceFields        ReferenceField[]
 
   @@index([departementId])
   @@index([zoneId])
@@ -1781,4 +1783,27 @@ model ParcelCropClassCheck {
   @@unique([parcelId, campaignId])
   @@index([campaignId, declaredClass])
   @@map("parcel_crop_class_check")
+}
+
+// Contours de champs de référence (ADR-0029) : jeu ouvert Fields of The World (Sentinel-2, 10 m),
+// filtré à l'import par confiance et surface. Ce ne sont pas des parcelles enregistrées : aucune
+// donnée nominative, aucun exploitant. L'agent en attribue un à une exploitation de son périmètre.
+model ReferenceField {
+  id         BigInt                                  @id @default(autoincrement())
+  sourceId   String                                  @map("source_id")
+  source     DataSource                              @relation(fields: [sourceId], references: [id])
+  // Identifiant du polygone chez le fournisseur, stable pour une même année : rend l'import rejouable.
+  sourceRef  String                                  @map("source_ref")
+  year       Int
+  // 0 à 100 ; null hors de la couche de confiance du fournisseur (pas une note basse).
+  confidence Decimal?                                @db.Decimal(5, 2)
+  areaHa     Decimal                                 @map("area_ha") @db.Decimal(10, 3)
+  communeId  String?                                 @map("commune_id") @db.Uuid
+  commune    Commune?                                @relation(fields: [communeId], references: [id])
+  geom       Unsupported("geography(Polygon, 4326)")
+  importedAt DateTime                                @default(now()) @map("imported_at")
+
+  @@unique([sourceId, year, sourceRef])
+  @@index([communeId, year])
+  @@map("reference_field")
 }
