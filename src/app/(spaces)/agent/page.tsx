@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
 import { LiveActivityFeed } from "@/features/live/live-activity-feed";
+import { FirstStepsCard } from "@/features/onboarding/first-steps-card";
 import { FarmList } from "@/features/registry/agent/farm-list";
 import { LocalFarms } from "@/features/registry/agent/local-farms";
 import { OfflineReadiness } from "@/features/registry/agent/offline-readiness";
@@ -111,6 +112,8 @@ export default async function AgentHomePage() {
         actions={actions.slice(0, 5)}
         idle="Rien n'attend : c'est le moment d'enregistrer de nouvelles exploitations."
       />
+
+      <FirstStepsCard role="agent" userId={user.id} />
 
       <KeyFigures
         label="Chiffres de votre périmètre"

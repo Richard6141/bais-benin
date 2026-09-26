@@ -93,6 +93,7 @@ export default async function ProducerRankingPage(props: PageProps<"/pilotage/pa
                 label="Former un groupe"
                 description="Faire des producteurs affichés un groupe nommé."
                 variant="default"
+                tour="former-groupe"
               >
                 <CreateGroupForm
                   criteria={{ ...groupCriteria, limit: ranking.filters.limit }}

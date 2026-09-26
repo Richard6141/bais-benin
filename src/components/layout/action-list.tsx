@@ -32,7 +32,11 @@ export function ActionList({
   className,
 }: ActionListProps) {
   return (
-    <section aria-labelledby="actions-du-moment" className={cn("flex flex-col gap-2", className)}>
+    <section
+      aria-labelledby="actions-du-moment"
+      data-tour="actions"
+      className={cn("flex flex-col gap-2", className)}
+    >
       <h2 id="actions-du-moment" className="text-lg font-semibold">
         {title}
       </h2>

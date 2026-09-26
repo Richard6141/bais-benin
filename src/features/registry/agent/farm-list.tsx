@@ -37,7 +37,11 @@ export function FarmList({ items, emptyTitle, emptyDescription, hrefFor }: FarmL
     );
   }
   return (
-    <ul aria-label="Exploitations" className="flex flex-col divide-y rounded-lg border bg-card">
+    <ul
+      aria-label="Exploitations"
+      data-tour="liste-exploitations"
+      className="flex flex-col divide-y rounded-lg border bg-card"
+    >
       {items.map((farm) => {
         const href = (hrefFor ? hrefFor(farm) : `/agent/exploitations/${farm.id}`) as Route;
         const toVerify =

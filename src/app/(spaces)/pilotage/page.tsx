@@ -24,6 +24,7 @@ import {
   QualityGlance,
 } from "@/features/dashboard/national-sections";
 import { ministryMoment } from "@/features/dashboard/ministry-moment";
+import { FirstStepsCard } from "@/features/onboarding/first-steps-card";
 import { OverviewTiles } from "@/features/dashboard/overview-tiles";
 import { DemoDataBanner, formatDataDate } from "@/features/dashboard/provenance";
 import {
@@ -102,6 +103,7 @@ export default async function NationalDashboardPage(props: PageProps<"/pilotage"
         />
         <LiveActivityFeed maxItems={6} />
       </div>
+      <FirstStepsCard role="ministere" userId={user.id} />
       <Suspense fallback={<Skeleton className="h-16 w-full" />}>
         <DashboardFiltersBar
           campaigns={campaigns}

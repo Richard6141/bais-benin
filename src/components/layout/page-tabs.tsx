@@ -30,9 +30,15 @@ interface PageTabsProps {
 // un défilement.
 export function PageTabs({ label, tabs, initial, param = "onglet", className }: PageTabsProps) {
   const first = tabs[0]?.value ?? "";
-  const [value, setValue] = useState(
-    initial && tabs.some((tab) => tab.value === initial) ? initial : first,
-  );
+  const requested = initial && tabs.some((tab) => tab.value === initial) ? initial : first;
+  const [value, setValue] = useState(requested);
+  // Un lien vers la même page avec un autre onglet (?onglet=carte) garde ce composant monté : on
+  // suit alors l'onglet demandé par la nouvelle adresse.
+  const [lastRequested, setLastRequested] = useState(requested);
+  if (requested !== lastRequested) {
+    setLastRequested(requested);
+    setValue(requested);
+  }
 
   const select = (next: string) => {
     setValue(next);

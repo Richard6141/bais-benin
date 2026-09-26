@@ -98,7 +98,10 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
           <FreshnessPanel summary={summary} />
         </div>
         {/* Sur téléphone, la carte passe en premier ; les panneaux suivent, repliables. */}
-        <figure className="order-first flex min-w-0 flex-col gap-2 lg:order-none">
+        <figure
+          data-tour="veille-carte"
+          className="order-first flex min-w-0 flex-col gap-2 lg:order-none"
+        >
           <div
             role="group"
             aria-label="Période des feux affichés"

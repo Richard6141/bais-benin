@@ -13,8 +13,9 @@ import {
   MessageSquareWarning,
   Wheat,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { SpaceNav, type SpaceNavItem } from "@/components/layout/space-nav";
+import { GuidedTour } from "@/features/onboarding/guided-tour";
 
 // Rubriques du producteur. La barre basse du téléphone garde ce qu'il fait le plus souvent : son
 // accueil, ses champs, ses alertes, signaler un problème ; le reste est sous « Plus ».
@@ -52,10 +53,21 @@ const NAV: readonly SpaceNavItem[] = [
 
 // Coque de l'espace producteur : chaque page de l'espace garde un chemin vers les autres, sur
 // ordinateur (onglets) comme sur téléphone (barre basse sous le pouce).
-export function FarmerShell({ children }: { children: ReactNode }) {
+export function FarmerShell({
+  userId,
+  demo,
+  children,
+}: {
+  userId: string;
+  demo: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-6 pb-24 md:pb-0">
       <SpaceNav label="Espace producteur" items={NAV} />
+      <Suspense fallback={null}>
+        <GuidedTour role="producteur" userId={userId} demo={demo} />
+      </Suspense>
       {children}
     </div>
   );

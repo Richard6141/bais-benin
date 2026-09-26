@@ -369,6 +369,31 @@ Captures : [vue nationale, desktop](rapports/captures/etape-7/pilotage-national-
 
 ---
 
+## Premiers pas
+
+Chaque accueil d'espace (ministère, agent, producteur) propose une carte « Premiers pas » : la
+suite des gestes à découvrir pour ce rôle, avec la progression (« 2 étapes sur 6 »).
+
+- **Ministère** : lire la situation du jour, ouvrir la veille, descendre jusqu'à un champ, lire
+  l'état des cultures, comparer satellite et registre, former un groupe des meilleurs
+  producteurs, exporter une fiche.
+- **Agent** : préparer la tournée sans réseau, enregistrer un producteur, retrouver une
+  exploitation, vérifier une exploitation, répondre aux producteurs, synchroniser.
+- **Producteur** : voir ses champs, lire ses alertes, déclarer une récolte, signaler un problème,
+  demander de l'aide, obtenir son attestation.
+
+Toucher une étape ouvre son écran : le reste de la page s'assombrit légèrement, l'élément à
+toucher est entouré, et une bulle dit ce que l'étape apprend et mène à la suivante. Une étape est
+cochée dès que son écran est ouvert. La progression reste sur l'appareil, pour ce compte ; elle
+n'est pas envoyée au serveur. La carte se masque, se rouvre et se réduit à une ligne une fois le
+parcours fait (« Recommencer le parcours »).
+
+**Mode démonstration.** Avec un compte de démonstration seulement, un bandeau discret en haut de
+chaque page de l'espace propose le scénario suivant, et « Recommencer » remet la progression à
+zéro. Les données de démonstration elles-mêmes ne sont pas réinitialisées par ce bouton.
+
+---
+
 ## Questions transverses
 
 - **Accès refusé** : chaque espace est réservé à son rôle ; une tentative d'accès à un autre

@@ -29,6 +29,13 @@ describe("PageTabs", () => {
     expect(window.location.search).toBe("?onglet=alertes");
   });
 
+  it("suit l'onglet d'une nouvelle adresse sans être remonté", () => {
+    const { rerender } = render(<PageTabs label="Vues" tabs={TABS} initial={null} />);
+    expect(screen.getByText("Vue production")).toBeInTheDocument();
+    rerender(<PageTabs label="Vues" tabs={TABS} initial="alertes" />);
+    expect(screen.getByText("Vue alertes")).toBeInTheDocument();
+  });
+
   it("ignore un onglet inconnu dans l'adresse", () => {
     render(<PageTabs label="Vues" tabs={TABS} initial="inconnu" />);
     expect(screen.getByText("Vue production")).toBeInTheDocument();
