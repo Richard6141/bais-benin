@@ -64,9 +64,13 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
       if (cancelled) return;
       setDraft(current);
       setStep(firstIncompleteStep(current.data));
-      // Adresse mise à jour sans aller-retour serveur : l'écran doit fonctionner hors ligne.
-      if (!existing)
-        window.history.replaceState(null, "", `/agent/enregistrer?brouillon=${current.id}`);
+      // Adresse mise à jour sans aller-retour serveur : l'écran doit fonctionner hors ligne. Les
+      // autres paramètres restent (?pas= garde la bulle des premiers pas ouverte).
+      if (!existing) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("brouillon", current.id);
+        window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+      }
     })();
     return () => {
       cancelled = true;
