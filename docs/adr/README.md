@@ -38,3 +38,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0033 | Surfaces par culture : base de sondage aréolaire (points tirés, constat de terrain) et estimateur par régression | acceptée, complète 0021, 0030 et 0032 |
 | 0034 | Statistiques agricoles officielles : table de référence, import CSV et rapprochement avec nos surfaces | acceptée, complète 0021 et 0033 |
 | 0035 | Bilan alimentaire prévisionnel par commune : production de toute la commune, calories FAO, besoins WorldPop et FAOSTAT | acceptée, complète 0020, 0033 et 0034 |
+| 0036 | Bilan alimentaire : seuil de vraisemblance, surfaces d'enquête imprécises et démonstration calée sur la population | acceptée, complète 0033 et 0035 |
