@@ -8,11 +8,14 @@ export {
 export {
   assistanceResolvedText,
   assistanceTakenText,
+  containsLinkOrAddress,
   reportConfirmedText,
   reportDismissedText,
+  withoutInvisible,
 } from "./messages";
 export {
   queueFarmerNotification,
+  queueFarmerNotifications,
   sendFarmerNotifications,
   sendFarmerNotificationsQuietly,
   type QueuedNotification,
