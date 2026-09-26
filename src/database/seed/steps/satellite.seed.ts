@@ -54,12 +54,11 @@ export async function seedCropClassChecks(): Promise<number | null> {
 }
 
 // Cultures par parcelle de démonstration (ADR-0030) : séries synthétiques des parcelles des
-// communes pilotes, puis un premier modèle entraîné sur leurs parcelles vérifiées. Mêmes gardes ;
-// une série réelle n'est jamais effacée, la démonstration seule est refaite.
+// communes pilotes, puis un modèle entraîné sur leurs parcelles vérifiées. Mêmes gardes. Les
+// séries déjà présentes ne sont pas refaites (une quarantaine de secondes) : le seed complète ce
+// qui manque, et le modèle n'est réentraîné que si les données ont changé.
 export async function seedParcelCrops(): Promise<number | null> {
   if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
-  await prisma.parcelCropPrediction.deleteMany({ where: { sourceId: "BAIS_SEED" } });
-  await prisma.parcelSignature.deleteMany({ where: { sourceId: "BAIS_SEED" } });
   const series = await collectParcelSeries({
     provider: createFixtureRemoteSensingProvider(),
     limit: 5000,

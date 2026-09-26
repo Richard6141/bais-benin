@@ -3,6 +3,7 @@ import { prisma } from "@/database/client";
 import {
   listSignatureCandidates,
   nextModelVersion,
+  seriesUnitsSince,
   predictionForParcel,
   signaturesForCampaign,
   upsertPredictions,
@@ -18,13 +19,20 @@ import {
   trainRandomForest,
   type RandomForestParams,
 } from "@/lib/ml/random-forest";
-import { authorize, type Actor } from "@/modules/authorization";
+import type { Prisma } from "@/generated/prisma/client";
+import { authorize, scopeFilter, type Actor } from "@/modules/authorization";
 import {
   RemoteSensingProviderError,
   type ParcelSeriesResult,
   type RemoteSensingProvider,
 } from "@/services/ports/remote-sensing-provider";
 import { cropGroupLabel, cropGroupOf, singleCropOf, type CropGroup } from "./crop-groups";
+import {
+  UNCERTAIN_BELOW,
+  cropDoubtReason,
+  trainingLabel,
+  visitPriority,
+} from "./parcel-crop-rules";
 import { processingBudget } from "./imagery";
 import {
   FEATURE_NAMES,
@@ -50,8 +58,6 @@ const RUN_BUDGET_MS = 200_000;
 const MAX_CONSECUTIVE_ERRORS = 3;
 /** Une classe vue sur moins de parcelles vérifiées n'est pas apprise. */
 export const MIN_CLASS_SAMPLES = 8;
-/** Sous cette confiance, la culture mesurée est dite incertaine. */
-export const UNCERTAIN_BELOW = 0.6;
 
 const geometrySchema = z.object({
   type: z.literal("Polygon"),
@@ -94,7 +100,10 @@ export interface SeriesRunResult {
     | "throttled"
     | "provider-unavailable"
     | "time-budget"
+    | "monthly-cap"
     | null;
+  /** Unités dépensées ce mois-ci par cette tâche, cet appel compris. */
+  monthUnits: number;
 }
 
 /**
@@ -106,6 +115,8 @@ export async function collectParcelSeries(options: {
   limit: number;
   now?: Date;
   communeCodes?: readonly string[];
+  /** Plafond mensuel en unités ; par défaut CROP_MODEL_MONTHLY_UNIT_CAP. */
+  monthlyUnitCap?: number;
 }): Promise<SeriesRunResult> {
   const now = options.now ?? new Date();
   const result: SeriesRunResult = {
@@ -114,11 +125,14 @@ export async function collectParcelSeries(options: {
     errors: 0,
     processingUnits: 0,
     stopped: null,
+    monthUnits: 0,
   };
   const campaign = await openCampaign();
   if (!campaign) return result;
   result.campaignCode = campaign.code;
   const windowFrom = signatureWindowStart(campaign.startsOn);
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const cap = options.monthlyUnitCap ?? getServerEnv().CROP_MODEL_MONTHLY_UNIT_CAP;
   const until = new Date(Math.min(now.getTime(), campaign.endsOn.getTime() + DAY_MS));
   const candidates = await listSignatureCandidates({
     campaignId: campaign.id,
@@ -131,10 +145,17 @@ export async function collectParcelSeries(options: {
   const budget = processingBudget();
   const started = Date.now();
   let consecutiveErrors = 0;
+  result.monthUnits = metered ? await seriesUnitsSince(monthStart) : 0;
 
   for (const candidate of candidates) {
     if (Date.now() - started > RUN_BUDGET_MS) {
       result.stopped = "time-budget";
+      break;
+    }
+    // Plafond mensuel de la tâche, tenu avant chaque parcelle : une première lecture coûte près
+    // d'une unité, un complément mensuel environ un dixième.
+    if (metered && result.monthUnits >= cap) {
+      result.stopped = "monthly-cap";
       break;
     }
     const geometry = geometrySchema.safeParse(JSON.parse(candidate.geometry));
@@ -227,12 +248,14 @@ export async function collectParcelSeries(options: {
       features: parcelFeatures({ windowFrom, observedUntil: until, s2, s1 }),
       featureVersion: FEATURE_VERSION,
       processingUnits: metered ? units : null,
+      lastProcessingUnits: metered ? (series.processingUnits ?? null) : null,
       sourceId: options.provider.provenance.sourceId,
       reliability: options.provider.provenance.reliability,
       computedAt: now,
     });
     result.read += 1;
     result.processingUnits += series.processingUnits ?? 0;
+    result.monthUnits += series.processingUnits ?? 0;
   }
   return result;
 }
@@ -247,6 +270,10 @@ export interface ModelRunResult {
   byAgreement: Record<"AGREES" | "DIFFERS" | "UNCERTAIN", number>;
   /** Classes écartées faute de parcelles vérifiées. */
   skippedClasses: Record<string, number>;
+  /** Étiquettes venues d'une visite de terrain (le reste : vérification au bureau). */
+  fieldVisitLabels: number;
+  /** Vrai si rien n'a changé depuis le dernier modèle : pas de nouvelle version. */
+  unchanged: boolean;
 }
 
 /**
@@ -254,7 +281,7 @@ export interface ModelRunResult {
  * toutes les parcelles lues (tâche planifiée, sans appel à Copernicus).
  */
 export async function trainAndPredictCrops(
-  options: { now?: Date; params?: RandomForestParams } = {},
+  options: { now?: Date; params?: RandomForestParams; force?: boolean } = {},
 ): Promise<ModelRunResult> {
   const now = options.now ?? new Date();
   const result: ModelRunResult = {
@@ -266,14 +293,16 @@ export async function trainAndPredictCrops(
     predicted: 0,
     byAgreement: { AGREES: 0, DIFFERS: 0, UNCERTAIN: 0 },
     skippedClasses: {},
+    fieldVisitLabels: 0,
+    unchanged: false,
   };
   const campaign = await openCampaign();
   if (!campaign) return result;
   result.campaignCode = campaign.code;
   const signatures = await signaturesForCampaign(campaign.id, FEATURE_VERSION);
   const labelled = signatures.flatMap((signature) => {
-    const group = signature.crop_code ? cropGroupOf(signature.crop_code) : null;
-    return signature.verified && group ? [{ signature, group }] : [];
+    const label = trainingLabel(signature);
+    return label ? [{ signature, ...label }] : [];
   });
   const counts = new Map<CropGroup, number>();
   for (const entry of labelled) counts.set(entry.group, (counts.get(entry.group) ?? 0) + 1);
@@ -282,6 +311,44 @@ export async function trainAndPredictCrops(
     if (count < MIN_CLASS_SAMPLES) result.skippedClasses[group] = count;
   }
   if (new Set(training.map((entry) => entry.group)).size < 2) return result;
+  result.fieldVisitLabels = training.filter((entry) => entry.weight > 1).length;
+
+  // Empreinte des données : sans nouvelle visite, étiquette ni série, pas de nouvelle version.
+  const latest = (value: Date | null, next: Date | null) =>
+    next && (!value || next > value) ? next : value;
+  const fingerprint = [
+    FEATURE_VERSION,
+    training.length,
+    result.fieldVisitLabels,
+    training
+      .reduce<Date | null>(
+        (max, entry) =>
+          latest(latest(max, entry.signature.visited_at), entry.signature.observed_at),
+        null,
+      )
+      ?.toISOString(),
+    signatures
+      .reduce<Date | null>((max, entry) => latest(max, entry.computed_at), null)
+      ?.toISOString(),
+  ].join(":");
+  const previous = await prisma.cropModel.findFirst({
+    where: { campaignId: campaign.id },
+    orderBy: { version: "desc" },
+    select: { version: true, metrics: true, classes: true, trainingParcels: true },
+  });
+  const previousMetrics = previous?.metrics as
+    { fingerprint?: string; outOfBagAccuracy?: number | null } | undefined;
+  if (previous && previousMetrics?.fingerprint === fingerprint && !options.force) {
+    // Rien de nouveau : le modèle en place reste, ses chiffres sont rendus tels quels.
+    Object.assign(result, {
+      version: previous.version,
+      trainingParcels: previous.trainingParcels,
+      classes: previous.classes,
+      outOfBagAccuracy: previousMetrics.outOfBagAccuracy ?? null,
+      unchanged: true,
+    });
+    return result;
+  }
 
   const params = options.params ?? DEFAULT_FOREST;
   const { model, outOfBagAccuracy } = trainRandomForest(
@@ -289,6 +356,7 @@ export async function trainAndPredictCrops(
     training.map((entry) => entry.group),
     FEATURE_NAMES,
     params,
+    training.map((entry) => entry.weight),
   );
   const synthetic = signatures.some((signature) => signature.source_id === "BAIS_SEED");
   const version = await nextModelVersion();
@@ -306,6 +374,8 @@ export async function trainAndPredictCrops(
       metrics: {
         outOfBagAccuracy,
         classCounts: Object.fromEntries(counts),
+        fieldVisitLabels: result.fieldVisitLabels,
+        fingerprint,
       },
       sourceId: synthetic ? "BAIS_SEED" : "COPERNICUS_S2",
       reliability: synthetic ? "SYNTHETIC" : "ESTIMATED",
@@ -361,8 +431,15 @@ export interface ParcelCropPrediction {
   declaredLabel: string | null;
   observedUntil: Date;
   modelVersion: number;
-  /** Dernière visite de terrain de la parcelle, s'il y en a une. */
-  confirmation: { visitedAt: Date; outcome: "CONFIRMED" | "CORRECTED" | "REJECTED" } | null;
+  /**
+   * Dernière visite de terrain de la parcelle, s'il y en a une. Avec une culture constatée :
+   * CONFIRMED si elle rejoint la culture mesurée, CORRECTED sinon, et son libellé.
+   */
+  confirmation: {
+    visitedAt: Date;
+    outcome: "CONFIRMED" | "CORRECTED" | "REJECTED";
+    observedLabel: string | null;
+  } | null;
 }
 
 /**
@@ -399,7 +476,139 @@ export async function getParcelCropPrediction(
     declaredLabel: row.declared_group ? cropGroupLabel(row.declared_group) : null,
     observedUntil: row.observed_until,
     modelVersion: row.model_version,
-    confirmation:
-      row.visited_at && row.outcome ? { visitedAt: row.visited_at, outcome: row.outcome } : null,
+    confirmation: confirmationOf(row),
   };
+}
+
+function confirmationOf(row: {
+  crop_group: string;
+  visited_at: Date | null;
+  outcome: "CONFIRMED" | "CORRECTED" | "REJECTED" | null;
+  observed_crop_code: string | null;
+  observed_at: Date | null;
+}): ParcelCropPrediction["confirmation"] {
+  const observedGroup = row.observed_crop_code ? cropGroupOf(row.observed_crop_code) : null;
+  if (row.observed_at && observedGroup) {
+    return {
+      visitedAt: row.observed_at,
+      outcome: observedGroup === row.crop_group ? "CONFIRMED" : "CORRECTED",
+      observedLabel: cropGroupLabel(observedGroup),
+    };
+  }
+  return row.visited_at && row.outcome
+    ? { visitedAt: row.visited_at, outcome: row.outcome, observedLabel: null }
+    : null;
+}
+
+export interface CropVisitPriority {
+  parcelId: string;
+  parcelCode: string;
+  farmId: string;
+  farmerName: string;
+  communeName: string;
+  village: string | null;
+  agreement: "DIFFERS" | "UNCERTAIN";
+  confidence: number;
+  reason: string;
+}
+
+/** Exploitations lisibles par l'acteur, au format des requêtes Prisma. */
+function farmScope(actor: Actor): Prisma.FarmWhereInput | null {
+  const scope = scopeFilter(actor, "farm.read");
+  switch (scope.kind) {
+    case "all":
+      return {};
+    case "registered":
+      return { registeredById: scope.userId };
+    case "self":
+      return { farmer: { userId: scope.userId } };
+    case "territory":
+      return {
+        OR: [
+          { communeId: { in: scope.communeIds } },
+          { commune: { departementId: { in: scope.departementIds } } },
+        ],
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Parcelles à visiter en priorité pour la culture (apprentissage actif) : celles que le satellite
+ * voit autrement que déclarées, puis les incertaines, sans culture déjà constatée cette campagne.
+ * Dans le périmètre de l'agent seulement.
+ */
+export async function listCropVisitPriorities(
+  actor: Actor,
+  limit = 20,
+): Promise<CropVisitPriority[]> {
+  const scope = farmScope(actor);
+  if (!scope) return [];
+  const rows = await prisma.parcelCropPrediction.findMany({
+    where: {
+      campaign: { status: "OPEN" },
+      agreement: { in: ["DIFFERS", "UNCERTAIN"] },
+      parcel: {
+        archivedAt: null,
+        farm: { AND: [scope, { archivedAt: null }] },
+        cropObservations: { none: { campaign: { status: "OPEN" } } },
+      },
+    },
+    select: {
+      parcelId: true,
+      cropGroup: true,
+      declaredGroup: true,
+      confidence: true,
+      agreement: true,
+      parcel: {
+        select: {
+          code: true,
+          farm: {
+            select: {
+              id: true,
+              village: true,
+              commune: { select: { name: true } },
+              farmer: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      },
+    },
+    take: 500,
+  });
+  return rows
+    .flatMap((row) => {
+      const agreement = row.agreement as "DIFFERS" | "UNCERTAIN";
+      const confidence = Number(row.confidence);
+      const priority = visitPriority(agreement, confidence);
+      if (priority === null) return [];
+      const farm = row.parcel.farm;
+      return [
+        {
+          priority,
+          parcelId: row.parcelId,
+          parcelCode: row.parcel.code,
+          farmId: farm.id,
+          farmerName: `${farm.farmer.firstName} ${farm.farmer.lastName}`,
+          communeName: farm.commune.name,
+          village: farm.village,
+          agreement,
+          confidence,
+          reason: cropDoubtReason({
+            agreement,
+            measuredLabel: cropGroupLabel(row.cropGroup),
+            declaredLabel: row.declaredGroup ? cropGroupLabel(row.declaredGroup) : null,
+            confidence,
+          }),
+        },
+      ];
+    })
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, limit)
+    .map((entry) => {
+      const { priority, ...rest } = entry;
+      void priority;
+      return rest;
+    });
 }

@@ -80,29 +80,42 @@ export interface SignatureRow {
   features: Record<string, number>;
   featureVersion: number;
   processingUnits: number | null;
+  /** Unités de cette lecture seule. */
+  lastProcessingUnits: number | null;
   sourceId: string;
   reliability: "ESTIMATED" | "SYNTHETIC";
   computedAt: Date;
+}
+
+/** Unités dépensées depuis `since` par les lectures de séries de parcelles (mesures réelles). */
+export async function seriesUnitsSince(since: Date): Promise<number> {
+  const rows = await prisma.$queryRaw<{ units: string | null }[]>`
+    SELECT sum("last_processing_units")::text AS units
+      FROM "parcel_signature"
+     WHERE "computed_at" >= ${since} AND "source_id" <> 'BAIS_SEED'`;
+  return Number(rows[0]?.units ?? 0);
 }
 
 export async function upsertSignature(row: SignatureRow): Promise<void> {
   await prisma.$executeRaw`
     INSERT INTO "parcel_signature" (
       "id", "parcel_id", "campaign_id", "window_from", "observed_until", "s2_series",
-      "s1_series", "features", "feature_version", "processing_units", "source_id", "reliability",
-      "computed_at"
+      "s1_series", "features", "feature_version", "processing_units", "last_processing_units",
+      "source_id", "reliability", "computed_at"
     ) VALUES (
       gen_random_uuid(), ${row.parcelId}::uuid, ${row.campaignId}::uuid, ${row.windowFrom}::date,
       ${row.observedUntil}::date, ${JSON.stringify(row.s2Series)}::jsonb,
       ${JSON.stringify(row.s1Series)}::jsonb, ${JSON.stringify(row.features)}::jsonb,
-      ${row.featureVersion}, ${row.processingUnits}::numeric, ${row.sourceId},
+      ${row.featureVersion}, ${row.processingUnits}::numeric, ${row.lastProcessingUnits}::numeric,
+      ${row.sourceId},
       ${row.reliability}::"Reliability", ${row.computedAt}::timestamp
     )
     ON CONFLICT ("parcel_id", "campaign_id") DO UPDATE SET
       "window_from" = EXCLUDED."window_from", "observed_until" = EXCLUDED."observed_until",
       "s2_series" = EXCLUDED."s2_series", "s1_series" = EXCLUDED."s1_series",
       "features" = EXCLUDED."features", "feature_version" = EXCLUDED."feature_version",
-      "processing_units" = EXCLUDED."processing_units", "source_id" = EXCLUDED."source_id",
+      "processing_units" = EXCLUDED."processing_units",
+      "last_processing_units" = EXCLUDED."last_processing_units", "source_id" = EXCLUDED."source_id",
       "reliability" = EXCLUDED."reliability", "computed_at" = EXCLUDED."computed_at"`;
 }
 
@@ -111,14 +124,24 @@ const signatureSchema = z.object({
   commune_code: z.string(),
   crop_code: z.string().nullable(),
   verified: z.boolean(),
+  /** Dernière visite de terrain de la campagne sur la parcelle : CONFIRMED, CORRECTED, REJECTED. */
+  visit_outcome: z.enum(["CONFIRMED", "CORRECTED", "REJECTED"]).nullable(),
+  visited_at: z.date().nullable(),
+  /** Dernière culture constatée sur place pendant la campagne, s'il y en a une. */
+  observed_crop_code: z.string().nullable(),
+  observed_at: z.date().nullable(),
   features: z.record(z.string(), z.number()),
   observed_until: z.date(),
   source_id: z.string(),
+  computed_at: z.date(),
 });
 
 export type StoredSignature = z.infer<typeof signatureSchema>;
 
-/** Séries de la campagne à cette version des variables, avec la culture principale déclarée. */
+/**
+ * Séries de la campagne à cette version des variables, avec la culture principale déclarée (déjà
+ * corrigée par l'agent le cas échéant) et la dernière visite de terrain de la campagne.
+ */
 export async function signaturesForCampaign(
   campaignId: string,
   featureVersion: number,
@@ -127,12 +150,31 @@ export async function signaturesForCampaign(
     WITH main_crop AS (${mainCrop(campaignId)})
     SELECT s."parcel_id", co."code" AS commune_code, mc.crop_code,
            f."verification_status" IN ('AGENT_VERIFIED', 'FIELD_VERIFIED') AS verified,
-           s."features", s."observed_until", s."source_id"
+           v."outcome"::text AS visit_outcome, v."visited_at",
+           o.crop_code AS observed_crop_code, o."observed_at",
+           s."features", s."observed_until", s."source_id", s."computed_at"
       FROM "parcel_signature" s
+      JOIN "agricultural_campaign" ac ON ac."id" = s."campaign_id"
       JOIN "parcel" p ON p."id" = s."parcel_id" AND p."archived_at" IS NULL
       JOIN "farm" f ON f."id" = p."farm_id" AND f."archived_at" IS NULL
       JOIN "commune" co ON co."id" = f."commune_id"
       LEFT JOIN main_crop mc ON mc."parcel_id" = s."parcel_id"
+      LEFT JOIN LATERAL (
+        SELECT fv."outcome", fv."visited_at"
+          FROM "farm_verification" fv
+         WHERE fv."parcel_id" = s."parcel_id" AND fv."kind" = 'FIELD_VISIT'
+           AND fv."visited_at" >= ac."starts_on"
+         ORDER BY fv."visited_at" DESC
+         LIMIT 1
+      ) v ON true
+      LEFT JOIN LATERAL (
+        SELECT c."code" AS crop_code, pco."observed_at"
+          FROM "parcel_crop_observation" pco
+          JOIN "crop" c ON c."id" = pco."crop_id"
+         WHERE pco."parcel_id" = s."parcel_id" AND pco."campaign_id" = s."campaign_id"
+         ORDER BY pco."observed_at" DESC
+         LIMIT 1
+      ) o ON true
      WHERE s."campaign_id" = ${campaignId}::uuid AND s."feature_version" = ${featureVersion}`;
   return rows.map((row) => signatureSchema.parse(row));
 }
@@ -211,6 +253,8 @@ const parcelPredictionSchema = z.object({
   model_version: z.coerce.number(),
   visited_at: z.date().nullable(),
   outcome: z.enum(["CONFIRMED", "CORRECTED", "REJECTED"]).nullable(),
+  observed_crop_code: z.string().nullable(),
+  observed_at: z.date().nullable(),
 });
 
 /** Culture mesurée d'une parcelle pour la campagne ouverte, et sa dernière visite de terrain. */
@@ -218,7 +262,8 @@ export async function predictionForParcel(parcelId: string) {
   const rows = await prisma.$queryRaw<unknown[]>`
     SELECT pr."crop_group", pr."crop_id", pr."confidence", pr."declared_group", pr."agreement",
            pr."observed_until", m."version" AS model_version,
-           v."visited_at", v."outcome"::text AS outcome
+           v."visited_at", v."outcome"::text AS outcome,
+           o.crop_code AS observed_crop_code, o."observed_at"
       FROM "parcel_crop_prediction" pr
       JOIN "agricultural_campaign" ac ON ac."id" = pr."campaign_id" AND ac."status" = 'OPEN'
       JOIN "crop_model" m ON m."id" = pr."model_id"
@@ -229,6 +274,14 @@ export async function predictionForParcel(parcelId: string) {
          ORDER BY fv."visited_at" DESC
          LIMIT 1
       ) v ON true
+      LEFT JOIN LATERAL (
+        SELECT c."code" AS crop_code, pco."observed_at"
+          FROM "parcel_crop_observation" pco
+          JOIN "crop" c ON c."id" = pco."crop_id"
+         WHERE pco."parcel_id" = pr."parcel_id" AND pco."campaign_id" = pr."campaign_id"
+         ORDER BY pco."observed_at" DESC
+         LIMIT 1
+      ) o ON true
      WHERE pr."parcel_id" = ${parcelId}::uuid
      LIMIT 1`;
   return rows[0] ? parcelPredictionSchema.parse(rows[0]) : null;

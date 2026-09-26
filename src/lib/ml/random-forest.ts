@@ -166,20 +166,30 @@ export interface TrainingResult {
   outOfBagAccuracy: number | null;
 }
 
+/**
+ * `sampleWeights` : poids de chaque exemple, multiplié par celui de sa classe ; une parcelle
+ * visitée sur le terrain peut ainsi compter plus qu'une parcelle vérifiée au bureau.
+ */
 export function trainRandomForest(
   X: readonly number[][],
   labels: readonly string[],
   featureNames: readonly string[],
   params: RandomForestParams = DEFAULT_FOREST,
+  sampleWeights?: readonly number[],
 ): TrainingResult {
   if (X.length !== labels.length || X.length === 0) {
     throw new RangeError("Données d'entraînement vides ou incohérentes");
   }
+  if (sampleWeights && sampleWeights.length !== X.length) {
+    throw new RangeError("Un poids par exemple est attendu");
+  }
   const classes = [...new Set(labels)].sort();
   const y = labels.map((label) => classes.indexOf(label));
   const frequency = classes.map((_, index) => y.filter((value) => value === index).length);
-  const weights = y.map((value) =>
-    params.balanced ? X.length / (classes.length * frequency[value]!) : 1,
+  const weights = y.map(
+    (value, row) =>
+      (params.balanced ? X.length / (classes.length * frequency[value]!) : 1) *
+      (sampleWeights?.[row] ?? 1),
   );
   const random = seededRandom(params.seed);
   const trees: TreeNode[][] = [];
