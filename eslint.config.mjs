@@ -20,6 +20,7 @@ const layers = [
       "src/database/seed/index.ts",
       "src/database/seed/steps/monitoring.seed.ts",
       "src/database/seed/steps/assistant.seed.ts",
+      "src/database/seed/steps/satellite.seed.ts",
     ],
     mode: "file",
   },

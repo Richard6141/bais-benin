@@ -82,6 +82,7 @@ export async function runVegetationChecks(options: {
     campaignId: campaign.id,
     retryBefore: new Date(now.getTime() - RETRY_AFTER_MS),
     limit: options.limit,
+    replaceSynthetic: options.provider.provenance.sourceId !== "BAIS_SEED",
   });
   const budget = getServerEnv().SATELLITE_MONTHLY_REQUEST_BUDGET;
   // Seul le vrai fournisseur consomme le quota Copernicus ; la fixture n'appelle personne.

@@ -13,6 +13,7 @@ import { seedSyntheticFarms, type FarmSeedSummary } from "./steps/farms.seed";
 import { seedSyntheticHarvests, type HarvestSeedSummary } from "./steps/harvests.seed";
 import { refreshAnalyticsIfStale } from "@/modules/analytics/refresh";
 import { seedMonitoring, type MonitoringSeedSummary } from "./steps/monitoring.seed";
+import { seedVegetationChecks } from "./steps/satellite.seed";
 import { seedTerritory } from "./steps/territory.seed";
 
 export interface SeedSummary {
@@ -27,6 +28,7 @@ export interface SeedSummary {
   harvests: HarvestSeedSummary;
   monitoring: MonitoringSeedSummary;
   assistant: Awaited<ReturnType<typeof seedAssistantCorpus>>;
+  vegetation: Awaited<ReturnType<typeof seedVegetationChecks>>;
 }
 
 // Chargement des référentiels. Chaque étape est idempotente (upsert) : relancer le seed
@@ -47,6 +49,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
   }
   const monitoring = await seedMonitoring();
   const assistant = await seedAssistantCorpus();
+  const vegetation = await seedVegetationChecks();
   return {
     dataSources,
     zones,
@@ -58,6 +61,7 @@ export async function seedReferenceData(): Promise<SeedSummary> {
     harvests,
     monitoring,
     assistant,
+    vegetation,
   };
 }
 

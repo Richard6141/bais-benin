@@ -39,6 +39,8 @@ export async function listVegetationCandidates(options: {
   campaignId: string;
   retryBefore: Date;
   limit: number;
+  /** Vrai fournisseur : les verdicts synthétiques du seed sont recalculés sur mesure réelle. */
+  replaceSynthetic: boolean;
 }): Promise<VegetationCandidate[]> {
   const rows = await prisma.$queryRaw<unknown[]>`
     WITH main_crop AS (
@@ -67,9 +69,11 @@ export async function listVegetationCandidates(options: {
             AND v."sub_season" = mc."sub_season"
      WHERE p."archived_at" IS NULL AND f."archived_at" IS NULL AND p."geom" IS NOT NULL
        AND (v."id" IS NULL
+            OR (${options.replaceSynthetic} AND v."source_id" = 'BAIS_SEED')
             OR (v."status" IN ('PENDING', 'INSUFFICIENT_DATA')
                 AND v."computed_at" < ${options.retryBefore}))
-     ORDER BY (v."id" IS NULL) DESC, (f."registered_by_id" IS NOT NULL) DESC, p."id"
+     ORDER BY (v."id" IS NULL OR v."source_id" = 'BAIS_SEED') DESC,
+              (f."registered_by_id" IS NOT NULL) DESC, p."id"
      LIMIT ${options.limit}`;
   return rows.map((row) => candidateSchema.parse(row));
 }
