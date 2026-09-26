@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   applicationName: APP_NAME,
   title: {
     default: APP_TITLE,
-    template: `%s · ${APP_NAME}`,
+    template: `%s (${APP_NAME})`,
   },
   description: APP_DESCRIPTION,
   appleWebApp: {

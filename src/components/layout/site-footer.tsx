@@ -58,7 +58,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-white/15">
         <p className="mx-auto w-full max-w-6xl px-4 py-4 text-xs text-white/70 sm:px-6">
-          © {year} République du Bénin · Ministère de l&apos;Agriculture, de l&apos;Élevage et de la
+          © {year} République du Bénin, Ministère de l&apos;Agriculture, de l&apos;Élevage et de la
           Pêche
         </p>
       </div>

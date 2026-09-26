@@ -19,7 +19,7 @@ describe("StatTile", () => {
         reliability="FIELD_VERIFIED"
       />,
     );
-    expect(screen.getByText(/Source : registre · 24 sept. 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Source : registre \(24 sept. 2026\)/)).toBeInTheDocument();
     expect(screen.getByText("Vérifié sur le terrain")).toBeInTheDocument();
     expect(screen.getByText("ha")).toBeInTheDocument();
   });
