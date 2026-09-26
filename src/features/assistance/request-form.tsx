@@ -130,7 +130,17 @@ export function RequestForm({
             <option value={NO_FARM}>Aucune exploitation en particulier</option>
           </select>
         </div>
-        {farmId === NO_FARM ? (
+        {farmId === NO_FARM && context.defaultCommuneCode ? (
+          // Commune de la fiche producteur : la demande y part toujours (le serveur l'impose).
+          <p className="text-sm">
+            Votre demande part aux agents de votre commune :{" "}
+            <span className="font-semibold">
+              {context.communes.find((c) => c.code === context.defaultCommuneCode)?.name ??
+                context.defaultCommuneCode}
+            </span>
+            .
+          </p>
+        ) : farmId === NO_FARM ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="assistance-commune">Votre commune</Label>
             <select

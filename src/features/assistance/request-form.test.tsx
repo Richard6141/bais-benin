@@ -42,7 +42,9 @@ describe("RequestForm", () => {
     render(<RequestForm userId={USER_ID} context={context} />);
     fireEvent.click(screen.getByRole("button", { name: /Conseil/ }));
     fireEvent.change(screen.getByLabelText("Exploitation concernée"), { target: { value: "" } });
-    expect(screen.getByLabelText("Votre commune")).toHaveValue("BJ-DON-003");
+    // Commune de la fiche producteur, affichée et non choisie.
+    expect(screen.queryByLabelText("Votre commune")).toBeNull();
+    expect(screen.getByText("Djougou")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Votre demande"), {
       target: { value: "Quand semer le niébé cette année ?" },
     });

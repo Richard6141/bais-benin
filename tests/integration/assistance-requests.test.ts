@@ -23,6 +23,7 @@ const ids = {
   withoutFarm: "019284a0-0000-7000-8000-0000000f0002",
   byAgent: "019284a0-0000-7000-8000-0000000f0003",
   capped: "019284a0-0000-7000-8000-0000000f0004",
+  elsewhere: "019284a0-0000-7000-8000-0000000f0005",
 };
 const filler: string[] = [];
 
@@ -163,6 +164,25 @@ describe("demandes d'assistance", () => {
       expect(djougou?.masked).toBe(false);
     }
     expect(stats.total.requests).toBeGreaterThanOrEqual(2);
+  });
+
+  it("envoie une demande sans exploitation à la commune de la fiche producteur", async () => {
+    const farmer = await actorForPhone(FARMER_PHONE);
+    const [result] = await applySyncBatch(farmer, DEVICE, [
+      command(ids.elsewhere, {
+        id: ids.elsewhere,
+        category: "ADVICE",
+        description: "Demande adressée à une autre commune",
+        communeCode: "BJ-BOR-005",
+        requestedAt: AT,
+      }),
+    ]);
+    expect(result?.outcome).toBe("APPLIED");
+    const stored = await prisma.assistanceRequest.findUniqueOrThrow({
+      where: { id: ids.elsewhere },
+      select: { commune: { select: { code: true } } },
+    });
+    expect(stored.commune.code).toBe("BJ-DON-003");
   });
 
   it("plafonne les demandes d'un compte sur 24 heures", async () => {
