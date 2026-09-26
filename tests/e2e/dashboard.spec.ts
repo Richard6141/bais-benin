@@ -23,14 +23,24 @@ test.describe("tableau de bord national", () => {
     await signInAsMinistry(page, testInfo, "/pilotage");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Tableau de bord national");
     const nav = page.getByRole("navigation", { name: "Centre de pilotage" });
-    await expect(nav.getByRole("link", { name: "Vue nationale" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(nav.getByRole("link", { name: "Administration" })).toHaveAttribute(
-      "href",
-      "/pilotage/qualite",
-    );
+    if (testInfo.project.name === "mobile") {
+      // Téléphone : une seule liste des rubriques, groupées par thème, sur la rubrique ouverte.
+      const rubrique = nav.getByRole("combobox", { name: "Rubrique du pilotage" });
+      await expect(rubrique).toHaveValue("/pilotage");
+      await expect(rubrique.getByRole("option", { name: "Qualité" })).toHaveAttribute(
+        "value",
+        "/pilotage/qualite",
+      );
+    } else {
+      await expect(nav.getByRole("link", { name: "Vue nationale" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await expect(nav.getByRole("link", { name: "Administration" })).toHaveAttribute(
+        "href",
+        "/pilotage/qualite",
+      );
+    }
 
     const tiles = page.getByRole("region", { name: "Indicateurs clés" });
     for (const label of [

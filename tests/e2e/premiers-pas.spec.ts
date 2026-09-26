@@ -93,8 +93,10 @@ test.describe("premiers pas", () => {
 
     await page.goto("/agriculteur");
     const card = page.getByRole("region", { name: "Premiers pas" });
+    // La mention « fait » est un texte pour lecteur d'écran (sr-only, positionné en absolu) :
+    // Chromium l'ajoute au nom du lien avec une espace devant la virgule.
     await expect(
-      card.getByRole("link", { name: new RegExp(`^${steps[1]!.title}, fait`) }),
+      card.getByRole("link", { name: new RegExp(`^${steps[1]!.title}\\s*, fait`) }),
     ).toBeVisible();
   });
 });
