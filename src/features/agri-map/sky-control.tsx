@@ -64,7 +64,10 @@ export function SkyControl({
           value={layer ?? COMMUNES}
           onValueChange={(value) => onLayerChange(value === COMMUNES ? null : (value as BaseLayer))}
         >
-          <SelectTrigger id="vue-du-ciel" className="w-full">
+          <SelectTrigger
+            id="vue-du-ciel"
+            className="h-auto min-h-11 w-full text-left whitespace-normal *:data-[slot=select-value]:line-clamp-none md:min-h-9"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -79,9 +82,7 @@ export function SkyControl({
               Carte des cultures
             </SelectItem>
             {/* Carte de référence en images statiques : toujours disponible. */}
-            <SelectItem value={WORLDCEREAL_LAYER}>
-              Terres cultivées 2021 (ESA WorldCereal)
-            </SelectItem>
+            <SelectItem value={WORLDCEREAL_LAYER}>Terres cultivées 2021</SelectItem>
           </SelectContent>
         </Select>
         {catalog.status === "ready" && !available ? (
@@ -97,7 +98,10 @@ export function SkyControl({
             Mois
           </Label>
           <Select value={period ?? undefined} onValueChange={onPeriodChange}>
-            <SelectTrigger id="vue-du-ciel-periode" className="w-full">
+            <SelectTrigger
+              id="vue-du-ciel-periode"
+              className="h-auto min-h-11 w-full text-left whitespace-normal *:data-[slot=select-value]:line-clamp-none md:min-h-9"
+            >
               <SelectValue placeholder="Choisir un mois" />
             </SelectTrigger>
             <SelectContent>
