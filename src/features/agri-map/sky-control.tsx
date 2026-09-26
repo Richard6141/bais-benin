@@ -22,6 +22,11 @@ interface SkyControlProps {
   onPeriodChange: (period: string) => void;
 }
 
+/** Initiale en majuscule seulement : « Septembre 2026 », « 60 derniers jours ». */
+function sentenceCase(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function clearLabel(entry: ImageryPeriod): string {
   const scenes =
     entry.clearSceneCount === 0
@@ -87,7 +92,7 @@ export function SkyControl({
             <SelectContent>
               {ready.periods.map((entry) => (
                 <SelectItem key={entry.period} value={entry.period}>
-                  <span className="capitalize">{entry.label}</span>
+                  <span>{sentenceCase(entry.label)}</span>
                   <span className="text-muted-foreground">, {clearLabel(entry)}</span>
                 </SelectItem>
               ))}

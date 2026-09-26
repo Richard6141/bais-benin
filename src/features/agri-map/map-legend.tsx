@@ -1,3 +1,4 @@
+import { HelpTip } from "@/components/forms/help-tip";
 import {
   CHOROPLETH_SCALE,
   FARM_COLORS,
@@ -138,16 +139,23 @@ export function SkyLegend({ view, periodLabel, detail }: SkyLegendProps) {
       ) : (
         <>
           <p className="font-medium">Image en couleur naturelle</p>
-          <p className="mt-1 text-muted-foreground">
-            Scènes les moins nuageuses de la période ; les nuages restants sont visibles.
-          </p>
+          {view.period === ROLLING_SKY_PERIOD ? null : (
+            <p className="mt-1 text-muted-foreground">
+              Scène la moins nuageuse du mois, nuages visibles.
+            </p>
+          )}
         </>
       )}
       {view.period === ROLLING_SKY_PERIOD ? (
-        <p className="mt-2 text-muted-foreground">
-          Mosaïque sans nuages des 60 derniers jours : chaque point pris au passage dégagé le plus
-          récent.
-        </p>
+        <div className="mt-2 flex items-center gap-1 text-muted-foreground">
+          <p>Mosaïque sans nuages des 60 derniers jours</p>
+          <HelpTip label="Mosaïque sans nuages">
+            Copernicus retient les trois passages les moins nuageux des 60 derniers jours, puis
+            prend chaque point au plus récent de ces passages où il est dégagé. Un point couvert aux
+            trois passages garde son dernier nuage en couleur naturelle et reste transparent en
+            NDVI.
+          </HelpTip>
+        </div>
       ) : null}
       <p className="mt-2 text-muted-foreground">
         Sentinel-2, {periodLabel}
