@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { averagePositions } from "./corner-capture";
+import { averagePositions, keepPreciseSamples } from "./corner-capture";
 
 describe("averagePositions", () => {
   it("refuse une liste vide", () => {
@@ -23,5 +23,26 @@ describe("averagePositions", () => {
       { lat: 9.001, lng: 1.601 },
     ]);
     expect(result.accuracyM).toBeUndefined();
+  });
+});
+
+describe("keepPreciseSamples", () => {
+  it("écarte les lectures au-delà du seuil", () => {
+    const kept = keepPreciseSamples([
+      { lat: 9, lng: 1.6, accuracyM: 6 },
+      { lat: 9.01, lng: 1.61, accuracyM: 60 },
+      { lat: 9, lng: 1.6, accuracyM: 12 },
+    ]);
+    expect(kept.map((s) => s.accuracyM)).toEqual([6, 12]);
+  });
+
+  it("garde la meilleure moitié si toutes dépassent le seuil", () => {
+    const kept = keepPreciseSamples([
+      { lat: 9, lng: 1.6, accuracyM: 80 },
+      { lat: 9, lng: 1.6, accuracyM: 40 },
+      { lat: 9, lng: 1.6, accuracyM: 50 },
+      { lat: 9, lng: 1.6, accuracyM: 90 },
+    ]);
+    expect(kept.map((s) => s.accuracyM)).toEqual([40, 50]);
   });
 });

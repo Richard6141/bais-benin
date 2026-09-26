@@ -17,9 +17,24 @@ export function averagePositions(samples: readonly GeoPosition[]): GeoPosition {
 }
 
 export const CORNER_CAPTURE_DURATION_MS = 4_000;
+export const MAX_SAMPLE_ACCURACY_M = 25;
+
+/**
+ * Écarte les lectures trop imprécises avant la moyenne. Si aucune ne passe le seuil, garde la
+ * meilleure moitié : un point médiocre vaut mieux que pas de point, l'agent voit sa précision.
+ */
+export function keepPreciseSamples(
+  samples: readonly GeoPosition[],
+  maxAccuracyM = MAX_SAMPLE_ACCURACY_M,
+): GeoPosition[] {
+  const precise = samples.filter((s) => s.accuracyM === undefined || s.accuracyM <= maxAccuracyM);
+  if (precise.length > 0) return precise;
+  const ranked = [...samples].sort((a, b) => (a.accuracyM ?? Infinity) - (b.accuracyM ?? Infinity));
+  return ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 2)));
+}
 
 export type CornerCaptureFunction = (
-  onSample?: (sampleCount: number) => void,
+  onSample?: (sampleCount: number, accuracyM: number | undefined) => void,
 ) => Promise<GeoPosition>;
 
 /** Moyenne les positions du navigateur pendant `durationMs`, puis résout avec le point moyen. */
@@ -37,7 +52,7 @@ export const browserCaptureCorner: CornerCaptureFunction = (onSample) =>
           lng: position.coords.longitude,
           accuracyM: position.coords.accuracy,
         });
-        onSample?.(samples.length);
+        onSample?.(samples.length, position.coords.accuracy);
       },
       (error) => {
         if (samples.length === 0) {
@@ -54,6 +69,6 @@ export const browserCaptureCorner: CornerCaptureFunction = (onSample) =>
         reject({ code: 2 });
         return;
       }
-      resolve(averagePositions(samples));
+      resolve(averagePositions(keepPreciseSamples(samples)));
     }, CORNER_CAPTURE_DURATION_MS);
   });
