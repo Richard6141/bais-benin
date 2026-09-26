@@ -271,6 +271,13 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   - chaque surface officielle est mise face à la surface déclarée au registre (sa « Couverture »)
     et, dans les communes d'enquête, à la surface estimée par sondage : « Dans la marge » ou
     « Hors marge ».
+- Chiffres FAOSTAT du Bénin : le fichier d'import se prépare hors du dépôt avec
+  `node scripts/convert-faostat-qcl.mjs`, à partir de l'extrait public
+  https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip (mis à jour le
+  23/12/2025, consulté le 26/09/2026) : 600 chiffres, 20 cultures du registre, de 2015 à 2024.
+  Le plantain n'y figure pas pour le Bénin. Citation à reprendre avec ces chiffres : « FAO. 2025.
+  FAOSTAT : Crops and livestock products (QCL). Consulté le 26 septembre 2026.
+  https://www.fao.org/faostat/en/#data/QCL. Licence : CC BY 4.0. »
 - Les surfaces sont recalculées une fois par mois, pendant les huit premiers jours.
 - Le bouton « Carte des cultures » ouvre la carte correspondante.
 

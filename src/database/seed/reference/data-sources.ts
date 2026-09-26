@@ -33,8 +33,9 @@ export const DATA_SOURCES: readonly DataSourceReference[] = [
     id: "FAOSTAT",
     name: "FAOSTAT, cultures et produits animaux (QCL)",
     organization: "Organisation des Nations unies pour l'alimentation et l'agriculture (FAO)",
-    url: "https://www.fao.org/faostat",
-    licence: "Conditions d'utilisation des bases de données statistiques de la FAO",
+    url: "https://www.fao.org/faostat/en/#data/QCL",
+    licence:
+      "CC BY 4.0, citer « FAO, FAOSTAT : Crops and livestock products (QCL) », avec la date de consultation",
     kind: "PUBLIC_OPEN_DATA",
   },
   {
