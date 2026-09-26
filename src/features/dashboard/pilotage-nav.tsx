@@ -25,6 +25,11 @@ const ENTRIES = [
     match: ["/pilotage/previsions"],
   },
   {
+    href: "/pilotage/cultures",
+    label: "Surfaces par satellite",
+    match: ["/pilotage/cultures"],
+  },
+  {
     href: "/pilotage/palmares",
     label: "Palmarès",
     match: ["/pilotage/palmares"],
