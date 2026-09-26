@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LiveActivityItem } from "@/modules/live";
 import { describeActivity } from "./live-activity-feed";
+import { pulseTone } from "./live-pulse";
 import { mergeActivity } from "./use-live-activity";
 
 const item = (over: Partial<LiveActivityItem>): LiveActivityItem => ({
@@ -47,5 +48,12 @@ describe("fil d'activité en direct", () => {
       "Demande d'aide : sinistre",
     ]);
     expect(labels.join(" ")).not.toMatch(/·|…|—/);
+  });
+
+  it("colore le point sur la carte selon la nature du fait", () => {
+    expect(pulseTone("fire.detected")).toBe("alert");
+    expect(pulseTone("alert.raised")).toBe("alert");
+    expect(pulseTone("farm.PARCEL_GEOMETRY_SET")).toBe("field");
+    expect(pulseTone("report.created")).toBe("neutral");
   });
 });

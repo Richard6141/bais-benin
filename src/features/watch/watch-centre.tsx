@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { FireWindowParam } from "@/features/agri-map/fire-layer";
 import { useFires } from "@/features/agri-map/use-fires";
 import { LiveActivityFeed } from "@/features/live/live-activity-feed";
+import type { LiveActivityItem } from "@/modules/live";
 import type { WatchSummary } from "@/modules/watch";
 import {
   AlertsPanel,
@@ -40,6 +41,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
   const [failed, setFailed] = useState(false);
   const [window, setWindow] = useState<FireWindowParam>("24h");
   const fires = useFires(window, FIRES_REFRESH_MS);
+  const [pulses, setPulses] = useState<LiveActivityItem[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -90,7 +92,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
-          <LiveActivityFeed />
+          <LiveActivityFeed onItems={setPulses} />
           <ExposurePanel summary={summary} window={window === "24h" ? "24h" : "7d"} />
           <CropConditionPanel summary={summary} />
           <FreshnessPanel summary={summary} />
@@ -114,7 +116,7 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
             ))}
           </div>
           <div className="relative h-[28rem] overflow-hidden rounded-lg border lg:h-[36rem]">
-            <AlertMapCanvas levels={summary.levels} withFires fires={fires} />
+            <AlertMapCanvas levels={summary.levels} withFires fires={fires} pulses={pulses} />
           </div>
           <figcaption className="text-sm text-muted-foreground">
             Communes colorées par l&apos;alerte active la plus grave, feux en points colorés selon
