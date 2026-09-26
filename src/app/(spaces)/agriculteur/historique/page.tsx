@@ -83,7 +83,7 @@ export default async function HarvestHistoryPage({
       <PageHeader
         eyebrow="Mon historique"
         title={farm.name ?? farm.farmer.displayName}
-        description={`${farm.commune.name} · code ${farm.code}`}
+        description={`${farm.commune.name} (code ${farm.code})`}
       />
 
       {campaigns.length === 0 || !selected ? (
@@ -136,9 +136,9 @@ export default async function HarvestHistoryPage({
                       <div>
                         <CardTitle className="text-lg">{crop.cropName}</CardTitle>
                         <CardDescription>
-                          Parcelle {crop.parcelCode.split("-").pop()} ·{" "}
-                          {numberFormatter.format(crop.areaHa)} ha ·{" "}
-                          {subSeasonLabel(crop.subSeason)} · {cropStageLabel(crop.stage)}
+                          Parcelle {crop.parcelCode.split("-").pop()},{" "}
+                          {numberFormatter.format(crop.areaHa)} ha, {subSeasonLabel(crop.subSeason)}
+                          , {cropStageLabel(crop.stage)}
                         </CardDescription>
                       </div>
                     </div>

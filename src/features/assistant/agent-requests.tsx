@@ -58,8 +58,9 @@ export function AgentRequests({ requests }: { requests: readonly AgentRequestVie
             <li key={request.id} className="flex flex-col gap-2 rounded-xl border bg-card p-4">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <Badge variant={done ? "success" : "watch"}>{done ? "Traitée" : "À traiter"}</Badge>
-                <span>{request.communeName}</span>
-                <span>· {request.createdAt}</span>
+                <span>
+                  {request.communeName} ({request.createdAt})
+                </span>
               </div>
               <p className="font-medium">{request.question}</p>
               {request.answer ? (

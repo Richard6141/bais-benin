@@ -59,7 +59,7 @@ export default async function AgentDashboardPage(props: PageProps<"/agent/tablea
       <PageHeader
         eyebrow="Espace agent de terrain"
         title="Tableau de bord de mon périmètre"
-        description={`${communes} · campagne ${overview.campaign.code} · données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
+        description={`${communes}, campagne ${overview.campaign.code}, données au ${formatDataDate(overview.provenance.refreshedAt)}.`}
         actions={<ExportActions query={query} withPrintSheet={false} />}
       />
       <DemoDataBanner provenance={overview.provenance} />

@@ -23,7 +23,7 @@ export function CommuneComparison({ profile }: { profile: CommuneProfile }) {
   ].filter((phrase): phrase is string => phrase !== null);
   return (
     <div className="flex flex-col gap-1 text-sm">
-      {phrases.length > 0 ? <p>{phrases.join(" · ")}.</p> : null}
+      {phrases.length > 0 ? <p>{phrases.join(", ")}.</p> : null}
       <p className="text-muted-foreground">
         {registeredFarmerShare === null
           ? "Population rurale (INStaD) non encore chargée : la part de producteurs enregistrés n'est pas calculée."

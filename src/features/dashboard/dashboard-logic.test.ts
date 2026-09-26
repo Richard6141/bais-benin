@@ -80,15 +80,13 @@ describe("filtres du tableau de bord", () => {
       crops: new Map([["MAIZE", "Maïs"]]),
       departements: new Map([["BJ-DO", "Donga"]]),
     };
-    expect(describeFilters({}, names)).toBe(
-      "Toutes les campagnes · Toutes cultures · Tout le pays",
-    );
+    expect(describeFilters({}, names)).toBe("Toutes les campagnes, Toutes cultures, Tout le pays");
     expect(
       describeFilters(
         { campaignCode: "2025-2026", cropCode: "MAIZE", departementCode: "BJ-DO" },
         names,
       ),
-    ).toBe("Campagne 2025-2026 · Maïs · Donga");
+    ).toBe("Campagne 2025-2026, Maïs, Donga");
   });
 });
 

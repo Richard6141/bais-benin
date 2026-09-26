@@ -51,8 +51,8 @@ export default async function HarvestDeclarationPage() {
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
       <PageHeader
         eyebrow="Déclarer ma récolte"
-        title="Trois questions, une minute"
-        description={`${farm.name ?? farm.farmer.displayName} · ${farm.commune.name}`}
+        title={farm.name ?? farm.farmer.displayName}
+        description={farm.commune.name}
       />
       <HarvestWizard seasons={wizardSeasons} parcelCount={detail?.parcels.length ?? 1} />
     </div>

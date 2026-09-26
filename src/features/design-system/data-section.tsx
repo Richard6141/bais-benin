@@ -114,7 +114,7 @@ export function DataSection() {
           <TabsContent value="parcelles">
             <Card>
               <CardHeader>
-                <CardTitle>Deux parcelles · 3,2 ha</CardTitle>
+                <CardTitle>Deux parcelles (3,2 ha)</CardTitle>
                 <CardDescription>
                   Relevé GPS sur les deux ; écart de 4 % avec la superficie déclarée.
                 </CardDescription>

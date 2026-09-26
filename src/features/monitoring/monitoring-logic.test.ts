@@ -31,7 +31,7 @@ describe("freshnessOf", () => {
     );
     expect(f.state).toBe("FRESH");
     expect(f.label).toBe("À jour");
-    expect(f.source).toBe("Open-Meteo · il y a 7 h");
+    expect(f.source).toBe("Open-Meteo (il y a 7 h)");
     expect(f.warning).toBeNull();
   });
 
@@ -62,7 +62,7 @@ describe("freshnessOf", () => {
     );
     expect(f.state).toBe("FALLBACK");
     expect(f.label).toBe("Démonstration");
-    expect(f.source).toBe("Série de secours · il y a moins d'une heure");
+    expect(f.source).toBe("Série de secours (il y a moins d'une heure)");
   });
 });
 

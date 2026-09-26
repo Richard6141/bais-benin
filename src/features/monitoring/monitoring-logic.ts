@@ -45,7 +45,7 @@ export interface Freshness {
   ageHours: number | null;
   /** Valeur courte de la tuile d'indicateur (un ou deux mots). */
   label: string;
-  /** Ligne de source de la tuile : fournisseur et ancienneté, « Open-Meteo · il y a 2 h ». */
+  /** Ligne de source de la tuile : fournisseur et ancienneté, « Open-Meteo (il y a 2 h) ». */
   source: string;
   /** Texte du bandeau d'avertissement, null quand tout va bien. */
   warning: string | null;
@@ -63,7 +63,7 @@ export function freshnessOf(ingestion: IngestionInfo | null, now: number = Date.
   }
   const ageHours = Math.max(0, (now - new Date(ingestion.finishedAt).getTime()) / 3_600_000);
   const age = ageHours < 1 ? "il y a moins d'une heure" : `il y a ${Math.round(ageHours)} h`;
-  const source = `${PROVIDER_LABELS[ingestion.provider] ?? "Fournisseur météo"} · ${age}`;
+  const source = `${PROVIDER_LABELS[ingestion.provider] ?? "Fournisseur météo"} (${age})`;
   if (ingestion.fallback) {
     return {
       state: "FALLBACK",

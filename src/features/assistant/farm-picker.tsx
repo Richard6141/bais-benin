@@ -48,7 +48,7 @@ export function FarmPicker({ farms, value, onChange }: FarmPickerProps) {
             className="h-11 w-full justify-between font-normal sm:max-w-md"
           >
             <span className="truncate">
-              {selected ? `${selected.code} · ${selected.label}` : "Sans exploitation"}
+              {selected ? `${selected.code} (${selected.label})` : "Sans exploitation"}
             </span>
             <ChevronsUpDown className="opacity-50" aria-hidden />
           </Button>

@@ -62,11 +62,11 @@ export default async function VerificationQueuePage() {
                     </div>
                     <p className="mt-0.5 truncate text-sm text-muted-foreground">
                       {farm.commune.name}
-                      {farm.village ? `, ${farm.village}` : ""} · déclarée le{" "}
+                      {farm.village ? `, ${farm.village}` : ""}, déclarée le{" "}
                       {formatDate(farm.createdAt)}
                     </p>
                     <p className="tabular mt-1 text-sm">
-                      {formatHa(farm.declaredAreaHa)} déclarés · {farm.parcelCount} parcelle
+                      {formatHa(farm.declaredAreaHa)} déclarés, {farm.parcelCount} parcelle
                       {farm.parcelCount > 1 ? "s" : ""}
                     </p>
                   </div>
@@ -106,7 +106,7 @@ export default async function VerificationQueuePage() {
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted-foreground">
                         {farm.commune_name}
-                        {farm.village ? `, ${farm.village}` : ""} · {farm.crop_names.join(", ")}
+                        {farm.village ? `, ${farm.village}` : ""}, {farm.crop_names.join(", ")}
                       </p>
                     </div>
                     <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />

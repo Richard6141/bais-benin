@@ -31,7 +31,7 @@ export default async function VisitPage(props: PageProps<"/agent/verification/[i
       <PageHeader
         eyebrow="Visite de vérification"
         title={farm.farmer.displayName}
-        description={`${farm.code} · ${farm.commune.name}${farm.village ? `, ${farm.village}` : ""}`}
+        description={`${farm.code} (${farm.commune.name}${farm.village ? `, ${farm.village}` : ""})`}
       />
       <ul className="flex flex-wrap gap-2 text-sm">
         {points.map((point) => (

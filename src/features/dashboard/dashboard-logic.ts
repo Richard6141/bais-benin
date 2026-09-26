@@ -205,5 +205,5 @@ export function describeFilters(
       : "Tout le pays",
   ];
   if (filters.verificationStatus) parts.push(VERIFICATION_LABELS[filters.verificationStatus]);
-  return parts.join(" · ");
+  return parts.join(", ");
 }
