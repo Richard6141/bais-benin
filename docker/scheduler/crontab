@@ -23,3 +23,6 @@
 30 7 20-26 * * /usr/local/bin/call-app.sh survey-frame
 # Feux actifs NASA FIRMS (ADR-0022) : ingestion et alertes « feu de brousse », toutes les 30 minutes.
 */30 * * * * /usr/local/bin/call-app.sh fires
+# Conseil de la saison des feux (ADR-0038) : le lundi à 8 h 00 à Porto-Novo, de novembre à avril,
+# seulement si FIRE_PREVENTION_MESSAGES vaut 1.
+0 7 * * 1 /usr/local/bin/call-app.sh fire-prevention

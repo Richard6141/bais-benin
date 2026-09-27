@@ -112,6 +112,10 @@ const serverSchema = z
     // pour 600 points. Désactivé tant que le chef d'équipe n'a pas validé une passe réelle ; les
     // points sont tirés quand même, et la fixture reste lue sans compte Copernicus.
     SURVEY_MAP_READS: z.enum(["0", "1"]).default("0"),
+    // Conseil hebdomadaire de la saison des feux sur WhatsApp (ADR-0038), de novembre à avril,
+    // aux producteurs des communes les plus touchées. Désactivé par défaut : l'activer envoie de
+    // vrais messages à de vrais producteurs, c'est la décision de l'utilisateur.
+    FIRE_PREVENTION_MESSAGES: z.enum(["0", "1"]).default("0"),
     // Communes pilotes des cultures par parcelle (ADR-0030) : seules leurs parcelles sont lues
     // par satellite, en attendant l'échantillon aréolaire. Codes séparés par des virgules.
     // Plafond mensuel des lectures de séries de parcelles, en unités de traitement (ADR-0031) :
