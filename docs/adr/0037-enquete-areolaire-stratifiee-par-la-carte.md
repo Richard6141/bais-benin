@@ -24,7 +24,7 @@ ADR-0033 avait écarté la stratification par la carte, parce qu'elle demande la
 - La classe de la carte des pixels est lue à chacun de ces points, par la tâche existante et la même méthode (ADR-0033 §3). Cela coûte environ 0,16 unité par point :
   - 77 unités par commune ;
   - 384 unités pour les cinq communes pilotes, une fois par campagne, soit 4 % du budget mensuel de 9 000 unités.
-- Sur Copernicus, la lecture attend toujours `SURVEY_MAP_READS=1`. Le rythme planifié (100 lectures par jour, du 20 au 26 du mois) ne suffit pas pour les 2 400 points d'une nouvelle campagne : pour ouvrir une campagne, la tâche est appelée avec `limit=500` pendant une semaine. C'est une décision du chef d'équipe, comme toute passe réelle.
+- Sur Copernicus, la lecture attend toujours `SURVEY_MAP_READS=1`. Le rythme planifié (100 lectures par jour, du 20 au 26 du mois) ne suffit pas pour les 2 400 points d'une nouvelle campagne : pour ouvrir une campagne, la tâche est appelée avec `limit=500` pendant une semaine. C'est une décision de l'utilisateur, comme toute passe réelle.
 - Les points de première phase ne sont pas montrés aux agents.
 
 ### 2. Deux strates
