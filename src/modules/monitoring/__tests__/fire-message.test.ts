@@ -5,6 +5,7 @@ import {
   directionFr,
   distanceFr,
   fieldFr,
+  fireMessageInApp,
   fireMessageSms,
   fireMessageWhatsApp,
   fireSeverity,
@@ -95,6 +96,13 @@ describe("message au producteur", () => {
     expect(text).toContain("brûlage contrôlé");
     expect(text).not.toContain("urgente");
     expect(text).not.toMatch(/[·…—]/);
+  });
+
+  it("dans l'application, dit où et quand depuis SA parcelle, puis la limite", () => {
+    expect(fireMessageInApp(exposure(), now)).toBe(
+      "Un feu est détecté à environ 600 m au nord-est de votre champ de maïs, au passage du satellite aujourd'hui à 14 h 05. Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.",
+    );
+    expect(fireMessageInApp(exposure({ cropName: null }), now)).toContain("de votre champ, au");
   });
 
   it("annonce l'urgence sous 500 m", () => {

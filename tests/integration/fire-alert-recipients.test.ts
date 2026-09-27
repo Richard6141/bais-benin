@@ -3,6 +3,7 @@ import { prisma } from "@/database/client";
 import { seedReferenceData } from "@/database/seed";
 import type { Actor } from "@/modules/authorization";
 import { runFireIngestion } from "@/modules/fires";
+import { getFarmFireAlert } from "@/modules/fires/farm-alert";
 import { loadActor } from "@/modules/identity";
 import {
   alertCommuneIds,
@@ -215,6 +216,27 @@ describe("alerte feu adressée aux seuls producteurs exposés", () => {
     const theirs = await listAlertsForActor(neighbour, { category: "FIRE" });
     expect(theirs.map((a) => a.id)).not.toContain(alertId);
     expect(await getAlertDetail(neighbour, alertId)).toBeNull();
+  });
+
+  it("dans l'application, dit à la productrice où est le feu depuis SA parcelle", async () => {
+    const [mine] = (await listAlertsForActor(exposed.actor, { category: "FIRE" })).filter(
+      (a) => a.id === alertId,
+    );
+    expect(mine?.message).toMatch(/^Un feu est détecté à .+ au nord de votre champ/);
+    expect(mine?.message).toMatch(/à vérifier sur place/);
+    expect(mine?.severity).toBe("CRITICAL");
+    const detail = await getAlertDetail(exposed.actor, alertId);
+    expect(detail?.message).toBe(mine?.message);
+
+    const card = await getFarmFireAlert(exposed.actor, exposed.farmId);
+    expect(card?.situation).toBe(mine?.message);
+    expect(card?.severity).toBe("CRITICAL");
+
+    // L'agent lit le texte de la commune, pas celui d'une parcelle.
+    const [forAgent] = (await listAlertsForActor(agent, { category: "FIRE" })).filter(
+      (a) => a.id === alertId,
+    );
+    expect(forAgent?.message).toContain("à moins de 1 km");
   });
 
   it("dit au producteur la distance et la direction depuis SA parcelle", async () => {

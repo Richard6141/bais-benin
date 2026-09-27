@@ -111,17 +111,34 @@ export function fieldFr(cropName: string | null): string {
   return /^[aeiouyàâäéèêëîïôöûüœ]/.test(crop) ? `votre champ d'${crop}` : `votre champ de ${crop}`;
 }
 
+/** Où est le feu : « environ 600 m au nord-est de votre champ de maïs ». */
+export function fireWhereFr(exposure: FireExposure): string {
+  const direction = directionFr(bearingDegrees(exposure.parcel, exposure.fire));
+  return `${distanceFr(exposure.distanceM)} ${direction} de ${fieldFr(exposure.cropName)}`;
+}
+
+const HONEST_NOTE =
+  "Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.";
+
+/**
+ * Texte de l'alerte dans l'application, pour le producteur : où et quand, puis la limite de la
+ * détection. Les gestes et le 118 sont dans le conseil de l'alerte, affiché à côté.
+ */
+export function fireMessageInApp(exposure: FireExposure, now: Date): string {
+  return `Un feu est détecté à ${fireWhereFr(exposure)}, au passage du satellite ${passageFr(
+    exposure.detectedAt,
+    now,
+  )}. ${HONEST_NOTE}`;
+}
+
 /** Message WhatsApp : où, quand, quoi faire, qui appeler, et ce que vaut la détection. */
 export function fireMessageWhatsApp(exposure: FireExposure, now: Date): string {
   const urgent = fireSeverity(exposure.distanceM) === "CRITICAL";
-  const where = `${distanceFr(exposure.distanceM)} ${directionFr(
-    bearingDegrees(exposure.parcel, exposure.fire),
-  )} de ${fieldFr(exposure.cropName)}`;
   return [
-    `BAIS, alerte feu${urgent ? " urgente" : ""} : un feu est détecté à ${where}, au passage du satellite ${passageFr(exposure.detectedAt, now)}.`,
+    `BAIS, alerte feu${urgent ? " urgente" : ""} : un feu est détecté à ${fireWhereFr(exposure)}, au passage du satellite ${passageFr(exposure.detectedAt, now)}.`,
     "Si c'est sans danger, coupez un pare-feu autour du champ et des greniers, et prévenez vos voisins.",
     `Si le feu menace, appelez les sapeurs-pompiers au ${FIREFIGHTERS_NUMBER}.`,
-    "Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.",
+    HONEST_NOTE,
   ].join("\n");
 }
 

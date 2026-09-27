@@ -1,14 +1,18 @@
 import { prisma } from "@/database/client";
-import { nearestFireForFarm } from "@/database/sql/farm-fire.sql";
+import { FIRE_ALERT_WINDOW_MS, nearestFiresForFarms } from "@/database/sql/fires.sql";
 import { authorize, type Actor } from "@/modules/authorization";
+import { fireMessageInApp, fireSeverity } from "@/modules/monitoring/fire-message";
 
 // Carte d'alerte feu de l'accueil agriculteur (chantier K) : rien tant qu'aucun feu actif ne
-// menace l'exploitation, sinon le feu le plus proche, sa distance et le conseil de l'alerte.
+// menace l'exploitation, sinon le feu le plus proche, où il est par rapport à SA parcelle et le
+// conseil de l'alerte. Même calcul que le message envoyé (fire-message.ts), fait à l'affichage.
 
 export interface FarmFireAlert {
   alertId: string;
+  /** Gravité pour cette exploitation : critique sous 500 m de sa parcelle. */
   severity: "INFO" | "WATCH" | "WARNING" | "CRITICAL";
-  messageShort: string;
+  /** Où et quand, depuis sa parcelle, puis la limite de la détection. */
+  situation: string;
   adviceFr: string;
   detectedAt: string;
   distanceM: number;
@@ -18,11 +22,13 @@ export interface FarmFireAlert {
 
 /**
  * Null tant que rien ne menace l'exploitation : ni alerte de feu active pour sa commune, ni
- * exploitation retenue comme destinataire, ni feu récent à moins d'1 km d'une de ses parcelles.
+ * exploitation retenue comme destinataire, ni feu récent (confiance nominale ou haute) à moins
+ * d'1 km d'une de ses parcelles.
  */
 export async function getFarmFireAlert(
   actor: Actor,
   farmId: string,
+  now: Date = new Date(),
 ): Promise<FarmFireAlert | null> {
   const farm = await prisma.farm.findFirst({
     where: { id: farmId, archivedAt: null },
@@ -48,7 +54,7 @@ export async function getFarmFireAlert(
       awaitingConfirmation: false,
     },
     orderBy: { startsAt: "desc" },
-    select: { id: true, severity: true, messageShort: true, adviceFr: true },
+    select: { id: true, adviceFr: true },
   });
   if (!alert) return null;
 
@@ -58,17 +64,19 @@ export async function getFarmFireAlert(
   });
   if (!recipient) return null;
 
-  const nearest = await nearestFireForFarm(farmId);
+  const nearest = (
+    await nearestFiresForFarms([farmId], new Date(now.getTime() - FIRE_ALERT_WINDOW_MS))
+  ).get(farmId);
   if (!nearest) return null;
 
   return {
     alertId: alert.id,
-    severity: alert.severity,
-    messageShort: alert.messageShort,
+    severity: fireSeverity(nearest.distanceM),
+    situation: fireMessageInApp(nearest, now),
     adviceFr: alert.adviceFr,
     detectedAt: nearest.detectedAt.toISOString(),
     distanceM: Math.round(nearest.distanceM),
-    fire: { lng: nearest.fireLng, lat: nearest.fireLat },
-    farm: { lng: nearest.farmLng, lat: nearest.farmLat },
+    fire: { lng: nearest.fire.lon, lat: nearest.fire.lat },
+    farm: { lng: nearest.parcel.lon, lat: nearest.parcel.lat },
   };
 }
