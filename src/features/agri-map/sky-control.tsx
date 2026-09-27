@@ -107,10 +107,12 @@ export function SkyControl({
             <SelectContent>
               {ready.periods.map((entry) => (
                 <SelectItem key={entry.period} value={entry.period}>
-                  <span>{sentenceCase(entry.label)}</span>
-                  {ready.partial ? null : (
-                    <span className="text-muted-foreground">, {clearLabel(entry)}</span>
-                  )}
+                  <span>
+                    {sentenceCase(entry.label)}
+                    {ready.partial ? null : (
+                      <span className="text-muted-foreground">, {clearLabel(entry)}</span>
+                    )}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

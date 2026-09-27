@@ -150,10 +150,11 @@ export function SkyLegend({ view, periodLabel, detail }: SkyLegendProps) {
         <div className="mt-2 flex items-center gap-1 text-muted-foreground">
           <p>Mosaïque sans nuages des 60 derniers jours</p>
           <HelpTip label="Mosaïque sans nuages">
-            Copernicus retient les trois passages les moins nuageux des 60 derniers jours, puis
-            prend chaque point au plus récent de ces passages où il est dégagé. Un point couvert aux
-            trois passages garde son dernier nuage en couleur naturelle et reste transparent en
-            NDVI.
+            Vue rapprochée : Copernicus retient les trois passages les moins nuageux des 60 derniers
+            jours, puis prend chaque point au plus récent de ces passages où il est dégagé. Vue du
+            pays entier : pour chaque zone, la scène la moins nuageuse des 30 derniers jours,
+            complétée par celle des 30 jours précédents. En saison des pluies, des nuages restent
+            visibles.
           </HelpTip>
         </div>
       ) : null}
