@@ -10,10 +10,12 @@ import { requireRole } from "@/features/auth/session";
 import { FirstStepsCard } from "@/features/onboarding/first-steps-card";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
+import { FireAlertCard } from "@/features/monitoring/fire-alert-card";
 import { PendingReports } from "@/features/reports/pending-reports";
 import { situationSentence } from "@/lib/text/situation";
 import { listAssistanceForActor } from "@/modules/assistance";
 import { listAlertsForActor } from "@/modules/monitoring";
+import { getFarmFireAlert } from "@/modules/fires/farm-alert";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
 export const metadata: Metadata = { title: "Mon exploitation" };
@@ -66,11 +68,12 @@ export default async function FarmerSpacePage() {
     );
   }
 
-  const [farm, campaigns, alerts, requests] = await Promise.all([
+  const [farm, campaigns, alerts, requests, fireAlert] = await Promise.all([
     getFarmDetail(user.actor, first.id),
     listCampaigns(),
     listAlertsForActor(user.actor, { status: "ACTIVE" }),
     listAssistanceForActor(user.actor, { limit: 20 }),
+    getFarmFireAlert(user.actor, first.id),
   ]);
   if (!farm) return null;
   const openCampaign = campaigns.find((c) => c.status === "OPEN")?.code ?? null;
@@ -105,6 +108,7 @@ export default async function FarmerSpacePage() {
         description={sentence}
       />
 
+      {fireAlert ? <FireAlertCard alert={fireAlert} /> : null}
       {alerts.length > 0 ? <AlertsTeaser alerts={alerts} /> : null}
       <PendingReports userId={user.id} />
 

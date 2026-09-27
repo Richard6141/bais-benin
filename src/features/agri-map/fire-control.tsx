@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fireEmptyMessage } from "./fire-status";
 import { FIRE_CLASSES, type FireCollection, type FireWindowParam } from "./fire-layer";
 
 const NONE = "aucun";
@@ -51,13 +52,18 @@ export function FireControl({
   );
 }
 
-// Légende des feux : intensité par puissance radiative, nombre de feux, source.
+// Légende des feux : intensité par puissance radiative, nombre de feux, source. En saison des
+// pluies la couche peut rester vide plusieurs jours : plutôt qu'une carte muette, le message le
+// dit et donne le total sur 7 jours pour resituer (ADR-0022, chantier K).
 export function FireLegend({
   window,
   data,
+  sevenDayCount = null,
 }: {
   window: FireWindowParam;
   data: FireCollection | null;
+  /** Total des 7 derniers jours, à donner quand `data` est vide pour la fenêtre de 24 heures. */
+  sevenDayCount?: number | null;
 }) {
   const count = data?.features.length ?? null;
   const period = window === "24h" ? "dernières 24 heures" : "7 derniers jours";
@@ -86,7 +92,7 @@ export function FireLegend({
         {count === null
           ? "Chargement des feux"
           : count === 0
-            ? "Aucun feu détecté au Bénin sur cette période."
+            ? fireEmptyMessage(window, sevenDayCount)
             : `${count.toLocaleString("fr-FR")} feu${count > 1 ? "x" : ""} détecté${count > 1 ? "s" : ""} au Bénin.`}
       </p>
       <p className="text-muted-foreground">Source : NASA FIRMS (VIIRS 375 m, MODIS)</p>
