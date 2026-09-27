@@ -16,13 +16,16 @@ import { FixtureFireProvider } from "@/services/fires";
 import { FixtureMessagingChannel } from "@/services/messaging/fixture/fixture-channel";
 
 // Alerte « feu de brousse » utile (ADR-0022) : un feu à environ 330 m au nord d'une parcelle de
-// l'agricultrice de démonstration de Djougou. Elle reçoit l'alerte, critique, avec la distance et
-// la direction depuis SA parcelle ; une voisine de la même commune, sans parcelle près du feu, ne
-// la voit ni dans sa liste ni dans sa fiche ; l'agent voit l'exploitation exposée et sa distance.
+// l'agricultrice de démonstration de Djougou. Elle voit l'alerte, critique, dans l'application ;
+// une voisine de la même commune, sans parcelle près du feu, ne la voit ni dans sa liste ni dans
+// sa fiche ; l'agent voit l'exploitation exposée et sa distance. Le message WhatsApp, avec la
+// distance et la direction depuis SA parcelle, part vers un producteur enregistré sur le terrain
+// dont le champ est aussi près du feu, jamais vers une fiche de démonstration au numéro inventé.
 // Aucun envoi réel : canal de test.
 
 const FARMER_PHONE = "+2290190000002";
 const AGENT_PHONE = "+2290190000001";
+const ENROLLED_PHONE = "+2290166000123";
 const now = new Date();
 const since = new Date(now.getTime() - 60_000);
 const neighbourIds = {
@@ -30,7 +33,13 @@ const neighbourIds = {
   farmer: crypto.randomUUID(),
   farm: crypto.randomUUID(),
 };
+const enrolledIds = {
+  farmer: crypto.randomUUID(),
+  farm: crypto.randomUUID(),
+  parcel: crypto.randomUUID(),
+};
 const provenance = { sourceId: "BAIS_SEED", sourceDate: now, reliability: "SYNTHETIC" } as const;
+const field = { sourceId: "ATDA_TERRAIN", sourceDate: now, reliability: "DECLARED" } as const;
 
 let exposed: { farmId: string; communeId: string; actor: Actor };
 let neighbour: Actor;
@@ -96,6 +105,53 @@ describe("alerte feu adressée aux seuls producteurs exposés", () => {
       grants: [{ role: "FARMER", scopeType: "SELF", scopeId: null }],
     };
 
+    // Producteur enregistré sur le terrain (fiche réelle, consentement WhatsApp), dont le champ
+    // est à 110 m à l'est de celui de l'agricultrice : le même feu est à son nord.
+    await prisma.farmer.create({
+      data: {
+        id: enrolledIds.farmer,
+        code: `BJ-F-FEU-${enrolledIds.farmer.slice(0, 8)}`,
+        firstName: "Terrain",
+        lastName: "Testfeu",
+        phoneE164: ENROLLED_PHONE,
+        communeId: exposed.communeId,
+        ...field,
+      },
+    });
+    await prisma.channelConsent.create({
+      data: {
+        farmerId: enrolledIds.farmer,
+        channel: "WHATSAPP",
+        granted: true,
+        grantedAt: now,
+        method: "AGENT_FORM",
+        evidence: "test-alerte-feu",
+      },
+    });
+    await prisma.farm.create({
+      data: {
+        id: enrolledIds.farm,
+        code: `BJ-FEU-${enrolledIds.farm.slice(0, 8)}`,
+        farmerId: enrolledIds.farmer,
+        communeId: exposed.communeId,
+        declaredAreaHa: 1,
+        ...field,
+      },
+    });
+    await prisma.parcel.create({
+      data: {
+        id: enrolledIds.parcel,
+        code: `BJ-FEU-${enrolledIds.farm.slice(0, 8)}-P01`,
+        farmId: enrolledIds.farm,
+        declaredAreaHa: 1,
+        ...field,
+      },
+    });
+    await prisma.$executeRaw`
+      UPDATE "parcel"
+      SET "centroid" = ST_SetSRID(ST_MakePoint(${row.lon + 0.001}, ${row.lat}), 4326)::geography
+      WHERE "id" = ${enrolledIds.parcel}::uuid`;
+
     const ingestion = await runFireIngestion({
       now,
       provider: new FixtureFireProvider([
@@ -127,8 +183,11 @@ describe("alerte feu adressée aux seuls producteurs exposés", () => {
     });
     await prisma.fireDetection.deleteMany({ where: { createdAt: { gte: since } } });
     await prisma.fireIngestionRun.deleteMany({ where: { startedAt: { gte: since } } });
-    await prisma.farm.deleteMany({ where: { id: neighbourIds.farm } });
-    await prisma.farmer.deleteMany({ where: { id: neighbourIds.farmer } });
+    await prisma.parcel.deleteMany({ where: { id: enrolledIds.parcel } });
+    await prisma.farm.deleteMany({ where: { id: { in: [neighbourIds.farm, enrolledIds.farm] } } });
+    await prisma.farmer.deleteMany({
+      where: { id: { in: [neighbourIds.farmer, enrolledIds.farmer] } },
+    });
     await prisma.user.deleteMany({ where: { id: neighbourIds.user } });
     await prisma.$disconnect();
   });
@@ -158,7 +217,7 @@ describe("alerte feu adressée aux seuls producteurs exposés", () => {
     expect(await getAlertDetail(neighbour, alertId)).toBeNull();
   });
 
-  it("dit à la productrice la distance et la direction depuis SA parcelle", async () => {
+  it("dit au producteur la distance et la direction depuis SA parcelle", async () => {
     // Seuls les envois de cette alerte partent : placés en tête de file, et le passage limité à
     // leur nombre. La base de démonstration en garde d'autres en attente, qui ne sont pas à ce test.
     const ours = await prisma.alertRecipient.updateMany({
@@ -172,14 +231,17 @@ describe("alerte feu adressée aux seuls producteurs exposés", () => {
       messaging: { WHATSAPP: channel, SMS: channel },
       limit: ours.count,
     });
-    const texts = channel.sent.flatMap((m) =>
-      m.kind === "TEXT" && m.to === FARMER_PHONE ? [m.text] : [],
-    );
-    expect(texts.length).toBeGreaterThanOrEqual(1);
+    const textsTo = (phone: string) =>
+      channel.sent.flatMap((m) => (m.kind === "TEXT" && m.to === phone ? [m.text] : []));
+    const texts = textsTo(ENROLLED_PHONE);
+    expect(texts.length).toBe(1);
     const text = texts[0] ?? "";
     expect(text).toMatch(/au nord de votre champ/);
     expect(text).toContain("118");
     expect(text).toMatch(/à vérifier sur place/i);
+    // Fiche de démonstration : l'alerte reste dans l'application, rien ne part vers son numéro.
+    expect(textsTo(FARMER_PHONE)).toEqual([]);
+    expect(channel.sent.every((m) => m.kind === "TEXT" && m.to === ENROLLED_PHONE)).toBe(true);
   });
 
   it("montre à l'agent l'exploitation exposée, avec la distance du feu", async () => {
