@@ -16,6 +16,7 @@ function commune(overrides: Partial<CommuneBalance>): CommuneBalance {
     coverage: { central: 0.6, low: 0.5, high: 0.7 },
     status: "deficit",
     toConfirm: false,
+    confirmReasons: [],
     crops: [
       {
         cropCode: "MAIZE",
@@ -46,6 +47,7 @@ const view: FoodBalanceView = {
       name: "Banikoara",
       status: "tension",
       toConfirm: true,
+      confirmReasons: ["La fourchette chevauche un seuil."],
       coverage: { central: 0.95, low: 0.8, high: 1.1 },
     }),
     commune({
@@ -70,6 +72,9 @@ describe("bilan alimentaire", () => {
     expect(within(deficit).getByText("Enquête 2026-2027")).toBeInTheDocument();
     const tension = screen.getByText("Banikoara").closest("tr")!;
     expect(within(tension).getByText("À confirmer")).toBeInTheDocument();
+    expect(
+      within(tension).getByRole("button", { name: /Pourquoi Banikoara est à confirmer/ }),
+    ).toBeInTheDocument();
     const missing = screen.getByText("Cotonou").closest("tr")!;
     expect(within(missing).getByText("Non évaluée")).toBeInTheDocument();
     expect(within(missing).getByText("Aucune surface de toute la commune")).toBeInTheDocument();

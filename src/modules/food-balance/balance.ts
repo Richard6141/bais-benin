@@ -10,7 +10,14 @@ import {
 // de la population et couverture, avec sa fourchette et son statut.
 
 export type AreaSource =
-  | { kind: "survey"; campaignCode: string; cv: number | null }
+  | {
+      kind: "survey";
+      campaignCode: string;
+      cv: number | null;
+      /** Points où l'agent a vu une culture vivrière, et points observés. */
+      positives?: number;
+      points?: number;
+    }
   | { kind: "official"; sourceId: string; campaignCode: string };
 
 export interface CropInput {
@@ -31,6 +38,8 @@ export interface CommuneInput {
   crops: readonly CropInput[];
   /** Cultures vivrières sans surface connue : le bilan les ignore, il est donc sous-estimé. */
   missingCrops: readonly string[];
+  /** Raison de l'absence de surface, quand elle est connue (enquête trop maigre). */
+  unavailableReason?: string;
 }
 
 export type BalanceStatus = "covered" | "tension" | "deficit" | "not-evaluated";
@@ -56,8 +65,9 @@ export interface CommuneBalance {
   /** Calories disponibles rapportées aux besoins ; null sans évaluation. */
   coverage: { central: number; low: number; high: number } | null;
   status: BalanceStatus;
-  /** Vrai si la fourchette chevauche un seuil : le statut est à confirmer. */
+  /** Vrai si le statut est à confirmer ; les raisons disent pourquoi. */
   toConfirm: boolean;
+  confirmReasons: string[];
   crops: CropBalance[];
   missingCrops: readonly string[];
   /** Raison d'une commune non évaluée. */
@@ -77,6 +87,16 @@ export const STATUS_RANK: Record<BalanceStatus, number> = {
   covered: 2,
   "not-evaluated": 3,
 };
+
+/**
+ * Seuil de vraisemblance (ADR-0036) : au-delà de trois fois ses besoins, près du double du taux
+ * national (161 %, FAOSTAT 2024), une commune est possible mais rare ; le chiffre est à confirmer.
+ */
+export const PLAUSIBLE_COVERAGE_MAX = 3;
+/** Au-delà de ce coefficient de variation, une surface par sondage est imprécise (ADR-0035). */
+export const PRECISE_SURVEY_CV = 0.2;
+
+const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 export function statusOf(coverage: number): Exclude<BalanceStatus, "not-evaluated"> {
   if (coverage >= 1) return "covered";
@@ -123,11 +143,14 @@ export function computeCommuneBalance(input: CommuneInput): CommuneBalance {
     coverage: null,
     status: "not-evaluated",
     toConfirm: false,
+    confirmReasons: [],
     crops,
     reason,
   });
   if (!input.population || input.population <= 0) return notEvaluated("Population inconnue");
-  if (crops.length === 0) return notEvaluated("Aucune surface de toute la commune");
+  if (crops.length === 0) {
+    return notEvaluated(input.unavailableReason ?? "Aucune surface de toute la commune");
+  }
   if (REQUIRED_CROPS.some((code) => !crops.some((crop) => crop.cropCode === code))) {
     return notEvaluated("Surface manquante pour le maïs, l'igname ou le manioc");
   }
@@ -137,17 +160,39 @@ export function computeCommuneBalance(input: CommuneInput): CommuneBalance {
     low: available.low / needsKcal,
     high: available.high / needsKcal,
   };
+  const status = statusOf(coverage.central);
+  const confirmReasons: string[] = [];
+  if (statusOf(coverage.low) !== statusOf(coverage.high)) {
+    confirmReasons.push("La fourchette chevauche un seuil.");
+  }
+  // Une culture manquante sous-estime la couverture : un statut autre que « couverte » reste à
+  // confirmer.
+  if (input.missingCrops.length > 0 && status !== "covered") {
+    confirmReasons.push("Des cultures n'ont pas de surface : la couverture est sous-estimée.");
+  }
+  if (coverage.central > PLAUSIBLE_COVERAGE_MAX) {
+    confirmReasons.push(
+      `Plus de ${percent(PLAUSIBLE_COVERAGE_MAX)} des besoins : surface ou rendement à vérifier.`,
+    );
+  }
+  const survey = crops.find((crop) => crop.source.kind === "survey")?.source;
+  if (survey?.kind === "survey" && survey.cv !== null && survey.cv > PRECISE_SURVEY_CV) {
+    confirmReasons.push(
+      `Surface vivrière de l'enquête à ${percent(survey.cv)} près${
+        survey.positives !== undefined && survey.points !== undefined
+          ? ` (${survey.positives > 1 ? `${survey.positives} points vivriers` : `${survey.positives} point vivrier`} sur ${survey.points})`
+          : ""
+      } : trop peu de points.`,
+    );
+  }
   return {
     ...base,
     needsKcal,
     availableKcal: available,
     coverage,
-    status: statusOf(coverage.central),
-    // Une culture manquante sous-estime la couverture : un statut autre que « couverte » reste à
-    // confirmer.
-    toConfirm:
-      statusOf(coverage.low) !== statusOf(coverage.high) ||
-      (input.missingCrops.length > 0 && statusOf(coverage.central) !== "covered"),
+    status,
+    toConfirm: confirmReasons.length > 0,
+    confirmReasons,
     crops,
     reason: null,
   };

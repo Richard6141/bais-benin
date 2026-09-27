@@ -21,7 +21,11 @@ import {
   FIXTURE_CLASS_CONFUSION,
   createFixtureRemoteSensingProvider,
 } from "@/services/remote-sensing";
-import { CROP_AREA_METHOD_VERSION, CROP_AREA_RESOLUTION_M } from "@/modules/satellite/crop-areas";
+import {
+  CROP_AREA_METHOD_VERSION,
+  CROP_AREA_RESOLUTION_M,
+  cropMapClassOf,
+} from "@/modules/satellite/crop-areas";
 
 // Confrontation déclaration / satellite de démonstration (ADR-0016) : verdicts calculés sur des
 // séries NDVI synthétiques (fixture), pour que le ministère et les agents voient des parcelles
@@ -81,52 +85,82 @@ export async function seedParcelCrops(): Promise<number | null> {
 }
 
 // Enquête aréolaire de démonstration (ADR-0033) : points tirés dans les communes pilotes, constats
-// synthétiques tirés de parts d'occupation du sol plausibles (une fois sur vingt-cinq
-// inaccessible), classe de la carte aux points par la fixture (quatre fois sur cinq la bonne),
-// et carte de démonstration des communes d'enquête recalée sur ce que la fixture y verrait, pour
-// que l'estimateur par régression ait une moyenne connue cohérente. Refait à chaque seed ; un vrai
-// constat, une vraie lecture de la carte ou une vraie surface par commune n'est jamais effacé.
+// synthétiques (une fois sur vingt-cinq inaccessible), classe de la carte aux points par la
+// fixture (quatre fois sur cinq la bonne), et carte de démonstration des communes d'enquête recalée
+// sur ce que la fixture y verrait, pour que l'estimateur par régression ait une moyenne connue
+// cohérente. Refait à chaque seed ; un vrai constat, une vraie lecture de la carte ou une vraie
+// surface par commune n'est jamais effacé.
+//
+// Vraisemblance (ADR-0036) : la surface vivrière de chaque commune suit sa population, à raison
+// de 0,178 ha par habitant (FAOSTAT 2024 rapporté à WorldPop 2026), multipliée par un facteur de
+// 0,5 à 1,5 propre à la commune. Le bilan alimentaire de démonstration tombe ainsi entre 80 et
+// 250 % environ, autour du contrôle national de 161 %.
 
-/** Parts d'occupation du sol de démonstration ; le coton ne pousse qu'au centre et au nord. */
-function demoLandShares(latitude: number): [string, number][] {
-  const cotton = latitude >= 8.5 ? 0.08 : 0;
-  return [
-    ["RICE", 0.02],
-    ["ANNUAL", 0.3 + (0.08 - cotton)],
-    ["COTTON", cotton],
-    ["PERENNIAL", 0.06],
-    ["GARDEN", 0.01],
-    ["FALLOW", 0.15],
-    ["NATURAL", 0.38],
-    ["WATER", 0.02],
-    ["BUILT", 0.02],
-  ];
+/** Surface de céréales, racines et tubercules par habitant : 2,66 Mha (FAOSTAT 2024) / 14,99 M. */
+const STAPLE_HA_PER_PERSON = 0.178;
+/** Répartition nationale des surfaces vivrières (FAOSTAT 2024). */
+const STAPLE_MIX: readonly [string, number][] = [
+  ["MAIZE", 0.661],
+  ["SORGHUM", 0.08],
+  ["MILLET", 0.016],
+  ["RICE", 0.048],
+  ["YAM", 0.079],
+  ["CASSAVA", 0.112],
+  ["SWEET_POTATO", 0.005],
+];
+/** Une commune qu'on ne sait pas peupler garde une part vivrière modeste. */
+const DEFAULT_STAPLE_SHARE = 0.1;
+const INACCESSIBLE_SHARE = 0.04;
+
+type DemoLandCover = "CROP" | "FALLOW" | "NATURAL" | "WATER" | "BUILT";
+
+interface DemoEntry {
+  landCover: DemoLandCover;
+  cropCode: string | null;
+  /** Classe de la carte où tombe ce constat. */
+  mapClass: string;
+  weight: number;
 }
 
-/** Cultures d'une classe de la carte, avec leur poids dans les constats de démonstration. */
-const DEMO_CROPS: Record<string, [string, number][]> = {
-  ANNUAL: [
-    ["MAIZE", 0.45],
-    ["SORGHUM", 0.12],
-    ["MILLET", 0.05],
-    ["SOYBEAN", 0.1],
-    ["COWPEA", 0.08],
-    ["GROUNDNUT", 0.08],
-    ["YAM", 0.07],
-    ["CASSAVA", 0.05],
-  ],
-  RICE: [["RICE", 1]],
-  COTTON: [["COTTON", 1]],
-  PERENNIAL: [["CASHEW", 1]],
-  GARDEN: [["TOMATO", 1]],
-};
-const INACCESSIBLE_SHARE = 0.04;
+/**
+ * Occupation du sol de démonstration d'une commune : sa part vivrière, puis le coton (centre et
+ * nord), les autres cultures, jachères, eau et bâti ; la savane et la forêt prennent le reste.
+ */
+function demoDistribution(latitude: number, stapleShare: number): DemoEntry[] {
+  const crop = (cropCode: string, weight: number): DemoEntry => ({
+    landCover: "CROP",
+    cropCode,
+    mapClass: cropMapClassOf(cropCode),
+    weight,
+  });
+  const land = (landCover: DemoLandCover, weight: number): DemoEntry => ({
+    landCover,
+    cropCode: null,
+    mapClass: landCover,
+    weight,
+  });
+  const entries: DemoEntry[] = [
+    ...STAPLE_MIX.map(([code, share]) => crop(code, stapleShare * share)),
+    crop("COTTON", latitude >= 8.5 ? 0.04 : 0),
+    crop("SOYBEAN", 0.02),
+    crop("COWPEA", 0.015),
+    crop("GROUNDNUT", 0.01),
+    crop("CASHEW", 0.03),
+    crop("TOMATO", 0.005),
+    land("FALLOW", 0.12),
+    land("WATER", 0.01),
+    land("BUILT", 0.01),
+  ];
+  const used = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  entries.push(land("NATURAL", Math.max(0.05, 1 - used)));
+  return entries;
+}
 
 interface DemoObservation {
   pointId: string;
   observedAt: Date;
   observedById: string;
-  landCover: "CROP" | "FALLOW" | "NATURAL" | "WATER" | "BUILT" | "INACCESSIBLE";
+  landCover: DemoLandCover | "INACCESSIBLE";
   cropId: string | null;
   reason: string | null;
   distanceM: number | null;
@@ -144,24 +178,26 @@ function demoHash(text: string): number {
   return hash;
 }
 
-function pick<T>(entries: readonly [T, number][], draw: number): T {
-  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+function pick<T>(entries: readonly T[], weight: (entry: T) => number, draw: number): T {
+  const total = entries.reduce((sum, entry) => sum + weight(entry), 0);
   let cursor = draw * total;
-  for (const [value, weight] of entries) {
-    cursor -= weight;
-    if (cursor <= 0) return value;
+  for (const entry of entries) {
+    cursor -= weight(entry);
+    if (cursor <= 0) return entry;
   }
-  return entries[entries.length - 1]![0];
+  return entries[entries.length - 1]!;
 }
 
-/** Part de chaque classe que la fixture verrait sur une commune aux parts `shares`. */
-function expectedMapShares(shares: readonly [string, number][]): Map<string, number> {
+/** Part de chaque classe que la fixture verrait sur une commune à cette occupation du sol. */
+function expectedMapShares(entries: readonly DemoEntry[]): Map<string, number> {
   const codeOf = CROP_CLASS_CODES as Record<string, number>;
   const keyOf = new Map(Object.entries(codeOf).map(([key, code]) => [code, key]));
+  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
   const map = new Map<string, number>();
-  for (const [key, share] of shares) {
-    const confused = keyOf.get(FIXTURE_CLASS_CONFUSION[codeOf[key]!] ?? codeOf.FALLOW!)!;
-    map.set(key, (map.get(key) ?? 0) + share * FIXTURE_RIGHT);
+  for (const entry of entries) {
+    const share = entry.weight / total;
+    const confused = keyOf.get(FIXTURE_CLASS_CONFUSION[codeOf[entry.mapClass]!] ?? codeOf.FALLOW!)!;
+    map.set(entry.mapClass, (map.get(entry.mapClass) ?? 0) + share * FIXTURE_RIGHT);
     map.set(confused, (map.get(confused) ?? 0) + share * (1 - FIXTURE_RIGHT));
   }
   return map;
@@ -194,9 +230,45 @@ export async function seedAreaSurvey(): Promise<number | null> {
       code: true,
       communeId: true,
       latitude: true,
+      commune: { select: { code: true } },
       observations: { select: { id: true }, take: 1 },
     },
   });
+
+  // Occupation du sol de chaque commune d'enquête, d'après sa population et sa surface.
+  const communeIds = [...new Set(points.map((point) => point.communeId))];
+  const [areaRows, populations] = await Promise.all([
+    prisma.$queryRaw<{ id: string; area_ha: number }[]>`
+      SELECT "id", ST_Area("geom") / 10000 AS area_ha
+        FROM "commune" WHERE "id" = ANY(${communeIds}::uuid[])`,
+    prisma.communePopulation.findMany({
+      where: { communeId: { in: communeIds } },
+      select: { communeId: true, population: true },
+      orderBy: { year: "desc" },
+    }),
+  ]);
+  const areas = new Map(areaRows.map((row) => [row.id, Number(row.area_ha)]));
+  const population = new Map<string, number>();
+  for (const row of populations) {
+    if (!population.has(row.communeId)) population.set(row.communeId, row.population);
+  }
+  const distributions = new Map<string, DemoEntry[]>();
+  for (const communeId of communeIds) {
+    const communePoints = points.filter((point) => point.communeId === communeId);
+    const latitude =
+      communePoints.reduce((sum, point) => sum + Number(point.latitude), 0) /
+      Math.max(1, communePoints.length);
+    const code = communePoints[0]?.commune.code ?? communeId;
+    const factor = 0.5 + seededRandom(demoHash(`vivrier:${code}`))();
+    const people = population.get(communeId);
+    const areaHa = areas.get(communeId) ?? 0;
+    const stapleShare =
+      people && areaHa > 0
+        ? Math.min(0.3, (people * STAPLE_HA_PER_PERSON * factor) / areaHa)
+        : DEFAULT_STAPLE_SHARE;
+    distributions.set(communeId, demoDistribution(latitude, stapleShare));
+  }
+
   const crops = new Map(
     (await prisma.crop.findMany({ select: { id: true, code: true } })).map((crop) => [
       crop.code,
@@ -218,14 +290,10 @@ export async function seedAreaSurvey(): Promise<number | null> {
         },
       ];
     }
-    const seen = pick(demoLandShares(Number(point.latitude)), random());
-    const cropCode = DEMO_CROPS[seen] ? pick(DEMO_CROPS[seen], random()) : null;
-    const cropId = cropCode ? (crops.get(cropCode) ?? null) : null;
-    if (cropCode && !cropId) return [];
-    const landCover = cropCode
-      ? ("CROP" as const)
-      : (seen as "FALLOW" | "NATURAL" | "WATER" | "BUILT");
-    return [{ ...base, landCover, cropId, reason: null, distanceM: 8 }];
+    const seen = pick(distributions.get(point.communeId)!, (entry) => entry.weight, random());
+    const cropId = seen.cropCode ? (crops.get(seen.cropCode) ?? null) : null;
+    if (seen.cropCode && !cropId) return [];
+    return [{ ...base, landCover: seen.landCover, cropId, reason: null, distanceM: 8 }];
   });
   await prisma.areaFrameObservation.createMany({
     data: rows.map((row) => ({
@@ -238,26 +306,13 @@ export async function seedAreaSurvey(): Promise<number | null> {
 
   // Carte de démonstration des communes d'enquête, sauf celles déjà mesurées par Copernicus.
   const measured = await communesWithMeasuredCropAreas(campaign.id);
-  const byCommune = new Map<string, number[]>();
-  for (const point of points) {
-    if (measured.has(point.communeId)) continue;
-    const list = byCommune.get(point.communeId) ?? [];
-    list.push(Number(point.latitude));
-    byCommune.set(point.communeId, list);
-  }
-  const areas = new Map(
-    (
-      await prisma.$queryRaw<{ id: string; area_ha: number }[]>`
-        SELECT "id", ST_Area("geom") / 10000 AS area_ha
-          FROM "commune" WHERE "id" = ANY(${[...byCommune.keys()]}::uuid[])`
-    ).map((row) => [row.id, Number(row.area_ha)]),
-  );
   const windowFrom = new Date(now.getTime() - 365 * 86_400_000);
   const estimates: CropAreaRow[] = [];
-  for (const [communeId, latitudes] of byCommune) {
-    const latitude = latitudes.reduce((sum, value) => sum + value, 0) / latitudes.length;
-    const shares = expectedMapShares(demoLandShares(latitude));
+  for (const [communeId, entries] of distributions) {
+    if (measured.has(communeId)) continue;
+    const shares = expectedMapShares(entries);
     const areaHa = areas.get(communeId) ?? 0;
+    const latitude = Number(points.find((point) => point.communeId === communeId)?.latitude ?? 9);
     for (const key of CROP_CLASSES) {
       const share = shares.get(key) ?? 0;
       estimates.push({

@@ -2,6 +2,8 @@
 // commune convertie en calories, face aux besoins de sa population.
 
 export {
+  PLAUSIBLE_COVERAGE_MAX,
+  PRECISE_SURVEY_CV,
   REQUIRED_CROPS,
   STATUS_RANK,
   computeCommuneBalance,
