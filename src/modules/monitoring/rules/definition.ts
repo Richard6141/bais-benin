@@ -26,6 +26,9 @@ export const NUMERIC_INDICATORS = [
   // Feux actifs (ADR-0022) : exploitations dont une parcelle est à moins de 1 km d'un feu détecté
   // par satellite dans les dernières 24 heures (confiance nominale ou haute).
   "fire_near_parcels",
+  // Foyer de feux (ADR-0038) : foyers distincts détectés dans les dernières 24 heures à moins de
+  // 1 km d'une parcelle de la commune, deux détections à moins de 750 m formant un même foyer.
+  "fire_count_near_parcels",
 ] as const;
 
 /** Indicateurs dont la valeur dépend des paramètres de la condition (ADR-0015). */

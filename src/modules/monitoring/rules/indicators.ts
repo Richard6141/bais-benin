@@ -156,5 +156,7 @@ export function computeIndicators(input: IndicatorInput): IndicatorValues {
     report_cluster: null,
     // Dépend des détections de feux des dernières 24 heures : calculé à part (ADR-0022).
     fire_near_parcels: null,
+    // Foyers de feux près des parcelles de la commune : calculé à part (ADR-0038).
+    fire_count_near_parcels: null,
   };
 }

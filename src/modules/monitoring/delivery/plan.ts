@@ -1,6 +1,17 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import {
+  farmsWithCloseFire,
+  fireFoyersNearParcelsByCommune,
+} from "@/database/sql/fire-clusters.sql";
 import { FIRE_ALERT_WINDOW_MS, farmsNearFires } from "@/database/sql/fires.sql";
-import { parseRuleDefinition, usesFires } from "@/modules/monitoring/rules";
+import {
+  evaluateRule,
+  parseRuleDefinition,
+  usesFireFoyers,
+  usesFires,
+  type IndicatorValues,
+  type RuleNode,
+} from "@/modules/monitoring/rules";
 import { cropFilterFromDefinition } from "./crop-filter";
 
 // Plan de diffusion d'une alerte (docs/modules/monitoring-parcours-ux.md §2.D) : destinataires
@@ -10,6 +21,10 @@ import { cropFilterFromDefinition } from "./crop-filter";
 // - Pour chaque producteur : IN_APP s'il a un compte, puis WHATSAPP (numéro + consentement),
 //   sinon SMS (consentement), sinon RELAY (l'agent le prévient de vive voix).
 // - IN_APP pour chaque agent dont le périmètre couvre la commune (commune ou département).
+// - Foyer de feux (ADR-0038) : dès que la condition « foyer » tient dans la commune, toute alerte
+//   de feu active reçoit aussi les agents de la commune et les comptes du ministère (IN_APP). Un
+//   producteur déjà prévenu par l'alerte remplacée n'a pas de second message, sauf si un feu est
+//   désormais à moins de 500 m de sa parcelle (montée en gravité).
 // Idempotent : les lignes déjà présentes (clé exploitation, utilisateur, canal) sont conservées.
 // La contrainte unique de la table laisse passer les doublons dont une colonne est nulle
 // (NULL distincts en PostgreSQL) : l'idempotence est donc assurée ici, par comparaison de clés.
@@ -38,6 +53,31 @@ function keyOf(row: Pick<PlannedRow, "farmId" | "userId" | "channel">): string {
   return `${row.farmId ?? "-"}|${row.userId ?? "-"}|${row.channel}`;
 }
 
+/**
+ * Vrai si la condition « foyer de feux » tient dans la commune (ADR-0038) : l'alerte a été levée
+ * par une règle de foyers, ou une règle de foyers active est vraie sur les foyers des 24 heures.
+ */
+async function fireFoyerHolds(
+  db: Db,
+  communeId: string,
+  definition: RuleNode,
+  since: Date,
+): Promise<boolean> {
+  if (usesFireFoyers(definition)) return true;
+  const rules = (
+    await db.rule.findMany({
+      where: { enabled: true, category: "FIRE" },
+      select: { definition: true },
+    })
+  )
+    .map((rule) => parseRuleDefinition(rule.definition))
+    .filter(usesFireFoyers);
+  if (rules.length === 0) return false;
+  const foyers = (await fireFoyersNearParcelsByCommune([communeId], since)).get(communeId) ?? 0;
+  const indicators = { fire_count_near_parcels: foyers } as Partial<IndicatorValues>;
+  return rules.some((rule) => evaluateRule(rule, indicators as IndicatorValues).matched);
+}
+
 export async function planAlertRecipients(
   db: Db,
   alertId: string,
@@ -57,9 +97,33 @@ export async function planAlertRecipients(
   const filter = cropFilterFromDefinition(definition);
   // Feu de brousse (ADR-0022) : seules les exploitations dont une parcelle est proche d'un feu, et
   // les agents qui les ont enregistrées (ADR-0014), pas toute la commune.
-  const fireFarms = usesFires(definition)
-    ? await farmsNearFires(alert.communeId, new Date(now.getTime() - FIRE_ALERT_WINDOW_MS))
-    : null;
+  const fireSince = new Date(now.getTime() - FIRE_ALERT_WINDOW_MS);
+  const fireFarms = usesFires(definition) ? await farmsNearFires(alert.communeId, fireSince) : null;
+  const foyer = fireFarms
+    ? await fireFoyerHolds(db, alert.communeId, definition, fireSince)
+    : false;
+
+  // Producteurs déjà prévenus (message envoyé) par une alerte de feu que celle-ci remplace : pas
+  // de second message, sauf feu désormais à moins de 500 m de leur parcelle.
+  const replaced = fireFarms
+    ? await db.alert.findMany({ where: { supersededById: alertId }, select: { id: true } })
+    : [];
+  const alreadyWarned = new Set<string>();
+  if (replaced.length > 0) {
+    const [sent, close] = await Promise.all([
+      db.alertRecipient.findMany({
+        where: {
+          alertId: { in: replaced.map((row) => row.id) },
+          channel: { in: ["WHATSAPP", "SMS"] },
+          status: { in: ["SENT", "DELIVERED", "READ"] },
+          farmId: { not: null },
+        },
+        select: { farmId: true },
+      }),
+      farmsWithCloseFire(alert.communeId, fireSince),
+    ]);
+    for (const row of sent) if (row.farmId && !close.has(row.farmId)) alreadyWarned.add(row.farmId);
+  }
 
   const campaign = await db.agriculturalCampaign.findFirst({
     where: { status: "OPEN", archivedAt: null },
@@ -101,19 +165,32 @@ export async function planAlertRecipients(
     },
   });
 
+  const communeAgents = () =>
+    db.roleAssignment.findMany({
+      where: {
+        role: "AGENT_AGRICULTURE",
+        revokedAt: null,
+        OR: [
+          { scopeType: "COMMUNE", scopeId: alert.communeId },
+          { scopeType: "DEPARTEMENT", scopeId: alert.commune.departementId },
+        ],
+      },
+      select: { userId: true },
+    });
+  const registrars = (fireFarms ?? []).flatMap((farm) =>
+    farm.registeredById ? [{ userId: farm.registeredById }] : [],
+  );
   const agents = fireFarms
-    ? fireFarms.flatMap((farm) => (farm.registeredById ? [{ userId: farm.registeredById }] : []))
-    : await db.roleAssignment.findMany({
-        where: {
-          role: "AGENT_AGRICULTURE",
-          revokedAt: null,
-          OR: [
-            { scopeType: "COMMUNE", scopeId: alert.communeId },
-            { scopeType: "DEPARTEMENT", scopeId: alert.commune.departementId },
-          ],
-        },
+    ? foyer
+      ? [...registrars, ...(await communeAgents())]
+      : registrars
+    : await communeAgents();
+  const ministry = foyer
+    ? await db.roleAssignment.findMany({
+        where: { role: "ADMIN_STATE", revokedAt: null },
         select: { userId: true },
-      });
+      })
+    : [];
 
   const planned: PlannedRow[] = [];
   // Foyer en attente de confirmation (ADR-0015) : les agents seulement ; les producteurs sont
@@ -123,6 +200,7 @@ export async function planAlertRecipients(
     const { userId, phoneE164, channelConsents } = farm.farmer;
     const consented = new Set(channelConsents.map((c) => c.channel));
     if (userId) planned.push({ farmId: farm.id, userId, phoneE164: null, channel: "IN_APP" });
+    if (alreadyWarned.has(farm.id)) continue;
     const outbound: Channel =
       phoneE164 && consented.has("WHATSAPP")
         ? "WHATSAPP"
@@ -131,8 +209,8 @@ export async function planAlertRecipients(
           : "RELAY";
     planned.push({ farmId: farm.id, userId: null, phoneE164, channel: outbound });
   }
-  for (const agentId of new Set(agents.map((a) => a.userId))) {
-    planned.push({ farmId: null, userId: agentId, phoneE164: null, channel: "IN_APP" });
+  for (const userId of new Set([...agents, ...ministry].map((a) => a.userId))) {
+    planned.push({ farmId: null, userId, phoneE164: null, channel: "IN_APP" });
   }
 
   const existingRows = await db.alertRecipient.findMany({

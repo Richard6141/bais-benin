@@ -152,6 +152,10 @@ const INDICATOR_LABELS: Record<IndicatorCode, { label: string; unit?: string }> 
     label: "Exploitations à moins de 1 km d'un feu actif (24 heures)",
     unit: "exploitations",
   },
+  fire_count_near_parcels: {
+    label: "Foyers de feux distincts près des parcelles de la commune (24 heures)",
+    unit: "foyers",
+  },
 };
 
 const OPERATOR_TEXT: Record<Operator, string> = {

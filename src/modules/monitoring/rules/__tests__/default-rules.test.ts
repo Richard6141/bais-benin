@@ -15,6 +15,7 @@ import {
   evaluateRule,
   findDefaultRule,
   renderMessage,
+  usesFireFoyers,
   usesFires,
   usesReports,
   usesWeather,
@@ -126,9 +127,9 @@ const CASES: Case[] = [
 ];
 
 describe("règles par défaut", () => {
-  it("sont dix, valides, avec des codes uniques : six météo, trois de regroupement, un feu", () => {
-    expect(DEFAULT_RULES).toHaveLength(10);
-    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(10);
+  it("sont onze, valides, avec des codes uniques : six météo, trois de regroupement, deux feux", () => {
+    expect(DEFAULT_RULES).toHaveLength(11);
+    expect(new Set(DEFAULT_RULES.map((r) => r.code)).size).toBe(11);
     const weather = DEFAULT_RULES.filter(
       (r) => !usesReports(r.definition) && !usesFires(r.definition),
     );
@@ -154,6 +155,31 @@ describe("règles par défaut", () => {
     expect(evaluateRule(rule!.definition, values(0)).matched).toBe(false);
     const short = renderMessage(rule!.messageShort, values(2), { commune: "Djougou" });
     expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
+  });
+
+  it("lève l'alerte « foyer de feux » dès trois foyers distincts près des parcelles", () => {
+    const rule = findDefaultRule("FIRE_CLUSTER_COMMUNE_V1");
+    expect(rule?.category).toBe("FIRE");
+    expect(rule?.severity).toBe("CRITICAL");
+    expect(usesFires(rule!.definition)).toBe(true);
+    expect(usesFireFoyers(rule!.definition)).toBe(true);
+    expect(usesWeather(rule!.definition)).toBe(false);
+    const empty = computeIndicators({
+      observed: [],
+      forecast: [],
+      referenceDate: "2026-12-15",
+      zoneCode: null,
+      crops: [],
+    });
+    const values = (foyers: number | null) => ({ ...empty, fire_count_near_parcels: foyers });
+    expect(evaluateRule(rule!.definition, values(3)).matched).toBe(true);
+    expect(evaluateRule(rule!.definition, values(2)).matched).toBe(false);
+    const long = renderMessage(rule!.messageFr, values(4), { commune: "Tchaourou" });
+    expect(long).toContain("Tchaourou : 4 foyers de feux");
+    expect(long).toContain("pas un constat");
+    const short = renderMessage(rule!.messageShort, values(4), { commune: "Tchaourou" });
+    expect(short.length).toBeLessThanOrEqual(SHORT_MESSAGE_MAX);
+    expect(`${long} ${short} ${rule!.adviceFr}`).not.toMatch(/[·…—]/);
   });
 
   describe.each(CASES)("$code", ({ code, zone, ref, crops, scenario }) => {
