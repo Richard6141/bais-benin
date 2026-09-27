@@ -1982,6 +1982,13 @@ model ParcelCropObservation {
   @@map("parcel_crop_observation")
 }
 
+// Strate d'un point d'enquête tiré en deux phases (ADR-0037), d'après la classe de la carte au
+// point : « cultures annuelles » (classes cultures annuelles et riz) ou autres terres.
+enum AreaFrameStratum {
+  ANNUAL_CROPS
+  OTHER_LAND
+}
+
 // Occupation du sol constatée par l'agent sur un point d'enquête (ADR-0033).
 enum AreaLandCover {
   CROP
@@ -2019,6 +2026,11 @@ model AreaFramePoint {
   mapSourceId      String?                               @map("map_source_id")
   mapSource        DataSource?                           @relation(fields: [mapSourceId], references: [id])
   mapReliability   Reliability?                          @map("map_reliability")
+  // Tirage à deux phases (ADR-0037) : strate figée au tirage de la seconde phase (nulle pour un
+  // tirage ADR-0033 ou un point de première phase pas encore stratifié), et point retenu pour
+  // la visite. Seuls les points retenus sont montrés aux agents.
+  stratum          AreaFrameStratum?
+  selected         Boolean                               @default(true)
 
   observations AreaFrameObservation[]
 
