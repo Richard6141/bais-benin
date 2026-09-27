@@ -30,7 +30,8 @@ export interface FireBrief {
   farmsWithin500m: number;
   farmsWithin1km: number;
   crops: string[];
-  notified: number;
+  notifiedByMessage: number;
+  informedInApp: number;
   alertHref: string | null;
 }
 
@@ -138,9 +139,16 @@ export function fillFireBrief(brief: HTMLElement, data: FireBrief | null): void 
       ? `Cultures concernées : ${data.crops.join(", ")}`
       : "Aucune culture déclarée sur ces exploitations.",
   );
-  add(
-    `${data.notified} producteur${data.notified > 1 ? "s" : ""} prévenu${data.notified > 1 ? "s" : ""}`,
-  );
+  // Un « 0 » inquiéterait à tort : un envoi resté en file, un canal écarté (garde des producteurs
+  // de démonstration) ne veut pas dire que personne n'est prévenu, seulement que rien à montrer ici.
+  if (data.notifiedByMessage > 0) {
+    add(
+      `${data.notifiedByMessage} producteur${data.notifiedByMessage > 1 ? "s" : ""} prévenu${data.notifiedByMessage > 1 ? "s" : ""} par WhatsApp ou SMS`,
+    );
+  }
+  if (data.informedInApp > 0) {
+    add(`${data.informedInApp} informé${data.informedInApp > 1 ? "s" : ""} dans l'application`);
+  }
   if (data.alertHref) {
     const link = document.createElement("a");
     link.href = data.alertHref;

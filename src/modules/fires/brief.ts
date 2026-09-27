@@ -3,7 +3,8 @@ import {
   cropsDeclaredByFarms,
   farmsNearFireDetection,
   FIRE_BRIEF_NEAR_RADIUS_M,
-  notifiedFarmsCount,
+  informedInAppCount,
+  notifiedByMessageCount,
 } from "@/database/sql/fire-brief.sql";
 import type { Actor } from "@/modules/authorization";
 import { alertCommuneIds } from "@/modules/monitoring/alerts";
@@ -25,8 +26,10 @@ export interface FireBrief {
   farmsWithin1km: number;
   /** Cultures déclarées de la campagne ouverte parmi ces exploitations, triées. */
   crops: string[];
-  /** Producteurs prévenus (message parti, livré ou lu) pour l'alerte de feu active de la commune. */
-  notified: number;
+  /** Prévenus par WhatsApp ou SMS (message parti, livré ou lu), alerte active de la commune. */
+  notifiedByMessage: number;
+  /** Informés dans l'application (visible dès la planification, quel que soit le canal choisi). */
+  informedInApp: number;
   /** Fiche de l'alerte active, adaptée au rôle de l'acteur ; null sans alerte ou sans accès. */
   alertHref: string | null;
 }
@@ -65,7 +68,8 @@ export async function getFireBrief(actor: Actor | null, fireId: string): Promise
       farmsWithin500m: 0,
       farmsWithin1km: 0,
       crops: [],
-      notified: 0,
+      notifiedByMessage: 0,
+      informedInApp: 0,
       alertHref: null,
     };
   }
@@ -101,9 +105,10 @@ export async function getFireBrief(actor: Actor | null, fireId: string): Promise
     select: { id: true },
   });
 
-  const [crops, notified] = await Promise.all([
+  const [crops, notifiedByMessage, informedInApp] = await Promise.all([
     cropsDeclaredByFarms(farmIds),
-    activeAlert ? notifiedFarmsCount(activeAlert.id, farmIds) : Promise.resolve(0),
+    activeAlert ? notifiedByMessageCount(activeAlert.id, farmIds) : Promise.resolve(0),
+    activeAlert ? informedInAppCount(activeAlert.id, farmIds) : Promise.resolve(0),
   ]);
 
   return {
@@ -115,7 +120,8 @@ export async function getFireBrief(actor: Actor | null, fireId: string): Promise
     farmsWithin500m,
     farmsWithin1km,
     crops,
-    notified,
+    notifiedByMessage,
+    informedInApp,
     alertHref: activeAlert ? alertHrefFor(actor, activeAlert.id) : null,
   };
 }

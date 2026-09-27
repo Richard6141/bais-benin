@@ -50,8 +50,13 @@ export async function cropsDeclaredByFarms(farmIds: readonly string[]): Promise<
   return rows.map((row) => row.name_fr);
 }
 
-/** Destinataires de l'alerte parmi ces exploitations dont l'envoi a abouti (parti, livré ou lu). */
-export async function notifiedFarmsCount(
+/**
+ * Destinataires de l'alerte parmi ces exploitations, comptés à part selon le canal : un message
+ * WhatsApp ou SMS qui n'a pas abouti (garde des producteurs de démonstration, absence de
+ * consentement) ne doit pas se confondre avec une exploitation simplement informée dans
+ * l'application, toujours visible dès la planification, quel que soit son statut.
+ */
+export async function notifiedByMessageCount(
   alertId: string,
   farmIds: readonly string[],
 ): Promise<number> {
@@ -61,8 +66,21 @@ export async function notifiedFarmsCount(
     where: {
       alertId,
       farmId: { in: [...farmIds] },
+      channel: { in: ["WHATSAPP", "SMS"] },
       status: { in: ["SENT", "DELIVERED", "READ"] },
     },
+  });
+  return result.length;
+}
+
+export async function informedInAppCount(
+  alertId: string,
+  farmIds: readonly string[],
+): Promise<number> {
+  if (farmIds.length === 0) return 0;
+  const result = await prisma.alertRecipient.groupBy({
+    by: ["farmId"],
+    where: { alertId, farmId: { in: [...farmIds] }, channel: "IN_APP" },
   });
   return result.length;
 }

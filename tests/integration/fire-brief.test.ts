@@ -60,9 +60,10 @@ describe("fiche courte d'un feu détecté", () => {
       where: { communeId: farm.communeId, category: "FIRE", status: "ACTIVE" },
     });
     alertId = alert.id;
-    // Un des destinataires a bien reçu son message : le compte "prévenus" doit le voir.
+    // Le message WhatsApp du producteur est bien parti (le compte "prévenus par message" doit le
+    // voir) ; sa ligne IN_APP, elle, reste au statut de planification (compte "informés" quand même).
     await prisma.alertRecipient.updateMany({
-      where: { alertId, farmId: farm.id },
+      where: { alertId, farmId: farm.id, channel: "WHATSAPP" },
       data: { status: "SENT" },
     });
 
@@ -97,7 +98,8 @@ describe("fiche courte d'un feu détecté", () => {
     const brief = await getFireBrief(ministry, fireId);
     expect(brief?.inScope).toBe(true);
     expect(brief?.farmsWithin1km).toBeGreaterThanOrEqual(1);
-    expect(brief?.notified).toBeGreaterThanOrEqual(1);
+    expect(brief?.notifiedByMessage).toBeGreaterThanOrEqual(1);
+    expect(brief?.informedInApp).toBeGreaterThanOrEqual(1);
     expect(brief?.alertHref).toBe(`/pilotage/alertes/${alertId}`);
   });
 
@@ -118,7 +120,8 @@ describe("fiche courte d'un feu détecté", () => {
     const brief = await getFireBrief(farmer, fireId);
     expect(brief?.inScope).toBe(true);
     expect(brief?.farmsWithin1km).toBe(1);
-    expect(brief?.notified).toBe(1);
+    expect(brief?.notifiedByMessage).toBe(1);
+    expect(brief?.informedInApp).toBe(1);
     expect(brief?.alertHref).toBe(`/agriculteur/alertes/${alertId}`);
   });
 
