@@ -187,10 +187,16 @@ test.describe("espace agent", () => {
     await page.getByRole("button", { name: "Continuer" }).click();
     await enterManualPosition(page, "9,70", "1,67");
     await page.getByRole("button", { name: "Continuer" }).click();
-    await page
-      .getByRole("group", { name: "Issue de la visite" })
-      .getByRole("button", { name: /^Confirmée/ })
-      .click();
+    // Exploitation avec parcelles : une étape de plus, la culture vue sur chaque parcelle,
+    // pré-remplie avec la culture déclarée.
+    const outcomes = page.getByRole("group", { name: "Issue de la visite" });
+    const cropsSeen = page.getByText("Culture vue sur chaque parcelle");
+    await expect(outcomes.or(cropsSeen)).toBeVisible();
+    if (await cropsSeen.isVisible()) {
+      await expect(page.getByLabel("Culture vue").first()).toBeVisible();
+      await page.getByRole("button", { name: "Continuer" }).click();
+    }
+    await outcomes.getByRole("button", { name: /^Confirmée/ }).click();
     await page.getByRole("button", { name: "Valider la visite" }).click();
     await expect(page.getByText("Visite enregistrée")).toBeVisible();
 

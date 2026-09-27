@@ -1,15 +1,22 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("carte agricole", () => {
-  test("charge la carte, les agrégats et la légende", async ({ page }) => {
+  test("charge la carte, les agrégats et la légende", async ({ page }, testInfo) => {
     await page.goto("/carte");
     await expect(page.getByRole("application", { name: "Carte agricole du Bénin" })).toBeVisible();
     await expect(page.getByText("Pour ces filtres")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Communes les plus représentées")).toBeVisible();
     // La carte a fini de charger fond et tuiles : le worker et les sources fonctionnent.
     await expect(page.locator('[data-map-idle="true"]')).toBeVisible({ timeout: 30_000 });
-    // La légende affiche des classes calculées sur les valeurs réelles.
-    await expect(page.getByText("Exploitations", { exact: true }).first()).toBeVisible();
+    // Sur téléphone, la légende est repliée pour laisser l'écran à la carte : on la déplie.
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Légende" }).click();
+    }
+    // La légende affiche des classes calculées sur les valeurs réelles, puis la classe hors
+    // échelle.
+    const legendClasses = page.getByRole("list").filter({ hasText: "Sans donnée ou moins de 5" });
+    await expect(legendClasses).toBeVisible();
+    await expect(legendClasses.getByRole("listitem")).not.toHaveCount(1);
     // Une tuile communale répond avec le bon type MIME.
     const tile = await page.request.get("/api/tiles/communes/6/32/30.pbf");
     expect(tile.status()).toBe(200);

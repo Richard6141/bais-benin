@@ -118,9 +118,9 @@ test.describe("gouvernance des règles d'alerte", () => {
     await expect(page.getByText("Conditions actuelles")).toBeVisible();
 
     const eyebrow = await page
-      .getByText(new RegExp(`^Règle ${rule.code} · version \\d+$`))
+      .getByText(new RegExp(`^Règle ${rule.code} \\(version \\d+\\)$`))
       .textContent();
-    const version = Number(eyebrow?.match(/version (\d+)$/)?.[1]);
+    const version = Number(eyebrow?.match(/version (\d+)\)$/)?.[1]);
     expect(version).toBeGreaterThanOrEqual(1);
 
     // Aperçu du message court : commune au nom le plus long et compteur sur 160.
@@ -159,7 +159,7 @@ test.describe("gouvernance des règles d'alerte", () => {
     });
 
     await page.reload();
-    await expect(page.getByText(`Règle ${rule.code} · version ${version + 1}`)).toBeVisible();
+    await expect(page.getByText(`Règle ${rule.code} (version ${version + 1})`)).toBeVisible();
     await expect(page.getByLabel(rule.threshold, { exact: true })).toHaveValue(target);
     const versions = page.getByRole("table").filter({ hasText: "Créée le" });
     await expect(versions.getByRole("row")).toHaveCount(version + 2);
