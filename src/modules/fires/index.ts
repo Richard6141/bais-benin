@@ -1,4 +1,9 @@
-export { BENIN_FIRE_BBOX, runFireIngestion, type FireIngestionSummary } from "./ingest";
+export {
+  BENIN_FIRE_BBOX,
+  FIRE_RETENTION_MS,
+  runFireIngestion,
+  type FireIngestionSummary,
+} from "./ingest";
 export {
   SAME_FIRE_DISTANCE_M,
   SAME_PASS_MS,
@@ -15,13 +20,22 @@ export {
   type FireFreshness,
   type FireWindow,
 } from "./queries";
-export { queueFirePrevention, type FirePreventionResult } from "./prevention";
+export {
+  getFirePreventionStatus,
+  preventionReference,
+  queueFirePrevention,
+  type FirePreventionResult,
+  type FirePreventionStatus,
+  type PreventionReference,
+} from "./prevention";
 export {
   FIRE_PREVENTION_TEXT,
   FIRE_SEASON_MONTHS,
   isFireSeason,
   mostAffectedCommunes,
   preventionSubjectId,
+  rankAffectedCommunes,
+  seasonLabel,
   weekKey,
 } from "./prevention-rules";
 export { importFireArchive, type FireArchiveResult } from "./archive";

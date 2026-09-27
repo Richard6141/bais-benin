@@ -69,6 +69,7 @@ export async function farmsWithCloseFire(communeId: string, since: Date): Promis
 
 const densityRow = z.object({
   commune_id: z.string(),
+  commune_name: z.string(),
   area_km2: z.coerce.number(),
   detections: z.coerce.number(),
 });
@@ -80,7 +81,8 @@ const densityRow = z.object({
  */
 export async function fireDetectionsByCommune(from: Date, to: Date) {
   const rows = await prisma.$queryRaw<unknown[]>`
-    SELECT c."id"::text AS commune_id, ST_Area(c."geom") / 1e6 AS area_km2,
+    SELECT c."id"::text AS commune_id, c."name" AS commune_name,
+           ST_Area(c."geom") / 1e6 AS area_km2,
            COUNT(d."id") AS detections
       FROM "commune" c
       LEFT JOIN "fire_detection" d
@@ -88,15 +90,21 @@ export async function fireDetectionsByCommune(from: Date, to: Date) {
        AND d."detected_at" >= ${from} AND d."detected_at" < ${to}
        AND d."confidence"::text = ANY(${ALERT_CONFIDENCES})
      WHERE c."archived_at" IS NULL AND c."geom" IS NOT NULL
-     GROUP BY c."id"`;
+     GROUP BY c."id", c."name"`;
   return rows.map((raw) => densityRow.parse(raw));
 }
 
-/** Plus ancienne détection en base : dit si une saison passée a pu être lue en entier. */
-export async function earliestFireDetection(): Promise<Date | null> {
-  const first = await prisma.fireDetection.findFirst({
-    orderBy: { detectedAt: "asc" },
-    select: { detectedAt: true },
-  });
-  return first?.detectedAt ?? null;
+/**
+ * Mois (heure du Bénin) où au moins un feu est en base entre `from` et `to` : une saison sèche
+ * est complète quand ses six mois le sont. Chaque mois de saison sèche compte des milliers de
+ * détections au Bénin ; un mois vide dit que la saison n'a pas été lue, pas qu'il n'y a pas eu
+ * de feu. Une saison importée puis une lecture en continu laissent un trou entre les deux : la
+ * plus ancienne détection ne suffit donc pas.
+ */
+export async function monthsWithFires(from: Date, to: Date): Promise<number> {
+  const [row] = await prisma.$queryRaw<{ months: bigint }[]>`
+    SELECT COUNT(DISTINCT date_trunc('month', "detected_at" + interval '1 hour')) AS months
+      FROM "fire_detection"
+     WHERE "detected_at" >= ${from} AND "detected_at" < ${to}`;
+  return Number(row?.months ?? 0);
 }

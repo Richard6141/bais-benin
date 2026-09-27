@@ -1,6 +1,14 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
-import { apiChunks, archiveSeasonWindow, importFireArchive } from "@/modules/fires";
+import { insertFireDetections } from "@/database/sql/fires.sql";
+import {
+  FIRE_RETENTION_MS,
+  apiChunks,
+  archiveSeasonWindow,
+  importFireArchive,
+  runFireIngestion,
+} from "@/modules/fires";
+import { FixtureFireProvider } from "@/services/fires";
 
 // Import d'une saison de feux passée (ADR-0039) sur la vraie base, avec un faux serveur FIRMS :
 // un fichier annuel manquant n'écrit rien ; sinon même fusion entre satellites, sources fixes et
@@ -56,6 +64,7 @@ const files: Record<string, string> = {
 describe("import d'une saison de feux passée", () => {
   afterAll(async () => {
     await prisma.fireDetection.deleteMany({ where: { createdAt: { gte: since } } });
+    await prisma.fireIngestionRun.deleteMany({ where: { startedAt: { gte: since } } });
     await prisma.$disconnect();
   });
 
@@ -142,5 +151,34 @@ describe("import d'une saison de feux passée", () => {
         fetchImpl: refused,
       }),
     ).rejects.toThrow(/Invalid MAP_KEY/);
+  });
+
+  it("garde trois ans de feux : une saison chargée sans clé tient jusqu'à la suivante", async () => {
+    const now = new Date();
+    const day = 86_400_000;
+    expect(FIRE_RETENTION_MS).toBe(3 * 365 * day);
+    const [kept, purged] = [now.getTime() - 1000 * day, now.getTime() - 1100 * day].map(
+      (time, index) => ({
+        id: crypto.randomUUID(),
+        detectedAt: new Date(time),
+        latitude: 9.3401 + index * 0.01,
+        longitude: 2.6302,
+        sensors: ["VIIRS_SNPP"],
+        confidence: "NOMINAL",
+        frpMw: 5,
+        brightnessK: 330,
+        daynight: "D",
+        sourceKeys: [`test-conservation-${index}`],
+      }),
+    );
+    const ids = await insertFireDetections([kept!, purged!]);
+    expect(ids).toHaveLength(2);
+    await runFireIngestion({ provider: new FixtureFireProvider([]), now });
+    const left = await prisma.fireDetection.findMany({
+      where: { id: { in: ids } },
+      select: { detectedAt: true },
+    });
+    // 1 000 jours (2 ans et 9 mois) : gardée ; 1 100 jours (3 ans et 1 mois) : effacée.
+    expect(left.map((row) => row.detectedAt.getTime())).toEqual([kept!.detectedAt.getTime()]);
   });
 });

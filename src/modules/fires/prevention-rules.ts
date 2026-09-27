@@ -9,6 +9,13 @@ export const FIRE_SEASON_MONTHS: readonly number[] = [11, 12, 1, 2, 3, 4];
 export const MIN_DENSITY_PER_100KM2 = 5;
 /** Part des communes retenues : le tiers le plus touché. */
 export const MOST_AFFECTED_SHARE = 1 / 3;
+/** Une saison sèche est complète en base quand ses six mois ont des feux. */
+export const SEASON_MONTHS = 6;
+
+/** « saison 2023-2024 » : la saison sèche qui commence en novembre de `startYear`. */
+export function seasonLabel(startYear: number): string {
+  return `saison ${startYear}-${startYear + 1}`;
+}
 
 export const FIRE_PREVENTION_TEXT =
   "BAIS, saison des feux : faites vos pare-feu autour des champs et des greniers, ne brûlez pas par grand vent, prévenez vos voisins avant un brûlis. Feu dangereux : 118.";
@@ -77,22 +84,36 @@ export function preventionSubjectId(farmerId: string, week: string): string {
 
 export interface CommuneFires {
   commune_id: string;
+  commune_name?: string;
   area_km2: number;
   detections: number;
 }
 
+export interface AffectedCommune {
+  id: string;
+  name: string;
+  /** Détections pour 100 km² sur la saison de référence. */
+  density: number;
+}
+
 /**
  * Communes du tiers le plus touché par les feux, avec au moins 5 détections pour 100 km², de la
- * plus touchée à la moins touchée.
+ * plus touchée à la moins touchée, avec leur densité.
  */
-export function mostAffectedCommunes(rows: readonly CommuneFires[]): string[] {
+export function rankAffectedCommunes(rows: readonly CommuneFires[]): AffectedCommune[] {
   const ranked = rows
     .filter((row) => row.area_km2 > 0)
-    .map((row) => ({ id: row.commune_id, density: (row.detections / row.area_km2) * 100 }))
+    .map((row) => ({
+      id: row.commune_id,
+      name: row.commune_name ?? row.commune_id,
+      density: (row.detections / row.area_km2) * 100,
+    }))
     .sort((a, b) => b.density - a.density);
   const kept = Math.ceil(ranked.length * MOST_AFFECTED_SHARE);
-  return ranked
-    .slice(0, kept)
-    .filter((row) => row.density >= MIN_DENSITY_PER_100KM2)
-    .map((row) => row.id);
+  return ranked.slice(0, kept).filter((row) => row.density >= MIN_DENSITY_PER_100KM2);
+}
+
+/** Identifiants des communes du tiers le plus touché (voir rankAffectedCommunes). */
+export function mostAffectedCommunes(rows: readonly CommuneFires[]): string[] {
+  return rankAffectedCommunes(rows).map((row) => row.id);
 }

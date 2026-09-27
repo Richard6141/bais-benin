@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
+import { FirePreventionPanel } from "@/features/fires/prevention-status";
 import { WatchCentre } from "@/features/watch/watch-centre";
+import { getFirePreventionStatus } from "@/modules/fires";
 import { getWatchSummary } from "@/modules/watch";
 
 export const metadata: Metadata = { title: "Centre de veille" };
@@ -14,7 +16,10 @@ export const dynamic = "force-dynamic";
 // fraîcheur des sources, relus automatiquement par la page.
 export default async function WatchCentrePage() {
   const user = await requireRole("ADMIN_STATE", { returnTo: "/pilotage/veille" });
-  const summary = await getWatchSummary(user.actor);
+  const [summary, prevention] = await Promise.all([
+    getWatchSummary(user.actor),
+    getFirePreventionStatus(),
+  ]);
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -31,6 +36,8 @@ export default async function WatchCentrePage() {
         }
       />
       <WatchCentre initial={summary} />
+      {/* Prévention de la saison des feux (ADR-0038, ADR-0039) : saison de référence et communes. */}
+      <FirePreventionPanel status={prevention} />
     </div>
   );
 }

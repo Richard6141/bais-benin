@@ -17,10 +17,11 @@ import { mergeDetections, type FireConfidenceCode, type FireRecord } from "./mer
 export const BENIN_FIRE_BBOX: BBox = [0.7, 6.1, 3.95, 12.5];
 const DEDUP_WINDOW_MS = 36 * 60 * 60 * 1000;
 /**
- * Détections gardées deux ans (ADR-0039) : la prévention de la saison des feux compare les
- * communes sur la saison sèche passée, qui commence jusqu'à dix-huit mois plus tôt.
+ * Détections gardées trois ans (ADR-0039) : la prévention de la saison des feux compare les
+ * communes sur la saison sèche passée ou, si elle manque, sur la dernière saison complète en base
+ * (2023-2024, chargeable sans clé, tant que la clé FIRMS ou l'archive 2025 n'est pas arrivée).
  */
-const RETENTION_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+export const FIRE_RETENTION_MS = 3 * 365 * 24 * 60 * 60 * 1000;
 
 export interface FireIngestionSummary {
   runId: string;
@@ -82,7 +83,7 @@ export async function runFireIngestion(deps: {
       });
     }
     await prisma.fireDetection.deleteMany({
-      where: { detectedAt: { lt: new Date(now.getTime() - RETENTION_MS) } },
+      where: { detectedAt: { lt: new Date(now.getTime() - FIRE_RETENTION_MS) } },
     });
     const status = allFailed ? "FAILED" : failedFiles.length > 0 ? "PARTIAL" : "SUCCEEDED";
     await prisma.fireIngestionRun.update({

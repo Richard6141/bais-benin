@@ -4,6 +4,8 @@ import {
   fireSeasons,
   isFireSeason,
   mostAffectedCommunes,
+  rankAffectedCommunes,
+  seasonLabel,
   preventionSubjectId,
   weekKey,
 } from "../prevention-rules";
@@ -73,6 +75,17 @@ describe("communes les plus touchées", () => {
     ];
     // Six communes : le tiers, ce sont les deux plus denses (a puis c).
     expect(mostAffectedCommunes(rows)).toEqual(["a", "c"]);
+  });
+
+  it("donne le nom et la densité de chaque commune retenue", () => {
+    const ranked = rankAffectedCommunes([
+      { commune_id: "a", commune_name: "Tchaourou", area_km2: 7000, detections: 2100 },
+      { commune_id: "b", commune_name: "Kandi", area_km2: 3400, detections: 20 },
+      { commune_id: "c", commune_name: "Djougou", area_km2: 3900, detections: 390 },
+    ]);
+    // Trois communes : le tiers, c'est la plus dense (Tchaourou, 30 pour 100 km²).
+    expect(ranked).toEqual([{ id: "a", name: "Tchaourou", density: 30 }]);
+    expect(seasonLabel(2023)).toBe("saison 2023-2024");
   });
 
   it("ne retient rien quand les feux sont rares partout", () => {
