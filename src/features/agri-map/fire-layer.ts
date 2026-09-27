@@ -24,6 +24,16 @@ export interface FireCollection {
   }>;
 }
 
+/** Réponse de /api/v1/fires/{id}/brief (modules/fires/brief.ts, forme JSON identique). */
+export interface FireBrief {
+  inScope: boolean;
+  farmsWithin500m: number;
+  farmsWithin1km: number;
+  crops: string[];
+  notified: number;
+  alertHref: string | null;
+}
+
 export const FIRE_IDS = { source: "fires", layer: "fires-circles" } as const;
 export const FIRE_ATTRIBUTION = "Feux actifs : NASA FIRMS (VIIRS 375 m, MODIS)";
 
@@ -68,10 +78,13 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Africa/Porto-Novo",
 });
 
-/** Contenu de la fenêtre d'information, en nœuds texte (aucun HTML venu des données). */
-function popupContent(properties: Record<string, unknown>): HTMLElement {
+/** Fiche du feu (immédiate) : heure, commune, capteurs, confiance, puissance, aucun réseau. */
+export function popupContent(properties: Record<string, unknown>): {
+  root: HTMLElement;
+  brief: HTMLElement;
+} {
   const root = document.createElement("div");
-  root.className = "text-sm";
+  root.className = "flex flex-col gap-1 text-sm";
   const lines = [
     `Feu détecté le ${timeFormatter.format(new Date(String(properties.detectedAt)))}, heure de Porto-Novo`,
     `Commune : ${String(properties.commune ?? "")}`,
@@ -88,7 +101,53 @@ function popupContent(properties: Record<string, unknown>): HTMLElement {
     if (index === 0) line.className = "font-medium";
     root.append(line);
   });
-  return root;
+  const brief = document.createElement("div");
+  brief.className = "mt-1 flex flex-col gap-1 border-t pt-1";
+  brief.setAttribute("aria-live", "polite");
+  const loading = document.createElement("p");
+  loading.className = "text-muted-foreground";
+  loading.textContent = "Recherche des exploitations menacées";
+  brief.append(loading);
+  root.append(brief);
+  return { root, brief };
+}
+
+/** Remplit la section réseau de la fiche une fois `/api/v1/fires/{id}/brief` chargée. */
+export function fillFireBrief(brief: HTMLElement, data: FireBrief | null): void {
+  brief.replaceChildren();
+  const add = (text: string, className?: string) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    if (className) p.className = className;
+    brief.append(p);
+  };
+  if (!data) {
+    add("Détails momentanément indisponibles.", "text-muted-foreground");
+    return;
+  }
+  if (!data.inScope) {
+    add("Ce feu est hors de votre périmètre.", "text-muted-foreground");
+    return;
+  }
+  add(
+    `${data.farmsWithin500m} exploitation${data.farmsWithin500m > 1 ? "s" : ""} à moins de 500 m, ` +
+      `${data.farmsWithin1km} à moins d'1 km`,
+  );
+  add(
+    data.crops.length > 0
+      ? `Cultures concernées : ${data.crops.join(", ")}`
+      : "Aucune culture déclarée sur ces exploitations.",
+  );
+  add(
+    `${data.notified} producteur${data.notified > 1 ? "s" : ""} prévenu${data.notified > 1 ? "s" : ""}`,
+  );
+  if (data.alertHref) {
+    const link = document.createElement("a");
+    link.href = data.alertHref;
+    link.textContent = "Voir l'alerte";
+    link.className = "font-medium text-primary underline-offset-4 hover:underline";
+    brief.append(link);
+  }
 }
 
 // Les écouteurs restent attachés à l'identifiant de couche après son retrait : une seule
@@ -121,10 +180,24 @@ export function showFireLayer(map: MapLibreMap, collection: FireCollection): voi
   map.on("click", FIRE_IDS.layer, (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0];
     if (!feature) return;
-    new Popup({ closeButton: true, maxWidth: "280px" })
+    const { root, brief } = popupContent(feature.properties ?? {});
+    const popup = new Popup({ closeButton: true, maxWidth: "300px" })
       .setLngLat(event.lngLat)
-      .setDOMContent(popupContent(feature.properties ?? {}))
+      .setDOMContent(root)
       .addTo(map);
+    const id = typeof feature.id === "string" ? feature.id : String(feature.id ?? "");
+    if (!id) {
+      fillFireBrief(brief, null);
+      return;
+    }
+    const controller = new AbortController();
+    popup.on("close", () => controller.abort());
+    fetch(`/api/v1/fires/${id}/brief`, { signal: controller.signal })
+      .then((response) => (response.ok ? (response.json() as Promise<FireBrief>) : null))
+      .then((data) => fillFireBrief(brief, data))
+      .catch(() => {
+        if (!controller.signal.aborted) fillFireBrief(brief, null);
+      });
   });
   map.on("mouseenter", FIRE_IDS.layer, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", FIRE_IDS.layer, () => (map.getCanvas().style.cursor = ""));
