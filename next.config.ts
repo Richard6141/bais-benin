@@ -26,6 +26,19 @@ function hiresTileOrigin(): string {
   }
 }
 
+// Relief 3D, optionnel (map-config.ts, RELIEF) : tuiles d'élévation publiques par défaut
+// (Terrain Tiles, sur S3), remplaçables par NEXT_PUBLIC_DEM_TILES_URL. Même repli qu'elle.
+function demTileOrigin(): string {
+  const raw =
+    process.env.NEXT_PUBLIC_DEM_TILES_URL ??
+    "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+  try {
+    return ` ${new URL(raw.replace(/\{[^}]+\}/g, "0")).origin}`;
+  } catch {
+    return "";
+  }
+}
+
 const isDev = process.env.NODE_ENV !== "production";
 
 // C6 : CSP raisonnable — pas de nonce par requête (next.config.ts n'a pas accès à une valeur
@@ -36,7 +49,7 @@ const isDev = process.env.NODE_ENV !== "production";
 // production). Testé manuellement : la carte (tuiles vectorielles, style, worker MapLibre
 // auto-hébergé) continue de fonctionner après ce durcissement (docs/rapports/etape-9-production.md).
 function buildCsp(): string {
-  const tileOrigin = `${mapTileOrigin()}${hiresTileOrigin()}`;
+  const tileOrigin = `${mapTileOrigin()}${hiresTileOrigin()}${demTileOrigin()}`;
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
