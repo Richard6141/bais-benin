@@ -21,6 +21,14 @@ describe("curseur temporel du ciel", () => {
     const timeline = monthTimeline(PERIODS);
     expect(defaultBeforePeriod(timeline, "2026-09")).toBe("2026-08");
     expect(defaultBeforePeriod(timeline, "2026-07")).toBeNull();
-    expect(defaultBeforePeriod(timeline, "60-jours")).toBeNull();
+  });
+
+  it("propose le mois le plus récent quand la période affichée est la fenêtre glissante", () => {
+    const timeline = monthTimeline(PERIODS);
+    expect(defaultBeforePeriod(timeline, "60-jours", true)).toBe("2026-09");
+  });
+
+  it("ne propose rien sans mois du calendrier dans le catalogue", () => {
+    expect(defaultBeforePeriod([], "60-jours", true)).toBeNull();
   });
 });
