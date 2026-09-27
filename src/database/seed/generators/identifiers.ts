@@ -52,12 +52,13 @@ export function farmCode(departementName: string, communeName: string, sequence:
 
 /**
  * Numéro béninois à dix chiffres, préfixe 01 (docs/08 §6.6). Le troisième chiffre après le préfixe
- * est forcé à 9, plage non attribuée par les opérateurs, pour qu'aucun numéro généré ne puisse
- * joindre une personne réelle. Le format retourné est E.164 : +22901XXXXXXXX.
+ * est forcé à 9, plage supposée non attribuée par les opérateurs (rien ne le garantit : l'envoi
+ * vers cette plage est refusé hors production, lib/phone/synthetic.ts). Le format retourné est
+ * E.164 : +22901XXXXXXXX.
  */
 export function syntheticPhone(sevenDigits: number): string {
   const digits = String(sevenDigits % 10_000_000).padStart(7, "0");
   return `+22901${digits.slice(0, 2)}9${digits.slice(2)}`;
 }
 
-export const SYNTHETIC_PHONE_PATTERN = /^\+22901\d{2}9\d{5}$/;
+export { SYNTHETIC_PHONE_PATTERN } from "@/lib/phone/synthetic";
