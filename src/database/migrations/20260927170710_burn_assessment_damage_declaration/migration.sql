@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "BurnAssessmentStatus" AS ENUM ('PENDING', 'MEASURED', 'INSUFFICIENT_IMAGE', 'EXPIRED');
+CREATE TYPE "BurnAssessmentStatus" AS ENUM ('PENDING', 'MEASURED', 'INSUFFICIENT_IMAGE', 'EXPIRED', 'FAILED');
 
 -- CreateEnum
 CREATE TYPE "BurnAssessmentTrigger" AS ENUM ('ALERT', 'REQUEST');
@@ -21,6 +21,7 @@ CREATE TABLE "burn_assessment" (
     "alert_id" UUID,
     "requested_by_id" UUID,
     "status" "BurnAssessmentStatus" NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
     "measure_after" TIMESTAMP(3) NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "valid_share" DECIMAL(5,4),

@@ -87,8 +87,21 @@ const candidateSchema = z.object({
 
 export type BurnCandidate = z.infer<typeof candidateSchema>;
 
-/** Mesures en attente dont la fenêtre d'après le feu est close, les plus anciennes d'abord. */
-export async function burnCandidates(now: Date, limit: number): Promise<BurnCandidate[]> {
+/**
+ * Mesures en attente dont la fenêtre d'après le feu est close : les moins tentées d'abord, puis
+ * les plus anciennes. `parcels` : « real » pour une lecture Copernicus (parcelles réelles
+ * seulement, même mises en file quand la fixture tournait), « demo » pour la fixture (parcelles
+ * de démonstration seulement : aucune déclaration inventée sur une vraie exploitation).
+ */
+export async function burnCandidates(
+  now: Date,
+  limit: number,
+  options: { parcels: "real" | "demo"; maxAttempts: number },
+): Promise<BurnCandidate[]> {
+  const reliability =
+    options.parcels === "real"
+      ? Prisma.sql`p."reliability" <> 'SYNTHETIC'`
+      : Prisma.sql`p."reliability" = 'SYNTHETIC'`;
   const rows = await prisma.$queryRaw<unknown[]>`
     SELECT b."id"::text AS id, p."id"::text AS parcel_id, p."code" AS parcel_code,
            p."farm_id"::text AS farm_id, b."fire_detected_at",
@@ -98,9 +111,26 @@ export async function burnCandidates(now: Date, limit: number): Promise<BurnCand
       FROM "burn_assessment" b
       JOIN "parcel" p ON p."id" = b."parcel_id" AND p."geom" IS NOT NULL
      WHERE b."status" = 'PENDING' AND b."measure_after" <= ${now} AND b."expires_at" > ${now}
-     ORDER BY b."measure_after"
+       AND b."attempts" < ${options.maxAttempts} AND ${reliability}
+     ORDER BY b."attempts", b."measure_after"
      LIMIT ${limit}`;
   return rows.map((row) => candidateSchema.parse(row));
+}
+
+/**
+ * Une lecture de plus en échec ; au-delà de `maxAttempts` (0 : tout de suite), la mesure sort de
+ * la file (FAILED). Renvoie vrai si elle vient d'en sortir.
+ */
+export async function recordBurnFailure(id: string, maxAttempts: number): Promise<boolean> {
+  const rows = await prisma.$queryRaw<{ status: string }[]>`
+    UPDATE "burn_assessment"
+       SET "attempts" = "attempts" + 1,
+           "status" = CASE WHEN "attempts" + 1 >= ${maxAttempts}
+                           THEN 'FAILED'::"BurnAssessmentStatus" ELSE "status" END,
+           "updated_at" = now()
+     WHERE "id" = ${id}::uuid AND "status" = 'PENDING'
+    RETURNING "status"::text AS status`;
+  return rows[0]?.status === "FAILED";
 }
 
 /** Unités dépensées par les mesures de surface brûlée depuis `since`. */

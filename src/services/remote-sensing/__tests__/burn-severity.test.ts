@@ -81,6 +81,62 @@ describe("requête de surface brûlée", () => {
   });
 });
 
+describe("script dNBR, pixel par pixel", () => {
+  type Sample = { B8A: number; B12: number; SCL: number; dataMask: number };
+  const FIRE = "2026-12-10T13:30:00.000Z";
+  const evaluatePixel = new Function(
+    `${burnSeverityEvalscript(FIRE)}\nreturn evaluatePixel;`,
+  )() as (
+    samples: Sample[],
+    scenes: { orbits: { dateFrom: string }[] },
+  ) => { burn: number[]; dataMask: number[] };
+  /** Un passage : date, NBR voulu et classe SCL. */
+  const pass = (date: string, nbr: number, scl: number) => ({
+    sample: { B8A: 1 + nbr, B12: 1 - nbr, SCL: scl, dataMask: 1 },
+    orbit: { dateFrom: `${date}T10:00:00Z` },
+  });
+  const run = (...passes: ReturnType<typeof pass>[]) =>
+    evaluatePixel(
+      passes.map((entry) => entry.sample),
+      { orbits: passes.map((entry) => entry.orbit) },
+    );
+
+  it("compare la dernière image nette avant le feu à la première après", () => {
+    // Avant : 0,5 (le 5) puis 0,45 (le 8, plus récente) ; après : 0,1 (le 15), puis 0,4 (le 20).
+    const result = run(
+      pass("2026-12-05", 0.5, 4),
+      pass("2026-12-08", 0.45, 4),
+      pass("2026-12-15", 0.1, 5),
+      pass("2026-12-20", 0.4, 4),
+    );
+    // dNBR = 0,45 - 0,1 = 0,35 : brûlé.
+    expect(result).toEqual({ burn: [3], dataMask: [1] });
+  });
+
+  it("retient une cicatrice prise pour de l'eau, faute d'image nette, sur un pixel terrestre", () => {
+    expect(run(pass("2026-12-08", 0.5, 4), pass("2026-12-15", -0.3, 6))).toEqual({
+      burn: [4],
+      dataMask: [1],
+    });
+    // Image nette après le feu : elle passe avant l'image sombre.
+    expect(
+      run(pass("2026-12-08", 0.5, 4), pass("2026-12-13", -0.3, 3), pass("2026-12-16", 0.45, 4)),
+    ).toEqual({ burn: [1], dataMask: [1] });
+  });
+
+  it("ne mesure pas une vraie eau, ni un pixel sans image nette avant le feu", () => {
+    expect(run(pass("2026-12-08", -0.2, 6), pass("2026-12-15", -0.4, 6))).toEqual({
+      burn: [0],
+      dataMask: [1],
+    });
+    expect(run(pass("2026-12-08", 0.5, 9), pass("2026-12-15", 0.1, 4))).toEqual({
+      burn: [0],
+      dataMask: [1],
+    });
+    expect(evaluatePixel([], { orbits: [] })).toEqual({ burn: [0], dataMask: [0] });
+  });
+});
+
 describe("surface brûlée de démonstration", () => {
   it("est la même pour une même parcelle, et varie d'une parcelle à l'autre", async () => {
     const ring = square.coordinates[0]!;

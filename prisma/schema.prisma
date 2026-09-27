@@ -1797,6 +1797,8 @@ enum BurnAssessmentStatus {
   INSUFFICIENT_IMAGE
   // Pas mesurée 30 jours après le feu (plafond atteint, fournisseur indisponible).
   EXPIRED
+  // Lecture en échec deux fois : la parcelle sort de la file, elle n'y bloque plus les autres.
+  FAILED
 }
 
 enum BurnAssessmentTrigger {
@@ -1819,6 +1821,8 @@ model BurnAssessment {
   requestedById    String?               @map("requested_by_id") @db.Uuid
   requestedBy      User?                 @relation("burnAssessmentRequester", fields: [requestedById], references: [id], onDelete: SetNull)
   status           BurnAssessmentStatus  @default(PENDING)
+  // Lectures tentées sans réponse du fournisseur ; au-delà de deux, FAILED.
+  attempts         Int                   @default(0)
   // Première date de mesure (feu + 10 jours) et date limite (feu + 30 jours).
   measureAfter     DateTime              @map("measure_after")
   expiresAt        DateTime              @map("expires_at")

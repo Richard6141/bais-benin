@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
 import { burnProvider, measureBurnAssessments } from "@/modules/fires";
+import { MonitoringBusyError } from "@/modules/monitoring/lock";
 import { isCronRequest } from "../../monitoring/cron-auth";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,16 @@ export async function POST(request: NextRequest) {
   if (!provider.canProcess) {
     return NextResponse.json({ error: "Imagerie satellite non configurée" }, { status: 503 });
   }
-  const result = await measureBurnAssessments({ provider, limit: parsed.data.limit });
+  let result;
+  try {
+    result = await measureBurnAssessments({ provider, limit: parsed.data.limit });
+  } catch (error) {
+    // Un passage est déjà en cours (verrou) : on ne dépense rien de plus.
+    if (error instanceof MonitoringBusyError) {
+      return NextResponse.json({ error: "Mesure déjà en cours" }, { status: 409 });
+    }
+    throw error;
+  }
   return NextResponse.json({
     reads: getServerEnv().FIRE_BURN_READS === "1" ? "copernicus" : "fixture",
     ...result,
