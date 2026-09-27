@@ -24,7 +24,18 @@ test.describe("assistant, espace agricultrice", () => {
     page,
   }, testInfo) => {
     await openAs(page, testInfo, "farmer");
-    await page.getByRole("link", { name: /Poser une question à l'assistant/ }).click();
+    // L'accueil garde trois gestes ; l'assistant est une rubrique de l'espace, sous « Plus » sur
+    // ordinateur comme sur téléphone.
+    const mobile = testInfo.project.name === "mobile";
+    await page
+      .getByRole("navigation", { name: "Espace producteur" })
+      .filter({ visible: true })
+      .getByRole("button", { name: "Plus" })
+      .click();
+    await page
+      .getByRole(mobile ? "dialog" : "menu")
+      .getByRole(mobile ? "link" : "menuitem", { name: "Poser une question" })
+      .click();
     await page.waitForURL(/\/agriculteur\/assistant$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Poser une question");
 
