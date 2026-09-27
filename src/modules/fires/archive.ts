@@ -1,5 +1,5 @@
 import { prisma } from "@/database/client";
-import { fireDetectionsBetween } from "@/database/sql/fire-archive.sql";
+import { fireDetectionsBetween, pointsInsideCommunes } from "@/database/sql/fire-archive.sql";
 import { insertFireDetections } from "@/database/sql/fires.sql";
 import { parseFirmsCsv } from "@/services/fires/firms-public";
 import type { FireSensorCode, RawFireDetection } from "@/services/ports/fire-detection-provider";
@@ -34,7 +34,10 @@ export interface FireArchiveResult {
   /** Fichiers annuels absents (mode sans clé) ou tranches sans jeu disponible (mode API). */
   missing: string[];
   requests: number;
+  /** Détections lues dans la saison, dans l'emprise de lecture. */
   fetched: number;
+  /** Parmi elles, hors d'une commune du Bénin : écartées avant la fusion. */
+  outside: number;
   created: number;
   merged: number;
   skipped: number;
@@ -159,20 +162,34 @@ export async function importFireArchive(options: {
   } as const;
   // Sans clé, une saison incomplète n'est pas écrite : mieux vaut rien qu'une demi-saison.
   if (mode === "yearly" && read.missing.length > 0) {
-    return { ...base, status: "missing", fetched: 0, created: 0, merged: 0, skipped: 0 };
+    return {
+      ...base,
+      status: "missing",
+      fetched: 0,
+      outside: 0,
+      created: 0,
+      merged: 0,
+      skipped: 0,
+    };
   }
   const inSeason = read.detections.filter(
     (row) => row.acquiredAt >= window.from && row.acquiredAt < window.to,
   );
+  // L'emprise de lecture déborde sur les pays voisins : les détections hors commune sont écartées
+  // avant la fusion, et l'essai (--dry-run) compte alors ce que l'import écrirait vraiment.
+  const inside = await pointsInsideCommunes(inSeason);
+  const inBenin = inSeason.filter((_, index) => inside.has(index));
   const existing = await fireDetectionsBetween(window.from, window.to);
-  const { created, updated, skipped } = mergeDetections(existing.map(toRecord), inSeason, () =>
+  const { created, updated, skipped } = mergeDetections(existing.map(toRecord), inBenin, () =>
     crypto.randomUUID(),
   );
+  const outside = inSeason.length - inBenin.length;
   if (options.dryRun) {
     return {
       ...base,
       status: "dry-run",
       fetched: inSeason.length,
+      outside,
       created: created.length,
       merged: updated.length,
       skipped,
@@ -200,6 +217,7 @@ export async function importFireArchive(options: {
     ...base,
     status: "imported",
     fetched: inSeason.length,
+    outside,
     created: inserted,
     merged: updated.length,
     skipped,

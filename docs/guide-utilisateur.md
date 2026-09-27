@@ -40,7 +40,9 @@ rubriques. Sur ordinateur, les mêmes rubriques sont en onglets en haut de la pa
 
 1. **Accueil** (`/agriculteur`) : une phrase dit la situation du jour (alertes de votre commune,
    demandes en cours), puis trois gestes : déclarer une récolte, signaler un problème, demander
-   de l'aide. Suivent vos surfaces et votre campagne en bref.
+   de l'aide. Suivent vos surfaces et votre campagne en bref. Après un feu près d'un de vos
+   champs, « Mes sinistres » donne la surface brûlée estimée par satellite, puis le constat de
+   votre agent : une pièce pour l'assistance et les assureurs.
 2. **Mes champs** (`/agriculteur/champs`) : chaque parcelle, sa surface déclarée et mesurée, ce
    qui y pousse cette campagne, et un bouton qui l'ouvre sur la carte.
 3. **Déclarer une récolte** : choisissez la culture proposée pour la campagne en cours (les
@@ -110,6 +112,13 @@ dernières mises à jour et le fil d'activité en direct.
    - Si le point ne peut pas être atteint, choisissez « Inaccessible » et dites pourquoi.
    - Le constat part avec la synchronisation, comme une visite. Un point ne désigne aucun
      producteur.
+10. **Sinistres** (`/agent/sinistres`) : après un feu près d'une parcelle d'une exploitation que
+    vous avez enregistrée, le satellite estime la surface brûlée (15 jours après le feu). Si elle
+    le justifie, une déclaration de sinistre arrive ici, à constater sur place.
+    - « Confirmer le sinistre » : surface brûlée constatée, culture touchée et son stade.
+    - « Écarter » : dites pourquoi (brûlis volontaire du producteur, pas de dégât).
+    - Le constat part avec la synchronisation, même sans réseau au champ. Sur la fiche d'une
+      exploitation, « Estimer la surface brûlée » demande la mesure après un feu proche.
 
 **Se déconnecter sur un appareil partagé** : le bouton « Se déconnecter » vide les données mises
 en cache de votre compte sur cet appareil (registre local, pages hors ligne). S'il reste des
@@ -230,6 +239,12 @@ volontaire ou une fumée d'usine peuvent aussi être vus.
   décidé. En bas du centre de veille (`/pilotage/veille`), l'encart « Prévention de la saison
   des feux » donne son état, la saison qui sert de référence (la saison passée, sinon la dernière
   saison complète en base, par exemple « saison 2023-2024 ») et les communes retenues.
+- **Sinistres** (`/pilotage/sinistres`) : après un feu près d'une parcelle au contour relevé, le
+  satellite compare l'image d'avant et celle d'après (Sentinel-2, 15 jours après le feu) et estime
+  une surface brûlée, en fourchette. À partir de 0,1 ha ou 10 % de la parcelle, une déclaration de
+  sinistre est proposée ; l'agent qui a enregistré l'exploitation la confirme ou l'écarte sur
+  place. La page les liste par état, et « Exporter en CSV » les donne aux programmes
+  d'assistance et aux assureurs. Une déclaration est une pièce, jamais un paiement.
 
 ### État des cultures
 

@@ -10,6 +10,8 @@ export const MONITORING_LOCKS = {
   dispatch: 740_102,
   /** Rafraîchissement des vues d'agrégats du tableau de bord (module analytics). */
   analytics: 740_103,
+  /** Mesures de surface brûlée (ADR-0038) : un seul passage à la fois, le plafond du mois tient. */
+  burnedAreas: 740_104,
 } as const;
 
 export type MonitoringLock = keyof typeof MONITORING_LOCKS;

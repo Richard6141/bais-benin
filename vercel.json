@@ -12,6 +12,7 @@
     { "path": "/api/v1/satellite/crop-model", "schedule": "0 2 * * *" },
     { "path": "/api/v1/satellite/survey-frame", "schedule": "30 7 20-26 * *" },
     { "path": "/api/v1/fires/ingest", "schedule": "*/30 * * * *" },
-    { "path": "/api/v1/fires/prevention", "schedule": "0 7 * * 1" }
+    { "path": "/api/v1/fires/prevention", "schedule": "0 7 * * 1" },
+    { "path": "/api/v1/fires/burned-areas", "schedule": "0 8 * * *" }
   ]
 }

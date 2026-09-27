@@ -28,6 +28,8 @@ const GROUPS = [
         match: ["/pilotage/signalements"],
       },
       { href: "/pilotage/demandes", label: "Demandes", match: ["/pilotage/demandes"] },
+      // Déclarations de sinistre après un feu (ADR-0038 §2).
+      { href: "/pilotage/sinistres", label: "Sinistres", match: ["/pilotage/sinistres"] },
     ],
   },
   {

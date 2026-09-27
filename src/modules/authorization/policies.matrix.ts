@@ -71,6 +71,13 @@ export const ACTIONS = [
   // les exporte.
   "feedback.create",
   "feedback.manage",
+  // Surface brûlée et déclaration de sinistre (ADR-0038 §2) : demander la mesure d'une
+  // exploitation exposée ; lire les déclarations ; les confirmer ou les écarter sur place ; les
+  // exporter pour l'assistance et les assureurs.
+  "burn.request",
+  "damage.read",
+  "damage.review",
+  "damage.export",
 ] as const;
 export type ActionCode = (typeof ACTIONS)[number];
 
@@ -120,6 +127,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "stats.import": "ALL",
     "feedback.create": "SELF",
     "feedback.manage": "ALL",
+    "burn.request": "ALL",
+    "damage.read": "ALL",
+    "damage.review": "NONE",
+    "damage.export": "ALL",
   },
   AGENT_AGRICULTURE: {
     // ADR-0014 : un agent ne voit que les exploitations qu'il a lui-même enregistrées — jamais
@@ -168,6 +179,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "stats.import": "NONE",
     "feedback.create": "SELF",
     "feedback.manage": "NONE",
+    "burn.request": "OWN",
+    "damage.read": "OWN",
+    "damage.review": "OWN",
+    "damage.export": "NONE",
   },
   FARMER: {
     "farm.read": "SELF",
@@ -209,6 +224,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "stats.import": "NONE",
     "feedback.create": "SELF",
     "feedback.manage": "NONE",
+    "burn.request": "NONE",
+    "damage.read": "SELF",
+    "damage.review": "NONE",
+    "damage.export": "NONE",
   },
   COOPERATIVE: {
     "farm.read": "SCOPE",
@@ -249,6 +268,10 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "stats.import": "NONE",
     "feedback.create": "SELF",
     "feedback.manage": "NONE",
+    "burn.request": "NONE",
+    "damage.read": "NONE",
+    "damage.review": "NONE",
+    "damage.export": "NONE",
   },
   BUYER: {
     "farm.read": "NONE",
@@ -289,5 +312,9 @@ export const POLICY_MATRIX: Record<RoleCode, Record<ActionCode, Reach>> = {
     "stats.import": "NONE",
     "feedback.create": "SELF",
     "feedback.manage": "NONE",
+    "burn.request": "NONE",
+    "damage.read": "NONE",
+    "damage.review": "NONE",
+    "damage.export": "NONE",
   },
 };

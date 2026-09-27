@@ -49,6 +49,10 @@ Réglages propres à la démonstration, dans `app.env` :
 - `SURVEY_MAP_READS=0` : la base de sondage ne lit pas la carte des cultures ;
 - `FIRE_PREVENTION_MESSAGES=0` : aucun conseil de la saison des feux n'est envoyé (ADR-0038).
   L'activer envoie de vrais messages WhatsApp : décision de l'utilisateur.
+- `FIRE_BURN_READS` et `FIRE_BURN_MONTHLY_UNIT_CAP` : surface brûlée des parcelles exposées par
+  Sentinel-2 (ADR-0038). À 1, Copernicus lit les parcelles réelles seulement (les parcelles de
+  démonstration ont un contour inventé), environ 0,1 unité par parcelle, jusqu'au plafond (100 par
+  défaut). À 0, la fixture donne une surface synthétique marquée « Démonstration ».
 
 Le planificateur saute les passes satellite coûteuses : `SCHEDULER_DISABLED` vaut par défaut
 `crop-areas crop-map crop-accuracy parcel-series survey-frame` (dans `compose.yml`). Pour en
@@ -159,6 +163,17 @@ docker run --rm --network bais_default --env-file app.env \
   ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:rules:default
 ```
 Une règle modifiée par le ministère n'est jamais écrasée.
+
+**Surface brûlée, première mesure réelle** (ADR-0038 ; après `FIRE_BURN_READS=1`) : mesurer
+5 parcelles d'abord, et lire le coût dans la réponse (`processingUnits`, pour 5 parcelles) avant de
+laisser la tâche du jour aller jusqu'au plafond :
+```bash
+docker compose exec scheduler sh -c \
+  '. /run/scheduler/env; curl -s -X POST -H "Authorization: Bearer $CRON_SECRET" \
+   "$APP_INTERNAL_URL/api/v1/fires/burned-areas?limit=5"'
+```
+Une parcelle n'est mesurée que 15 jours après le feu (image d'après close) : la première réponse
+peut compter 0 parcelle mesurée.
 Refait les communes d'enquête en tirage à deux phases : 480 points de première phase par
 commune, classe de la carte par la fixture, 120 points à visiter tirés par strate, puis constats
 et carte de démonstration, parts vivrières calées sur la population. Une commune qui porte un vrai

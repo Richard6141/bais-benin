@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/features/auth/session";
+import { DamageList } from "@/features/damage/damage-list";
 import { FirstStepsCard } from "@/features/onboarding/first-steps-card";
 import { formatHarvestOf } from "@/features/registry/harvest/format";
 import { AlertsTeaser } from "@/features/monitoring/alerts-teaser";
@@ -15,6 +16,7 @@ import { PendingReports } from "@/features/reports/pending-reports";
 import { situationSentence } from "@/lib/text/situation";
 import { listAssistanceForActor } from "@/modules/assistance";
 import { listAlertsForActor } from "@/modules/monitoring";
+import { listDamageDeclarations } from "@/modules/fires";
 import { getFarmFireAlert } from "@/modules/fires/farm-alert";
 import { getFarmDetail, listCampaigns, listOwnFarms, type FarmDetail } from "@/modules/registry";
 
@@ -68,12 +70,13 @@ export default async function FarmerSpacePage() {
     );
   }
 
-  const [farm, campaigns, alerts, requests, fireAlert] = await Promise.all([
+  const [farm, campaigns, alerts, requests, fireAlert, damages] = await Promise.all([
     getFarmDetail(user.actor, first.id),
     listCampaigns(),
     listAlertsForActor(user.actor, { status: "ACTIVE" }),
     listAssistanceForActor(user.actor, { limit: 20 }),
     getFarmFireAlert(user.actor, first.id),
+    listDamageDeclarations(user.actor, { limit: 5 }),
   ]);
   if (!farm) return null;
   const openCampaign = campaigns.find((c) => c.status === "OPEN")?.code ?? null;
@@ -109,6 +112,15 @@ export default async function FarmerSpacePage() {
       />
 
       {fireAlert ? <FireAlertCard alert={fireAlert} /> : null}
+      {/* Sinistres après un feu (ADR-0038 §2) : estimation satellite, puis constat de l'agent. */}
+      {damages.length > 0 ? (
+        <section aria-labelledby="mes-sinistres" className="flex flex-col gap-2">
+          <h2 id="mes-sinistres" className="text-lg font-semibold">
+            Mes sinistres
+          </h2>
+          <DamageList rows={damages} showFarmer={false} />
+        </section>
+      ) : null}
       {alerts.length > 0 ? <AlertsTeaser alerts={alerts} /> : null}
       <PendingReports userId={user.id} />
 

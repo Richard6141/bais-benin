@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
-import { runFireIngestion } from "@/modules/fires";
+import { queueBurnAssessmentsForActiveFireAlerts, runFireIngestion } from "@/modules/fires";
 import { evaluateNewFires } from "@/modules/monitoring";
 import { getFireProvider } from "@/services/fires";
 import { isCronRequest } from "../../monitoring/cron-auth";
@@ -24,9 +24,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error({ err: error }, "Évaluation des alertes de feu impossible");
   }
+  // Surface brûlée (ADR-0038 §2) : les parcelles exposées aux feux des alertes actives sont mises
+  // en file, pour une mesure 15 à 30 jours après le feu.
+  let burnQueued: number | null = null;
+  try {
+    burnQueued = await queueBurnAssessmentsForActiveFireAlerts();
+  } catch (error) {
+    logger.error({ err: error }, "Mise en file des surfaces brûlées impossible");
+  }
   const { runId, status, fetched, created, merged, failedFiles } = ingestion;
   return NextResponse.json(
-    { runId, status, fetched, created, merged, failedFiles, alerts },
+    { runId, status, fetched, created, merged, failedFiles, alerts, burnQueued },
     { status: status === "FAILED" ? 502 : 200 },
   );
 }

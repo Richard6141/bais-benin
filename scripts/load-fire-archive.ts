@@ -40,6 +40,7 @@ async function main() {
   }
   console.log(
     `${label} : ${result.fetched} détections lues en ${result.requests} requêtes, ` +
+      `${result.outside} hors du Bénin écartées, ` +
       `${result.created} créées, ${result.merged} complétées, ${result.skipped} déjà connues` +
       (result.status === "dry-run" ? " (essai, rien n'est écrit)." : "."),
   );

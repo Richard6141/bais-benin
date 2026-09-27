@@ -222,6 +222,34 @@ export const surveyPointObservePayload = z
     path: ["reason"],
   });
 
+/** Stades d'une culture sinistrée, constatés par l'agent (CropStage). */
+export const DAMAGE_CROP_STAGES = ["SOWN", "GROWING", "FLOWERING", "HARVESTED"] as const;
+
+// Déclaration de sinistre (ADR-0038 §2) confirmée ou écartée sur place par l'agent : surface
+// brûlée constatée et culture touchée pour une confirmation, raison pour un rejet.
+export const damageDeclarationReviewPayload = z
+  .object({
+    id: uuid,
+    decision: z.enum(["CONFIRMED", "REJECTED"]),
+    observedAreaHa: z.number().min(0).max(10_000).optional(),
+    cropCode: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_]{1,31}$/)
+      .optional(),
+    cropStage: z.enum(DAMAGE_CROP_STAGES).optional(),
+    note: z.string().trim().max(500).optional(),
+    reason: z.string().trim().min(3).max(300).optional(),
+    reviewedAt: isoDate,
+  })
+  .refine((payload) => payload.decision !== "CONFIRMED" || payload.observedAreaHa !== undefined, {
+    message: "Surface brûlée constatée attendue",
+    path: ["observedAreaHa"],
+  })
+  .refine((payload) => payload.decision !== "REJECTED" || payload.reason !== undefined, {
+    message: "Raison attendue",
+    path: ["reason"],
+  });
+
 export const syncPayloadSchemas = {
   "farmer.create": farmerCreatePayload,
   "farm.create": farmCreatePayload,
@@ -234,6 +262,7 @@ export const syncPayloadSchemas = {
   "fieldReport.create": fieldReportCreatePayload,
   "assistance.request": assistanceRequestPayload,
   "surveyPoint.observe": surveyPointObservePayload,
+  "damageDeclaration.review": damageDeclarationReviewPayload,
 } as const;
 
 export type SyncCommandType = keyof typeof syncPayloadSchemas;
