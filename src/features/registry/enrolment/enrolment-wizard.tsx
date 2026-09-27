@@ -3,7 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CropPickerOption } from "@/components/forms/crop-picker";
 import { StepIndicator } from "@/components/forms/step-indicator";
 import { parseAmount } from "@/components/forms/unit-amount-field";
@@ -14,12 +14,7 @@ import { getAgentDatabase } from "@/lib/offline/db";
 import { loadReferentiel } from "@/lib/offline/referentiel-cache";
 import { useSync } from "@/lib/offline/use-sync";
 import type { CropCode } from "@/components/data-display/crop-glyph";
-import {
-  createEnrolmentDraft,
-  loadEnrolmentDraft,
-  saveEnrolmentSection,
-  type EnrolmentDraft,
-} from "./enrolment-draft";
+import { loadEnrolmentDraft, saveEnrolmentSection, type EnrolmentDraft } from "./enrolment-draft";
 import { submitEnrolment } from "./enrolment-submit";
 import {
   ENROLMENT_STEPS,
@@ -35,6 +30,7 @@ import { StepFarmer } from "./step-farmer";
 import { StepLocation } from "./step-location";
 import { StepParcels } from "./step-parcels";
 import { StepSize } from "./step-size";
+import { useEnrolmentDraft } from "./use-enrolment-draft";
 
 interface EnrolmentWizardProps {
   userId: string;
@@ -56,26 +52,10 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
   const [submitError, setSubmitError] = useState<string | null>(null);
   const bundle = useLiveQuery(() => loadReferentiel(db), [db]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const existing = requestedId ? await loadEnrolmentDraft(db, requestedId) : null;
-      const current = existing ?? (await createEnrolmentDraft(db));
-      if (cancelled) return;
-      setDraft(current);
-      setStep(firstIncompleteStep(current.data));
-      // Adresse mise à jour sans aller-retour serveur : l'écran doit fonctionner hors ligne. Les
-      // autres paramètres restent (?pas= garde la bulle des premiers pas ouverte).
-      if (!existing) {
-        const url = new URL(window.location.href);
-        url.searchParams.set("brouillon", current.id);
-        window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [db, requestedId]);
+  useEnrolmentDraft(db, requestedId, (opened) => {
+    setDraft(opened);
+    setStep(firstIncompleteStep(opened.data));
+  });
 
   const commune =
     bundle?.communes.find((c) => c.code === draft?.data.location?.communeCode) ?? null;

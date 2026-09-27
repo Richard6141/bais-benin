@@ -29,10 +29,10 @@ function toEnrolmentDraft(draft: Draft): EnrolmentDraft {
   };
 }
 
-export async function createEnrolmentDraft(db: AgentDatabase): Promise<EnrolmentDraft> {
+function emptyDraft(id: string): Draft {
   const now = new Date().toISOString();
-  const draft: Draft = {
-    id: crypto.randomUUID(),
+  return {
+    id,
     kind: "FARM_ENROLMENT",
     step: 0,
     data: { ...EMPTY_ENROLMENT },
@@ -40,8 +40,30 @@ export async function createEnrolmentDraft(db: AgentDatabase): Promise<Enrolment
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export async function createEnrolmentDraft(db: AgentDatabase): Promise<EnrolmentDraft> {
+  const draft = emptyDraft(crypto.randomUUID());
   await db.drafts.add(draft);
   return toEnrolmentDraft(draft);
+}
+
+/**
+ * Brouillon d'enregistrement de cet identifiant : repris s'il existe, créé vide sinon. Une seule
+ * transaction : deux ouvertures simultanées du même identifiant n'en créent qu'un. Null si
+ * l'identifiant est celui d'un autre type de brouillon.
+ */
+export async function openEnrolmentDraft(
+  db: AgentDatabase,
+  id: string,
+): Promise<EnrolmentDraft | null> {
+  return db.transaction("rw", db.drafts, async () => {
+    const existing = await db.drafts.get(id);
+    if (existing) return existing.kind === "FARM_ENROLMENT" ? toEnrolmentDraft(existing) : null;
+    const draft = emptyDraft(id);
+    await db.drafts.add(draft);
+    return toEnrolmentDraft(draft);
+  });
 }
 
 export async function loadEnrolmentDraft(
