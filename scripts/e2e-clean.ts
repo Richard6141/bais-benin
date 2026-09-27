@@ -110,6 +110,20 @@ async function clean(since: Date | null, snapshotPath: string | undefined) {
           "parcel_crop",
           (await tx.parcelCrop.deleteMany({ where: { id: { in: parcelCropIds } } })).count,
         );
+        // Cultures vues pendant une visite : elles pointent la visite et la parcelle.
+        add(
+          "parcel_crop_observation",
+          (
+            await tx.parcelCropObservation.deleteMany({
+              where: {
+                OR: [
+                  { parcelId: { in: parcelIds } },
+                  { verification: { farmId: { in: farmIds } } },
+                ],
+              },
+            })
+          ).count,
+        );
         add(
           "farm_verification",
           (await tx.farmVerification.deleteMany({ where: { farmId: { in: farmIds } } })).count,
@@ -187,6 +201,14 @@ async function cleanSuiteWrites(
     where: { id: { in: verificationIds } },
     select: { farmId: true },
   });
+  add(
+    "parcel_crop_observation",
+    (
+      await tx.parcelCropObservation.deleteMany({
+        where: { verificationId: { in: verificationIds } },
+      })
+    ).count,
+  );
   add(
     "farm_verification",
     (await tx.farmVerification.deleteMany({ where: { id: { in: verificationIds } } })).count,
