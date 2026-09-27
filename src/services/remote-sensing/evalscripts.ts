@@ -58,6 +58,8 @@ export const CLOUD_FREE_PASSES = 3;
 // ne couvre qu'une bande du pays. Un choix global des trois passages les moins nuageux pouvait les
 // prendre tous sur la même bande, et l'image du pays n'en montrait alors qu'une. Sans identifiant
 // lisible, toutes les tuiles forment un seul groupe, comme avant.
+// Pas de barre oblique echappee dans les expressions regulieres : le moteur de Copernicus ne
+// la lit pas (erreur 400 a l'evaluation du script).
 const CLEAR_PICK = `
 const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
 const PASSES = ${CLOUD_FREE_PASSES};
@@ -65,7 +67,7 @@ function tileGroup(tile) {
   const path = String(tile.dataPath || tile.productId || "");
   let m = /_T(\\d{2}[A-Z]{3})_/.exec(path);
   if (m) return m[1];
-  m = /tiles\\/(\\d{1,2})\\/([A-Z])\\/([A-Z]{2})\\//.exec(path);
+  m = /tiles.(\\d{1,2}).([A-Z]).([A-Z]{2})./.exec(path);
   if (m) return m[1] + m[2] + m[3];
   return "_";
 }

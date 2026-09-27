@@ -54,7 +54,7 @@ export type ImageryOutcome =
 // rectangle entier, restent en base mais ne sont plus servies). v3 : la fenêtre glissante devient
 // une mosaïque sans nuages ; les mois gardent leurs images v2.
 const CACHE_VERSION = "v2";
-const ROLLING_CACHE_VERSION = "v4";
+const ROLLING_CACHE_VERSION = "v5";
 
 // Frontière du pays, lue une fois par processus (union des communes simplifiée).
 let outline: Promise<ClipGeometry | null> | null = null;

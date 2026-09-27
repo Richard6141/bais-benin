@@ -355,6 +355,12 @@ describe("mosaïque sans nuages des 60 derniers jours", () => {
     ]);
   });
 
+  it("n'écrit aucune barre oblique échappée, que le moteur de Copernicus refuse", () => {
+    for (const layer of ["TRUE_COLOR", "NDVI"] as const) {
+      expect(renderEvalscript(layer, true)).not.toContain("\\/");
+    }
+  });
+
   it("demande tous les passages de la fenêtre au lieu de la scène la moins nuageuse", () => {
     const body = buildProcessBody({
       layer: "TRUE_COLOR",
