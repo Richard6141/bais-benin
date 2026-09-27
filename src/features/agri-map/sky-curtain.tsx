@@ -117,13 +117,15 @@ export function SkyCurtain({
         className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-raised"
         style={{ left: `${position}%` }}
       />
-      <span className="pointer-events-none absolute top-3 left-3 rounded-md border bg-card/95 px-2 py-1 text-xs font-medium">
+      {/* Décalé à droite du panneau des réglages sur grand écran (240px + marge), pour ne pas
+          passer dessous : ce panneau n'existe qu'à partir de 1024px (agri-map.tsx, isWide). */}
+      <span className="pointer-events-none absolute top-3 left-3 rounded-md border bg-card/95 px-2 py-1 text-xs font-medium lg:left-[268px]">
         Avant : {beforeLabel}
       </span>
       <span className="pointer-events-none absolute top-3 right-14 rounded-md border bg-card/95 px-2 py-1 text-xs font-medium">
         Après : {afterLabel}
       </span>
-      <div className="absolute inset-x-6 bottom-14 z-10 md:inset-x-24">
+      <div className="absolute inset-x-6 bottom-14 z-10 md:inset-x-24 lg:right-10 lg:left-[268px]">
         <input
           type="range"
           min={2}
