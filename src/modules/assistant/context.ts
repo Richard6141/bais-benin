@@ -52,7 +52,11 @@ export function audienceOf(actor: Actor): AssistantAudience {
   throw new AssistantError("FORBIDDEN", "L'assistant n'est pas ouvert à ce compte");
 }
 
-async function communeFacts(communeId: string): Promise<ContextFact[]> {
+/**
+ * Alertes et météo de la commune. Une alerte de feu n'est citée que si une de ces exploitations
+ * en est destinataire (ADR-0022) : un feu près d'un voisin ne concerne pas le producteur.
+ */
+async function communeFacts(communeId: string, farmIds: readonly string[]): Promise<ContextFact[]> {
   const commune = await prisma.commune.findUnique({
     where: { id: communeId },
     select: { code: true, name: true },
@@ -61,7 +65,12 @@ async function communeFacts(communeId: string): Promise<ContextFact[]> {
   const [alerts, weather] = await Promise.all([
     prisma.alert.findMany({
       // Un foyer en attente de confirmation n'est jamais cité : il n'est pas encore diffusé.
-      where: { communeId, status: "ACTIVE", awaitingConfirmation: false },
+      where: {
+        communeId,
+        status: "ACTIVE",
+        awaitingConfirmation: false,
+        NOT: { category: "FIRE", recipients: { none: { farmId: { in: [...farmIds] } } } },
+      },
       select: { title: true, severity: true },
       orderBy: { startsAt: "desc" },
       take: 3,
@@ -129,7 +138,15 @@ export async function buildContext(actor: Actor, farmCode?: string): Promise<Ass
       farmId: farms.length === 1 ? farms[0]!.id : null,
       farmCode: null,
       crops,
-      facts: [...facts, ...(communeId ? await communeFacts(communeId) : [])],
+      facts: [
+        ...facts,
+        ...(communeId
+          ? await communeFacts(
+              communeId,
+              farms.map((f) => f.id),
+            )
+          : []),
+      ],
     };
   }
   if (!farmCode) {
@@ -161,6 +178,6 @@ export async function buildContext(actor: Actor, farmCode?: string): Promise<Ass
     farmId: farm.id,
     farmCode: farm.code,
     crops,
-    facts: [...facts, ...(await communeFacts(farm.communeId))],
+    facts: [...facts, ...(await communeFacts(farm.communeId, [farm.id]))],
   };
 }

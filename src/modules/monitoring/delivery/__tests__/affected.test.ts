@@ -16,6 +16,7 @@ function farm(overrides: Partial<AffectedFarm>): AffectedFarm {
     read: false,
     relay: null,
     attention: null,
+    fire: null,
   };
   const merged = { ...base, ...overrides };
   return { ...merged, attention: attentionOf(merged) };
@@ -84,6 +85,28 @@ describe("priorité des exploitations à prévenir", () => {
       "non-envoye",
       "non-lu",
       "lu",
+    ]);
+  });
+
+  it("alerte feu : un feu à moins de 500 m d'abord, puis le plus proche à priorité égale", () => {
+    const fire = (distanceM: number) => ({
+      distanceM,
+      direction: "au nord",
+      critical: distanceM < 500,
+    });
+    const sorted = sortAffectedFarms([
+      farm({ farmId: "loin-sans-tel", hasPhone: false, fire: fire(900) }),
+      farm({ farmId: "loin-non-lu", fire: fire(800) }),
+      farm({ farmId: "proche-lu", read: true, fire: fire(300) }),
+      farm({ farmId: "moyen-non-lu", fire: fire(600) }),
+      farm({ farmId: "tres-proche-non-lu", fire: fire(120) }),
+    ]);
+    expect(sorted.map((f) => f.farmId)).toEqual([
+      "tres-proche-non-lu",
+      "proche-lu",
+      "loin-sans-tel",
+      "moyen-non-lu",
+      "loin-non-lu",
     ]);
   });
 });

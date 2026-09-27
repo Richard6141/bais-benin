@@ -18,15 +18,75 @@ import { FixtureMessagingChannel } from "@/services/messaging/fixture/fixture-ch
 // synthétique et des consentements du seed, envoi par un canal de test, accusé de lecture,
 // relais par l'agent (en ligne et par synchronisation), webhook wapy.pro. Règle et alertes sont
 // créées par le test et supprimées à la fin (les destinataires suivent en cascade).
+// Les fiches semées ont des numéros inventés : aucun message ne part vers elles. Deux producteurs
+// enregistrés sur le terrain (maïs en cours, consentement WhatsApp), créés et retirés par le test,
+// reçoivent donc les envois.
 
 const DJOUGOU = "BJ-DON-003";
 const AGENT_PHONE = "+2290190000001";
 const FARMER_PHONE = "+2290190000002";
+const ENROLLED_PHONES = ["+2290166000201", "+2290166000202"] as const;
 // 10 h 00 à Porto-Novo : hors silence nocturne.
 const DAY = new Date("2026-09-25T09:00:00Z");
 const DEVICE = "test-device-alert-relay";
+const FIELD = { sourceId: "ATDA_TERRAIN", sourceDate: DAY, reliability: "DECLARED" } as const;
 
-const created = { ruleId: "", alertIds: [] as string[] };
+const created = { ruleId: "", alertIds: [] as string[], farmerIds: [] as string[] };
+
+/** Producteur enregistré sur le terrain, avec une parcelle de maïs en cours et WhatsApp. */
+async function enrollMaizeFarmer(phoneE164: string, index: number) {
+  const [commune, campaign, maize] = await Promise.all([
+    prisma.commune.findUniqueOrThrow({ where: { code: DJOUGOU } }),
+    prisma.agriculturalCampaign.findFirstOrThrow({ where: { status: "OPEN" } }),
+    prisma.crop.findUniqueOrThrow({ where: { code: "MAIZE" } }),
+  ]);
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const farmer = await prisma.farmer.create({
+    data: {
+      code: `BJ-F-DIFF-${suffix}`,
+      firstName: "Terrain",
+      lastName: `Diffusion ${index}`,
+      phoneE164,
+      communeId: commune.id,
+      ...FIELD,
+      channelConsents: {
+        create: {
+          channel: "WHATSAPP",
+          granted: true,
+          grantedAt: DAY,
+          method: "AGENT_FORM",
+          evidence: "test-diffusion",
+        },
+      },
+    },
+  });
+  created.farmerIds.push(farmer.id);
+  await prisma.farm.create({
+    data: {
+      code: `BJ-DIFF-${suffix}`,
+      farmerId: farmer.id,
+      communeId: commune.id,
+      declaredAreaHa: 1.5,
+      ...FIELD,
+      parcels: {
+        create: {
+          code: `BJ-DIFF-${suffix}-P01`,
+          declaredAreaHa: 1.5,
+          ...FIELD,
+          crops: {
+            create: {
+              cropId: maize.id,
+              campaignId: campaign.id,
+              areaHa: 1.5,
+              stage: "GROWING",
+              ...FIELD,
+            },
+          },
+        },
+      },
+    },
+  });
+}
 let agent: Actor;
 let farmer: Actor;
 let buyer: Actor;
@@ -95,6 +155,7 @@ describe("diffusion des alertes", () => {
       },
     });
     created.ruleId = rule.id;
+    for (const [index, phone] of ENROLLED_PHONES.entries()) await enrollMaizeFarmer(phone, index);
     agent = await actorFor({ phoneNumber: AGENT_PHONE });
     farmer = await actorFor({ phoneNumber: FARMER_PHONE });
     buyer = await actorFor({ email: "acheteur@bais.demo" });
@@ -109,6 +170,16 @@ describe("diffusion des alertes", () => {
     });
     await prisma.alert.deleteMany({ where: { id: { in: created.alertIds } } });
     await prisma.rule.deleteMany({ where: { id: created.ruleId } });
+    const farmIds = (
+      await prisma.farm.findMany({
+        where: { farmerId: { in: created.farmerIds } },
+        select: { id: true },
+      })
+    ).map((farm) => farm.id);
+    await prisma.parcelCrop.deleteMany({ where: { parcel: { farmId: { in: farmIds } } } });
+    await prisma.parcel.deleteMany({ where: { farmId: { in: farmIds } } });
+    await prisma.farm.deleteMany({ where: { id: { in: farmIds } } });
+    await prisma.farmer.deleteMany({ where: { id: { in: created.farmerIds } } });
     await prisma.$disconnect();
   });
 
@@ -197,12 +268,29 @@ describe("diffusion des alertes", () => {
 
     const live = await prisma.alertRecipient.findMany({
       where: { alertId: liveAlertId, channel: "WHATSAPP" },
+      include: { farm: { select: { reliability: true } } },
     });
-    expect(live.every((r) => r.status === "SENT" && r.providerMessageId && r.sentAt)).toBe(true);
+    // Producteurs enregistrés sur le terrain : envoyé. Fiches semées : jamais, même pour une
+    // alerte réelle, leurs numéros sont inventés.
+    const enrolled = live.filter((r) => r.farm?.reliability !== "SYNTHETIC");
+    const seeded = live.filter((r) => r.farm?.reliability === "SYNTHETIC");
+    expect(enrolled.map((r) => r.phoneE164).sort()).toEqual([...ENROLLED_PHONES]);
+    expect(enrolled.every((r) => r.status === "SENT" && r.providerMessageId && r.sentAt)).toBe(
+      true,
+    );
+    expect(seeded.length).toBeGreaterThan(0);
+    expect(
+      seeded.every(
+        (r) =>
+          r.status === "SKIPPED" &&
+          r.failureReason === "Producteur de démonstration : aucun envoi hors application",
+      ),
+    ).toBe(true);
     const sent = channel.sent;
     expect(
       sent.every((m) => m.kind === "TEXT" && m.idempotencyKey.startsWith(`alert-${liveAlertId}-`)),
     ).toBe(true);
+    expect(sent.every((m) => (ENROLLED_PHONES as readonly string[]).includes(m.to))).toBe(true);
   });
 
   it("enregistre l'accusé de lecture du destinataire et refuse un non-destinataire", async () => {
