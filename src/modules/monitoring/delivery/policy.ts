@@ -14,6 +14,11 @@ export interface PendingDelivery {
   phoneE164: string | null;
   channel: OutboundChannel;
   attempts: number;
+  /**
+   * Fiabilité du producteur destinataire (ou de son exploitation). « SYNTHETIC » : fiche de
+   * démonstration au numéro inventé, qui peut appartenir à une vraie personne.
+   */
+  recipientReliability?: string | null;
 }
 
 export interface DeliveryAlert {
@@ -128,6 +133,11 @@ export async function processDelivery(
       "Alerte calculée sur des données de démonstration : aucun envoi hors application",
       null,
     );
+  }
+  // Producteur de démonstration : même quand l'alerte vient de données réelles (un vrai feu près
+  // d'une parcelle inventée), son numéro est inventé et peut appartenir à quelqu'un. Rien ne part.
+  if (delivery.recipientReliability === "SYNTHETIC") {
+    return skipped(delivery, "Producteur de démonstration : aucun envoi hors application", null);
   }
   const consentId = consents[delivery.channel];
   if (!consentId)

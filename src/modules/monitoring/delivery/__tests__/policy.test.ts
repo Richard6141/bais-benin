@@ -137,6 +137,21 @@ describe("envoi", () => {
     expect(outcome.followUp).toBeNull();
   });
 
+  it("n'envoie jamais à un producteur de démonstration, même pour une alerte réelle", async () => {
+    const wa = channel();
+    const outcome = await processDelivery(
+      { ...delivery, recipientReliability: "SYNTHETIC" },
+      alert,
+      bothConsents,
+      { WHATSAPP: wa, SMS: null },
+      DAY,
+    );
+    expect(wa.sent).toHaveLength(0);
+    expect(outcome.update.status).toBe("SKIPPED");
+    expect(outcome.update.failureReason).toMatch(/Producteur de démonstration/);
+    expect(outcome.followUp).toBeNull();
+  });
+
   it("n'envoie pas sans consentement et propose le repli", async () => {
     const wa = channel();
     const outcome = await processDelivery(

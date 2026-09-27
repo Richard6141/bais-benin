@@ -117,14 +117,21 @@ export async function dispatchPendingDeliveries(
       alert: {
         select: { id: true, severity: true, reliability: true, status: true, messageShort: true },
       },
+      farm: { select: { reliability: true, farmer: { select: { reliability: true } } } },
     },
   });
 
   for (const row of pending) {
     summary.considered += 1;
     const consents = await consentsOf(db, row.farmId);
+    const synthetic =
+      row.farm?.reliability === "SYNTHETIC" || row.farm?.farmer.reliability === "SYNTHETIC";
     const outcome = await processDelivery(
-      { ...row, channel: row.channel as OutboundChannel },
+      {
+        ...row,
+        channel: row.channel as OutboundChannel,
+        recipientReliability: synthetic ? "SYNTHETIC" : null,
+      },
       { ...row.alert, severity: row.alert.severity as Severity },
       consents,
       options.messaging,
