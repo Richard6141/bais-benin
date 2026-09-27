@@ -24,3 +24,12 @@ export {
   preventionSubjectId,
   weekKey,
 } from "./prevention-rules";
+export { importFireArchive, type FireArchiveResult } from "./archive";
+export {
+  ARCHIVE_SOURCES,
+  apiChunks,
+  archiveSeasonWindow,
+  lastCompleteSeason,
+  parseAvailability,
+  pickApiSource,
+} from "./archive-sources";

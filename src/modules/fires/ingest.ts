@@ -16,7 +16,11 @@ import { mergeDetections, type FireConfidenceCode, type FireRecord } from "./mer
 /** Emprise du Bénin, avec une marge ; la frontière exacte est appliquée par les communes. */
 export const BENIN_FIRE_BBOX: BBox = [0.7, 6.1, 3.95, 12.5];
 const DEDUP_WINDOW_MS = 36 * 60 * 60 * 1000;
-const RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+/**
+ * Détections gardées deux ans (ADR-0039) : la prévention de la saison des feux compare les
+ * communes sur la saison sèche passée, qui commence jusqu'à dix-huit mois plus tôt.
+ */
+const RETENTION_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 
 export interface FireIngestionSummary {
   runId: string;
