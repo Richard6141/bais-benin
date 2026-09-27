@@ -18,13 +18,14 @@ const since = new Date(Date.now() - 60_000);
 const DEVICE = "test-device-sinistre";
 const AT = "2026-12-28T10:00:00+01:00";
 let declarationId: string;
+let parcelId: string;
 let farm: { id: string; registeredById: string; farmerUserId: string | null };
 
 async function actorOf(userId: string) {
   return loadActor(userId);
 }
 
-function review(payload: Record<string, unknown>) {
+function review(payload: Record<string, unknown>, deviceId = DEVICE) {
   const id = crypto.randomUUID();
   return {
     id,
@@ -32,8 +33,37 @@ function review(payload: Record<string, unknown>) {
     payload: { id: declarationId, reviewedAt: AT, ...payload },
     idempotencyKey: `it-${id}`,
     clientCreatedAt: AT,
-    deviceId: DEVICE,
+    deviceId,
   };
+}
+
+/** Une déclaration proposée de plus, sur la même parcelle, pour un autre feu. */
+async function proposedDeclaration(fireAt: string): Promise<string> {
+  const assessment = await prisma.burnAssessment.create({
+    data: {
+      parcelId,
+      fireDetectedAt: new Date(fireAt),
+      fireDistanceM: 180,
+      trigger: "REQUEST",
+      status: "MEASURED",
+      measureAfter: new Date(fireAt),
+      expiresAt: new Date(fireAt),
+      burnedAreaLowHa: 0.4,
+      burnedAreaHighHa: 0.5,
+      reliability: "ESTIMATED",
+    },
+  });
+  const declaration = await prisma.damageDeclaration.create({
+    data: {
+      farmId: farm.id,
+      parcelId,
+      burnAssessmentId: assessment.id,
+      occurredAt: assessment.fireDetectedAt,
+      estimatedLowHa: 0.4,
+      estimatedHighHa: 0.5,
+    },
+  });
+  return declaration.id;
 }
 
 describe("déclaration de sinistre", () => {
@@ -54,6 +84,7 @@ describe("déclaration de sinistre", () => {
        WHERE f."archived_at" IS NULL AND f."registered_by_id" IS NOT NULL
        ORDER BY (fa."user_id" IS NOT NULL) DESC, f."code"
        LIMIT 1`;
+    parcelId = row!.parcel_id;
     farm = {
       id: row!.farm_id,
       registeredById: row!.registered_by_id,
@@ -148,6 +179,29 @@ describe("déclaration de sinistre", () => {
     ]);
     expect(contrary?.outcome).toBe("REJECTED");
     expect(contrary?.error?.code).toBe("ALREADY_REVIEWED");
+  });
+
+  it("n'applique jamais deux décisions contraires venues de deux appareils", async () => {
+    declarationId = await proposedDeclaration("2026-12-12T12:30:00Z");
+    const agent = await actorOf(farm.registeredById);
+    const [confirm, reject] = await Promise.all([
+      applySyncBatch(agent, "appareil-a", [
+        review({ decision: "CONFIRMED", observedAreaHa: 0.4 }, "appareil-a"),
+      ]),
+      applySyncBatch(agent, "appareil-b", [
+        review({ decision: "REJECTED", reason: "Brûlis volontaire" }, "appareil-b"),
+      ]),
+    ]);
+    const outcomes = [confirm[0]!, reject[0]!];
+    expect(outcomes.filter((result) => result.outcome === "APPLIED")).toHaveLength(1);
+    const refused = outcomes.find((result) => result.outcome !== "APPLIED")!;
+    expect(refused.outcome).toBe("REJECTED");
+    expect(refused.error?.code).toBe("ALREADY_REVIEWED");
+    const stored = await prisma.damageDeclaration.findUniqueOrThrow({
+      where: { id: declarationId },
+    });
+    expect(stored.version).toBe(2);
+    expect(["CONFIRMED", "REJECTED"]).toContain(stored.status);
   });
 
   it("montre la déclaration au producteur et l'exporte pour le ministère", async () => {

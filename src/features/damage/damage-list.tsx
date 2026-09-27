@@ -35,7 +35,7 @@ export function DamageList({
   showFarmer = true,
 }: {
   rows: readonly DamageRow[];
-  hrefOf?: (row: DamageRow) => string;
+  hrefOf?: (row: DamageRow) => Route;
   showFarmer?: boolean;
 }) {
   return (
@@ -71,7 +71,7 @@ export function DamageList({
           <li key={row.id}>
             <Card className="p-0">
               {hrefOf ? (
-                <Link href={hrefOf(row) as Route} className="block hover:bg-accent/60">
+                <Link href={hrefOf(row)} className="block hover:bg-accent/60">
                   {body}
                 </Link>
               ) : (
