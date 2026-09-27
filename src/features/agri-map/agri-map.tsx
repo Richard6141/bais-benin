@@ -438,9 +438,13 @@ export function AgriMap({
           {/* Grand écran : réglages et légende empilés sur la carte. Téléphone et tablette : un
               bouton « Couches » et une légende repliée, pour que la carte garde l'écran. */}
           {isWide ? (
-            <div className="pointer-events-none absolute top-3 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col gap-2">
-              {layerControls}
-              {legends}
+            // Hauteur bornée à la carte, dégagée de l'échelle (bas-gauche) : le panneau défile
+            // seul plutôt que de déborder ou de couper la légende (ADR-0006).
+            <div className="pointer-events-none absolute top-3 bottom-12 left-3 flex w-[240px] max-w-[calc(100%-4.5rem)] flex-col">
+              <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
+                {layerControls}
+                {legends}
+              </div>
             </div>
           ) : isWide === false ? (
             <>

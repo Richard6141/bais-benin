@@ -49,7 +49,9 @@ export function MapLayersSheet({ activeCount, children, className }: MapLayersSh
             <SheetTitle>Couches et filtres</SheetTitle>
             <SheetDescription>Le fond de carte, les feux et les filtres avancés.</SheetDescription>
           </SheetHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {/* min-h-0 : sans lui, un enfant flexible ne se réduit jamais sous sa taille de contenu
+              et pousse la feuille au-delà de max-h au lieu de défiler à l'intérieur. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]">
             {children}
           </div>
         </SheetContent>
