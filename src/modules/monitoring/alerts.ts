@@ -72,6 +72,22 @@ function heldFilter(actor: Actor): Prisma.AlertWhereInput {
   return seesHeldAlerts(actor) ? {} : { awaitingConfirmation: false };
 }
 
+/**
+ * Feu de brousse (ADR-0022) : un producteur ne voit que les alertes de feu dont une de ses
+ * exploitations est destinataire, comme pour l'envoi, jamais celles de toute sa commune. Les
+ * rôles qui encadrent (agent, coopérative, ministère) voient toutes celles de leur périmètre.
+ */
+function fireFilter(actor: Actor): Prisma.AlertWhereInput {
+  const filter = scopeFilter(actor, "alert.read");
+  if (filter.kind !== "self") return {};
+  return {
+    NOT: {
+      category: "FIRE",
+      recipients: { none: { farm: { farmer: { userId: filter.userId } } } },
+    },
+  };
+}
+
 /** Communes visibles par l'acteur pour les alertes ; "all" pour le ministère. */
 export async function alertCommuneIds(actor: Actor): Promise<"all" | string[]> {
   const filter = scopeFilter(actor, "alert.read");
@@ -149,6 +165,7 @@ export async function listAlertsForActor(
   const since = new Date(Date.now() - 30 * 86_400_000);
   const where: Prisma.AlertWhereInput = {
     ...heldFilter(actor),
+    ...fireFilter(actor),
     ...(communes === "all" ? {} : { communeId: { in: communes } }),
     ...(filters.status === "RECENT" ? { startsAt: { gte: since } } : { status: "ACTIVE" }),
     ...(filters.severity ? { severity: filters.severity } : {}),
@@ -206,6 +223,14 @@ export async function getAlertDetail(actor: Actor, alertId: string): Promise<Ale
   if (!row || (row.awaitingConfirmation && !seesHeldAlerts(actor))) return null;
   const communes = await alertCommuneIds(actor);
   if (communes !== "all" && !communes.includes(row.communeId)) return null;
+  const fire = fireFilter(actor);
+  if (
+    row.category === "FIRE" &&
+    Object.keys(fire).length > 0 &&
+    (await prisma.alert.count({ where: { id: row.id, ...fire } })) === 0
+  ) {
+    return null;
+  }
   const marks = await readMarks(actor.userId, [row.id]);
   const supervises = scopeFilter(actor, "alert.relay").kind !== "none";
   const delivery = supervises
@@ -246,6 +271,7 @@ export async function getMonitoringOverview(actor: Actor): Promise<MonitoringOve
   const communes = await alertCommuneIds(actor);
   const scope: Prisma.AlertWhereInput = {
     ...heldFilter(actor),
+    ...fireFilter(actor),
     ...(communes === "all" ? {} : { communeId: { in: communes } }),
   };
   const active = await prisma.alert.findMany({
