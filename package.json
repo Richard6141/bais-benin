@@ -33,6 +33,7 @@
     "db:purge": "tsx src/modules/privacy/run-purge.ts",
     "db:reference:population": "tsx scripts/load-population.ts",
     "db:demo:survey": "tsx scripts/reseed-demo-survey.ts",
+    "db:rules:default": "tsx scripts/load-default-rules.ts",
     "prepare": "husky",
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "predev": "node scripts/copy-maplibre-worker.mjs",

@@ -9,6 +9,7 @@ import {
 } from "@/database/sql/weather.sql";
 import { recordAudit } from "@/modules/audit";
 import { addDays, beninToday, isoDate } from "./dates";
+import { fireFoyersNearParcelsByCommune } from "@/database/sql/fire-clusters.sql";
 import { closestFireByCommune, farmsNearFiresByCommune } from "@/database/sql/fires.sql";
 import { fireSeverity } from "./fire-message";
 import { FIRE_WINDOW_MS, fireAlertProvenance } from "./fire-provenance";
@@ -20,6 +21,7 @@ import {
   parseRuleDefinition,
   renderMessage,
   SHORT_MESSAGE_MAX,
+  usesFireFoyers,
   usesFires,
   usesReports,
   usesWeather,
@@ -203,6 +205,9 @@ export async function evaluateCommunes(
   const fireValues = parsedRules.some(({ definition }) => usesFires(definition))
     ? await farmsNearFiresByCommune(ids, new Date(now.getTime() - FIRE_WINDOW_MS))
     : null;
+  const foyerValues = parsedRules.some(({ definition }) => usesFireFoyers(definition))
+    ? await fireFoyersNearParcelsByCommune(ids, new Date(now.getTime() - FIRE_WINDOW_MS))
+    : null;
   const clusterValues = await computeClusterValues(
     parsedRules.map((r) => r.definition),
     ids,
@@ -231,6 +236,8 @@ export async function evaluateCommunes(
     if (context.stale) summary.staleCommunes += 1;
     // Feux actifs : exploitations concernées dans les dernières 24 heures (ADR-0022).
     if (fireValues) context.indicators.fire_near_parcels = fireValues.get(commune.id) ?? 0;
+    // Foyers de feux distincts près des parcelles de la commune (ADR-0038).
+    if (foyerValues) context.indicators.fire_count_near_parcels = foyerValues.get(commune.id) ?? 0;
     for (const { rule, definition } of parsedRules) {
       const result = evaluateRule(
         definition,

@@ -40,3 +40,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0035 | Bilan alimentaire prévisionnel par commune : production de toute la commune, calories FAO, besoins WorldPop et FAOSTAT | acceptée, complète 0020, 0033 et 0034 |
 | 0036 | Bilan alimentaire : seuil de vraisemblance, surfaces d'enquête imprécises et démonstration calée sur la population | acceptée, complète 0033 et 0035 |
 | 0037 | Enquête aréolaire stratifiée par la carte des cultures : tirage à deux phases, allocation de Neyman avec plancher, poids de sondage | acceptée, complète 0033, 0035 et 0036 |
+| 0038 | Feux : foyer de feux par commune, surface brûlée par Sentinel-2 (dNBR) et déclaration de sinistre, prévention de saison | acceptée, complète 0014, 0022 et 0031 |

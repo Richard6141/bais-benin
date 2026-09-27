@@ -1,6 +1,7 @@
 #!/bin/sh
 # Appelle une route planifiée de l'application : ingest, dispatch, assistant-maintenance,
-# vegetation-checks, crop-areas, crop-map, crop-accuracy, parcel-series, crop-model, survey-frame ou fires.
+# vegetation-checks, crop-areas, crop-map, crop-accuracy, parcel-series, crop-model, survey-frame,
+# fires ou fire-prevention.
 # L'environnement (URL, secret) est relu depuis le fichier écrit au démarrage : crond ne
 # transmet pas l'environnement du conteneur aux tâches.
 set -eu
@@ -29,6 +30,7 @@ case "$task" in
   crop-model) path="/api/v1/satellite/crop-model" ;;
   survey-frame) path="/api/v1/satellite/survey-frame" ;;
   fires) path="/api/v1/fires/ingest" ;;
+  fire-prevention) path="/api/v1/fires/prevention" ;;
   *) echo "Tâche inconnue : $task" >&2; exit 2 ;;
 esac
 

@@ -35,6 +35,7 @@ export {
   clusterKey,
   clusterLabel,
   clusterParamsOf,
+  usesFireFoyers,
   usesFires,
   usesReports,
   usesWeather,

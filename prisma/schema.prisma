@@ -1519,6 +1519,8 @@ enum FarmerNotificationKind {
   REPORT_DISMISSED
   // Message du ministère aux membres d'un groupe de producteurs (ADR-0024).
   GROUP_MESSAGE
+  // Conseil hebdomadaire de la saison des feux, communes à forte densité de feux (ADR-0038).
+  FIRE_PREVENTION
 }
 
 // Message de suivi adressé au producteur sur WhatsApp : demande d'assistance prise en charge ou

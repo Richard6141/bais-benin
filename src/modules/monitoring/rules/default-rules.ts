@@ -250,6 +250,26 @@ const specs: RuleSpec[] = [
     adviceFr:
       "Si c'est sans danger, coupez un pare-feu autour du champ et des greniers, éloignez les animaux et prévenez vos voisins et votre agent. Si le feu menace, appelez les sapeurs-pompiers au 118. Ne restez pas face au feu. Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.",
   },
+  // Foyer de feux (ADR-0038) : plusieurs feux distincts près des parcelles d'une même commune
+  // appellent une réponse coordonnée. Le plan de diffusion ajoute alors les agents de la commune
+  // et le ministère à l'alerte de feu active, quelle que soit la règle qui l'a levée.
+  {
+    code: "FIRE_CLUSTER_COMMUNE_V1",
+    version: 1,
+    name: "Foyer de feux dans la commune",
+    description:
+      "Au moins trois foyers de feux distincts détectés par satellite en 24 heures à moins de 1 km de parcelles enregistrées de la commune (NASA FIRMS). Deux détections à moins de 750 m forment un même foyer.",
+    severity: "CRITICAL",
+    category: "FIRE",
+    cooldownHours: 12,
+    definition: { all: [{ indicator: "fire_count_near_parcels", op: ">=", value: 3 }] },
+    messageFr:
+      "{commune} : {fire_count_near_parcels} foyers de feux détectés par satellite en 24 heures près de parcelles cultivées. Détection satellite, pas un constat : une réponse coordonnée est conseillée.",
+    messageShort:
+      "BAIS {commune} : plusieurs feux détectés près des champs. Prévenez la mairie et les pompiers (118) si besoin.",
+    adviceFr:
+      "Prévenez la mairie et les sapeurs-pompiers (118), répartissez les agents entre les foyers et faites vérifier sur place ce qui peut l'être sans danger. Beaucoup de feux de saison sèche sont des brûlis volontaires : n'envoyez personne face au feu.",
+  },
 ];
 
 export const DEFAULT_RULES: readonly Rule[] = specs.map((spec) => ruleSchema.parse(spec));
