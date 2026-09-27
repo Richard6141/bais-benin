@@ -8,10 +8,13 @@ vi.mock("./fire-mini-map", () => ({
 
 const { FireAlertCard } = await import("./fire-alert-card");
 
+const SITUATION =
+  "Un feu est détecté à environ 300 m au nord-est de votre champ de maïs, au passage du satellite aujourd'hui à 10 h 30. Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.";
+
 const ALERT: FarmFireAlert = {
   alertId: "0199a000-0000-7000-8000-000000000001",
-  severity: "WARNING",
-  messageShort: "Feu détecté près de votre champ",
+  severity: "CRITICAL",
+  situation: SITUATION,
   adviceFr: "Éloignez le bétail et surveillez le vent, un agent passera si besoin.",
   detectedAt: "2026-09-27T09:30:00.000Z",
   distanceM: 320,
@@ -20,10 +23,11 @@ const ALERT: FarmFireAlert = {
 };
 
 describe("carte d'alerte feu de l'accueil agriculteur", () => {
-  it("montre la distance, l'heure, le conseil et le lien vers l'alerte", async () => {
+  it("dit où est le feu depuis SA parcelle, le conseil et le lien vers l'alerte", async () => {
     const { container } = render(<FireAlertCard alert={ALERT} />);
     expect(screen.getByText("Feu détecté près de votre champ")).toBeInTheDocument();
-    expect(screen.getByText(/À 320 m de votre parcelle/)).toBeInTheDocument();
+    expect(screen.getByText(SITUATION)).toBeInTheDocument();
+    expect(screen.getByText("Alerte grave")).toBeInTheDocument();
     expect(
       screen.getByText("Éloignez le bétail et surveillez le vent, un agent passera si besoin."),
     ).toBeInTheDocument();
@@ -33,10 +37,5 @@ describe("carte d'alerte feu de l'accueil agriculteur", () => {
     );
     expect(await screen.findByTestId("mini-map")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/·|…|—/);
-  });
-
-  it("affiche la distance en kilomètres au-delà d'un kilomètre", () => {
-    render(<FireAlertCard alert={{ ...ALERT, distanceM: 1650 }} />);
-    expect(screen.getByText(/À 1,7 km de votre parcelle/)).toBeInTheDocument();
   });
 });

@@ -1,7 +1,9 @@
 import { prisma } from "@/database/client";
+import { FIRE_ALERT_WINDOW_MS, nearestFiresForFarms } from "@/database/sql/fires.sql";
 import type { Prisma } from "@/generated/prisma/client";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import { scopedCommuneIds } from "@/modules/registry";
+import { fireMessageInApp, fireSeverity } from "./fire-message";
 import { explainTrace, type TraceEntry } from "./rules";
 
 // Lecture des alertes par rôle (monitoring §2.A-C). Le périmètre est appliqué en base :
@@ -86,6 +88,44 @@ function fireFilter(actor: Actor): Prisma.AlertWhereInput {
       recipients: { none: { farm: { farmer: { userId: filter.userId } } } },
     },
   };
+}
+
+/**
+ * Alerte feu vue par un producteur (ADR-0022) : le texte dit où est le feu par rapport à SA
+ * parcelle la plus proche dans la commune de l'alerte, et la gravité suit cette distance, comme
+ * le message qu'il a reçu (fire-message.ts). Calculé à l'affichage, rien n'est stocké. Sans feu
+ * retrouvé dans les 24 dernières heures, le texte de la commune reste. Les autres rôles lisent
+ * le texte de la commune.
+ */
+async function personalizeFires<T extends AlertListItem>(
+  actor: Actor,
+  items: T[],
+  now = new Date(),
+): Promise<T[]> {
+  const filter = scopeFilter(actor, "alert.read");
+  if (filter.kind !== "self" || !items.some((item) => item.category === "FIRE")) return items;
+  const farms = await prisma.farm.findMany({
+    where: { archivedAt: null, farmer: { userId: filter.userId } },
+    select: { id: true, commune: { select: { code: true } } },
+  });
+  const exposures = await nearestFiresForFarms(
+    farms.map((farm) => farm.id),
+    new Date(now.getTime() - FIRE_ALERT_WINDOW_MS),
+  );
+  return items.map((item) => {
+    if (item.category !== "FIRE") return item;
+    const nearest = farms
+      .filter((farm) => farm.commune.code === item.communeCode)
+      .flatMap((farm) => exposures.get(farm.id) ?? [])
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    return nearest
+      ? {
+          ...item,
+          message: fireMessageInApp(nearest, now),
+          severity: fireSeverity(nearest.distanceM),
+        }
+      : item;
+  });
 }
 
 /** Communes visibles par l'acteur pour les alertes ; "all" pour le ministère. */
@@ -182,12 +222,13 @@ export async function listAlertsForActor(
     actor.userId,
     rows.map((r) => r.id),
   );
-  return rows
-    .map((row) => toItem(row, marks.get(row.id) ?? null))
-    .sort(
-      (a, b) =>
-        SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.farmCount - a.farmCount,
-    );
+  const items = await personalizeFires(
+    actor,
+    rows.map((row) => toItem(row, marks.get(row.id) ?? null)),
+  );
+  return items.sort(
+    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.farmCount - a.farmCount,
+  );
 }
 
 export interface DeliveryCount {
@@ -242,8 +283,9 @@ export async function getAlertDetail(actor: Actor, alertId: string): Promise<Ale
         })
       ).map((g) => ({ channel: g.channel, status: g.status, count: g._count._all }))
     : null;
+  const [item] = await personalizeFires(actor, [toItem(row, marks.get(row.id) ?? null)]);
   return {
-    ...toItem(row, marks.get(row.id) ?? null),
+    ...(item as AlertListItem),
     ruleCode: row.rule.code,
     ruleVersion: row.ruleVersion,
     explanation: explainTrace(row.trace as unknown as TraceEntry[]),

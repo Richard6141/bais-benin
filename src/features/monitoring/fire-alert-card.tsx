@@ -8,24 +8,16 @@ import { SeverityBadge } from "@/components/data-display/severity-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FarmFireAlert } from "@/modules/fires/farm-alert";
-import { formatFireDistance } from "./fire-distance";
 
 const FireMiniMap = dynamic(() => import("./fire-mini-map").then((module) => module.FireMiniMap), {
   ssr: false,
   loading: () => <Skeleton className="h-32 w-full" />,
 });
 
-const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Africa/Porto-Novo",
-});
-
 // Carte d'alerte en tête de l'accueil agriculteur (chantier K) : le feu le plus proche d'une
-// parcelle, sa distance et le conseil de l'alerte active. Rien ne s'affiche sans feu à signaler
-// (le composant appelant ne rend celui-ci que lorsque l'alerte existe).
+// parcelle, où il est par rapport à ce champ et quand le satellite l'a vu (texte calculé par le
+// serveur, comme le message envoyé), et le conseil de l'alerte active. Rien ne s'affiche sans feu
+// à signaler (le composant appelant ne rend celui-ci que lorsque l'alerte existe).
 export function FireAlertCard({ alert }: { alert: FarmFireAlert }) {
   return (
     <section
@@ -39,10 +31,7 @@ export function FireAlertCard({ alert }: { alert: FarmFireAlert }) {
         </h2>
         <SeverityBadge severity={alert.severity} />
       </div>
-      <p className="text-sm">
-        À {formatFireDistance(alert.distanceM)} de votre parcelle, détecté le{" "}
-        {timeFormatter.format(new Date(alert.detectedAt))}, heure de Porto-Novo.
-      </p>
+      <p className="text-sm">{alert.situation}</p>
       <FireMiniMap farm={alert.farm} fire={alert.fire} />
       <p className="text-sm">{alert.adviceFr}</p>
       <Button asChild className="h-11 self-start">
