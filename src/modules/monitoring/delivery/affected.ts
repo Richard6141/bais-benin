@@ -1,5 +1,7 @@
 import { prisma } from "@/database/client";
+import { FIRE_ALERT_WINDOW_MS, nearestFiresForFarms } from "@/database/sql/fires.sql";
 import { authorize, type Actor } from "@/modules/authorization";
+import { bearingDegrees, directionFr, fireSeverity } from "../fire-message";
 import { AlertAccessError } from "./acknowledge";
 import type { Db } from "./plan";
 
@@ -37,6 +39,8 @@ export interface AffectedFarm {
   read: boolean;
   relay: { byName: string | null; mode: string | null; at: Date | null } | null;
   attention: AttentionReason;
+  /** Alerte feu : le feu le plus proche d'une parcelle de l'exploitation, sinon null. */
+  fire: { distanceM: number; direction: string; critical: boolean } | null;
 }
 
 const SUCCESS = new Set<ChannelStatus>(["SENT", "DELIVERED", "READ"]);
@@ -64,10 +68,17 @@ export function attentionOf(
   return relayPlanned ? "NOT_SENT" : "TO_CALL";
 }
 
+// Alerte feu : un feu à moins de 500 m passe avant tout le reste, puis le plus proche d'abord à
+// priorité égale.
+const fireRank = (farm: AffectedFarm) => (farm.fire?.critical ? 0 : 1);
+const fireDistance = (farm: AffectedFarm) => farm.fire?.distanceM ?? Number.POSITIVE_INFINITY;
+
 export function sortAffectedFarms(farms: AffectedFarm[]): AffectedFarm[] {
   return [...farms].sort(
     (a, b) =>
+      fireRank(a) - fireRank(b) ||
       ATTENTION_ORDER[a.attention ?? "OK"] - ATTENTION_ORDER[b.attention ?? "OK"] ||
+      fireDistance(a) - fireDistance(b) ||
       a.farmerName.localeCompare(b.farmerName, "fr"),
   );
 }
@@ -79,7 +90,12 @@ export async function listAffectedFarms(
 ): Promise<AffectedFarm[]> {
   const alert = await db.alert.findUnique({
     where: { id: alertId },
-    select: { communeId: true, commune: { select: { departementId: true } } },
+    select: {
+      communeId: true,
+      category: true,
+      startsAt: true,
+      commune: { select: { departementId: true } },
+    },
   });
   if (!alert) throw new AlertAccessError("NOT_FOUND", "Alerte introuvable");
   const resource = { communeId: alert.communeId, departementId: alert.commune.departementId };
@@ -133,6 +149,7 @@ export async function listAffectedFarms(
         read: false,
         relay: null,
         attention: null,
+        fire: null,
       } satisfies AffectedFarm);
     farm.channels[row.channel] = row.status as ChannelStatus;
     if (row.status === "READ") farm.read = true;
@@ -145,6 +162,28 @@ export async function listAffectedFarms(
     }
     byFarm.set(row.farmId, farm);
   }
-  const farms = [...byFarm.values()].map((farm) => ({ ...farm, attention: attentionOf(farm) }));
+  // Alerte feu : distance et direction du feu depuis la parcelle la plus exposée, pour les feux
+  // vus depuis les 24 heures qui ont précédé l'alerte.
+  const exposures =
+    alert.category === "FIRE"
+      ? await nearestFiresForFarms(
+          [...byFarm.keys()],
+          new Date(alert.startsAt.getTime() - FIRE_ALERT_WINDOW_MS),
+        )
+      : new Map();
+  const farms = [...byFarm.values()].map((farm) => {
+    const exposure = exposures.get(farm.farmId);
+    return {
+      ...farm,
+      attention: attentionOf(farm),
+      fire: exposure
+        ? {
+            distanceM: exposure.distanceM,
+            direction: directionFr(bearingDegrees(exposure.parcel, exposure.fire)),
+            critical: fireSeverity(exposure.distanceM) === "CRITICAL",
+          }
+        : null,
+    };
+  });
   return sortAffectedFarms(farms);
 }

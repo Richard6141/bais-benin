@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AffectedFarm } from "@/modules/monitoring/delivery";
+import { distanceFr } from "@/modules/monitoring/fire-message";
 import { RELAY_MODE_LABELS, RelayAlertButton } from "./relay";
 import { CHANNEL_LABELS, pageAffected, summarizeAffected, villagesOf } from "./monitoring-logic";
 
@@ -158,6 +159,9 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{farm.farmerName}</span>
+                  {farm.fire?.critical ? (
+                    <Badge variant="critical">Feu à moins de 500 m</Badge>
+                  ) : null}
                   {farm.attention ? (
                     <Badge variant={ATTENTION_VARIANTS[farm.attention]}>
                       {ATTENTION_LABELS[farm.attention]}
@@ -168,6 +172,16 @@ export function AffectedFarms({ farms, alertId, userId, page, village }: Affecte
                   <span className="font-mono text-xs">{farm.farmCode}</span>
                   {farm.village ? ` (${farm.village})` : ""}
                 </p>
+                {farm.fire ? (
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      farm.fire.critical ? "text-critical" : "text-warning",
+                    )}
+                  >
+                    Feu à {distanceFr(farm.fire.distanceM)} {farm.fire.direction} de sa parcelle
+                  </p>
+                ) : null}
                 <p className="flex flex-wrap gap-1.5">
                   {Object.entries(farm.channels).map(([channel, status]) => {
                     const info = CHANNEL_STATUS[status ?? ""] ?? {
