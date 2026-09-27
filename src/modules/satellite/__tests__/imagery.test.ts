@@ -99,7 +99,7 @@ describe("images de la vue du ciel", () => {
     expect(sql.storeCachedImage).toHaveBeenCalledWith(
       "NDVI",
       "2025-10",
-      "v2:overview",
+      "v3:overview",
       new Uint8Array([1]),
       null,
     );
@@ -152,7 +152,7 @@ describe("images de la vue du ciel", () => {
     expect(sql.holdAfterFailure).toHaveBeenCalledWith(
       "NDVI",
       "2026-07",
-      "v2:overview",
+      "v3:overview",
       new Date(NOW.getTime() + 3_600_000),
     );
   });

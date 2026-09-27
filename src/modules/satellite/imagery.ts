@@ -35,6 +35,12 @@ import { DETAIL_TILE_SIZE, isDetailTileInBenin, overviewSize, rectTouchesOutline
 
 /** Scènes plus nuageuses écartées ; les moins nuageuses passent devant (leastCC). */
 const MAX_CLOUD_COVER = 80;
+/**
+ * Vues « scène la moins nuageuse » : aucune scène écartée. L'ordre leastCC met déjà les plus
+ * claires devant ; le filtre ne faisait que laisser un trou là où toutes les scènes de la période
+ * dépassaient 80 % de nuages (bande du centre du pays en saison des pluies).
+ */
+const LEAST_CLOUDY_MAX_COVER = 100;
 /** Le mois en cours reçoit de nouveaux passages : ses images sont redemandées après ce délai. */
 const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
 /** Après un échec de Copernicus, pas de nouvel essai (ni de réservation) avant ce délai. */
@@ -53,8 +59,8 @@ export type ImageryOutcome =
 // Version des images en cache : v2 découpe sur la frontière du pays (les images v1, sur le
 // rectangle entier, restent en base mais ne sont plus servies). v3 : la fenêtre glissante devient
 // une mosaïque sans nuages ; les mois gardent leurs images v2.
-const CACHE_VERSION = "v2";
-const ROLLING_CACHE_VERSION = "v6";
+const CACHE_VERSION = "v3";
+const ROLLING_CACHE_VERSION = "v7";
 
 // Frontière du pays, lue une fois par processus (union des communes simplifiée).
 let outline: Promise<ClipGeometry | null> | null = null;
@@ -141,7 +147,7 @@ async function renderCached(
       height: target.height,
       from,
       to,
-      maxCloudCover: MAX_CLOUD_COVER,
+      maxCloudCover: cloudFree ? MAX_CLOUD_COVER : LEAST_CLOUDY_MAX_COVER,
       cloudFree,
     });
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
