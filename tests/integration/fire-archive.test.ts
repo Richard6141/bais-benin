@@ -41,7 +41,7 @@ const yearly = (source: string, year: number) =>
 
 const files: Record<string, string> = {
   // Un feu près de Parakou vu par SNPP, puis par NOAA-20 au même passage (fusionnés) ; un site
-  // industriel (type 2, écarté) ; un feu au Nigeria (hors frontière, écarté à l'écriture).
+  // industriel (type 2, écarté) ; un feu au Nigeria (hors frontière, écarté avant la fusion).
   [yearly("viirs-snpp", SEASON)]: [
     VIIRS_HEADER,
     `9.3401,2.6302,331.2,0.4,0.4,${SEASON}-12-10,1254,N,VIIRS,n,2,295.1,6.3,D,0`,
@@ -79,6 +79,15 @@ describe("import d'une saison de feux passée", () => {
   });
 
   it("fusionne les satellites, écarte sources fixes et feux hors frontière, sans alerte", async () => {
+    // L'essai annonce exactement ce que l'import écrira.
+    const trial = await importFireArchive({
+      season: SEASON,
+      baseUrl: BASE,
+      fetchImpl: server(files).fetchImpl,
+      dryRun: true,
+    });
+    expect(trial).toMatchObject({ status: "dry-run", fetched: 4, outside: 1, created: 2 });
+
     const { fetchImpl, calls } = server(files);
     const alertsBefore = await prisma.alert.count();
     const runsBefore = await prisma.fireIngestionRun.count();
@@ -86,7 +95,7 @@ describe("import d'une saison de feux passée", () => {
     expect(calls).toHaveLength(6);
     // Lues : SNPP (2 feux de végétation), NOAA-20 (1), MODIS (1) ; le site industriel est écarté
     // à la lecture.
-    expect(result).toMatchObject({ status: "imported", fetched: 4, merged: 0 });
+    expect(result).toMatchObject({ status: "imported", fetched: 4, outside: 1, merged: 0 });
     // Parakou (SNPP et NOAA-20 fusionnés) et le nord-ouest (MODIS) ; le feu du Nigeria est écarté.
     expect(result.created).toBe(2);
     const window = archiveSeasonWindow(SEASON);
@@ -102,8 +111,8 @@ describe("import d'une saison de feux passée", () => {
     expect(await prisma.alert.count()).toBe(alertsBefore);
     expect(await prisma.fireIngestionRun.count()).toBe(runsBefore);
 
-    // Relancée, la commande ne crée rien : trois lignes déjà connues ; celle du Nigeria, jamais
-    // écrite, est relue puis écartée de nouveau à la frontière.
+    // Relancée, la commande ne crée rien : trois lignes déjà connues ; celle du Nigeria est de
+    // nouveau écartée avant la fusion.
     const again = await importFireArchive({
       season: SEASON,
       baseUrl: BASE,
