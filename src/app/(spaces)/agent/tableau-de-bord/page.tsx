@@ -15,6 +15,7 @@ import {
   withQuery,
 } from "@/features/dashboard/dashboard-logic";
 import { ExportActions } from "@/features/dashboard/export-actions";
+import { FieldGapsSection } from "@/features/dashboard/field-gaps-section";
 import { DashboardSection } from "@/features/dashboard/national-sections";
 import { OverviewTiles } from "@/features/dashboard/overview-tiles";
 import { DemoDataBanner, formatDataDate } from "@/features/dashboard/provenance";
@@ -25,7 +26,10 @@ import {
   getDashboardOverview,
   getDataQuality,
 } from "@/modules/analytics";
+import { listFieldGaps } from "@/modules/reference-fields/gaps";
 import { listCampaigns, listCrops, scopedCommunes } from "@/modules/registry";
+
+const DETECTION_YEAR = 2025;
 
 export const metadata: Metadata = { title: "Tableau de bord de mon périmètre" };
 
@@ -41,18 +45,20 @@ export default async function AgentDashboardPage(props: PageProps<"/agent/tablea
   const filters = { ...params, departementCode: undefined };
   const query = filtersQuery(filters);
 
-  const [overview, production, comparison, quality, campaigns, crops, scope] = await Promise.all([
-    getDashboardOverview(user.actor, filters),
-    getCropProduction(user.actor, filters),
-    getCampaignComparison(user.actor, {
-      cropCode: filters.cropCode,
-      verificationStatus: filters.verificationStatus,
-    }),
-    getDataQuality(user.actor, {}),
-    listCampaigns(),
-    listCrops(),
-    scopedCommunes(user.actor),
-  ]);
+  const [overview, production, comparison, quality, campaigns, crops, scope, fieldGaps] =
+    await Promise.all([
+      getDashboardOverview(user.actor, filters),
+      getCropProduction(user.actor, filters),
+      getCampaignComparison(user.actor, {
+        cropCode: filters.cropCode,
+        verificationStatus: filters.verificationStatus,
+      }),
+      getDataQuality(user.actor, {}),
+      listCampaigns(),
+      listCrops(),
+      scopedCommunes(user.actor),
+      listFieldGaps(user.actor, DETECTION_YEAR).catch(() => []),
+    ]);
   const communes = Array.isArray(scope) ? scope.map((c) => c.name).join(", ") : "votre périmètre";
   // Le lien d'une culture filtre la page et rouvre l'onglet de la production.
   const cropHref = (cropCode: string) =>
@@ -134,6 +140,19 @@ export default async function AgentDashboardPage(props: PageProps<"/agent/tablea
                 description="Parcelles de vos communes relevées au GPS, comparées à la superficie déclarée."
               >
                 <GapsSection gaps={quality.gaps} communeHref={null} />
+              </DashboardSection>
+            ),
+          },
+          {
+            value: "champs",
+            label: "Champs à enregistrer",
+            content: (
+              <DashboardSection
+                id="champs"
+                title="Champs détectés sans exploitation"
+                description="Champs vus par le satellite qu'aucune parcelle enregistrée ne recouvre, dans vos communes. Un champ apparu depuis l'année précédente est souvent une nouvelle mise en culture."
+              >
+                <FieldGapsSection gaps={fieldGaps} year={DETECTION_YEAR} />
               </DashboardSection>
             ),
           },
