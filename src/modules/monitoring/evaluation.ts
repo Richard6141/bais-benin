@@ -9,7 +9,8 @@ import {
 } from "@/database/sql/weather.sql";
 import { recordAudit } from "@/modules/audit";
 import { addDays, beninToday, isoDate } from "./dates";
-import { farmsNearFiresByCommune } from "@/database/sql/fires.sql";
+import { closestFireByCommune, farmsNearFiresByCommune } from "@/database/sql/fires.sql";
+import { fireSeverity } from "./fire-message";
 import { FIRE_WINDOW_MS, fireAlertProvenance } from "./fire-provenance";
 import { releaseIfConfirmed } from "./outbreak-release";
 import { clusterResolver, computeClusterValues, reportAlertProvenance } from "./report-clusters";
@@ -98,6 +99,8 @@ export interface CommuneContext {
   messageValues?: Record<string, number>;
   /** Foyer sur signalements non vérifiés : diffusé aux producteurs après confirmation. */
   awaitingConfirmation?: boolean;
+  /** Gravité plus forte que celle de la règle (feu à moins de 500 m d'une parcelle). */
+  severity?: "CRITICAL";
 }
 
 export function buildContext(
@@ -142,6 +145,25 @@ function truncateShort(message: string): string {
   return message.length <= SHORT_MESSAGE_MAX
     ? message
     : `${message.slice(0, SHORT_MESSAGE_MAX - 1)}…`;
+}
+
+/**
+ * Feu à moins de 500 m d'une parcelle (ADR-0022) : l'alerte de feu de la commune monte en
+ * critique, un feu de nuit progresse. La gravité de la règle reste le plancher.
+ */
+async function escalateCloseFires(items: Array<{ context: CommuneContext }>, now: Date) {
+  const fires = items.filter((item) => item.context.sourceId === "NASA_FIRMS");
+  if (fires.length === 0) return;
+  const closest = await closestFireByCommune(
+    [...new Set(fires.map((item) => item.context.commune.id))],
+    new Date(now.getTime() - FIRE_WINDOW_MS),
+  );
+  for (const item of fires) {
+    const distance = closest.get(item.context.commune.id);
+    if (distance !== undefined && fireSeverity(distance) === "CRITICAL") {
+      item.context = { ...item.context, severity: "CRITICAL" };
+    }
+  }
 }
 
 export async function evaluateCommunes(
@@ -244,6 +266,7 @@ export async function evaluateCommunes(
   await prisma.ruleEvaluation.createMany({ data: rows });
   summary.evaluations = rows.length;
   summary.matched = triggered.length;
+  await escalateCloseFires(triggered, now);
 
   for (const item of triggered) {
     const outcome = await raiseOrExtend(
@@ -288,13 +311,14 @@ export async function raiseOrExtend(
   { kind: "raised"; alertId: string; superseded: boolean } | { kind: "extended" | "skipped" }
 > {
   const cooldownEnd = new Date(now.getTime() + rule.cooldownHours * 3_600_000);
+  const severity = context.severity ?? rule.severity;
   const active = await prisma.alert.findMany({
     where: { communeId: context.commune.id, category: rule.category, status: "ACTIVE" },
     include: { rule: { select: { code: true } } },
   });
   const strongest = active.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity])[0];
 
-  if (strongest && SEVERITY_RANK[strongest.severity] >= SEVERITY_RANK[rule.severity]) {
+  if (strongest && SEVERITY_RANK[strongest.severity] >= SEVERITY_RANK[severity]) {
     // Même épisode ou épisode plus grave déjà signalé : on prolonge sans renvoyer de message.
     await prisma.$transaction([
       prisma.alert.update({
@@ -313,16 +337,20 @@ export async function raiseOrExtend(
   }
 
   if (!strongest) {
-    // Refroidissement : une alerte récente de la même règle, même levée, bloque la répétition.
+    // Refroidissement : une alerte récente de la même règle, même levée, bloque la répétition,
+    // sauf si la situation s'est aggravée (feu désormais à moins de 500 m).
     const recent = await prisma.alert.findFirst({
       where: {
         communeId: context.commune.id,
         rule: { code: rule.code },
         startsAt: { gt: new Date(now.getTime() - rule.cooldownHours * 3_600_000) },
       },
-      select: { id: true },
+      orderBy: { startsAt: "desc" },
+      select: { severity: true },
     });
-    if (recent) return { kind: "skipped" };
+    if (recent && SEVERITY_RANK[recent.severity] >= SEVERITY_RANK[severity]) {
+      return { kind: "skipped" };
+    }
   }
 
   const messageContext = {
@@ -347,7 +375,7 @@ export async function raiseOrExtend(
           id: alertId,
           ruleId: rule.id,
           ruleVersion: rule.version,
-          severity: rule.severity,
+          severity,
           category: rule.category,
           title: rule.name,
           messageFr: renderMessage(rule.messageFr, context.indicators, messageContext),
@@ -387,7 +415,7 @@ export async function raiseOrExtend(
       rule: rule.code,
       version: rule.version,
       commune: context.commune.code,
-      severity: rule.severity,
+      severity,
     },
   });
   return { kind: "raised", alertId: alert.id, superseded: Boolean(strongest) };

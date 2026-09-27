@@ -238,7 +238,7 @@ const specs: RuleSpec[] = [
     version: 1,
     name: "Feu de brousse près des parcelles",
     description:
-      "Un feu actif détecté par satellite à moins de 1 km d'au moins une parcelle enregistrée, dans les dernières 24 heures (NASA FIRMS).",
+      "Un feu actif détecté par satellite (confiance nominale ou haute) à moins de 1 km d'au moins une parcelle enregistrée, dans les dernières 24 heures (NASA FIRMS). À moins de 500 m, l'alerte est critique : elle part même la nuit.",
     severity: "WARNING",
     category: "FIRE",
     cooldownHours: 12,
@@ -246,9 +246,9 @@ const specs: RuleSpec[] = [
     messageFr:
       "{commune} : feu actif détecté par satellite à moins de 1 km de {fire_farms} exploitation(s). Vérifiez vos parcelles, protégez les récoltes et les animaux.",
     messageShort:
-      "BAIS {commune} : feu de brousse détecté près de vos parcelles. Protégez récoltes et animaux, prévenez vos voisins.",
+      "BAIS {commune} : feu détecté par satellite près de vos parcelles. Pare-feu, prévenez vos voisins. Pompiers : 118. À vérifier sur place.",
     adviceFr:
-      "Éloignez les animaux et les récoltes stockées, dégagez un pare-feu autour des greniers si vous le pouvez sans danger, prévenez vos voisins et votre agent. Ne restez pas face au feu.",
+      "Si c'est sans danger, coupez un pare-feu autour du champ et des greniers, éloignez les animaux et prévenez vos voisins et votre agent. Si le feu menace, appelez les sapeurs-pompiers au 118. Ne restez pas face au feu. Détecté par satellite, à vérifier sur place : ce peut être un brûlage contrôlé.",
   },
 ];
 

@@ -1,10 +1,17 @@
 import { prisma } from "@/database/client";
+import {
+  FIRE_ALERT_WINDOW_MS,
+  nearestFiresForFarms,
+  type FarmFireExposure,
+} from "@/database/sql/fires.sql";
 import { logger } from "@/lib/logger";
+import { fireMessageSms, fireMessageWhatsApp, fireSeverity } from "../fire-message";
 import type { Db } from "./plan";
 import {
   processDelivery,
   reminderChannel,
   REMINDER_DELAY_MS,
+  type DeliveryAlert,
   type DeliveryChannels,
   type DeliveryConsents,
   type OutboundChannel,
@@ -56,6 +63,27 @@ async function consentsOf(db: Db, farmId: string | null): Promise<DeliveryConsen
       none[consent.channel] = consent.id;
   }
   return none;
+}
+
+/**
+ * Alerte « feu de brousse » (ADR-0022) : texte et gravité propres à chaque exploitation, d'après
+ * le feu le plus proche de SA parcelle. Sous 500 m, le message passe les heures calmes ; de 500 m
+ * à 1 km, il attend le matin. Sans feu retrouvé (détection sortie de la fenêtre de 24 heures),
+ * le texte commun de l'alerte part tel quel.
+ */
+export function deliveryAlertFor(
+  alert: DeliveryAlert & { category: string },
+  channel: OutboundChannel,
+  exposure: FarmFireExposure | undefined,
+  now: Date,
+): DeliveryAlert {
+  const { category, ...common } = alert;
+  if (category !== "FIRE" || !exposure) return common;
+  return {
+    ...common,
+    severity: fireSeverity(exposure.distanceM),
+    messageShort: channel === "SMS" ? fireMessageSms(exposure) : fireMessageWhatsApp(exposure, now),
+  };
 }
 
 /** Crée le canal de repli ou de relance s'il n'existe pas encore pour ce destinataire. */
@@ -115,24 +143,42 @@ export async function dispatchPendingDeliveries(
       channel: true,
       attempts: true,
       alert: {
-        select: { id: true, severity: true, reliability: true, status: true, messageShort: true },
+        select: {
+          id: true,
+          severity: true,
+          reliability: true,
+          status: true,
+          messageShort: true,
+          category: true,
+        },
       },
       farm: { select: { reliability: true, farmer: { select: { reliability: true } } } },
     },
   });
+  const fireFarmIds = [
+    ...new Set(
+      pending.flatMap((row) => (row.alert.category === "FIRE" && row.farmId ? [row.farmId] : [])),
+    ),
+  ];
+  const exposures = await nearestFiresForFarms(
+    fireFarmIds,
+    new Date(now.getTime() - FIRE_ALERT_WINDOW_MS),
+  );
 
   for (const row of pending) {
     summary.considered += 1;
     const consents = await consentsOf(db, row.farmId);
     const synthetic =
       row.farm?.reliability === "SYNTHETIC" || row.farm?.farmer.reliability === "SYNTHETIC";
+    const channel = row.channel as OutboundChannel;
     const outcome = await processDelivery(
-      {
-        ...row,
-        channel: row.channel as OutboundChannel,
-        recipientReliability: synthetic ? "SYNTHETIC" : null,
-      },
-      { ...row.alert, severity: row.alert.severity as Severity },
+      { ...row, channel, recipientReliability: synthetic ? "SYNTHETIC" : null },
+      deliveryAlertFor(
+        { ...row.alert, severity: row.alert.severity as Severity },
+        channel,
+        row.farmId ? exposures.get(row.farmId) : undefined,
+        now,
+      ),
       consents,
       options.messaging,
       now,

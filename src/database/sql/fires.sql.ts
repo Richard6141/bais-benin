@@ -11,7 +11,7 @@ export const FIRE_RADIUS_M = 1000;
 /** Fenêtre des détections qui comptent pour une alerte de feu. */
 export const FIRE_ALERT_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** Confiances retenues pour les alertes : une détection « faible » ne suffit pas. */
-const ALERT_CONFIDENCES = ["NOMINAL", "HIGH"];
+export const ALERT_CONFIDENCES = ["NOMINAL", "HIGH"];
 
 export interface FireRowToInsert {
   id: string;
@@ -152,4 +152,107 @@ export async function communesNearFires(detectionIds: readonly string[]): Promis
     WHERE d."id" = ANY(${detectionIds as string[]}::uuid[])
       AND d."confidence"::text = ANY(${ALERT_CONFIDENCES})`;
   return rows.map((row) => row.commune_id);
+}
+
+const closestRow = z.object({ commune_id: z.string(), distance_m: z.coerce.number() });
+
+/**
+ * Par commune : distance du feu le plus proche d'une parcelle d'exploitation active (1 km au plus,
+ * confiance nominale ou haute, depuis `since`). Sert à la gravité de l'alerte : sous 500 m, elle
+ * est critique.
+ */
+export async function closestFireByCommune(
+  communeIds: readonly string[],
+  since: Date,
+): Promise<Map<string, number>> {
+  if (communeIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT f."commune_id"::text AS commune_id,
+           MIN(ST_Distance(COALESCE(p."geom"::geography, p."centroid"::geography), d."location"))
+             AS distance_m
+    FROM "farm" f
+    JOIN "parcel" p ON p."farm_id" = f."id" AND p."archived_at" IS NULL
+    JOIN "fire_detection" d
+      ON d."detected_at" >= ${since}
+     AND d."confidence"::text = ANY(${ALERT_CONFIDENCES})
+     AND ST_DWithin(COALESCE(p."geom"::geography, p."centroid"::geography), d."location",
+                    ${FIRE_RADIUS_M})
+    WHERE f."archived_at" IS NULL AND f."commune_id" = ANY(${communeIds as string[]}::uuid[])
+    GROUP BY f."commune_id"`;
+  return new Map(rows.map((raw) => closestRow.parse(raw)).map((r) => [r.commune_id, r.distance_m]));
+}
+
+const exposureRow = z.object({
+  farm_id: z.string(),
+  distance_m: z.coerce.number(),
+  parcel_lat: z.coerce.number(),
+  parcel_lon: z.coerce.number(),
+  fire_lat: z.coerce.number(),
+  fire_lon: z.coerce.number(),
+  detected_at: z.coerce.date(),
+  crop_name: z.string().nullable(),
+});
+
+export interface FarmFireExposure {
+  farmId: string;
+  /** Distance du feu au bord de la parcelle (à son centre sans contour), en mètres. */
+  distanceM: number;
+  parcel: { lat: number; lon: number };
+  fire: { lat: number; lon: number };
+  detectedAt: Date;
+  /** Culture principale de la parcelle pour la campagne ouverte, ou null. */
+  cropName: string | null;
+}
+
+/**
+ * Pour chaque exploitation, le feu le plus proche d'une de ses parcelles depuis `since` (1 km au
+ * plus, confiance nominale ou haute), avec la parcelle d'où il est vu : distance, positions,
+ * heure de détection et culture de la campagne ouverte. Une exploitation sans feu proche n'a pas
+ * d'entrée.
+ */
+export async function nearestFiresForFarms(
+  farmIds: readonly string[],
+  since: Date,
+): Promise<Map<string, FarmFireExposure>> {
+  if (farmIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT DISTINCT ON (p."farm_id")
+           p."farm_id"::text AS farm_id,
+           ST_Distance(COALESCE(p."geom"::geography, p."centroid"::geography), d."location")
+             AS distance_m,
+           ST_Y(COALESCE(p."centroid"::geometry, ST_Centroid(p."geom"::geometry))) AS parcel_lat,
+           ST_X(COALESCE(p."centroid"::geometry, ST_Centroid(p."geom"::geometry))) AS parcel_lon,
+           d."latitude" AS fire_lat, d."longitude" AS fire_lon,
+           (d."detected_at" AT TIME ZONE 'UTC') AS detected_at,
+           (SELECT c."name_fr"
+              FROM "parcel_crop" pc
+              JOIN "crop" c ON c."id" = pc."crop_id"
+              JOIN "agricultural_campaign" ac
+                ON ac."id" = pc."campaign_id" AND ac."status" = 'OPEN'
+             WHERE pc."parcel_id" = p."id" AND pc."archived_at" IS NULL
+             ORDER BY pc."area_ha" DESC
+             LIMIT 1) AS crop_name
+    FROM "parcel" p
+    JOIN "fire_detection" d
+      ON d."detected_at" >= ${since}
+     AND d."confidence"::text = ANY(${ALERT_CONFIDENCES})
+     AND ST_DWithin(COALESCE(p."geom"::geography, p."centroid"::geography), d."location",
+                    ${FIRE_RADIUS_M})
+    WHERE p."archived_at" IS NULL AND p."farm_id" = ANY(${farmIds as string[]}::uuid[])
+    ORDER BY p."farm_id", distance_m ASC, d."detected_at" DESC`;
+  return new Map(
+    rows
+      .map((raw) => exposureRow.parse(raw))
+      .map((r) => [
+        r.farm_id,
+        {
+          farmId: r.farm_id,
+          distanceM: r.distance_m,
+          parcel: { lat: r.parcel_lat, lon: r.parcel_lon },
+          fire: { lat: r.fire_lat, lon: r.fire_lon },
+          detectedAt: r.detected_at,
+          cropName: r.crop_name,
+        },
+      ]),
+  );
 }
