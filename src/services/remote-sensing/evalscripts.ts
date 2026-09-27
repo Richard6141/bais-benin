@@ -149,6 +149,64 @@ function evaluatePixel(samples) {
 }`;
 }
 
+/**
+ * Rendu en deux fenêtres (fusion de données, sources « recent » et « older ») : chaque pixel est
+ * pris dans la fenêtre récente, sinon dans l'ancienne. Chaque source garde sa scène la moins
+ * nuageuse (leastCC).
+ */
+export function renderSplitEvalscript(layer: ImageryLayer): string {
+  if (layer === "TRUE_COLOR") {
+    return `//VERSION=3
+function setup() {
+  return {
+    input: [
+      { datasource: "recent", bands: ["B02", "B03", "B04", "dataMask"] },
+      { datasource: "older", bands: ["B02", "B03", "B04", "dataMask"] }
+    ],
+    output: { bands: 4, sampleType: "AUTO" }
+  };
+}
+function pick(list) {
+  const s = list && list.length > 0 ? list[0] : null;
+  return s && s.dataMask === 1 ? s : null;
+}
+function evaluatePixel(samples) {
+  const s = pick(samples.recent) || pick(samples.older);
+  if (!s) return [0, 0, 0, 0];
+  return [2.5 * s.B04, 2.5 * s.B03, 2.5 * s.B02, 1];
+}`;
+  }
+  const classes = ndviScale.map((entry) => ({
+    max: entry.max,
+    rgb: hexToUnitRgb(entry.color),
+  }));
+  return `//VERSION=3
+const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
+const CLASSES = ${JSON.stringify(classes)};
+function setup() {
+  return {
+    input: [
+      { datasource: "recent", bands: ["B04", "B08", "SCL", "dataMask"] },
+      { datasource: "older", bands: ["B04", "B08", "SCL", "dataMask"] }
+    ],
+    output: { bands: 4, sampleType: "AUTO" }
+  };
+}
+function pick(list) {
+  const s = list && list.length > 0 ? list[0] : null;
+  return s && s.dataMask === 1 && MASKED.indexOf(s.SCL) < 0 ? s : null;
+}
+function evaluatePixel(samples) {
+  const s = pick(samples.recent) || pick(samples.older);
+  if (!s) return [0, 0, 0, 0];
+  const ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+  for (const c of CLASSES) {
+    if (c.max === null || ndvi < c.max) return [c.rgb[0], c.rgb[1], c.rgb[2], 1];
+  }
+  return [0, 0, 0, 0];
+}`;
+}
+
 /** Script de rendu d'une couche d'image ; `cloudFree` : mosaïque sans nuages par pixel. */
 export function renderEvalscript(layer: ImageryLayer, cloudFree = false): string {
   if (layer === "TRUE_COLOR") return cloudFree ? TRUE_COLOR_CLOUD_FREE : TRUE_COLOR;

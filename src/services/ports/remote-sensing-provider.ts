@@ -65,6 +65,12 @@ export interface ImageryRequest {
    * les passages les moins nuageux de la période (fenêtre glissante des 60 jours).
    */
   cloudFree?: boolean;
+  /**
+   * Image d'ensemble d'une longue fenêtre : coupée à cette date en deux fenêtres, la récente
+   * [splitAt, to] d'abord, l'ancienne [from, splitAt] pour combler ses trous. Sur tout le pays,
+   * une seule longue fenêtre laissait des bandes vides.
+   */
+  splitAt?: string;
 }
 
 export interface ImageryResult {

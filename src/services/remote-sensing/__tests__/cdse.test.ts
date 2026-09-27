@@ -361,6 +361,44 @@ describe("mosaïque sans nuages des 60 derniers jours", () => {
     }
   });
 
+  it("coupe l'image d'ensemble en deux fenêtres, la récente d'abord", () => {
+    const body = buildProcessBody({
+      layer: "TRUE_COLOR",
+      envelope: [10, 20, 30, 40],
+      width: 64,
+      height: 64,
+      from: "2026-07-29T00:00:00.000Z",
+      to: "2026-09-27T00:00:00.000Z",
+      maxCloudCover: 100,
+      splitAt: "2026-08-28T00:00:00.000Z",
+    });
+    expect(body.input.data).toEqual([
+      expect.objectContaining({
+        id: "recent",
+        dataFilter: expect.objectContaining({
+          timeRange: { from: "2026-08-28T00:00:00.000Z", to: "2026-09-27T00:00:00.000Z" },
+          mosaickingOrder: "leastCC",
+        }),
+      }),
+      expect.objectContaining({
+        id: "older",
+        dataFilter: expect.objectContaining({
+          timeRange: { from: "2026-07-29T00:00:00.000Z", to: "2026-08-28T00:00:00.000Z" },
+        }),
+      }),
+    ]);
+    // Le pixel vient de la fenêtre récente, sinon de l'ancienne, sinon il reste transparent.
+    const { evaluatePixel } = new Function(`${body.evalscript}; return { evaluatePixel };`)() as {
+      evaluatePixel: (samples: Record<string, Sample[]>) => number[];
+    };
+    const seen = (value: number, dataMask = 1) => ({ ...sample(value, 4), dataMask });
+    expect(evaluatePixel({ recent: [seen(0.1)], older: [seen(0.3)] })).toEqual([
+      0.25, 0.25, 0.25, 1,
+    ]);
+    expect(evaluatePixel({ recent: [seen(0.1, 0)], older: [seen(0.3)] })[0]).toBeCloseTo(0.75);
+    expect(evaluatePixel({ recent: [], older: [] })).toEqual([0, 0, 0, 0]);
+  });
+
   it("demande tous les passages de la fenêtre au lieu de la scène la moins nuageuse", () => {
     const body = buildProcessBody({
       layer: "TRUE_COLOR",

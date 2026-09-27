@@ -41,6 +41,8 @@ const MAX_CLOUD_COVER = 80;
  * dépassaient 80 % de nuages (bande du centre du pays en saison des pluies).
  */
 const LEAST_CLOUDY_MAX_COVER = 100;
+/** Image du pays sur la fenêtre glissante : longueur de la fenêtre récente, en jours. */
+const SPLIT_DAYS = 30;
 /** Le mois en cours reçoit de nouveaux passages : ses images sont redemandées après ce délai. */
 const CURRENT_PERIOD_TTL_MS = 2 * 86_400_000;
 /** Après un échec de Copernicus, pas de nouvel essai (ni de réservation) avant ce délai. */
@@ -60,7 +62,7 @@ export type ImageryOutcome =
 // rectangle entier, restent en base mais ne sont plus servies). v3 : la fenêtre glissante devient
 // une mosaïque sans nuages ; les mois gardent leurs images v2.
 const CACHE_VERSION = "v3";
-const ROLLING_CACHE_VERSION = "v7";
+const ROLLING_CACHE_VERSION = "v8";
 
 // Frontière du pays, lue une fois par processus (union des communes simplifiée).
 let outline: Promise<ClipGeometry | null> | null = null;
@@ -137,6 +139,11 @@ async function renderCached(
     return { status: reservation === "throttled" ? "throttled" : "budget-exhausted" };
   }
   const { from, to } = periodRange(target.period, now);
+  // Image du pays sur la fenêtre glissante : deux fenêtres de 30 jours, la récente d'abord.
+  const splitAt =
+    target.period === ROLLING_PERIOD && target.tileKey === "overview"
+      ? new Date(Date.parse(to) - SPLIT_DAYS * 86_400_000).toISOString()
+      : undefined;
   try {
     const clip = (await countryOutline()) ?? undefined;
     const result = await provider.renderImage({
@@ -149,6 +156,7 @@ async function renderCached(
       to,
       maxCloudCover: cloudFree ? MAX_CLOUD_COVER : LEAST_CLOUDY_MAX_COVER,
       cloudFree,
+      splitAt,
     });
     if (result?.processingUnits) await addProcessingUnits(month, result.processingUnits);
     const permanent = !isCurrentPeriod(target.period, now);

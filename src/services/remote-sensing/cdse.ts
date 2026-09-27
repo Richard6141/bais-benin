@@ -28,15 +28,16 @@ import { cropMapColors } from "@/styles/tokens";
 import { cropClassRenderEvalscript, cropClassStatisticsEvalscript } from "./crop-classes";
 import { RICE_RADAR_STATISTICS_EVALSCRIPT } from "./rice-radar";
 import {
-  FIELD_FEATURES_EVALSCRIPT,
-  NDVI_STATISTICS_EVALSCRIPT,
   DB_OFFSET,
   DB_SCALE,
+  FIELD_FEATURES_EVALSCRIPT,
   INDEX_SCALE,
+  NDVI_STATISTICS_EVALSCRIPT,
   PARCEL_S1_EVALSCRIPT,
   PARCEL_S2_EVALSCRIPT,
   RADAR_STATISTICS_EVALSCRIPT,
   renderEvalscript,
+  renderSplitEvalscript,
 } from "./evalscripts";
 
 // Adaptateur Copernicus Data Space Ecosystem (https://dataspace.copernicus.eu), sans
@@ -173,6 +174,36 @@ export function buildProcessBody(request: ImageryRequest) {
   const crop = request.layer === "CROP_CLASSES";
   // Mosaïque sans nuages : les passages sont choisis et triés par le script, pixel par pixel.
   const byOrbit = crop || request.cloudFree === true;
+  if (!byOrbit && request.splitAt) {
+    const source = (id: string, from: string, to: string) => ({
+      id,
+      type: COLLECTION,
+      dataFilter: {
+        timeRange: { from, to },
+        maxCloudCoverage: request.maxCloudCover,
+        mosaickingOrder: "leastCC",
+      },
+    });
+    return {
+      input: {
+        bounds: {
+          bbox: request.envelope,
+          ...(request.clip ? { geometry: request.clip } : {}),
+          properties: { crs: CRS_3857 },
+        },
+        data: [
+          source("recent", request.splitAt, request.to),
+          source("older", request.from, request.splitAt),
+        ],
+      },
+      output: {
+        width: request.width,
+        height: request.height,
+        responses: [{ identifier: "default", format: { type: "image/png" } }],
+      },
+      evalscript: renderSplitEvalscript(request.layer),
+    };
+  }
   return {
     input: {
       // Emprise de sortie (bbox) et découpe (geometry) : hors contour, pas de donnée.
