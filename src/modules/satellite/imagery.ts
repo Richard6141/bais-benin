@@ -54,7 +54,7 @@ export type ImageryOutcome =
 // rectangle entier, restent en base mais ne sont plus servies). v3 : la fenêtre glissante devient
 // une mosaïque sans nuages ; les mois gardent leurs images v2.
 const CACHE_VERSION = "v2";
-const ROLLING_CACHE_VERSION = "v5";
+const ROLLING_CACHE_VERSION = "v6";
 
 // Frontière du pays, lue une fois par processus (union des communes simplifiée).
 let outline: Promise<ClipGeometry | null> | null = null;
@@ -98,8 +98,13 @@ async function renderCached(
   now: Date,
   requesterId: string | undefined,
 ): Promise<ImageryOutcome> {
-  const cloudFree = target.period === ROLLING_PERIOD;
-  const tileKey = `${cloudFree ? ROLLING_CACHE_VERSION : CACHE_VERSION}:${target.tileKey}`;
+  // Mosaique sans nuages pixel par pixel pour les tuiles detaillees seulement. Pour l'image du
+  // pays entier, Copernicus garde trois passages en tout et un passage ne couvre qu'une bande :
+  // l'image n'en montrait qu'une partie. L'ensemble prend donc, zone par zone, la scene la moins
+  // nuageuse de la fenetre, comme les vues mensuelles, qui couvrent tout le pays.
+  const cloudFree = target.period === ROLLING_PERIOD && target.tileKey !== "overview";
+  const version = target.period === ROLLING_PERIOD ? ROLLING_CACHE_VERSION : CACHE_VERSION;
+  const tileKey = `${version}:${target.tileKey}`;
   const cached = await findCachedImage(target.layer, target.period, tileKey);
   const fresh = cached && (cached.expiresAt === null || cached.expiresAt.getTime() > now.getTime());
   const fromCache = (entry: NonNullable<typeof cached>): ImageryOutcome =>
