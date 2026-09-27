@@ -26,3 +26,6 @@
 # Conseil de la saison des feux (ADR-0038) : le lundi à 8 h 00 à Porto-Novo, de novembre à avril,
 # seulement si FIRE_PREVENTION_MESSAGES vaut 1.
 0 7 * * 1 /usr/local/bin/call-app.sh fire-prevention
+# Surface brûlée des parcelles exposées (ADR-0038) : chaque jour à 9 h 00 à Porto-Novo, jusqu'au
+# plafond mensuel FIRE_BURN_MONTHLY_UNIT_CAP.
+0 8 * * * /usr/local/bin/call-app.sh burned-areas

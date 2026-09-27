@@ -203,6 +203,32 @@ export interface RiceRadarResult {
   processingUnits: number | null;
 }
 
+/**
+ * Surface brûlée d'une parcelle (ADR-0038 §2) : dNBR Sentinel-2 entre la dernière image nette
+ * avant le feu et la première après, pixel par pixel, sur la fenêtre [preFrom, postTo].
+ */
+export interface BurnSeverityRequest {
+  geometry: PolygonGeometry;
+  /** Heure de la détection du feu : sépare les images d'avant de celles d'après. */
+  fireAt: string;
+  preFrom: string;
+  postTo: string;
+  /** Latitude moyenne, pour convertir 20 m au sol en unités Web Mercator. */
+  latitude: number;
+  timeoutMs?: number;
+  /** Clé de la parcelle, pour la seule fixture ; jamais envoyée à Copernicus. */
+  demoKey?: string;
+}
+
+/**
+ * Pixels de 20 m par classe : 0 sans image nette avant et après, 1 non brûlé (dNBR < 0,10),
+ * 2 brûlé possible (0,10 à 0,27), 3 brûlé (0,27 à 0,66), 4 brûlé sévère (au-delà).
+ */
+export interface BurnSeverityResult {
+  classPixels: [number, number, number, number, number];
+  processingUnits: number | null;
+}
+
 export interface CropAreaResult {
   /** Pixels par code de classe (index 0 : non classé). */
   classPixels: number[];
@@ -281,6 +307,7 @@ export interface RemoteSensingProvider {
   riceRadarStatistics(request: RiceRadarRequest): Promise<RiceRadarResult>;
   parcelSeries(request: ParcelSeriesRequest): Promise<ParcelSeriesResult>;
   fieldFeatures(request: FieldFeaturesRequest): Promise<FieldFeatures>;
+  burnSeverity(request: BurnSeverityRequest): Promise<BurnSeverityResult>;
 }
 
 export class RemoteSensingProviderError extends Error {

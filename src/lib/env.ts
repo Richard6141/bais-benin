@@ -120,6 +120,12 @@ const serverSchema = z
     // aux producteurs des communes les plus touchées. Désactivé par défaut : l'activer envoie de
     // vrais messages à de vrais producteurs, c'est la décision de l'utilisateur.
     FIRE_PREVENTION_MESSAGES: z.enum(["0", "1"]).default("0"),
+    // Surface brûlée des parcelles exposées par Sentinel-2 (ADR-0038 §2), environ 0,1 unité par
+    // parcelle. 1 : lectures Copernicus réelles, parcelles réelles ou au contour relevé
+    // seulement ; 0 : surface synthétique de la fixture, marquée comme telle.
+    FIRE_BURN_READS: z.enum(["0", "1"]).default("0"),
+    // Plafond mensuel de ces lectures, en unités de traitement : la tâche s'arrête net au-delà.
+    FIRE_BURN_MONTHLY_UNIT_CAP: z.coerce.number().min(0).max(9000).default(100),
     // Communes pilotes des cultures par parcelle (ADR-0030) : seules leurs parcelles sont lues
     // par satellite, en attendant l'échantillon aréolaire. Codes séparés par des virgules.
     // Plafond mensuel des lectures de séries de parcelles, en unités de traitement (ADR-0031) :

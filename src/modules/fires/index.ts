@@ -47,3 +47,18 @@ export {
   parseAvailability,
   pickApiSource,
 } from "./archive-sources";
+export {
+  burnProvider,
+  measureBurnAssessments,
+  queueBurnAssessmentsForActiveFireAlerts,
+  queueBurnAssessmentsForAlert,
+  queueBurnAssessmentsForFarm,
+  type BurnRunResult,
+} from "./burned-area";
+export {
+  EXPOSURE_M,
+  MIN_PARCEL_HA,
+  burnFigures,
+  burnWindows,
+  type BurnFigures,
+} from "./burned-area-rules";

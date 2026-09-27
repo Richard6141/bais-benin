@@ -3,6 +3,8 @@ import { lonLatTo3857 } from "@/lib/geo/tile-math";
 import {
   RemoteSensingNotConfiguredError,
   RemoteSensingProviderError,
+  type BurnSeverityRequest,
+  type BurnSeverityResult,
   type CropAreaRequest,
   type CropAreaResult,
   type FieldFeatures,
@@ -28,6 +30,7 @@ import { cropMapColors } from "@/styles/tokens";
 import { cropClassRenderEvalscript, cropClassStatisticsEvalscript } from "./crop-classes";
 import { RICE_RADAR_STATISTICS_EVALSCRIPT } from "./rice-radar";
 import {
+  burnSeverityEvalscript,
   DB_OFFSET,
   DB_SCALE,
   FIELD_FEATURES_EVALSCRIPT,
@@ -609,6 +612,51 @@ export function parseParcelS2(payload: unknown): ParcelSeriesResult["s2"] {
   });
 }
 
+/**
+ * Requête Statistical de la surface brûlée (ADR-0038 §2) : un seul intervalle, de la fenêtre
+ * d'avant le feu à celle d'après, pixels de 20 m (bandes B8A et B12), histogramme des classes.
+ */
+export function buildBurnSeverityBody(request: BurnSeverityRequest) {
+  const days = Math.max(
+    1,
+    Math.ceil((Date.parse(request.postTo) - Date.parse(request.preFrom)) / 86_400_000),
+  );
+  const resolution = 20 / Math.cos((request.latitude * Math.PI) / 180);
+  return {
+    input: {
+      bounds: { geometry: projectPolygon(request.geometry), properties: { crs: CRS_3857 } },
+      data: [{ type: COLLECTION, dataFilter: { maxCloudCoverage: 80 } }],
+    },
+    aggregation: {
+      timeRange: { from: request.preFrom, to: request.postTo },
+      aggregationInterval: { of: `P${days}D` },
+      evalscript: burnSeverityEvalscript(request.fireAt),
+      resx: resolution,
+      resy: resolution,
+    },
+    calculations: {
+      default: { histograms: { default: { nBins: 5, lowEdge: 0, highEdge: 5 } } },
+    },
+  };
+}
+
+const burnSeveritySchema = z.object({
+  data: z.array(z.object({ outputs: z.object({ burn: histogramOutput }).optional() })),
+});
+
+/** Pixels par classe de brûlage (0 à 4), cumulés sur les intervalles renvoyés. */
+export function parseBurnSeverity(payload: unknown): BurnSeverityResult["classPixels"] {
+  const parsed = burnSeveritySchema.parse(payload);
+  const pixels: BurnSeverityResult["classPixels"] = [0, 0, 0, 0, 0];
+  for (const entry of parsed.data) {
+    for (const bin of entry.outputs?.burn.bands.B0.histogram.bins ?? []) {
+      const code = Math.round(bin.lowEdge);
+      if (code >= 0 && code < pixels.length) pixels[code] = pixels[code]! + bin.count;
+    }
+  }
+  return pixels;
+}
+
 export function parseParcelS1(payload: unknown): ParcelSeriesResult["s1"] {
   return parcelS1Schema.parse(payload).data.map((entry) => {
     const vv = entry.outputs?.vv.bands.B0.stats;
@@ -920,6 +968,19 @@ export function createCdseProvider(options: CdseOptions = {}): RemoteSensingProv
           ? units.reduce<number>((sum, value) => sum + (value ?? 0), 0)
           : null,
       };
+    },
+
+    async burnSeverity(request): Promise<BurnSeverityResult> {
+      const response = await processing(
+        "/api/v1/statistics",
+        buildBurnSeverityBody(request),
+        "application/json",
+        request.timeoutMs,
+      );
+      const classPixels = await readResponse("Surface brûlée CDSE", async () =>
+        parseBurnSeverity(await response.json()),
+      );
+      return { classPixels, processingUnits: spentUnits(response) };
     },
 
     async riceRadarStatistics(request): Promise<RiceRadarResult> {

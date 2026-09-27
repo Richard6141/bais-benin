@@ -7,6 +7,7 @@ Trois routes de l'application sont appelées à intervalles fixes (docs/modules/
 | `POST /api/v1/monitoring/ingest` | chaque jour à 5 h 00, heure de Porto-Novo (4 h 00 UTC) | ingestion météo, évaluation des règles, plan des destinataires, premier envoi |
 | `POST /api/v1/monitoring/dispatch` | toutes les 10 minutes | envoi des messages en attente, reprise après le silence nocturne, relances |
 | `POST /api/v1/assistant/maintenance` | chaque jour à 4 h 00, heure de Porto-Novo (3 h 00 UTC) | purge des conversations de l'assistant de plus de 12 mois |
+| `POST /api/v1/fires/burned-areas` | chaque jour à 9 h 00 | surface brûlée des parcelles exposées aux feux des alertes (dNBR Sentinel-2), 15 à 30 jours après le feu, jusqu'au plafond `FIRE_BURN_MONTHLY_UNIT_CAP` ; fixture tant que `FIRE_BURN_READS` vaut 0 (ADR-0038) |
 | `POST /api/v1/fires/prevention` | le lundi à 8 h 00 | conseil de la saison des feux (novembre à avril) aux producteurs des communes les plus touchées, s'ils ont donné leur accord WhatsApp ; rien tant que `FIRE_PREVENTION_MESSAGES` vaut 0 (ADR-0038) |
 | `POST /api/v1/fires/ingest` | toutes les 30 minutes | feux actifs NASA FIRMS des dernières 24 h (fichiers publics, sans clé), dédoublonnés, rattachés aux communes ; alertes « feu de brousse » pour les exploitations à moins de 1 km (ADR-0022) |
 | `POST /api/v1/satellite/vegetation-checks` | chaque jour à 6 h 00, heure de Porto-Novo (5 h 00 UTC) | confrontation déclaration / satellite de 150 parcelles relevées (ADR-0016) ; répond 503 tant que le compte CDSE n'est pas configuré |

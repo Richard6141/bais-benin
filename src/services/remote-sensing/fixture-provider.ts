@@ -88,6 +88,33 @@ function parcelPixels(ring: number[][]): number {
   return Math.max(1, Math.round(Math.abs(twice) / 2 / 100));
 }
 
+/**
+ * Surface brûlée de démonstration (ADR-0038 §2), reproductible par parcelle : quatre parcelles
+ * sur dix intactes, une sur huit sous les nuages (image insuffisante), les autres brûlées de 15 à
+ * 75 %, dont un cinquième sévèrement. Pixels de 20 m.
+ */
+export function syntheticBurnPixels(
+  ring: number[][],
+  key: string,
+): [number, number, number, number, number] {
+  const total = Math.max(6, Math.round(parcelPixels(ring) / 4));
+  const seed = hashString(key);
+  if (seed % 8 === 0) {
+    const unclear = Math.round(total * 0.6);
+    return [unclear, total - unclear, 0, 0, 0];
+  }
+  const unclear = Math.round(total * 0.05);
+  const seen = total - unclear;
+  if (seed % 10 < 4) {
+    const possible = Math.round(seen * 0.03);
+    return [unclear, seen - possible, possible, 0, 0];
+  }
+  const burned = Math.round(seen * (0.15 + noise(seed, 700) * 0.6));
+  const severe = Math.round(burned * 0.2);
+  const possible = Math.min(seen - burned, Math.round(seen * 0.1));
+  return [unclear, seen - burned - possible, possible, burned - severe, severe];
+}
+
 /** Écart de vigueur au pic, au plus, de part et d'autre de la série moyenne. */
 const VIGOUR_RANGE = 0.1;
 
@@ -218,6 +245,14 @@ export function createFixtureRemoteSensingProvider(): RemoteSensingProvider {
     async parcelSeries(request) {
       return {
         ...syntheticParcelSeries(request, demoVigour(request.demoKeys)),
+        processingUnits: null,
+      };
+    },
+
+    async burnSeverity(request) {
+      const ring = request.geometry.coordinates[0] ?? [];
+      return {
+        classPixels: syntheticBurnPixels(ring, request.demoKey ?? JSON.stringify(ring)),
         processingUnits: null,
       };
     },

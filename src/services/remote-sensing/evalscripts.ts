@@ -349,3 +349,52 @@ function evaluatePixel(s) {
     dataMask: [valid ? 1 : 0]
   };
 }`;
+
+/** Seuils de dNBR de Key et Benson (2006), repris par UN-SPIDER (ADR-0038 §2). */
+export const DNBR_POSSIBLE = 0.1;
+export const DNBR_BURNED = 0.27;
+export const DNBR_SEVERE = 0.66;
+
+/**
+ * Surface brûlée d'une parcelle (ADR-0038 §2), API Statistical, mosaïque par orbite : pour chaque
+ * pixel, le NBR = (B8A − B12) / (B8A + B12) de la dernière image nette avant la détection et de
+ * la première image nette au moins un jour après, nuages, ombres et eau écartés (SCL). Classe en
+ * entier 8 bits : 0 sans image nette avant et après, 1 non brûlé, 2 brûlé possible, 3 brûlé,
+ * 4 brûlé sévère. Un pixel sans aucune donnée (hors fauchée) sort par dataMask.
+ */
+export function burnSeverityEvalscript(fireAtIso: string): string {
+  return `//VERSION=3
+const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
+const FIRE = Date.parse(${JSON.stringify(fireAtIso)});
+const DAY = 86400000;
+function setup() {
+  return {
+    input: [{ bands: ["B8A", "B12", "SCL", "dataMask"] }],
+    output: [
+      { id: "burn", bands: 1, sampleType: "UINT8" },
+      { id: "dataMask", bands: 1 }
+    ],
+    mosaicking: "ORBIT"
+  };
+}
+function evaluatePixel(samples, scenes) {
+  let seen = false, pre = null, post = null, preTime = -Infinity, postTime = Infinity;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.dataMask !== 1) continue;
+    seen = true;
+    if (MASKED.indexOf(s.SCL) >= 0 || s.SCL === 6 || s.B8A + s.B12 <= 0) continue;
+    const orbit = scenes.orbits[i];
+    const t = orbit ? Date.parse(orbit.dateFrom) : NaN;
+    if (isNaN(t)) continue;
+    const nbr = (s.B8A - s.B12) / (s.B8A + s.B12);
+    if (t < FIRE && t > preTime) { pre = nbr; preTime = t; }
+    else if (t >= FIRE + DAY && t < postTime) { post = nbr; postTime = t; }
+  }
+  if (!seen) return { burn: [0], dataMask: [0] };
+  if (pre === null || post === null) return { burn: [0], dataMask: [1] };
+  const d = pre - post;
+  const cls = d < ${DNBR_POSSIBLE} ? 1 : d < ${DNBR_BURNED} ? 2 : d < ${DNBR_SEVERE} ? 3 : 4;
+  return { burn: [cls], dataMask: [1] };
+}`;
+}
