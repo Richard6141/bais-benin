@@ -53,23 +53,44 @@ export const CLOUD_FREE_PASSES = 3;
 // Mosaïque sans nuages (mosaïque par orbite) : ne garde que les passages les moins nuageux, puis
 // prend pour chaque pixel le plus récent de ces passages où il est dégagé (les échantillons
 // arrivent du plus récent au plus ancien).
+//
+// Le choix se fait tuile Sentinel-2 par tuile (identifiant MGRS, par exemple T31PDM) : un passage
+// ne couvre qu'une bande du pays. Un choix global des trois passages les moins nuageux pouvait les
+// prendre tous sur la même bande, et l'image du pays n'en montrait alors qu'une. Sans identifiant
+// lisible, toutes les tuiles forment un seul groupe, comme avant.
 const CLEAR_PICK = `
 const MASKED = ${JSON.stringify(MASKED_SCL_CLASSES)};
 const PASSES = ${CLOUD_FREE_PASSES};
-function orbitCloud(orbit) {
-  const tiles = orbit.tiles || [];
-  if (tiles.length === 0) return 50;
-  let sum = 0;
-  for (let t = 0; t < tiles.length; t++) {
-    sum += typeof tiles[t].cloudCoverage === "number" ? tiles[t].cloudCoverage : 50;
-  }
-  return sum / tiles.length;
+function tileGroup(tile) {
+  const path = String(tile.dataPath || tile.productId || "");
+  let m = /_T(\\d{2}[A-Z]{3})_/.exec(path);
+  if (m) return m[1];
+  m = /tiles\\/(\\d{1,2})\\/([A-Z])\\/([A-Z]{2})\\//.exec(path);
+  if (m) return m[1] + m[2] + m[3];
+  return "_";
 }
 function preProcessScenes(collections) {
   const orbits = collections.scenes.orbits;
-  const kept = orbits.slice().sort(function (a, b) { return orbitCloud(a) - orbitCloud(b); })
-    .slice(0, PASSES);
-  collections.scenes.orbits = orbits.filter(function (orbit) { return kept.indexOf(orbit) >= 0; });
+  const groups = {};
+  for (let i = 0; i < orbits.length; i++) {
+    const tiles = orbits[i].tiles || [];
+    const list = tiles.length > 0 ? tiles : [{}];
+    for (let t = 0; t < list.length; t++) {
+      const key = tileGroup(list[t]);
+      const cloud = typeof list[t].cloudCoverage === "number" ? list[t].cloudCoverage : 50;
+      const group = groups[key] || (groups[key] = {});
+      group[i] = group[i] === undefined ? cloud : Math.min(group[i], cloud);
+    }
+  }
+  const kept = {};
+  for (const key in groups) {
+    const entries = Object.keys(groups[key]).map(function (i) {
+      return { i: Number(i), cloud: groups[key][i] };
+    });
+    entries.sort(function (a, b) { return a.cloud - b.cloud; });
+    for (let k = 0; k < entries.length && k < PASSES; k++) kept[entries[k].i] = true;
+  }
+  collections.scenes.orbits = orbits.filter(function (orbit, i) { return kept[i] === true; });
   return collections;
 }
 function clearSample(samples) {

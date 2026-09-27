@@ -271,7 +271,9 @@ describe("mosaïque sans nuages des 60 derniers jours", () => {
   interface CloudFree {
     evaluatePixel: (samples: Sample[]) => number[];
     preProcessScenes: (collections: {
-      scenes: { orbits: { dateFrom: string; tiles: { cloudCoverage: number }[] }[] };
+      scenes: {
+        orbits: { dateFrom: string; tiles: { cloudCoverage: number; dataPath?: string }[] }[];
+      };
     }) => { scenes: { orbits: { dateFrom: string }[] } };
   }
   // Évalue notre propre script constant, sans aucune donnée extérieure : test seulement.
@@ -316,6 +318,40 @@ describe("mosaïque sans nuages des 60 derniers jours", () => {
       "20",
       "10",
       "05",
+    ]);
+  });
+
+  it("choisit les passages tuile par tuile pour couvrir tout le pays", () => {
+    // Deux bandes du pays (tuiles 31PDM et 31PGM) vues par des passages différents : les trois
+    // passages les moins nuageux du pays sont tous sur la bande 31PDM, mais la bande 31PGM doit
+    // garder les siens.
+    const path = (tile: string, day: string) =>
+      `/eodata/Sentinel-2/MSI/L2A/2026/09/${day}/S2B_MSIL2A_202609${day}T100029_N0511_R022_T${tile}_202609${day}T120000.SAFE`;
+    const orbit = (day: string, tile: string, cloudCoverage: number) => ({
+      dateFrom: `2026-09-${day}T10:00:00Z`,
+      tiles: [{ cloudCoverage, dataPath: path(tile, day) }],
+    });
+    const result = run("TRUE_COLOR").preProcessScenes({
+      scenes: {
+        orbits: [
+          orbit("25", "31PDM", 5),
+          orbit("22", "31PGM", 70),
+          orbit("20", "31PDM", 6),
+          orbit("17", "31PGM", 40),
+          orbit("15", "31PDM", 7),
+          orbit("12", "31PGM", 90),
+          orbit("10", "31PDM", 8),
+          orbit("07", "31PGM", 50),
+        ],
+      },
+    });
+    expect(result.scenes.orbits.map((entry) => entry.dateFrom.slice(8, 10))).toEqual([
+      "25",
+      "22",
+      "20",
+      "17",
+      "15",
+      "07",
     ]);
   });
 
