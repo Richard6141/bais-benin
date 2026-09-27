@@ -1,5 +1,6 @@
-// Enquête aréolaire (ADR-0033) : points tirés sur le territoire, constats des agents, surfaces
-// par culture estimées par régression sur la carte des pixels.
+// Enquête aréolaire (ADR-0033, ADR-0037) : points tirés sur le territoire en deux phases,
+// constats des agents, surfaces par culture estimées par strate de la carte des pixels (ou par
+// régression sur la carte pour un tirage à égale probabilité).
 
 export {
   MAX_POINT_DISTANCE_M,
@@ -11,9 +12,19 @@ export {
   pointCode,
   pointMapClass,
   pointSquare,
+  selectSecondPhase,
   type FrameDrawResult,
   type PointClassRunResult,
+  type SecondPhaseResult,
 } from "./frame";
+export {
+  ANNUAL_STRATUM_CLASSES,
+  FIRST_PHASE_FACTOR,
+  FRAME_STRATA,
+  MIN_POINTS_PER_STRATUM,
+  stratumOf,
+  type FrameStratum,
+} from "./strata";
 export {
   CV_CITE,
   CV_INDICATIVE,

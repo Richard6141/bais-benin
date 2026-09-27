@@ -1,7 +1,9 @@
 import { prisma } from "@/database/client";
 import {
   communeMapShares,
+  frameStrata,
   surveyPoints,
+  type FrameStratumRecord,
   type SurveyPointRecord,
 } from "@/database/sql/area-survey.sql";
 import {
@@ -9,6 +11,7 @@ import {
   estimateProportion,
   type AreaEstimate,
 } from "@/lib/stats/regression-estimator";
+import { compatibleWeights, estimateStratifiedProportion } from "@/lib/stats/stratified-estimator";
 import { scopeFilter, type Actor } from "@/modules/authorization";
 import { CROP_GROUPS, cropGroupOf } from "@/modules/satellite/crop-groups";
 import {
@@ -16,10 +19,13 @@ import {
   CULTIVATED_CLASSES,
   cropMapClassOf,
 } from "@/modules/satellite/crop-areas";
+import { ANNUAL_STRATUM_CLASSES, FRAME_STRATA, type FrameStratum } from "./strata";
 
-// Surfaces par culture estimées par sondage (ADR-0033) : dans chaque commune d'enquête, la part
-// de chaque culture vue par les agents aux points tirés, corrigée par la carte des pixels
-// (estimateur par régression), puis les communes additionnées. Chaque surface a sa marge.
+// Surfaces par culture estimées par sondage : dans chaque commune d'enquête, la part de chaque
+// culture vue par les agents aux points tirés, puis les communes additionnées. Chaque surface a
+// sa marge. Commune tirée en deux phases (ADR-0037) : estimateur stratifié, chaque point pesant
+// les hectares de sa strate. Commune tirée à égale probabilité (ADR-0033) : moyenne des points
+// corrigée par la carte des pixels (estimateur par régression).
 
 /** Sous ce nombre de points observés, une surface n'est jamais à citer. */
 export const MIN_POINTS_TO_CITE = 30;
@@ -66,8 +72,11 @@ export interface TargetEstimate extends AreaEstimate {
   points: number;
   /** Points où l'agent a vu la cible. */
   positives: number;
-  method: "regression" | "direct" | "mixed";
-  /** Rapport des variances sans et avec la carte ; null sans régression. */
+  method: "regression" | "direct" | "stratified" | "mixed";
+  /**
+   * Rapport des variances sans et avec la carte : estimateur direct contre régression, ou tirage
+   * simple de même taille contre tirage stratifié. Null sans l'une ou l'autre.
+   */
   gain: number | null;
   /** Surface que la carte des pixels donne seule ; null sans carte pour la campagne. */
   mapHa: number | null;
@@ -89,6 +98,21 @@ export interface CommuneSurvey {
   mapped: number;
   /** Part des points visités qui ont pu être observés ; null avant toute visite. */
   responseRate: number | null;
+  /** Tirage en deux phases stratifié par la carte (ADR-0037), ou à égale probabilité (ADR-0033). */
+  design: "stratified" | "simple";
+  /**
+   * Strates d'un tirage en deux phases : points de première phase, points à visiter, points
+   * constatés et hectares que pèse chaque point constaté. Vide pour un tirage simple.
+   */
+  strata: {
+    stratum: FrameStratum;
+    firstPhase: number;
+    drawn: number;
+    observed: number;
+    weightHa: number | null;
+  }[];
+  /** Vrai si les poids des strates viennent de la carte de la commune, faux s'ils sont estimés. */
+  weightsKnown: boolean | null;
   targets: TargetEstimate[];
 }
 
@@ -187,7 +211,107 @@ function communeTarget(
   };
 }
 
-/** Estimations par commune et pour toutes les communes réunies (fonction pure). */
+interface CommuneDesign {
+  /** Points de première phase de chaque strate, dans l'ordre de FRAME_STRATA. */
+  firstPhase: number[];
+  /** Poids des strates connus par la carte de la commune ; null s'ils viennent de la 1re phase. */
+  weights: number[] | null;
+}
+
+/**
+ * Plan d'une commune tirée en deux phases (ADR-0037 §4) : les poids des strates sont ceux de la
+ * carte de la commune si elle est de la même méthode que les points, sans correction radar, et
+ * s'accorde avec la première phase ; sinon ceux de la première phase.
+ */
+function communeDesign(
+  counts: readonly FrameStratumRecord[],
+  map: CommuneShares | undefined,
+  points: readonly SurveyPointRecord[],
+): CommuneDesign {
+  const firstPhase = FRAME_STRATA.map(
+    (stratum) => counts.find((row) => row.stratum === stratum)?.first_phase ?? 0,
+  );
+  const usable =
+    map !== undefined &&
+    map.methodVersion === CROP_AREA_METHOD_VERSION &&
+    !map.radar &&
+    points.every((point) => point.map_method_version === map.methodVersion);
+  if (!usable) return { firstPhase, weights: null };
+  const annual = ANNUAL_STRATUM_CLASSES.reduce((sum, key) => sum + (map.shares.get(key) ?? 0), 0);
+  return { firstPhase, weights: compatibleWeights([annual, 1 - annual], firstPhase) };
+}
+
+/** Estimation stratifiée d'une cible dans une commune tirée en deux phases ; null sans calcul. */
+function stratifiedTarget(
+  target: SurveyTarget,
+  points: readonly SurveyPointRecord[],
+  areaHa: number,
+  map: CommuneShares | undefined,
+  design: CommuneDesign,
+): (TargetEstimate & { varianceHa2: number; directVarianceHa2: number }) | null {
+  const sample = points.filter(
+    (point) => point.land_cover !== null && point.land_cover !== "INACCESSIBLE",
+  );
+  const estimate = estimateStratifiedProportion(
+    FRAME_STRATA.map((stratum, index) => ({
+      firstPhase: design.firstPhase[index]!,
+      values: sample
+        .filter((point) => point.stratum === stratum)
+        .map((point) => (seen(point, target) ? 1 : 0)),
+    })),
+    design.weights,
+  );
+  if (!estimate) return null;
+  const classes = mapClassesOf(target);
+  const populationMean = map
+    ? classes.reduce((sum, key) => sum + (map.shares.get(key) ?? 0), 0)
+    : null;
+  const positives = sample.filter((point) => seen(point, target)).length;
+  const varianceHa2 = areaHa * areaHa * estimate.variance;
+  const area = combineStrata([{ areaHa: areaHa * estimate.proportion, varianceHa2 }]);
+  return {
+    target,
+    ...area,
+    points: estimate.n,
+    positives,
+    method: "stratified",
+    gain: estimate.variance > 0 ? estimate.simpleVariance / estimate.variance : null,
+    mapHa: populationMean === null ? null : areaHa * populationMean,
+    mapShared: target !== "CULTIVATED" && classes.some((key) => SHARED_CLASSES.has(key)),
+    status: citationStatus(area.cv, estimate.n, positives),
+    varianceHa2,
+    directVarianceHa2: areaHa * areaHa * estimate.simpleVariance,
+  };
+}
+
+/** Strates d'une commune tirée en deux phases, pour l'affichage : points et poids de sondage. */
+function communeStrata(
+  points: readonly SurveyPointRecord[],
+  areaHa: number,
+  design: CommuneDesign,
+): CommuneSurvey["strata"] {
+  const firstPhase = design.firstPhase.reduce((sum, value) => sum + value, 0);
+  return FRAME_STRATA.map((stratum, index) => {
+    const drawn = points.filter((point) => point.stratum === stratum);
+    const observed = drawn.filter(
+      (point) => point.land_cover !== null && point.land_cover !== "INACCESSIBLE",
+    ).length;
+    const weight = design.weights?.[index] ?? design.firstPhase[index]! / Math.max(1, firstPhase);
+    return {
+      stratum,
+      firstPhase: design.firstPhase[index]!,
+      drawn: drawn.length,
+      observed,
+      weightHa: observed > 0 ? (areaHa * weight) / observed : null,
+    };
+  });
+}
+
+/**
+ * Estimations par commune et pour toutes les communes réunies (fonction pure). `strata` : les
+ * points de première phase par strate des communes tirées en deux phases (ADR-0037) ; une commune
+ * absente de cette liste a été tirée à égale probabilité (ADR-0033).
+ */
 export function estimateSurvey(
   points: readonly SurveyPointRecord[],
   shares: readonly {
@@ -197,6 +321,7 @@ export function estimateSurvey(
     method_version: number;
     radar: boolean;
   }[],
+  strata: readonly FrameStratumRecord[] = [],
 ): SurveyEstimates {
   const maps = new Map<string, CommuneShares>();
   for (const row of shares) {
@@ -213,6 +338,12 @@ export function estimateSurvey(
     const list = byCommune.get(point.commune_id) ?? [];
     list.push(point);
     byCommune.set(point.commune_id, list);
+  }
+  const strataByCommune = new Map<string, FrameStratumRecord[]>();
+  for (const row of strata) {
+    const list = strataByCommune.get(row.commune_id) ?? [];
+    list.push(row);
+    strataByCommune.set(row.commune_id, list);
   }
 
   const perTarget = new Map<
@@ -231,9 +362,14 @@ export function estimateSurvey(
     const first = list[0]!;
     const observed = list.filter((point) => point.land_cover !== null);
     const inaccessible = observed.filter((point) => point.land_cover === "INACCESSIBLE").length;
+    const map = maps.get(communeId);
+    const counts = strataByCommune.get(communeId);
+    const design = counts ? communeDesign(counts, map, list) : null;
     const targets: TargetEstimate[] = [];
     for (const target of SURVEY_TARGETS) {
-      const estimate = communeTarget(target, list, first.commune_area_ha, maps.get(communeId));
+      const estimate = design
+        ? stratifiedTarget(target, list, first.commune_area_ha, map, design)
+        : communeTarget(target, list, first.commune_area_ha, map);
       if (!estimate) continue;
       const { varianceHa2, directVarianceHa2, ...visible } = estimate;
       targets.push(visible);
@@ -263,6 +399,9 @@ export function estimateSurvey(
       inaccessible,
       mapped: list.filter((point) => point.map_class !== null).length,
       responseRate: observed.length > 0 ? (observed.length - inaccessible) / observed.length : null,
+      design: design ? "stratified" : "simple",
+      strata: design ? communeStrata(list, first.commune_area_ha, design) : [],
+      weightsKnown: design ? design.weights !== null : null,
       targets,
     });
   }
@@ -278,8 +417,11 @@ export function estimateSurvey(
       method:
         total.methods.size > 1
           ? "mixed"
-          : (([...total.methods][0] ?? "direct") as "regression" | "direct"),
-      gain: total.methods.has("regression") && variance > 0 ? total.direct / variance : null,
+          : (([...total.methods][0] ?? "direct") as "regression" | "direct" | "stratified"),
+      gain:
+        (total.methods.has("regression") || total.methods.has("stratified")) && variance > 0
+          ? total.direct / variance
+          : null,
       mapHa: total.mapHa,
       mapShared:
         target !== "CULTIVATED" && mapClassesOf(target).some((key) => SHARED_CLASSES.has(key)),
@@ -312,10 +454,11 @@ export async function getSurveyEstimates(
     select: { id: true, code: true },
   });
   if (!campaign) return null;
-  const [points, shares] = await Promise.all([
+  const [points, shares, strata] = await Promise.all([
     surveyPoints(campaign.id, null),
     communeMapShares(campaign.id),
+    frameStrata(campaign.id),
   ]);
   if (points.length === 0) return null;
-  return { campaignCode: campaign.code, ...estimateSurvey(points, shares) };
+  return { campaignCode: campaign.code, ...estimateSurvey(points, shares, strata) };
 }

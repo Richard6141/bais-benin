@@ -1,5 +1,5 @@
 import { prisma } from "@/database/client";
-import { communeMapShares, surveyPoints } from "@/database/sql/area-survey.sql";
+import { communeMapShares, frameStrata, surveyPoints } from "@/database/sql/area-survey.sql";
 import { readSownAreas, readYieldHistory } from "@/database/sql/forecast.sql";
 import { indexYields, yieldReference } from "@/modules/analytics/forecast";
 import { estimateSurvey, type TargetEstimate } from "@/modules/area-survey";
@@ -17,8 +17,9 @@ import { FOOD_CROPS, annualStapleNeedsKcal, kcalFromProduction } from "./coeffic
 // chaque culture vivrière dans toute la commune (enquête aréolaire, sinon statistique DSA), le
 // rendement de référence de l'ADR-0020, la population WorldPop, puis la couverture des besoins.
 // Au sondage, la surface est celle des céréales, racines et tubercules réunies, répartie entre les
-// cultures selon les points où l'agent les a vues. Le registre seul ne fait jamais de bilan : il ne
-// sert qu'à répartir une commune d'enquête dont aucun point n'a vu de culture vivrière.
+// cultures selon les points où l'agent les a vues, chacun pesant son poids de sondage (ADR-0037).
+// Le registre seul ne fait jamais de bilan : il ne sert qu'à répartir une commune d'enquête dont
+// aucun point n'a vu de culture vivrière.
 
 /**
  * Sous ce nombre de points où l'agent a vu une culture vivrière, la surface par sondage n'est que
@@ -74,7 +75,7 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
     .filter((campaign) => campaign.status === "CLOSED" && campaign.startsOn < open.startsOn)
     .slice(-2);
 
-  const [communes, populations, crops, sown, yields, mapShares, official, faostat, points] =
+  const [communes, populations, crops, sown, yields, mapShares, official, faostat, points, strata] =
     await Promise.all([
       prisma.commune.findMany({
         where: { archivedAt: null },
@@ -111,11 +112,14 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
          WHERE s."source_id" = 'FAOSTAT' AND s."territory_code" = 'BJ'
            AND s."metric" IN ('AREA_HA', 'PRODUCTION_T')`,
       surveyPoints(open.id, null),
+      frameStrata(open.id),
     ]);
 
   // Les points du sondage, lus une seule fois, servent à l'estimation et à la répartition.
   const survey =
-    points.length > 0 ? { campaignCode: open.code, ...estimateSurvey(points, mapShares) } : null;
+    points.length > 0
+      ? { campaignCode: open.code, ...estimateSurvey(points, mapShares, strata) }
+      : null;
 
   const population = new Map<string, number>();
   let populationInfo: FoodBalanceView["population"] = null;
@@ -133,12 +137,23 @@ export async function getFoodBalance(actor: Actor): Promise<FoodBalanceView | nu
   for (const row of sown) {
     declared.set(`${row.commune_code}|${row.crop_code}`, row.area_ha);
   }
+  // Chaque point pèse son poids de sondage (ADR-0037) : dans une commune tirée en deux phases, la
+  // strate des cultures annuelles est suréchantillonnée, et ses points comptent moins d'hectares.
+  const pointWeights = new Map(
+    (survey?.communes ?? []).map((commune) => [
+      commune.code,
+      new Map(commune.strata.map((stratum) => [stratum.stratum, stratum.weightHa ?? 0])),
+    ]),
+  );
   const seenCounts = new Map<string, Map<string, number>>();
   for (const point of points) {
     if (point.land_cover !== "CROP" || !point.crop_code) continue;
     if (!FOOD_CROPS.some((crop) => crop.cropCode === point.crop_code)) continue;
+    const weight = point.stratum
+      ? (pointWeights.get(point.commune_code)?.get(point.stratum) ?? 0)
+      : 1;
     const counts = seenCounts.get(point.commune_code) ?? new Map<string, number>();
-    counts.set(point.crop_code, (counts.get(point.crop_code) ?? 0) + 1);
+    counts.set(point.crop_code, (counts.get(point.crop_code) ?? 0) + weight);
     seenCounts.set(point.commune_code, counts);
   }
   /** Part d'une culture dans les cultures vivrières vues aux points, sinon déclarées au registre. */

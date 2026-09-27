@@ -27,6 +27,7 @@ function point(
     map_class: mapClass,
     map_method_version: mapClass === null ? null : CROP_AREA_METHOD_VERSION,
     map_source_id: "COPERNICUS_S2",
+    stratum: null,
     land_cover: landCover,
     crop_code: cropCode,
     observed_at: landCover ? new Date("2026-08-20") : null,
@@ -125,6 +126,108 @@ describe("surfaces par sondage", () => {
     expect(both.standardErrorHa).toBeCloseTo(Math.SQRT2 * one.standardErrorHa, 6);
     expect(both.points).toBe(200);
     expect(survey.drawn).toBe(200);
+  });
+
+  describe("commune tirée en deux phases (ADR-0037)", () => {
+    // Première phase : 48 points en cultures annuelles, 432 ailleurs (part 0,1). Seconde phase :
+    // 24 et 96 points ; maïs vu sur 15 des 24 et sur 2 des 96.
+    const strata = [
+      { commune_id: "S", stratum: "ANNUAL_CROPS" as const, first_phase: 48 },
+      { commune_id: "S", stratum: "OTHER_LAND" as const, first_phase: 432 },
+    ];
+    function stratified(): SurveyPointRecord[] {
+      return Array.from({ length: 120 }, (_, index) => {
+        const annual = index < 24;
+        const maize = annual ? index < 15 : index >= 118;
+        return {
+          ...point(
+            "S",
+            index + 1,
+            annual ? "ANNUAL" : "NATURAL",
+            maize ? "CROP" : "NATURAL",
+            maize ? "MAIZE" : null,
+          ),
+          stratum: annual ? ("ANNUAL_CROPS" as const) : ("OTHER_LAND" as const),
+        };
+      });
+    }
+    const mapShares = (annual: number, radar = false) => [
+      {
+        commune_id: "S",
+        crop_class: "ANNUAL",
+        pixel_share: annual,
+        method_version: CROP_AREA_METHOD_VERSION,
+        radar,
+      },
+      {
+        commune_id: "S",
+        crop_class: "NATURAL",
+        pixel_share: 1 - annual,
+        method_version: CROP_AREA_METHOD_VERSION,
+        radar,
+      },
+    ];
+
+    it("pondère chaque strate par la part que la carte lui donne", () => {
+      const survey = estimateSurvey(stratified(), mapShares(0.1), strata);
+      const commune = survey.communes[0]!;
+      expect(commune.design).toBe("stratified");
+      expect(commune.weightsKnown).toBe(true);
+      const maize = commune.targets.find((entry) => entry.target === "MAIZE")!;
+      expect(maize.method).toBe("stratified");
+      // 0,1 × 15/24 + 0,9 × 2/96, sur 10 000 ha.
+      expect(maize.areaHa).toBeCloseTo(10_000 * (0.1 * (15 / 24) + 0.9 * (2 / 96)), 6);
+      expect(maize.positives).toBe(17);
+      expect(maize.points).toBe(120);
+      expect(maize.gain!).toBeGreaterThan(1);
+      // Poids de sondage : un point des cultures annuelles pèse 10 000 × 0,1 / 24 ha.
+      expect(commune.strata).toEqual([
+        {
+          stratum: "ANNUAL_CROPS",
+          firstPhase: 48,
+          drawn: 24,
+          observed: 24,
+          weightHa: (10_000 * 0.1) / 24,
+        },
+        {
+          stratum: "OTHER_LAND",
+          firstPhase: 432,
+          drawn: 96,
+          observed: 96,
+          weightHa: (10_000 * 0.9) / 96,
+        },
+      ]);
+    });
+
+    it("prend les poids de la première phase si la carte ne s'accorde pas", () => {
+      const known = estimateSurvey(stratified(), mapShares(0.1), strata).communes[0]!;
+      for (const shares of [mapShares(0.3), mapShares(0.1, true), []]) {
+        const commune = estimateSurvey(stratified(), shares, strata).communes[0]!;
+        expect(commune.weightsKnown).toBe(false);
+        const maize = commune.targets.find((entry) => entry.target === "MAIZE")!;
+        // Même part (0,1 en première phase), marge plus large : les poids sont estimés.
+        expect(maize.areaHa).toBeCloseTo(
+          known.targets.find((entry) => entry.target === "MAIZE")!.areaHa,
+          6,
+        );
+        expect(maize.standardErrorHa).toBeGreaterThan(
+          known.targets.find((entry) => entry.target === "MAIZE")!.standardErrorHa,
+        );
+      }
+    });
+
+    it("garde la régression pour une commune tirée à égale probabilité", () => {
+      const survey = estimateSurvey(
+        [...stratified(), ...commune("A")],
+        [...mapShares(0.1), ...shares("A")],
+        strata,
+      );
+      const simple = survey.communes.find((entry) => entry.communeId === "A")!;
+      expect(simple.design).toBe("simple");
+      expect(simple.strata).toEqual([]);
+      expect(simple.targets.find((entry) => entry.target === "MAIZE")!.method).toBe("regression");
+      expect(survey.totals.find((entry) => entry.target === "MAIZE")!.method).toBe("mixed");
+    });
   });
 
   it("ne cite qu'un chiffre précis sur assez de points", () => {

@@ -4,12 +4,15 @@ import {
   gridPointsInCommune,
   insertFramePoints,
   pointsToClassify,
+  pointsToStratify,
   setPointMapClass,
+  setPointStrata,
 } from "@/database/sql/area-survey.sql";
 import { addProcessingUnits, reserveProcessingRequest } from "@/database/sql/satellite.sql";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { seededRandom } from "@/lib/ml/random-forest";
+import { neymanAllocation, systematicPositions } from "@/lib/stats/stratified-estimator";
 import { CROP_AREA_METHOD_VERSION, CROP_AREA_RESOLUTION_M } from "@/modules/satellite/crop-areas";
 import { cropMapClassOf } from "@/modules/satellite/crop-areas";
 import { zoneOffset } from "@/modules/satellite/crop-profiles";
@@ -21,12 +24,21 @@ import {
   type RemoteSensingProvider,
 } from "@/services/ports/remote-sensing-provider";
 import { CROP_CLASS_CODES, CROP_CLASSES } from "@/services/remote-sensing";
+import {
+  ANTICIPATED_STAPLE_SHARE,
+  FIRST_PHASE_FACTOR,
+  FRAME_STRATA,
+  MIN_POINTS_PER_STRATUM,
+  stratumOf,
+  type FrameStratum,
+} from "./strata";
 
-// Base de sondage aréolaire (ADR-0033) : tirage des points d'une commune d'enquête, une fois par
-// campagne, puis classe de la carte des pixels à chaque point, par la même méthode que les
-// surfaces par commune (variable auxiliaire de l'estimateur par régression).
+// Base de sondage aréolaire (ADR-0033, ADR-0037) : tirage en deux phases des points d'une commune
+// d'enquête, une fois par campagne. Première phase, une grille dense ; la classe de la carte des
+// pixels est lue à chaque point, par la même méthode que les surfaces par commune. Seconde phase,
+// les points à visiter, tirés dans chaque strate de la carte (allocation de Neyman avec plancher).
 
-/** Première campagne : 120 points par commune pilote, 600 au total. */
+/** Points à visiter par commune pilote, 600 au total. */
 export const POINTS_PER_COMMUNE = 120;
 /** Distance au point au-delà de laquelle un constat est refusé (sauf point inaccessible). */
 export const MAX_POINT_DISTANCE_M = 50;
@@ -112,12 +124,15 @@ async function openCampaign() {
 
 export interface FrameDrawResult {
   campaignCode: string | null;
+  /** Points de première phase tirés dans chaque commune. */
   communes: { code: string; drawn: number; spacingM: number }[];
 }
 
 /**
- * Tire les points des communes d'enquête qui n'en ont pas encore pour la campagne ouverte. Une
- * commune déjà tirée n'est jamais retirée : le tirage vaut pour toute la campagne.
+ * Tire la première phase des communes d'enquête qui n'ont pas encore de points pour la campagne
+ * ouverte : une grille `FIRST_PHASE_FACTOR` fois plus dense que les points à visiter. Ces points
+ * attendent la classe de la carte ; les agents ne les voient pas. Une commune déjà tirée n'est
+ * jamais retirée : le tirage vaut pour toute la campagne.
  */
 export async function drawAreaFrame(
   options: { communeCodes?: readonly string[]; pointsPerCommune?: number; now?: Date } = {},
@@ -125,7 +140,7 @@ export async function drawAreaFrame(
   const now = options.now ?? new Date();
   const campaign = await openCampaign();
   if (!campaign) return { campaignCode: null, communes: [] };
-  const target = options.pointsPerCommune ?? POINTS_PER_COMMUNE;
+  const firstPhase = (options.pointsPerCommune ?? POINTS_PER_COMMUNE) * FIRST_PHASE_FACTOR;
   const communes = await communesForFrame(
     campaign.id,
     options.communeCodes ?? getServerEnv().CROP_MODEL_PILOT_COMMUNES,
@@ -133,7 +148,7 @@ export async function drawAreaFrame(
   const result: FrameDrawResult = { campaignCode: campaign.code, communes: [] };
   for (const commune of communes) {
     if (commune.points > 0) continue;
-    const spacingM = gridSpacing(commune.area_m2, target);
+    const spacingM = gridSpacing(commune.area_m2, firstPhase);
     const grid = { spacingM, ...gridOrigin(campaign.code, commune.code, spacingM) };
     const nodes = await gridPointsInCommune(commune.id, grid);
     const points = nodes.map((node, index) => ({
@@ -142,8 +157,86 @@ export async function drawAreaFrame(
       latitude: Number(node.latitude.toFixed(6)),
       longitude: Number(node.longitude.toFixed(6)),
     }));
-    const drawn = await insertFramePoints(campaign.id, commune.id, grid, points, now);
+    const drawn = await insertFramePoints(campaign.id, commune.id, grid, points, now, false);
     result.communes.push({ code: commune.code, drawn, spacingM });
+  }
+  return result;
+}
+
+export interface SecondPhaseResult {
+  campaignCode: string | null;
+  communes: {
+    code: string;
+    firstPhase: number;
+    strata: Record<FrameStratum, { firstPhase: number; selected: number }>;
+  }[];
+  /** Communes dont des points de première phase attendent encore la classe de la carte. */
+  waiting: string[];
+}
+
+/**
+ * Tire la seconde phase (ADR-0037) des communes dont tous les points de première phase ont la
+ * classe de la carte : strate figée pour chaque point, `pointsPerCommune` points répartis entre
+ * les strates par l'allocation de Neyman avec plancher, puis tirés systématiquement le long de
+ * la grille dans chaque strate. Une commune déjà tirée n'est jamais retirée.
+ */
+export async function selectSecondPhase(
+  options: { communeCodes?: readonly string[]; pointsPerCommune?: number } = {},
+): Promise<SecondPhaseResult> {
+  const campaign = await openCampaign();
+  const result: SecondPhaseResult = {
+    campaignCode: campaign?.code ?? null,
+    communes: [],
+    waiting: [],
+  };
+  if (!campaign) return result;
+  const target = options.pointsPerCommune ?? POINTS_PER_COMMUNE;
+  const rows = await pointsToStratify(campaign.id, options.communeCodes ?? null);
+  const byCommune = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const list = byCommune.get(row.commune_code) ?? [];
+    list.push(row);
+    byCommune.set(row.commune_code, list);
+  }
+  for (const [code, points] of byCommune) {
+    const ready = points.every(
+      (point) => point.map_class !== null && point.map_method_version === CROP_AREA_METHOD_VERSION,
+    );
+    if (!ready) {
+      result.waiting.push(code);
+      continue;
+    }
+    // Chaque strate garde l'ordre de la grille : le tirage systématique étale ses points.
+    const strata = FRAME_STRATA.map((stratum) =>
+      points.filter((point) => stratumOf(point.map_class!) === stratum),
+    );
+    const allocation = neymanAllocation(
+      strata.map((list, index) => {
+        const share = ANTICIPATED_STAPLE_SHARE[FRAME_STRATA[index]!];
+        return {
+          candidates: list.length,
+          weight: list.length / points.length,
+          sd: Math.sqrt(share * (1 - share)),
+        };
+      }),
+      target,
+      MIN_POINTS_PER_STRATUM,
+    );
+    const updates = strata.flatMap((list, index) => {
+      const stratum = FRAME_STRATA[index]!;
+      const random = seededRandom(hashText(`${campaign.code}:${code}:${stratum}`));
+      const chosen = new Set(systematicPositions(list.length, allocation[index]!, random));
+      return list.map((point, rank) => ({ id: point.id, stratum, selected: chosen.has(rank) }));
+    });
+    await setPointStrata(updates);
+    result.communes.push({
+      code,
+      firstPhase: points.length,
+      strata: {
+        ANNUAL_CROPS: { firstPhase: strata[0]!.length, selected: allocation[0]! },
+        OTHER_LAND: { firstPhase: strata[1]!.length, selected: allocation[1]! },
+      },
+    });
   }
   return result;
 }
@@ -177,6 +270,11 @@ export async function classifyFramePoints(options: {
   provider: RemoteSensingProvider;
   limit: number;
   now?: Date;
+  /**
+   * Classe de l'occupation du sol vraie, par point, pour la seule fixture de démonstration (points
+   * de première phase, qui n'ont pas de constat). Jamais envoyée à Copernicus.
+   */
+  hints?: ReadonlyMap<string, string>;
 }): Promise<PointClassRunResult> {
   const now = options.now ?? new Date();
   const result: PointClassRunResult = {
@@ -212,7 +310,9 @@ export async function classifyFramePoints(options: {
         break;
       }
     }
-    const hint = observedMapClass(point.observed_land_cover, point.observed_crop_code);
+    const hint =
+      options.hints?.get(point.id) ??
+      observedMapClass(point.observed_land_cover, point.observed_crop_code);
     let measure;
     try {
       measure = await options.provider.cropAreaStatistics({
