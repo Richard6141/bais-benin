@@ -61,6 +61,9 @@ export function firesToGeoJson(fires: readonly FireFeature[]) {
       id: fire.id,
       geometry: { type: "Point" as const, coordinates: [fire.longitude, fire.latitude] },
       properties: {
+        // MapLibre ne garde le champ `id` d'une source GeoJSON que s'il est castable en nombre ;
+        // un UUID ne l'est pas, donc l'identifiant utile pour la fiche voyage aussi ici.
+        id: fire.id,
         detectedAt: fire.detectedAt,
         sensors: fire.sensors.join(","),
         confidence: fire.confidence,

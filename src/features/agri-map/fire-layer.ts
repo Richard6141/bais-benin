@@ -193,7 +193,10 @@ export function showFireLayer(map: MapLibreMap, collection: FireCollection): voi
       .setLngLat(event.lngLat)
       .setDOMContent(root)
       .addTo(map);
-    const id = typeof feature.id === "string" ? feature.id : String(feature.id ?? "");
+    // `feature.id` n'est pas fiable ici : une source GeoJSON ne garde un id que s'il est castable
+    // en nombre, ce qu'un UUID n'est pas. L'identifiant utile vient donc des propriétés.
+    const rawId = feature.properties?.id;
+    const id = typeof rawId === "string" ? rawId : "";
     if (!id) {
       fillFireBrief(brief, null);
       return;
