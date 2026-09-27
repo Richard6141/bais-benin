@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import type { ImageryPeriod } from "@/modules/satellite";
 import {
   CROP_MAP_LAYER,
+  ROLLING_SKY_PERIOD,
   SKY_LAYERS,
   WORLDCEREAL_LAYER,
   type BaseLayer,
@@ -72,6 +73,8 @@ export function SkyControl({
   const timeline = ready ? monthTimeline(ready.periods) : [];
   const timelineIndex = timeline.findIndex((entry) => entry.period === period);
   const comparing = before !== null;
+  const currentIsRolling = period === ROLLING_SKY_PERIOD;
+  const defaultBefore = defaultBeforePeriod(timeline, period, currentIsRolling);
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 text-xs">
       <div className="flex flex-col gap-1.5">
@@ -171,10 +174,8 @@ export function SkyControl({
             <Switch
               id="comparer-ciel"
               checked={comparing}
-              onCheckedChange={(on) =>
-                onBeforeChange(on ? defaultBeforePeriod(timeline, period) : null)
-              }
-              disabled={defaultBeforePeriod(timeline, period) === null && !comparing}
+              onCheckedChange={(on) => onBeforeChange(on ? defaultBefore : null)}
+              disabled={defaultBefore === null && !comparing}
             />
           </div>
           {comparing ? (

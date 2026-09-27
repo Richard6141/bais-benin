@@ -13,9 +13,18 @@ function catalog(imageryAvailable: boolean): ImageryCatalog {
     partial: false,
     periods: [
       {
+        period: "60-jours",
+        label: "60 derniers jours",
+        current: true,
+        rolling: true,
+        clearSceneCount: 60,
+        clearest: null,
+        lastAcquiredAt: null,
+      },
+      {
         period: "2026-09",
         label: "septembre 2026",
-        current: true,
+        current: false,
         rolling: false,
         clearSceneCount: 45,
         clearest: null,
@@ -99,6 +108,25 @@ describe("choix du fond de carte", () => {
     rerender(<SkyControl {...props} compareAvailable />);
     fireEvent.click(screen.getByRole("switch", { name: /Comparer avec un autre mois/ }));
     expect(onBeforeChange).toHaveBeenCalledWith("2026-05");
+  });
+
+  it("compare la fenêtre glissante au mois complet le plus récent, sans la désactiver", () => {
+    const onBeforeChange = vi.fn();
+    render(
+      <SkyControl
+        catalog={{ status: "ready", catalog: catalog(true) }}
+        layer="couleur-naturelle"
+        period="60-jours"
+        onLayerChange={vi.fn()}
+        onPeriodChange={vi.fn()}
+        onBeforeChange={onBeforeChange}
+        compareAvailable
+      />,
+    );
+    const toggle = screen.getByRole("switch", { name: /Comparer avec un autre mois/ });
+    expect(toggle).toBeEnabled();
+    fireEvent.click(toggle);
+    expect(onBeforeChange).toHaveBeenCalledWith("2026-09");
   });
 
   it("signale un catalogue injoignable sans bloquer la carte des communes", () => {
