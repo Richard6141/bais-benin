@@ -214,6 +214,21 @@ est levée. Elle prévient les producteurs concernés, s'ils ont donné leur acc
 ont enregistré leurs exploitations. Une détection par satellite n'est pas un constat : un brûlis
 volontaire ou une fumée d'usine peuvent aussi être vus.
 
+### Foyer de feux et saison des feux
+
+- **Foyer de feux** (ADR-0038) : quand au moins trois feux distincts sont détectés en 24 heures
+  près de parcelles cultivées d'une même commune, l'alerte de feu de la commune devient « Foyer
+  de feux ». Tous les agents de la commune et le ministère la reçoivent, pour une réponse
+  coordonnée avec la mairie et les sapeurs-pompiers (118). Deux détections à moins de 750 m
+  comptent pour un même feu.
+- **Ce que voient les satellites** : une dizaine de passages par jour, surtout vers 1 h 30 et
+  13 h 30 ; l'alerte arrive 3 à 4 heures après le passage ; la position est connue à quelques
+  centaines de mètres près. Aucun feu détecté ne veut pas dire aucun feu.
+- **Saison des feux** : de novembre à avril, un conseil de prévention peut partir chaque lundi
+  sur WhatsApp aux producteurs des communes les plus touchées par les feux (« faites vos
+  pare-feu »), s'ils ont donné leur accord. Il reste coupé tant que le ministère ne l'a pas
+  décidé.
+
 ### État des cultures
 
 La page **État des cultures** (`/pilotage/etat-des-cultures`) dit comment pousse la végétation

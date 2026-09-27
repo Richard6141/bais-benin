@@ -46,7 +46,9 @@ Réglages propres à la démonstration, dans `app.env` :
 - `DEMO_SIGNIN_PANEL=0` : la liste des comptes de démonstration n'est pas affichée sur la page de
   connexion ; les accès sont remis en privé ;
 - `SATELLITE_MONTHLY_REQUEST_BUDGET=4000` : le compte Copernicus est partagé avec l'équipe ;
-- `SURVEY_MAP_READS=0` : la base de sondage ne lit pas la carte des cultures.
+- `SURVEY_MAP_READS=0` : la base de sondage ne lit pas la carte des cultures ;
+- `FIRE_PREVENTION_MESSAGES=0` : aucun conseil de la saison des feux n'est envoyé (ADR-0038).
+  L'activer envoie de vrais messages WhatsApp : décision de l'utilisateur.
 
 Le planificateur saute les passes satellite coûteuses : `SCHEDULER_DISABLED` vaut par défaut
 `crop-areas crop-map crop-accuracy parcel-series survey-frame` (dans `compose.yml`). Pour en
@@ -136,6 +138,14 @@ Charge la source WorldPop et les 77 totaux par commune. Sans elle, le bilan alim
 docker run --rm --network bais_default --env-file app.env \
   ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:demo:survey
 ```
+
+**Règles d'alerte par défaut** (après un déploiement qui en ajoute une, par exemple le foyer de
+feux de l'ADR-0038 ; idempotent) :
+```bash
+docker run --rm --network bais_default --env-file app.env \
+  ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:rules:default
+```
+Une règle modifiée par le ministère n'est jamais écrasée.
 Refait les communes d'enquête en tirage à deux phases : 480 points de première phase par
 commune, classe de la carte par la fixture, 120 points à visiter tirés par strate, puis constats
 et carte de démonstration, parts vivrières calées sur la population. Une commune qui porte un vrai
