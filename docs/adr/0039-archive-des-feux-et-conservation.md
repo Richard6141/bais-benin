@@ -1,4 +1,4 @@
-# ADR-0039 — Feux : import d'une saison passée (archive FIRMS) et conservation de deux ans
+# ADR-0039 — Feux : import d'une saison passée (archive FIRMS) et conservation de trois ans
 
 - Statut : acceptée
 - Date : 2026-09-27
@@ -40,10 +40,18 @@ Vérifications faites le 27 septembre 2026, par de vrais appels :
    - Aucune règle n'est évaluée : ce sont des feux passés.
    - Aucun passage n'est écrit : la fraîcheur affichée reste celle de la lecture en continu.
 5. **Idempotente.** Une ligne déjà lue (même capteur, même heure, même position) n'est jamais comptée deux fois. Relancer la commande ne crée rien de plus.
-6. **Conservation portée à deux ans** : la prévention de novembre compare sur une saison qui a commencé jusqu'à 18 mois plus tôt. Deux saisons font environ 180 000 lignes.
+6. **Conservation portée à trois ans** (décision du chef d'équipe). La saison 2023-2024 est la seule chargeable sans clé aujourd'hui : elle doit tenir jusqu'à l'arrivée de la clé FIRMS ou de l'archive 2025. Trois saisons font environ 270 000 lignes.
+7. **Référence de la prévention** (ADR-0038 §3), dans l'ordre :
+   - la saison sèche passée, si elle est complète en base ;
+   - sinon, la dernière saison sèche complète en base, dans la limite des trois ans gardés ;
+   - sinon, la saison en cours depuis le 1er novembre.
+
+   Une saison est **complète quand ses six mois ont des feux en base**. Chaque mois de saison sèche compte des milliers de détections au Bénin : un mois vide veut dire « pas chargé », pas « pas de feu ». La plus ancienne détection ne suffit pas, parce qu'une saison importée suivie de la lecture en continu laisse un trou entre les deux.
+
+   Le centre de veille du ministère le dit : « Référence : saison 2023-2024 (saison 2025-2026 pas encore en base) », avec l'état de l'interrupteur et les communes retenues.
 
 ## Conséquences
 
 - La saison 2025-2026 ne peut être chargée aujourd'hui qu'avec une clé FIRMS. Créer la clé, avec l'adresse de son choix, est une décision de l'utilisateur. Sans clé, il faut attendre la publication des archives 2025 et 2026.
-- Une saison de plus de deux ans (par exemple 2023-2024) serait effacée au passage suivant de l'ingestion. Elle ne peut donc servir que d'essai (`--dry-run`), pas de référence durable.
+- La saison 2023-2024 commencera à s'effacer le 1er novembre 2026 (trois ans après son début), au moment même où la prévention en aura besoin. Elle deviendra alors incomplète et ne servira plus de référence : la prévention retombera sur la saison en cours, ce que le centre de veille dira. La clé FIRMS, ou l'archive 2025 si elle paraît d'ici là, évite ce cas.
 - L'import tient en mémoire une saison entière, environ 120 000 lignes brutes : c'est à lancer depuis l'image tools, pas depuis l'application.

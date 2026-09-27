@@ -142,7 +142,9 @@ docker run --rm --network bais_default --env-file app.env \
   requêtes). La clé est gratuite, liée à une adresse e-mail : décision de l'utilisateur.
 - **Sans clé** : les archives annuelles publiques. Au 27/09/2026, elles s'arrêtent à 2024 : pour
   la saison 2025, la commande n'écrit rien et nomme les fichiers absents.
-- `--dry-run` lit et compte sans rien écrire. Les détections sont gardées deux ans.
+- `--dry-run` lit et compte sans rien écrire. Les détections sont gardées trois ans.
+- Sans clé, la saison 2023-2024 se charge (`--season 2023`) : la prévention s'en sert de
+  référence tant que la saison 2025-2026 manque, et le centre de veille le dit.
 
 **Enquête de démonstration** (ADR-0036 et ADR-0037 ; après la population, idempotent) :
 ```bash

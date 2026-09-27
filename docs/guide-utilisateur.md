@@ -227,7 +227,9 @@ volontaire ou une fumée d'usine peuvent aussi être vus.
 - **Saison des feux** : de novembre à avril, un conseil de prévention peut partir chaque lundi
   sur WhatsApp aux producteurs des communes les plus touchées par les feux (« faites vos
   pare-feu »), s'ils ont donné leur accord. Il reste coupé tant que le ministère ne l'a pas
-  décidé.
+  décidé. En bas du centre de veille (`/pilotage/veille`), l'encart « Prévention de la saison
+  des feux » donne son état, la saison qui sert de référence (la saison passée, sinon la dernière
+  saison complète en base, par exemple « saison 2023-2024 ») et les communes retenues.
 
 ### État des cultures
 
