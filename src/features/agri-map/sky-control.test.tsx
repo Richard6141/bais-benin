@@ -61,7 +61,9 @@ describe("choix du fond de carte", () => {
       />,
     );
     expect(screen.getByLabelText("Fond de carte")).toHaveTextContent("Végétation (NDVI)");
-    expect(screen.getByLabelText("Mois")).toHaveTextContent("Mai 2026, 255 scènes dégagées");
+    // Le champ ne montre que le mois ; le nombre de scènes dégagées reste dans la liste.
+    expect(screen.getByLabelText("Mois")).toHaveTextContent("Mai 2026");
+    expect(screen.getByLabelText("Mois")).not.toHaveTextContent("scènes");
     expect(screen.queryByText(/mise en service/)).not.toBeInTheDocument();
   });
 

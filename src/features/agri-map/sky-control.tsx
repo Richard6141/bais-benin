@@ -53,6 +53,7 @@ export function SkyControl({
   onPeriodChange,
 }: SkyControlProps) {
   const ready = catalog.status === "ready" ? catalog.catalog : null;
+  const selectedPeriod = ready?.periods.find((entry) => entry.period === period) ?? null;
   const available = ready?.imageryAvailable ?? false;
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 text-xs">
@@ -98,11 +99,12 @@ export function SkyControl({
             Mois
           </Label>
           <Select value={period ?? undefined} onValueChange={onPeriodChange}>
-            <SelectTrigger
-              id="vue-du-ciel-periode"
-              className="h-auto min-h-11 w-full text-left whitespace-normal *:data-[slot=select-value]:line-clamp-none md:min-h-9"
-            >
-              <SelectValue placeholder="Choisir un mois" />
+            <SelectTrigger id="vue-du-ciel-periode" className="w-full">
+              {/* Le champ ne montre que le mois ; le nombre de scènes dégagées reste dans la
+                  liste, où il aide à choisir. Tout afficher coupait ou débordait du champ. */}
+              <SelectValue placeholder="Choisir un mois">
+                {selectedPeriod ? sentenceCase(selectedPeriod.label) : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {ready.periods.map((entry) => (
