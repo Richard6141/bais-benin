@@ -10,6 +10,7 @@ import { alertRelay } from "./alert-relay";
 import { assistanceRequest } from "./assistance-request";
 import { fieldReportCreate } from "./field-report-create";
 import { surveyPointObserve } from "./survey-point-observe";
+import { damageDeclarationReview } from "./damage-declaration-review";
 
 export const syncHandlers: SyncHandlers = {
   "farmer.create": farmerCreate,
@@ -23,6 +24,7 @@ export const syncHandlers: SyncHandlers = {
   "fieldReport.create": fieldReportCreate,
   "assistance.request": assistanceRequest,
   "surveyPoint.observe": surveyPointObserve,
+  "damageDeclaration.review": damageDeclarationReview,
 };
 
 export { HARVEST_UNIT_FACTORS_KG, quantityToKg } from "./harvest-declare";

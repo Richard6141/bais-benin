@@ -62,3 +62,13 @@ export {
   burnWindows,
   type BurnFigures,
 } from "./burned-area-rules";
+export {
+  DamageError,
+  countProposedDamages,
+  exportDamageCsv,
+  getDamageDeclaration,
+  listDamageDeclarations,
+  requestBurnAssessment,
+  type DamageFilters,
+  type DamageRow,
+} from "./damage";

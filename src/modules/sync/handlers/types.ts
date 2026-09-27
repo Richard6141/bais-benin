@@ -54,7 +54,8 @@ export type AuditActionOfRegistry =
   | "alert.relayed"
   | "report.created"
   | "assistance.requested"
-  | "survey.point.observed";
+  | "survey.point.observed"
+  | "damage.declaration.reviewed";
 
 /** Cible d'une commande : l'action à autoriser et la ressource sur laquelle l'évaluer. */
 export interface CommandTarget {

@@ -5,6 +5,7 @@ import {
   BellRing,
   Bug,
   ClipboardCheck,
+  Flame,
   Home,
   LandPlot,
   LifeBuoy,
@@ -47,6 +48,8 @@ const NAV: readonly SpaceNavItem[] = [
   { href: "/agent/signalements", label: "Signalements", icon: Bug, top: true },
   { href: "/agent/demandes", label: "Demandes", icon: LifeBuoy, top: true },
   { href: "/agent/sondage", label: "Points d'enquête", icon: MapPinned },
+  // Sinistres après un feu (ADR-0038 §2) : surfaces brûlées à constater sur place.
+  { href: "/agent/sinistres", label: "Sinistres", icon: Flame },
   { href: "/agent/tableau-de-bord", label: "Tableau de bord", icon: BarChart3 },
   { href: "/agent/assistant", label: "Assistant", icon: MessageCircleQuestion },
   { href: "/agent/synchronisation", label: "Synchronisation", icon: RefreshCw },
