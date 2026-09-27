@@ -133,6 +133,19 @@ docker run --rm --network bais_default --env-file app.env \
 Charge la source WorldPop et les 77 totaux par commune. Sans elle, le bilan alimentaire affiche
 « Population inconnue » partout.
 
+**Saison de feux passée** (ADR-0039 ; données réelles NASA FIRMS, idempotent, sans alerte) :
+```bash
+docker run --rm --network bais_default --env-file app.env \
+  ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:reference:fires-archive --season 2025
+```
+- **Avec `FIRMS_MAP_KEY`** dans `app.env` : l'API FIRMS, par tranches de 5 jours (environ 150
+  requêtes). La clé est gratuite, liée à une adresse e-mail : décision de l'utilisateur.
+- **Sans clé** : les archives annuelles publiques. Au 27/09/2026, elles s'arrêtent à 2024 : pour
+  la saison 2025, la commande n'écrit rien et nomme les fichiers absents.
+- `--dry-run` lit et compte sans rien écrire. Les détections sont gardées trois ans.
+- Sans clé, la saison 2023-2024 se charge (`--season 2023`) : la prévention s'en sert de
+  référence tant que la saison 2025-2026 manque, et le centre de veille le dit.
+
 **Enquête de démonstration** (ADR-0036 et ADR-0037 ; après la population, idempotent) :
 ```bash
 docker run --rm --network bais_default --env-file app.env \

@@ -75,6 +75,10 @@ const serverSchema = z
     // fixture pour les tests et la démonstration hors réseau.
     FIRE_PROVIDER: z.enum(["firms", "fixture"]).default("firms"),
     FIRMS_BASE_URL: z.url().default("https://firms.modaps.eosdis.nasa.gov"),
+    // Clé FIRMS (gratuite, liée à une adresse e-mail) pour l'import d'une saison passée par l'API
+    // (ADR-0039). Sans elle, l'import lit les archives annuelles publiques, sans clé. Jamais dans
+    // le dépôt : environnement du serveur seulement.
+    FIRMS_MAP_KEY: z.string().min(8).optional(),
 
     // Vue du ciel (ADR-0016) : Copernicus Data Space Ecosystem, sans intermédiaire commercial.
     // Le catalogue STAC est public ; les images et statistiques NDVI demandent un client OAuth

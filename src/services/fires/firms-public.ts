@@ -53,6 +53,9 @@ export function parseFirmsCsv(csv: string, sensor: FireSensorCode, bbox: BBox): 
   // VIIRS : canal I4 ; MODIS : canal 21/22.
   const brightness = column("bright_ti4") >= 0 ? column("bright_ti4") : column("brightness");
   const daynight = column("daynight");
+  // Archives annuelles (ADR-0039) : type 0 pour un feu de végétation présumé ; 1 volcan, 2 autre
+  // source fixe (site industriel), 3 en mer sont écartés. Les fichiers récents n'ont pas la colonne.
+  const type = column("type");
   if ([lat, lon, date, time, confidence].some((index) => index < 0)) return [];
   const [west, south, east, north] = bbox;
 
@@ -60,6 +63,7 @@ export function parseFirmsCsv(csv: string, sensor: FireSensorCode, bbox: BBox): 
   for (const line of lines.slice(1)) {
     if (!line) continue;
     const cells = line.split(",");
+    if (type >= 0 && (cells[type] ?? "").trim() !== "0") continue;
     const latitude = toNumber(cells[lat]);
     const longitude = toNumber(cells[lon]);
     if (latitude === null || longitude === null) continue;

@@ -1,16 +1,34 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import { insertFireDetections } from "@/database/sql/fires.sql";
-import { queueFirePrevention } from "@/modules/fires";
+import { getFirePreventionStatus, preventionReference, queueFirePrevention } from "@/modules/fires";
 
-// Conseil de la saison des feux (ADR-0038 §3) sur la vraie base : rien tant que l'interrupteur
-// est coupé ni hors saison ; en saison, un message par producteur consentant des communes les plus
-// touchées, et rien de plus si la tâche repasse la même semaine.
+// Conseil de la saison des feux (ADR-0038 §3, ADR-0039) sur la vraie base : rien tant que
+// l'interrupteur est coupé ni hors saison ; en saison, un message par producteur consentant des
+// communes les plus touchées, et rien de plus si la tâche repasse la même semaine. Saison passée
+// absente : la saison en cours, puis la dernière saison complète en base dès qu'elle est chargée.
 
 const since = new Date(Date.now() - 60_000);
 /** Lundi 7 décembre 2026, 8 h à Porto-Novo. */
 const MONDAY = new Date("2026-12-07T07:00:00Z");
 let communeId: string;
+let parcel: { lon: number; lat: number };
+
+/** `count` détections autour de la parcelle, à partir de `start`, un jour d'écart chacune. */
+function detections(start: Date, count: number, key: string) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: crypto.randomUUID(),
+    detectedAt: new Date(start.getTime() + (index % 28) * 86_400_000),
+    latitude: parcel.lat + ((index % 10) - 5) * 0.002,
+    longitude: parcel.lon + ((Math.floor(index / 10) % 10) - 5) * 0.002,
+    sensors: ["VIIRS_SNPP"],
+    confidence: "NOMINAL",
+    frpMw: 7,
+    brightnessK: 330,
+    daynight: "D",
+    sourceKeys: [`test-prevention-${key}-${index}`],
+  }));
+}
 
 describe("conseil de la saison des feux", () => {
   beforeAll(async () => {
@@ -27,20 +45,8 @@ describe("conseil de la saison des feux", () => {
        WHERE f."archived_at" IS NULL
        ORDER BY f."code" LIMIT 1`;
     communeId = row!.commune_id;
-    await insertFireDetections(
-      Array.from({ length: 250 }, (_, index) => ({
-        id: crypto.randomUUID(),
-        detectedAt: new Date(Date.UTC(2026, 10, 1 + (index % 28), 12, 30)),
-        latitude: row!.lat + ((index % 10) - 5) * 0.002,
-        longitude: row!.lon + ((Math.floor(index / 10) % 10) - 5) * 0.002,
-        sensors: ["VIIRS_SNPP"],
-        confidence: "NOMINAL",
-        frpMw: 7,
-        brightnessK: 330,
-        daynight: "D",
-        sourceKeys: [`test-prevention-${index}`],
-      })),
-    );
+    parcel = { lon: row!.lon, lat: row!.lat };
+    await insertFireDetections(detections(new Date(Date.UTC(2026, 10, 1, 12, 30)), 250, "nov26"));
   }, 120_000);
 
   afterAll(async () => {
@@ -97,5 +103,50 @@ describe("conseil de la saison des feux", () => {
       enabled: true,
     });
     expect(again).toMatchObject({ status: "queued", queued: 0 });
+  }, 120_000);
+
+  it("retombe sur la dernière saison complète en base quand la saison passée manque", async () => {
+    // Saison 2025-2026 absente : faute de saison complète, la saison en cours.
+    const before = await preventionReference(MONDAY);
+    expect(before).toMatchObject({
+      kind: "current-season",
+      label: "saison 2026-2027 en cours",
+      missingLabel: "saison 2025-2026",
+    });
+
+    // Saison 2023-2024 chargée sur ses six mois (comme l'archive sans clé).
+    for (const [year, month] of [
+      [2023, 10],
+      [2023, 11],
+      [2024, 0],
+      [2024, 1],
+      [2024, 2],
+      [2024, 3],
+    ] as const) {
+      await insertFireDetections(
+        detections(new Date(Date.UTC(year, month, 2, 12, 30)), 60, `${year}-${month}`),
+      );
+    }
+    const after = await preventionReference(MONDAY);
+    expect(after).toMatchObject({
+      kind: "latest-complete-season",
+      startYear: 2023,
+      label: "saison 2023-2024",
+      missingLabel: "saison 2025-2026",
+    });
+    const status = await getFirePreventionStatus(MONDAY);
+    expect(status.reference.label).toBe("saison 2023-2024");
+    expect(status.communes.some((commune) => commune.id === communeId)).toBe(true);
+
+    const queued = await queueFirePrevention({
+      now: new Date("2026-12-14T07:00:00Z"),
+      enabled: true,
+    });
+    expect(queued).toMatchObject({
+      status: "queued",
+      week: "2026-12-14",
+      reference: "latest-complete-season",
+      referenceLabel: "saison 2023-2024",
+    });
   }, 120_000);
 });

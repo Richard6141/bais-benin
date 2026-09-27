@@ -1,32 +1,82 @@
 import { prisma } from "@/database/client";
-import { earliestFireDetection, fireDetectionsByCommune } from "@/database/sql/fire-clusters.sql";
+import { fireDetectionsByCommune, monthsWithFires } from "@/database/sql/fire-clusters.sql";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { queueFarmerNotifications } from "@/modules/notifications/queue";
+import { archiveSeasonWindow, lastCompleteSeason } from "./archive-sources";
 import {
   FIRE_PREVENTION_TEXT,
+  SEASON_MONTHS,
   fireSeasons,
   isFireSeason,
-  mostAffectedCommunes,
+  rankAffectedCommunes,
   preventionSubjectId,
+  seasonLabel,
   weekKey,
+  type AffectedCommune,
 } from "./prevention-rules";
 
-// Conseil hebdomadaire de la saison des feux (ADR-0038 §3) : le lundi, de novembre à avril, un
-// message WhatsApp aux producteurs des communes les plus touchées par les feux la saison passée
-// (ou, tant qu'elle n'est pas en base, depuis le début de la saison en cours), qui ont donné leur
-// accord. Passe par la file des messages aux producteurs : accord revérifié à l'envoi, silence de
-// 21 h à 6 h, trois essais au plus. Désactivé par défaut (FIRE_PREVENTION_MESSAGES).
+// Conseil hebdomadaire de la saison des feux (ADR-0038 §3, ADR-0039) : le lundi, de novembre à
+// avril, un message WhatsApp aux producteurs des communes les plus touchées par les feux, qui ont
+// donné leur accord. Référence : la saison sèche passée si elle est en base ; sinon la dernière
+// saison sèche complète en base (par exemple 2023-2024, chargeable sans clé) ; sinon la saison en
+// cours depuis le 1er novembre. Passe par la file des messages aux producteurs : accord revérifié
+// à l'envoi, silence de 21 h à 6 h, trois essais au plus, fiches de démonstration écartées.
+// Désactivé par défaut (FIRE_PREVENTION_MESSAGES).
 
-/** La saison passée compte si la base remonte à sa première semaine. */
-const PREVIOUS_SEASON_GRACE_MS = 7 * 86_400_000;
+/** Saisons remontées à la recherche d'une saison complète : ce que garde la base (trois ans). */
+const SEASONS_BACK = 3;
+
+export interface PreventionReference {
+  /** Saison passée, dernière saison complète plus ancienne, ou saison en cours faute de mieux. */
+  kind: "previous-season" | "latest-complete-season" | "current-season";
+  startYear: number;
+  /** « saison 2023-2024 », ou « saison 2026-2027 en cours ». */
+  label: string;
+  /** Saison passée quand elle manque et qu'une autre la remplace ; null sinon. */
+  missingLabel: string | null;
+  from: Date;
+  to: Date;
+}
+
+/** Saison de référence de la prévention à cette date (voir l'en-tête). */
+export async function preventionReference(now: Date): Promise<PreventionReference> {
+  const previous = lastCompleteSeason(now);
+  for (let year = previous; year > previous - SEASONS_BACK; year -= 1) {
+    const window = archiveSeasonWindow(year);
+    if ((await monthsWithFires(window.from, window.to)) >= SEASON_MONTHS) {
+      return {
+        kind: year === previous ? "previous-season" : "latest-complete-season",
+        startYear: year,
+        label: seasonLabel(year),
+        missingLabel: year === previous ? null : seasonLabel(previous),
+        ...window,
+      };
+    }
+  }
+  // Faute de saison complète : la saison en cours depuis le 1er novembre (hors saison, la dernière
+  // saison sèche, telle que la base la connaît).
+  const current = fireSeasons(now).current;
+  const startYear = new Date(current.from.getTime() + 3_600_000).getUTCFullYear();
+  return {
+    kind: "current-season",
+    startYear,
+    label: isFireSeason(now)
+      ? `${seasonLabel(startYear)} en cours`
+      : `${seasonLabel(startYear)}, incomplète en base`,
+    missingLabel: startYear === previous ? null : seasonLabel(previous),
+    from: current.from,
+    to: current.to,
+  };
+}
 
 export type FirePreventionResult =
   | { status: "disabled" | "off-season" }
   | {
       status: "queued";
       week: string;
-      reference: "previous-season" | "current-season";
+      reference: PreventionReference["kind"];
+      referenceLabel: string;
       communes: number;
       queued: number;
     };
@@ -39,18 +89,19 @@ export async function queueFirePrevention(
   if (!enabled) return { status: "disabled" };
   if (!isFireSeason(now)) return { status: "off-season" };
 
-  const seasons = fireSeasons(now);
-  const earliest = await earliestFireDetection();
-  const reference =
-    earliest && earliest.getTime() <= seasons.previous.from.getTime() + PREVIOUS_SEASON_GRACE_MS
-      ? "previous-season"
-      : "current-season";
-  const window = reference === "previous-season" ? seasons.previous : seasons.current;
-  const communeIds = mostAffectedCommunes(await fireDetectionsByCommune(window.from, window.to));
+  const reference = await preventionReference(now);
+  const communeIds = rankAffectedCommunes(
+    await fireDetectionsByCommune(reference.from, reference.to),
+  ).map((commune) => commune.id);
   const week = weekKey(now);
-  if (communeIds.length === 0) {
-    return { status: "queued", week, reference, communes: 0, queued: 0 };
-  }
+  const summary = {
+    status: "queued" as const,
+    week,
+    reference: reference.kind,
+    referenceLabel: reference.label,
+    communes: communeIds.length,
+  };
+  if (communeIds.length === 0) return { ...summary, queued: 0 };
 
   // Producteurs d'une exploitation active de ces communes, avec un numéro et l'accord WhatsApp.
   const farmers = await prisma.farmer.findMany({
@@ -73,8 +124,30 @@ export async function queueFirePrevention(
     now,
   );
   logger.info(
-    { week, reference, communes: communeIds.length, queued: created.length },
+    { week, reference: reference.label, communes: communeIds.length, queued: created.length },
     "Conseils de la saison des feux mis en file",
   );
-  return { status: "queued", week, reference, communes: communeIds.length, queued: created.length };
+  return { ...summary, queued: created.length };
+}
+
+export interface FirePreventionStatus {
+  /** Interrupteur FIRE_PREVENTION_MESSAGES. */
+  enabled: boolean;
+  inSeason: boolean;
+  reference: PreventionReference;
+  /** Communes qui recevraient le conseil, de la plus touchée à la moins touchée. */
+  communes: AffectedCommune[];
+}
+
+/** État de la prévention pour le centre de veille du ministère (lecture seule). */
+export async function getFirePreventionStatus(
+  now: Date = new Date(),
+): Promise<FirePreventionStatus> {
+  const reference = await preventionReference(now);
+  return {
+    enabled: getServerEnv().FIRE_PREVENTION_MESSAGES === "1",
+    inSeason: isFireSeason(now),
+    reference,
+    communes: rankAffectedCommunes(await fireDetectionsByCommune(reference.from, reference.to)),
+  };
 }
