@@ -9,6 +9,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
+// La fenêtre d'avis appelle une action serveur : simulée ici.
+vi.mock("@/features/feedback/actions", () => ({ submitFeedbackAction: vi.fn() }));
+
 import { isActiveEntry, PilotageNav } from "./pilotage-nav";
 
 describe("isActiveEntry", () => {
@@ -77,6 +80,6 @@ describe("PilotageNav", () => {
     expect(select).toHaveValue("/pilotage/groupes");
     const groups = Array.from(select.querySelectorAll("optgroup")).map((group) => group.label);
     expect(groups).toEqual(["Situation", "Cultures", "Producteurs", "Administration"]);
-    expect(select.querySelectorAll("option")).toHaveLength(15);
+    expect(select.querySelectorAll("option")).toHaveLength(16);
   });
 });

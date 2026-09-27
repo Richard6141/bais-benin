@@ -157,6 +157,9 @@ docker exec bais-db psql -U bais -d bais -tAc \
   "SELECT count(*) FROM \"user\" WHERE phone_e164 NOT LIKE '+2290190000%' OR phone_e164 IS NULL;"
 ```
 
+La purge efface aussi les avis des testeurs. Les exporter d'abord depuis `/pilotage/avis`
+(« Exporter en CSV », sans filtre) : l'export ne contient ni auteur, ni NPI, ni téléphone.
+
 Purge :
 ```bash
 ./deploy.sh status                                  # noter l'étiquette en service
