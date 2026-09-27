@@ -42,3 +42,4 @@ Chaque décision structurante est consignée ici au format : contexte, options, 
 | 0037 | Enquête aréolaire stratifiée par la carte des cultures : tirage à deux phases, allocation de Neyman avec plancher, poids de sondage | acceptée, complète 0033, 0035 et 0036 |
 | 0038 | Feux : foyer de feux par commune, surface brûlée par Sentinel-2 (dNBR) et déclaration de sinistre, prévention de saison | acceptée, complète 0014, 0022 et 0031 |
 | 0039 | Feux : import d'une saison passée (archive FIRMS, API avec clé ou archives annuelles), conservation de trois ans et référence de la prévention | acceptée, complète 0022 et 0038 |
+| 0040 | Surface brûlée : garde-fous de coût (verrou, plafond, deux essais), parcelles réelles et de démonstration séparées, cicatrices fraîches et masque de nuages | acceptée, complète 0038 |
