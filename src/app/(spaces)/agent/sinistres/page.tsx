@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { HelpTip } from "@/components/forms/help-tip";
 import { PageHeader } from "@/components/layout/page-header";
@@ -45,7 +45,7 @@ export default async function AgentDamagesPage() {
               (brûlis volontaire, pas de dégât).
             </HelpTip>
           </div>
-          <DamageList rows={proposed} hrefOf={(row) => `/agent/sinistres/${row.id}`} />
+          <DamageList rows={proposed} hrefOf={(row) => `/agent/sinistres/${row.id}` as Route} />
         </section>
       ) : null}
       {reviewed.length > 0 ? (

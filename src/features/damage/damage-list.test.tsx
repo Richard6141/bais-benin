@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { DamageRow } from "@/modules/fires";
 import { DamageList } from "./damage-list";
+import type { Route } from "next";
 
 // Liste des déclarations de sinistre (ADR-0038 §2) : ce que disent le satellite et l'agent, et
 // l'état de chaque déclaration.
@@ -59,7 +60,7 @@ describe("déclarations de sinistre", () => {
             burnAssessment: { ...row({}).burnAssessment, reliability: "SYNTHETIC" },
           }),
         ]}
-        hrefOf={(item) => `/agent/sinistres/${item.id}`}
+        hrefOf={(item) => `/agent/sinistres/${item.id}` as Route}
       />,
     );
     const items = screen.getAllByRole("listitem");
