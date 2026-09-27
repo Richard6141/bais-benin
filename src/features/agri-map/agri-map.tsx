@@ -162,6 +162,11 @@ export function AgriMap({
   const fireWindow: FireWindowParam | null =
     feuxParam === "24h" || feuxParam === "7j" ? feuxParam : null;
   const fires = useFires(fireWindow);
+  // En saison des pluies, 24h peut être vide : le total sur 7 jours resitue plutôt qu'une carte
+  // muette. Un second chargement, seulement quand il aide vraiment (chantier K).
+  const sevenDayFires = useFires(
+    fireWindow === "24h" && fires?.features.length === 0 ? "7j" : null,
+  );
   // Champs détectés dans l'adresse aussi : ?champs=1 (ADR-0029), pour les comptes du registre.
   const showFields = canInspectParcels && searchParams.get("champs") === "1";
   // Carte des cultures (ADR-0021) : ?ciel=cultures, sans mois (les 12 derniers).
@@ -348,7 +353,13 @@ export function AgriMap({
   );
   const legends = (
     <>
-      {fireWindow ? <FireLegend window={fireWindow} data={fires} /> : null}
+      {fireWindow ? (
+        <FireLegend
+          window={fireWindow}
+          data={fires}
+          sevenDayCount={sevenDayFires?.features.length ?? null}
+        />
+      ) : null}
       {cropMap ? (
         <CropMapLegend />
       ) : worldCereal ? (

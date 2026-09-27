@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FireWindowParam } from "@/features/agri-map/fire-layer";
+import { fireEmptyMessage } from "@/features/agri-map/fire-status";
 import { useFires } from "@/features/agri-map/use-fires";
 import { LiveActivityFeed } from "@/features/live/live-activity-feed";
 import type { LiveActivityItem } from "@/modules/live";
@@ -122,6 +123,13 @@ export function WatchCentre({ initial }: { initial: WatchSummary }) {
           <div className="relative h-[28rem] overflow-hidden rounded-lg border lg:h-[36rem]">
             <AlertMapCanvas levels={summary.levels} withFires fires={fires} pulses={pulses} />
           </div>
+          {/* Saison des pluies : la couche peut rester vide plusieurs jours. Le dire plutôt que de
+              laisser une carte muette, avec le total sur 7 jours pour resituer. */}
+          {fires && fires.features.length === 0 ? (
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {fireEmptyMessage(window, summary.fires.last7d)}
+            </p>
+          ) : null}
           <figcaption className="text-sm text-muted-foreground">
             Communes colorées par l&apos;alerte active la plus grave, feux en points colorés selon
             leur puissance. Source des feux : NASA FIRMS.
