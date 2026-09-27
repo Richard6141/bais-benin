@@ -131,13 +131,16 @@ docker run --rm --network bais_default --env-file app.env \
 Charge la source WorldPop et les 77 totaux par commune. Sans elle, le bilan alimentaire affiche
 « Population inconnue » partout.
 
-**Enquête de démonstration** (ADR-0036 ; après la population, idempotent) :
+**Enquête de démonstration** (ADR-0036 et ADR-0037 ; après la population, idempotent) :
 ```bash
 docker run --rm --network bais_default --env-file app.env \
   ghcr.io/richard6141/bais-benin/tools:$IMAGE_TAG pnpm db:demo:survey
 ```
-Refait les constats et la carte de démonstration des communes d'enquête, parts vivrières calées
-sur la population ; un vrai constat n'est jamais effacé.
+Refait les communes d'enquête en tirage à deux phases : 480 points de première phase par
+commune, classe de la carte par la fixture, 120 points à visiter tirés par strate, puis constats
+et carte de démonstration, parts vivrières calées sur la population. Une commune qui porte un vrai
+constat ou une vraie lecture de la carte garde ses points. À rejouer une fois après le déploiement
+de l'ADR-0037, pour passer la démonstration en tirage stratifié.
 
 **Déploiement à la main d'images déjà présentes** (construction de secours sur le serveur, jamais
 depuis la clé de la CI) : `./deploy.sh deploy-local <sha>`.

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { SurveyEstimates, TargetEstimate } from "@/modules/area-survey";
 import { SurveySection } from "./survey-section";
 
-// Surfaces par sondage telles que le ministère les lit (ADR-0033) : marge, CV et usage.
+// Surfaces par sondage telles que le ministère les lit (ADR-0033, ADR-0037) : marge, CV, usage
+// et tirage de chaque commune.
 
 function estimate(target: string, overrides: Partial<TargetEstimate> = {}): TargetEstimate {
   return {
@@ -51,7 +52,27 @@ const survey: SurveyEstimates & { campaignCode: string } = {
       inaccessible: 5,
       mapped: 120,
       responseRate: 110 / 115,
+      design: "simple",
+      strata: [],
+      weightsKnown: null,
       targets: [estimate("CULTIVATED", { areaHa: 12_000, marginHa: 2_400, status: "indicative" })],
+    },
+    {
+      communeId: "c2",
+      code: "BJ-COL-007",
+      name: "Ouèssè",
+      drawn: 120,
+      observed: 118,
+      inaccessible: 2,
+      mapped: 120,
+      responseRate: 118 / 120,
+      design: "stratified",
+      strata: [
+        { stratum: "ANNUAL_CROPS", firstPhase: 48, drawn: 24, observed: 24, weightHa: 1_350 },
+        { stratum: "OTHER_LAND", firstPhase: 432, drawn: 96, observed: 94, weightHa: 3_100 },
+      ],
+      weightsKnown: true,
+      targets: [estimate("CULTIVATED", { method: "stratified", status: "indicative" })],
     },
   ],
 };
@@ -75,6 +96,16 @@ describe("surfaces par sondage", () => {
     const row = screen.getByText("Tchaourou").closest("tr")!;
     expect(within(row).getByText("96 %")).toBeInTheDocument();
     expect(within(row).getByText("Indicatif")).toBeInTheDocument();
+    expect(within(row).getByText("Simple")).toBeInTheDocument();
+    expect(within(row).getByText("Égal")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/[·…—]/);
+  });
+
+  it("montre le tirage stratifié et ce que pèse un point de chaque strate", () => {
+    render(<SurveySection survey={survey} />);
+    const row = screen.getByText("Ouèssè").closest("tr")!;
+    expect(within(row).getByText("Stratifié")).toBeInTheDocument();
+    expect(within(row).getByText(/1\s350 et 3\s100/)).toBeInTheDocument();
+    expect(screen.getByText(/tirage stratifié par la carte \(ADR-0037\)/)).toBeInTheDocument();
   });
 });

@@ -68,22 +68,26 @@ export interface FramePointRow {
   longitude: number;
 }
 
-/** Enregistre les points tirés ; un point déjà tiré (même code) est gardé tel quel. */
+/**
+ * Enregistre les points tirés ; un point déjà tiré (même code) est gardé tel quel. `selected`
+ * faux : points de première phase (ADR-0037), montrés aux agents seulement une fois retenus.
+ */
 export async function insertFramePoints(
   campaignId: string,
   communeId: string,
   grid: { spacingM: number; originXM: number; originYM: number },
   points: readonly FramePointRow[],
   drawnAt: Date,
+  selected = true,
 ): Promise<number> {
   if (points.length === 0) return 0;
   return prisma.$executeRaw`
     INSERT INTO "area_frame_point" (
       "id", "campaign_id", "commune_id", "code", "geom", "latitude", "longitude", "spacing_m",
-      "origin_x_m", "origin_y_m", "drawn_at")
+      "origin_x_m", "origin_y_m", "drawn_at", "selected")
     SELECT t.id, ${campaignId}::uuid, ${communeId}::uuid, t.code,
            ST_SetSRID(ST_MakePoint(t.lon, t.lat), 4326)::geography, t.lat, t.lon,
-           ${grid.spacingM}, ${grid.originXM}, ${grid.originYM}, ${drawnAt}
+           ${grid.spacingM}, ${grid.originXM}, ${grid.originYM}, ${drawnAt}, ${selected}
       FROM unnest(${points.map((point) => point.id)}::uuid[],
                   ${points.map((point) => point.code)}::text[],
                   ${points.map((point) => point.latitude)}::float8[],
@@ -103,7 +107,8 @@ const toClassifySchema = z.object({
 
 /**
  * Points dont la classe de la carte manque, date d'une autre version de méthode, ou vient de la
- * démonstration quand on lit la vraie carte. Avec le dernier constat, indice pour la fixture.
+ * démonstration quand on lit la vraie carte. Avec le dernier constat, indice pour la fixture. Un
+ * point déjà stratifié (ADR-0037) n'est jamais relu : sa strate est figée.
  */
 export async function pointsToClassify(options: {
   campaignId: string;
@@ -126,6 +131,7 @@ export async function pointsToClassify(options: {
          LIMIT 1
       ) o ON true
      WHERE p."campaign_id" = ${options.campaignId}::uuid
+       AND p."stratum" IS NULL
        AND (p."map_class" IS NULL
             OR p."map_method_version" IS DISTINCT FROM ${options.methodVersion}
             OR (${options.replaceSynthetic} AND p."map_source_id" = 'BAIS_SEED'))
@@ -154,6 +160,68 @@ export async function setPointMapClass(
      WHERE "id" = ${pointId}::uuid`;
 }
 
+const toStratifySchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  commune_id: z.string(),
+  commune_code: z.string(),
+  map_class: z.string().nullable(),
+  map_method_version: z.coerce.number().nullable(),
+});
+
+export type PointToStratify = z.infer<typeof toStratifySchema>;
+
+/**
+ * Points de première phase pas encore stratifiés (ADR-0037), commune par commune, dans l'ordre de
+ * la grille (du nord au sud puis d'ouest en est, le rang du code).
+ */
+export async function pointsToStratify(campaignId: string, communeCodes: readonly string[] | null) {
+  const where = communeCodes
+    ? Prisma.sql`c."code" = ANY(${[...communeCodes]}::text[])`
+    : Prisma.sql`true`;
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT p."id", p."code", p."commune_id", c."code" AS commune_code,
+           p."map_class"::text AS map_class, p."map_method_version"
+      FROM "area_frame_point" p
+      JOIN "commune" c ON c."id" = p."commune_id"
+     WHERE p."campaign_id" = ${campaignId}::uuid AND p."stratum" IS NULL AND NOT p."selected"
+       AND ${where}
+     ORDER BY c."code", length(p."code"), p."code"`;
+  return rows.map((row) => toStratifySchema.parse(row));
+}
+
+/** Fige la strate de chaque point de première phase et marque ceux retenus pour la visite. */
+export async function setPointStrata(
+  points: readonly { id: string; stratum: "ANNUAL_CROPS" | "OTHER_LAND"; selected: boolean }[],
+): Promise<number> {
+  if (points.length === 0) return 0;
+  return prisma.$executeRaw`
+    UPDATE "area_frame_point" p
+       SET "stratum" = t.stratum::"AreaFrameStratum", "selected" = t.selected
+      FROM unnest(${points.map((point) => point.id)}::uuid[],
+                  ${points.map((point) => point.stratum)}::text[],
+                  ${points.map((point) => point.selected)}::boolean[]) AS t(id, stratum, selected)
+     WHERE p."id" = t.id AND p."stratum" IS NULL`;
+}
+
+const frameStratumSchema = z.object({
+  commune_id: z.string(),
+  stratum: z.enum(["ANNUAL_CROPS", "OTHER_LAND"]),
+  first_phase: z.coerce.number(),
+});
+
+export type FrameStratumRecord = z.infer<typeof frameStratumSchema>;
+
+/** Points de première phase de chaque strate, par commune tirée en deux phases (ADR-0037). */
+export async function frameStrata(campaignId: string) {
+  const rows = await prisma.$queryRaw<unknown[]>`
+    SELECT p."commune_id", p."stratum"::text AS stratum, count(*) AS first_phase
+      FROM "area_frame_point" p
+     WHERE p."campaign_id" = ${campaignId}::uuid AND p."stratum" IS NOT NULL
+     GROUP BY p."commune_id", p."stratum"`;
+  return rows.map((row) => frameStratumSchema.parse(row));
+}
+
 const surveyPointSchema = z.object({
   id: z.string(),
   code: z.string(),
@@ -166,6 +234,7 @@ const surveyPointSchema = z.object({
   map_class: z.string().nullable(),
   map_method_version: z.coerce.number().nullable(),
   map_source_id: z.string().nullable(),
+  stratum: z.enum(["ANNUAL_CROPS", "OTHER_LAND"]).nullable(),
   land_cover: z.string().nullable(),
   crop_code: z.string().nullable(),
   observed_at: z.date().nullable(),
@@ -175,8 +244,9 @@ const surveyPointSchema = z.object({
 export type SurveyPointRecord = z.infer<typeof surveyPointSchema>;
 
 /**
- * Points de la campagne avec leur dernier constat, dans les communes données (toutes si null).
- * Aucun producteur : un point n'est rattaché qu'à sa commune.
+ * Points à visiter de la campagne avec leur dernier constat, dans les communes données (toutes si
+ * null). Les points de première phase non retenus (ADR-0037) n'y sont pas. Aucun producteur : un
+ * point n'est rattaché qu'à sa commune.
  */
 export async function surveyPoints(
   campaignId: string,
@@ -191,6 +261,7 @@ export async function surveyPoints(
            c."code" AS commune_code, c."name" AS commune_name,
            ST_Area(c."geom") / 10000 AS commune_area_ha,
            p."map_class"::text AS map_class, p."map_method_version", p."map_source_id",
+           p."stratum"::text AS stratum,
            o."land_cover"::text AS land_cover, o.crop_code, o."observed_at",
            o."source_id" AS observation_source_id
       FROM "area_frame_point" p
@@ -203,7 +274,7 @@ export async function surveyPoints(
          ORDER BY ob."observed_at" DESC
          LIMIT 1
       ) o ON true
-     WHERE p."campaign_id" = ${campaignId}::uuid AND ${where}
+     WHERE p."campaign_id" = ${campaignId}::uuid AND p."selected" AND ${where}
      ORDER BY c."name", p."code"`;
   return rows.map((row) => surveyPointSchema.parse(row));
 }

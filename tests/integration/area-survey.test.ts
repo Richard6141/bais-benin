@@ -1,17 +1,23 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import {
+  FIRST_PHASE_FACTOR,
+  MIN_POINTS_PER_STRATUM,
+  POINTS_PER_COMMUNE,
   classifyFramePoints,
   drawAreaFrame,
   getSurveyEstimates,
   listSurveyPoints,
+  selectSecondPhase,
 } from "@/modules/area-survey";
 import { loadActor } from "@/modules/identity";
 import { applySyncBatch } from "@/modules/sync";
+import { CROP_AREA_METHOD_VERSION } from "@/modules/satellite/crop-areas";
 import { createFixtureRemoteSensingProvider } from "@/services/remote-sensing";
 
-// Enquête aréolaire (ADR-0033) sur la vraie base : tirage des points d'une commune pilote,
-// classe de la carte aux points (fixture), surfaces estimées pour le ministère seulement.
+// Enquête aréolaire (ADR-0033, ADR-0037) sur la vraie base : première phase d'une commune pilote,
+// classe de la carte aux points (fixture), seconde phase stratifiée, surfaces estimées pour le
+// ministère seulement, points à visiter montrés aux seules communes de l'agent.
 
 const PILOT = "BJ-DON-001";
 const MINISTRY_PHONE = "+2290190000003";
@@ -45,7 +51,7 @@ describe("enquête aréolaire", () => {
     await prisma.$disconnect();
   });
 
-  it("tire environ 120 points dans la commune, une seule fois par campagne", async () => {
+  it("tire une première phase quatre fois plus dense, une seule fois par campagne", async () => {
     const commune = await prisma.commune.findUniqueOrThrow({
       where: { code: PILOT },
       select: { id: true },
@@ -64,8 +70,15 @@ describe("enquête aréolaire", () => {
     const first = await drawAreaFrame({ communeCodes: [PILOT] });
     const drawn = first.communes[0]!;
     expect(drawn.code).toBe(PILOT);
-    expect(drawn.drawn).toBeGreaterThan(90);
-    expect(drawn.drawn).toBeLessThan(150);
+    const expected = POINTS_PER_COMMUNE * FIRST_PHASE_FACTOR;
+    expect(drawn.drawn).toBeGreaterThan(expected * 0.75);
+    expect(drawn.drawn).toBeLessThan(expected * 1.25);
+    // Aucun point n'est encore à visiter : la première phase attend la classe de la carte.
+    expect(
+      await prisma.areaFramePoint.count({
+        where: { communeId: commune.id, campaignId: campaign.id, selected: true },
+      }),
+    ).toBe(0);
 
     // Chaque point tombe dans la commune.
     const outside = await prisma.$queryRaw<{ count: bigint }[]>`
@@ -78,22 +91,62 @@ describe("enquête aréolaire", () => {
     expect(again.communes).toEqual([]);
   });
 
-  it("lit la classe de la carte à chaque point tiré", async () => {
+  it("lit la classe de la carte à chaque point de première phase", async () => {
     const run = await classifyFramePoints({
       provider: createFixtureRemoteSensingProvider(),
-      limit: 500,
+      limit: 2000,
     });
     expect(run.errors).toBe(0);
-    expect(run.classified).toBeGreaterThan(90);
+    expect(run.classified).toBeGreaterThan(POINTS_PER_COMMUNE * 3);
     const missing = await prisma.areaFramePoint.count({
       where: { commune: { code: PILOT }, mapClass: null },
     });
     expect(missing).toBe(0);
-  });
+  }, 120_000);
+
+  it("tire la seconde phase par strate, plancher compris, et la fige", async () => {
+    const result = await selectSecondPhase({ communeCodes: [PILOT] });
+    const commune = result.communes.find((entry) => entry.code === PILOT)!;
+    const { ANNUAL_CROPS: annual, OTHER_LAND: other } = commune.strata;
+    expect(annual.selected + other.selected).toBe(POINTS_PER_COMMUNE);
+    expect(annual.selected).toBeGreaterThanOrEqual(
+      Math.min(MIN_POINTS_PER_STRATUM, annual.firstPhase),
+    );
+    expect(other.selected).toBeGreaterThanOrEqual(
+      Math.min(MIN_POINTS_PER_STRATUM, other.firstPhase),
+    );
+    const points = await prisma.areaFramePoint.findMany({
+      where: { commune: { code: PILOT }, campaign: { status: "OPEN" } },
+      select: { stratum: true, selected: true },
+    });
+    expect(points.every((point) => point.stratum !== null)).toBe(true);
+    expect(points.filter((point) => point.selected)).toHaveLength(POINTS_PER_COMMUNE);
+    expect(
+      points.filter((point) => point.selected && point.stratum === "ANNUAL_CROPS"),
+    ).toHaveLength(annual.selected);
+
+    // La strate est figée : ni second tirage, ni nouvelle lecture de la carte.
+    const again = await selectSecondPhase({ communeCodes: [PILOT] });
+    expect(again.communes).toEqual([]);
+    await prisma.areaFramePoint.updateMany({
+      where: { commune: { code: PILOT } },
+      data: { mapMethodVersion: 0 },
+    });
+    await classifyFramePoints({ provider: createFixtureRemoteSensingProvider(), limit: 2000 });
+    expect(
+      await prisma.areaFramePoint.count({
+        where: { commune: { code: PILOT }, mapMethodVersion: { not: 0 } },
+      }),
+    ).toBe(0);
+    await prisma.areaFramePoint.updateMany({
+      where: { commune: { code: PILOT } },
+      data: { mapMethodVersion: CROP_AREA_METHOD_VERSION },
+    });
+  }, 120_000);
 
   it("rend les surfaces au ministère, et les points aux seules communes de l'agent", async () => {
     const points = await prisma.areaFramePoint.findMany({
-      where: { commune: { code: PILOT } },
+      where: { commune: { code: PILOT }, selected: true },
       select: { id: true },
       orderBy: { code: "asc" },
     });
@@ -118,6 +171,8 @@ describe("enquête aréolaire", () => {
 
     const estimates = await getSurveyEstimates(await actorForPhone(MINISTRY_PHONE));
     const commune = estimates!.communes.find((entry) => entry.code === PILOT)!;
+    expect(commune.design).toBe("stratified");
+    expect(commune.drawn).toBe(POINTS_PER_COMMUNE);
     expect(commune.observed).toBe(points.length);
     const maizeArea = commune.targets.find((entry) => entry.target === "MAIZE")!;
     expect(maizeArea.areaHa).toBeGreaterThan(0);
@@ -129,15 +184,19 @@ describe("enquête aréolaire", () => {
     // L'agent de démonstration couvre la commune AGENT_COMMUNE : il en voit les points, pas ceux
     // de la commune pilote.
     await drawAreaFrame({ communeCodes: [AGENT_COMMUNE], pointsPerCommune: 10 });
+    // La première phase n'est pas montrée : l'agent ne voit que les points retenus.
+    expect(await listSurveyPoints(agent)).toEqual([]);
+    await classifyFramePoints({ provider: createFixtureRemoteSensingProvider(), limit: 2000 });
+    await selectSecondPhase({ communeCodes: [AGENT_COMMUNE], pointsPerCommune: 10 });
     const agentPoints = await listSurveyPoints(agent);
-    expect(agentPoints.length).toBeGreaterThan(0);
+    expect(agentPoints).toHaveLength(10);
     expect(agentPoints.every((point) => point.code.startsWith(`${AGENT_COMMUNE}-`))).toBe(true);
   }, 120_000);
 
   it("enregistre le constat de l'agent près du point, et refuse de loin ou hors de ses communes", async () => {
     const agent = await actorForPhone(AGENT_PHONE);
     const point = await prisma.areaFramePoint.findFirstOrThrow({
-      where: { commune: { code: AGENT_COMMUNE }, campaign: { status: "OPEN" } },
+      where: { commune: { code: AGENT_COMMUNE }, campaign: { status: "OPEN" }, selected: true },
       select: { id: true, latitude: true, longitude: true },
       orderBy: { code: "asc" },
     });
@@ -176,8 +235,33 @@ describe("enquête aréolaire", () => {
     const [blocked] = await observe({ landCover: "INACCESSIBLE", reason: "Rivière en crue" });
     expect(blocked?.outcome).toBe("APPLIED");
 
+    // Un point de première phase non retenu n'accepte pas de constat.
+    const skipped = await prisma.areaFramePoint.findFirstOrThrow({
+      where: { commune: { code: AGENT_COMMUNE }, campaign: { status: "OPEN" }, selected: false },
+      select: { id: true, latitude: true, longitude: true },
+    });
+    const skippedId = crypto.randomUUID();
+    const [notDrawn] = await applySyncBatch(agent, DEVICE, [
+      {
+        id: skippedId,
+        type: "surveyPoint.observe",
+        payload: {
+          id: skippedId,
+          pointId: skipped.id,
+          observedAt: AT,
+          landCover: "NATURAL",
+          gpsPoint: [Number(skipped.longitude), Number(skipped.latitude)],
+        },
+        idempotencyKey: `it-${skippedId}`,
+        clientCreatedAt: AT,
+        deviceId: DEVICE,
+      },
+    ]);
+    expect(notDrawn?.outcome).toBe("REJECTED");
+    expect(notDrawn?.error?.code).toBe("NOT_FOUND");
+
     const pilot = await prisma.areaFramePoint.findFirstOrThrow({
-      where: { commune: { code: PILOT } },
+      where: { commune: { code: PILOT }, selected: true },
       select: { id: true, latitude: true, longitude: true },
     });
     const outsideId = crypto.randomUUID();

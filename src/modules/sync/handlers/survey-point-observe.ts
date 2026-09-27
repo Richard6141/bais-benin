@@ -5,6 +5,7 @@ import { FIELD_SOURCE_ID, rejected, type Db, type SyncHandler } from "./types";
 // `surveyPoint.observe`, ADR-0033). La cible d'autorisation est la commune du point ; le droit
 // vérifié est `survey.observe` (agent sur son territoire). La distance au point est recalculée
 // ici, jamais crue du client : au-delà de 50 m, le constat est refusé (sauf point inaccessible).
+// Un point de première phase non retenu pour la visite (ADR-0037) est inconnu de l'agent.
 
 async function pointTarget(db: Db, pointId: string) {
   const rows = await db.$queryRaw<
@@ -15,7 +16,7 @@ async function pointTarget(db: Db, pointId: string) {
       FROM "area_frame_point" p
       JOIN "commune" c ON c."id" = p."commune_id"
       JOIN "agricultural_campaign" ac ON ac."id" = p."campaign_id"
-     WHERE p."id" = ${pointId}::uuid`;
+     WHERE p."id" = ${pointId}::uuid AND p."selected"`;
   return rows[0] ?? null;
 }
 

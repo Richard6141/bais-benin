@@ -258,6 +258,10 @@ satellite à celles déclarées au registre, pour la campagne en cours.
   face à la carte des pixels de la commune.
 - L'onglet « Sondage » donne les surfaces par culture des communes d'enquête, tirées des points
   que les agents ont constatés et corrigées par la carte des pixels :
+  - les points sont tirés en deux phases (ADR-0037) : la carte des pixels range une grille dense
+    en « cultures annuelles » et autres terres, puis les cultures annuelles reçoivent plus de
+    points à visiter. Chaque point pèse les hectares de sa strate : la colonne « Hectares par
+    point » les donne, cultures annuelles puis autres terres ;
   - chaque surface avec sa marge à 95 % et son coefficient de variation (CV) ;
   - la colonne « Usage » dit ce qu'on peut en faire : « À citer » (CV de 10 % au plus, avec sa
     marge), « Indicatif » (jusqu'à 20 %), « À ne pas citer » ;

@@ -4,7 +4,12 @@ import { SourceCaption } from "@/components/data-display/source-caption";
 import { StatTile } from "@/components/data-display/stat-tile";
 import { HelpTip } from "@/components/forms/help-tip";
 import { Badge } from "@/components/ui/badge";
-import type { CitationStatus, SurveyEstimates, TargetEstimate } from "@/modules/area-survey";
+import type {
+  CitationStatus,
+  CommuneSurvey,
+  SurveyEstimates,
+  TargetEstimate,
+} from "@/modules/area-survey";
 import { cropGroupLabel } from "@/modules/satellite/crop-groups";
 
 const hectares = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
@@ -42,10 +47,23 @@ function withMargin(estimate: TargetEstimate): string {
   return `${hectares.format(estimate.areaHa)} ± ${hectares.format(estimate.marginHa)} ha`;
 }
 
-// Surfaces par culture estimées par sondage (ADR-0033), vue du ministère : chaque chiffre avec
-// sa marge à 95 %, son coefficient de variation et ce qu'on peut en faire.
+/** Hectares que pèse un point constaté, cultures annuelles puis autres terres (ADR-0037). */
+function pointWeights(commune: CommuneSurvey): string {
+  if (commune.design === "simple") return "Égal";
+  const [annual, other] = commune.strata.map((stratum) =>
+    stratum.weightHa === null ? "sans constat" : hectares.format(stratum.weightHa),
+  );
+  return `${annual} et ${other}`;
+}
+
+// Surfaces par culture estimées par sondage (ADR-0033, ADR-0037), vue du ministère : chaque
+// chiffre avec sa marge à 95 %, son coefficient de variation et ce qu'on peut en faire.
 export function SurveySection({ survey }: { survey: SurveyEstimates & { campaignCode: string } }) {
   const cultivated = survey.totals.find((entry) => entry.target === "CULTIVATED");
+  const stratified = survey.communes.some((commune) => commune.design === "stratified");
+  const method = stratified
+    ? "tirage stratifié par la carte (ADR-0037)"
+    : "estimateur par régression (ADR-0033)";
   const visited = survey.observed + survey.inaccessible;
   const targets = [...survey.totals].sort(
     (a, b) => Number(b.target === "CULTIVATED") - Number(a.target === "CULTIVATED"),
@@ -84,9 +102,11 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
       <div className="flex flex-col gap-2">
         <Heading title="Surfaces par culture" help="Surfaces par sondage">
           Des points tirés au hasard dans chaque commune d&apos;enquête, où l&apos;agent note ce
-          qu&apos;il voit. La carte des pixels corrige leur moyenne (estimateur par régression) : le
-          gain dit combien de points elle vaut en plus. À citer : coefficient de variation de 10 %
-          au plus et 30 points au moins. Indicatif : jusqu&apos;à 20 %.
+          qu&apos;il voit. La carte des pixels range d&apos;abord une grille dense en cultures
+          annuelles et autres terres : les cultures annuelles reçoivent plus de points, et chaque
+          point pèse les hectares de sa strate. Le gain dit combien de points la carte vaut en plus.
+          À citer : coefficient de variation de 10 % au plus et 30 points au moins. Indicatif :
+          jusqu&apos;à 20 %.
         </Heading>
         <SortableTable
           caption="Communes d'enquête réunies"
@@ -135,7 +155,9 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
       <div className="flex flex-col gap-2">
         <Heading title="Par commune" help="Sondage par commune">
           Une commune seule compte environ 120 points : ses chiffres restent indicatifs. Au-delà de
-          10 % de points inaccessibles, les points manquants peuvent fausser le chiffre.
+          10 % de points inaccessibles, les points manquants peuvent fausser le chiffre. Tirage
+          stratifié : un point des cultures annuelles, plus souvent tiré, pèse moins d&apos;hectares
+          qu&apos;un point des autres terres. Tirage simple : tous les points pèsent autant.
         </Heading>
         <SortableTable
           caption="Terres cultivées par commune d'enquête"
@@ -143,6 +165,8 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
           columns={[
             { key: "name", label: "Commune" },
             { key: "drawn", label: "Points tirés", align: "right" },
+            { key: "design", label: "Tirage" },
+            { key: "weights", label: "Hectares par point", align: "right" },
             { key: "observed", label: "Constatés", align: "right" },
             { key: "response", label: "Réponse", align: "right" },
             { key: "cultivated", label: "Terres cultivées" },
@@ -155,6 +179,14 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
               cells: {
                 name: { display: commune.name, sort: commune.name },
                 drawn: { display: count.format(commune.drawn), sort: commune.drawn },
+                design: {
+                  display: commune.design === "stratified" ? "Stratifié" : "Simple",
+                  sort: commune.design,
+                },
+                weights: {
+                  display: pointWeights(commune),
+                  sort: commune.strata[0]?.weightHa ?? null,
+                },
                 observed: { display: count.format(commune.observed), sort: commune.observed },
                 response: {
                   display:
@@ -180,8 +212,8 @@ export function SurveySection({ survey }: { survey: SurveyEstimates & { campaign
       <SourceCaption
         source={
           survey.synthetic
-            ? "constats et carte de démonstration, estimateur par régression (ADR-0033)"
-            : "constats des agents ATDA aux points tirés, carte des pixels Copernicus Sentinel-2, estimateur par régression (ADR-0033)"
+            ? `constats et carte de démonstration, ${method}`
+            : `constats des agents ATDA aux points tirés, carte des pixels Copernicus Sentinel-2, ${method}`
         }
       />
     </div>

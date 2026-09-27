@@ -6,7 +6,7 @@ import {
 } from "@/database/sql/crop-areas.sql";
 import { getServerEnv } from "@/lib/env";
 import { seededRandom } from "@/lib/ml/random-forest";
-import { classifyFramePoints, drawAreaFrame } from "@/modules/area-survey";
+import { classifyFramePoints, drawAreaFrame, selectSecondPhase } from "@/modules/area-survey";
 import {
   collectParcelSeries,
   runCropClassChecks,
@@ -84,12 +84,13 @@ export async function seedParcelCrops(): Promise<number | null> {
   return series.read;
 }
 
-// Enquête aréolaire de démonstration (ADR-0033) : points tirés dans les communes pilotes, constats
-// synthétiques (une fois sur vingt-cinq inaccessible), classe de la carte aux points par la
-// fixture (quatre fois sur cinq la bonne), et carte de démonstration des communes d'enquête recalée
-// sur ce que la fixture y verrait, pour que l'estimateur par régression ait une moyenne connue
-// cohérente. Refait à chaque seed ; un vrai constat, une vraie lecture de la carte ou une vraie
-// surface par commune n'est jamais effacé.
+// Enquête aréolaire de démonstration (ADR-0033, ADR-0037) : première phase tirée dans les communes
+// pilotes, classe de la carte à chaque point par la fixture (quatre fois sur cinq la bonne),
+// seconde phase stratifiée, puis constats synthétiques aux points retenus (une fois sur
+// vingt-cinq inaccessible). La carte de démonstration des communes d'enquête est recalée sur ce
+// que la fixture y verrait : les poids des strates et la moyenne de la régression restent
+// cohérents. Refait à chaque seed ; une commune qui porte un vrai constat ou une vraie lecture de
+// la carte garde ses points, et une vraie surface par commune n'est jamais effacée.
 //
 // Vraisemblance (ADR-0036) : la surface vivrière de chaque commune suit sa population, à raison
 // de 0,178 ha par habitant (FAOSTAT 2024 rapporté à WorldPop 2026), multipliée par un facteur de
@@ -206,7 +207,6 @@ function expectedMapShares(entries: readonly DemoEntry[]): Map<string, number> {
 export async function seedAreaSurvey(): Promise<number | null> {
   if (process.env.SEED_VEGETATION === "0" || getServerEnv().APP_ENV === "production") return null;
   const now = new Date();
-  await drawAreaFrame({ now });
   const campaign = await prisma.agriculturalCampaign.findFirst({
     where: { status: "OPEN" },
     select: { id: true },
@@ -219,10 +219,30 @@ export async function seedAreaSurvey(): Promise<number | null> {
   await prisma.areaFrameObservation.deleteMany({
     where: { sourceId: "BAIS_SEED", point: { campaignId: campaign.id } },
   });
+  // Tirage à deux phases (ADR-0037) : une commune dont aucun point ne porte de vrai constat ni de
+  // vraie lecture de la carte est retirée, puis tirée à nouveau (même grille, mêmes codes).
+  const kept = await prisma.areaFramePoint.findMany({
+    where: {
+      campaignId: campaign.id,
+      OR: [
+        { observations: { some: {} } },
+        { AND: [{ mapSourceId: { not: null } }, { mapSourceId: { not: "BAIS_SEED" } }] },
+      ],
+    },
+    select: { communeId: true },
+    distinct: ["communeId"],
+  });
+  await prisma.areaFramePoint.deleteMany({
+    where: {
+      campaignId: campaign.id,
+      communeId: { notIn: kept.map((row) => row.communeId) },
+    },
+  });
   await prisma.areaFramePoint.updateMany({
-    where: { campaignId: campaign.id, mapSourceId: "BAIS_SEED" },
+    where: { campaignId: campaign.id, mapSourceId: "BAIS_SEED", stratum: null },
     data: { mapClass: null, mapMethodVersion: null, mapSourceId: null, mapReliability: null },
   });
+  await drawAreaFrame({ now });
   const points = await prisma.areaFramePoint.findMany({
     where: { campaignId: campaign.id },
     select: {
@@ -231,7 +251,6 @@ export async function seedAreaSurvey(): Promise<number | null> {
       communeId: true,
       latitude: true,
       commune: { select: { code: true } },
-      observations: { select: { id: true }, take: 1 },
     },
   });
 
@@ -269,40 +288,16 @@ export async function seedAreaSurvey(): Promise<number | null> {
     distributions.set(communeId, demoDistribution(latitude, stapleShare));
   }
 
-  const crops = new Map(
-    (await prisma.crop.findMany({ select: { id: true, code: true } })).map((crop) => [
-      crop.code,
-      crop.id,
-    ]),
+  // Ce qui se trouve vraiment à chaque point, tiré une fois pour toutes de son code : la carte de
+  // la fixture le voit (quatre fois sur cinq), l'agent le constate s'il est retenu pour la visite.
+  const truth = new Map(
+    points.map((point) => {
+      const random = seededRandom(demoHash(point.code));
+      const inaccessible = random() < INACCESSIBLE_SHARE;
+      const seen = pick(distributions.get(point.communeId)!, (entry) => entry.weight, random());
+      return [point.id, { inaccessible, seen }];
+    }),
   );
-  const rows = points.flatMap((point): DemoObservation[] => {
-    if (point.observations.length > 0) return [];
-    const random = seededRandom(demoHash(point.code));
-    const base = { pointId: point.id, observedAt: now, observedById: agent.id };
-    if (random() < INACCESSIBLE_SHARE) {
-      return [
-        {
-          ...base,
-          landCover: "INACCESSIBLE" as const,
-          cropId: null,
-          reason: "Rivière en crue",
-          distanceM: null,
-        },
-      ];
-    }
-    const seen = pick(distributions.get(point.communeId)!, (entry) => entry.weight, random());
-    const cropId = seen.cropCode ? (crops.get(seen.cropCode) ?? null) : null;
-    if (seen.cropCode && !cropId) return [];
-    return [{ ...base, landCover: seen.landCover, cropId, reason: null, distanceM: 8 }];
-  });
-  await prisma.areaFrameObservation.createMany({
-    data: rows.map((row) => ({
-      id: crypto.randomUUID(),
-      ...row,
-      sourceId: "BAIS_SEED",
-      reliability: "SYNTHETIC" as const,
-    })),
-  });
 
   // Carte de démonstration des communes d'enquête, sauf celles déjà mesurées par Copernicus.
   const measured = await communesWithMeasuredCropAreas(campaign.id);
@@ -334,6 +329,52 @@ export async function seedAreaSurvey(): Promise<number | null> {
     }
   }
   await upsertCropAreas(estimates);
-  await classifyFramePoints({ provider: createFixtureRemoteSensingProvider(), limit: 5000, now });
-  return points.length;
+
+  // Classe de la carte aux points de première phase, puis seconde phase : les points à visiter.
+  await classifyFramePoints({
+    provider: createFixtureRemoteSensingProvider(),
+    limit: 10_000,
+    now,
+    hints: new Map([...truth].map(([id, entry]) => [id, entry.seen.mapClass])),
+  });
+  await selectSecondPhase();
+
+  const crops = new Map(
+    (await prisma.crop.findMany({ select: { id: true, code: true } })).map((crop) => [
+      crop.code,
+      crop.id,
+    ]),
+  );
+  const toVisit = await prisma.areaFramePoint.findMany({
+    where: { campaignId: campaign.id, selected: true, observations: { none: {} } },
+    select: { id: true },
+  });
+  const rows = toVisit.flatMap((point): DemoObservation[] => {
+    const found = truth.get(point.id);
+    if (!found) return [];
+    const base = { pointId: point.id, observedAt: now, observedById: agent.id };
+    if (found.inaccessible) {
+      return [
+        {
+          ...base,
+          landCover: "INACCESSIBLE" as const,
+          cropId: null,
+          reason: "Rivière en crue",
+          distanceM: null,
+        },
+      ];
+    }
+    const cropId = found.seen.cropCode ? (crops.get(found.seen.cropCode) ?? null) : null;
+    if (found.seen.cropCode && !cropId) return [];
+    return [{ ...base, landCover: found.seen.landCover, cropId, reason: null, distanceM: 8 }];
+  });
+  await prisma.areaFrameObservation.createMany({
+    data: rows.map((row) => ({
+      id: crypto.randomUUID(),
+      ...row,
+      sourceId: "BAIS_SEED",
+      reliability: "SYNTHETIC" as const,
+    })),
+  });
+  return prisma.areaFramePoint.count({ where: { campaignId: campaign.id, selected: true } });
 }
