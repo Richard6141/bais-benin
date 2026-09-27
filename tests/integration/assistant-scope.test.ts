@@ -36,8 +36,13 @@ describe("assistant agricole : périmètre et journal", () => {
         providers,
       ),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // Une exploitation que l'agent a enregistrée : il ne voit que celles-là (ADR-0014).
     const inside = await prisma.farm.findFirstOrThrow({
-      where: { archivedAt: null, commune: { code: "BJ-DON-003" } },
+      where: {
+        archivedAt: null,
+        commune: { code: "BJ-DON-003" },
+        registeredById: actors.agent.userId,
+      },
       select: { code: true },
     });
     const reply = await askAssistant(
