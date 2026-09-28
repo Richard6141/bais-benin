@@ -25,7 +25,13 @@ export {
   type HarvestUnitCode,
 } from "./harvest";
 export { listOtherParcelContours, type ParcelContour } from "./parcel-contours";
-export { scopedCommuneIds, scopedCommunes, type CommuneScope, type ScopedCommune } from "./scope";
+export {
+  scopeKeyFor,
+  scopedCommuneIds,
+  scopedCommunes,
+  type CommuneScope,
+  type ScopedCommune,
+} from "./scope";
 export {
   OVERLAP_LIST_LIMIT,
   farmParcelOverlaps,

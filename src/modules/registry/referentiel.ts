@@ -10,6 +10,11 @@ import { scopedCommunes } from "./scope";
 export interface ReferentielBundle {
   version: string;
   generatedAt: string;
+  /**
+   * Empreinte du périmètre de l'agent au téléchargement (scopeKeyFor). Absente des référentiels
+   * téléchargés avant son ajout : ceux-là sont rechargés une fois.
+   */
+  scopeKey?: string;
   communes: Array<{
     code: string;
     name: string;
@@ -137,6 +142,8 @@ export async function buildReferentiel(
   return {
     version: latest.toISOString(),
     generatedAt: new Date().toISOString(),
+    // Même calcul que scopeKeyFor, sans relire les communes.
+    scopeKey: allowed === "all" || allowed === "none" ? allowed : [...allowed].sort().join(","),
     communes: selectedCommunes.map((row) => ({
       code: row.code,
       name: row.name,

@@ -25,6 +25,8 @@ import { useOfflinePreparation } from "./use-offline-preparation";
 
 interface AgentShellProps {
   userId: string;
+  /** Empreinte du périmètre actuel (scopeKeyFor) : un référentiel d'un autre périmètre est rechargé. */
+  scopeKey?: string;
   /** Compte de démonstration : bandeau du scénario suivant. */
   demo?: boolean;
   children: ReactNode;
@@ -59,10 +61,11 @@ const NAV: readonly SpaceNavItem[] = [
 // Coque de l'espace agent : navigation de l'espace (onglets sur ordinateur, barre basse sous le
 // pouce sur téléphone, docs/modules/registre-parcours-ux.md §0) et puce de synchronisation
 // toujours visible.
-export function AgentShell({ userId, demo = false, children }: AgentShellProps) {
+export function AgentShell({ userId, scopeKey, demo = false, children }: AgentShellProps) {
   const sync = useSync(userId);
-  // Le référentiel du périmètre se télécharge seul dès que l'agent est connecté.
-  useOfflinePreparation(userId);
+  // Le référentiel du périmètre se télécharge seul dès que l'agent est connecté, et se recharge
+  // quand le ministère change ses communes.
+  useOfflinePreparation(userId, scopeKey);
   const feedback = useFeedbackAction();
 
   return (

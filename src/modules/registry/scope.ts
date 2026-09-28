@@ -35,6 +35,19 @@ export async function scopedCommunes(actor: Actor): Promise<CommuneScope> {
   }));
 }
 
+/**
+ * Empreinte du périmètre : codes des communes, triés. Le référentiel téléchargé la porte ; quand
+ * le ministère réaffecte l'agent, elle ne correspond plus et l'appareil recharge ses données.
+ */
+export async function scopeKeyFor(actor: Actor): Promise<string> {
+  const scope = await scopedCommunes(actor);
+  if (scope === "all" || scope === "none") return scope;
+  return scope
+    .map((c) => c.code)
+    .sort()
+    .join(",");
+}
+
 // Identifiants de communes pour filtrer une requête (tuiles de points, listes).
 export async function scopedCommuneIds(actor: Actor): Promise<"all" | string[]> {
   const scope = await scopedCommunes(actor);

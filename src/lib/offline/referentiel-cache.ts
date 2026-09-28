@@ -104,8 +104,11 @@ export async function downloadOfflineData(
   const report = options.onProgress ?? (() => undefined);
 
   report({ block: "referentiel", loaded: 0, total: null });
+  // Sans le cache HTTP (private, 5 min) : après une réaffectation, la copie gardée par le
+  // navigateur porterait encore l'ancien périmètre.
   const referentielResponse = await fetchImpl("/api/v1/referentiel", {
     credentials: "same-origin",
+    cache: "no-store",
   });
   if (!referentielResponse.ok)
     throw new Error(`Référentiel indisponible (${referentielResponse.status})`);

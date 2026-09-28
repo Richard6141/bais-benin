@@ -2,9 +2,9 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const download = vi.fn<() => Promise<void>>();
-let ready: boolean | undefined = false;
+let local: "missing" | "current" | "stale" | undefined = "missing";
 
-vi.mock("dexie-react-hooks", () => ({ useLiveQuery: () => ready }));
+vi.mock("dexie-react-hooks", () => ({ useLiveQuery: () => local }));
 vi.mock("@/lib/offline/db", () => ({ getAgentDatabase: () => ({}) }));
 vi.mock("@/lib/offline/referentiel-cache", () => ({
   downloadOfflineData: () => download(),
@@ -20,7 +20,7 @@ function setOnline(value: boolean) {
 describe("préparation automatique du hors-ligne", () => {
   beforeEach(() => {
     download.mockReset();
-    ready = false;
+    local = "missing";
     setOnline(true);
   });
   afterEach(() => setOnline(true));
@@ -56,9 +56,28 @@ describe("préparation automatique du hors-ligne", () => {
   });
 
   it("ne fait rien quand le référentiel est déjà sur l'appareil", () => {
-    ready = true;
+    local = "current";
     const { result } = renderHook(() => useOfflinePreparation("agent-5"));
     expect(result.current).toBe("ready");
     expect(download).not.toHaveBeenCalled();
+  });
+
+  it("recharge en arrière-plan après une réaffectation, sans bloquer l'agent", async () => {
+    local = "stale";
+    download.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useOfflinePreparation("agent-6", "BJ-DON-001"));
+    expect(result.current).toBe("ready");
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+  });
+
+  it("ne recharge qu'une fois par périmètre, même si l'empreinte reste différente", async () => {
+    local = "stale";
+    download.mockResolvedValue(undefined);
+    const first = renderHook(() => useOfflinePreparation("agent-7", "BJ-DON-002"));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    first.unmount();
+    renderHook(() => useOfflinePreparation("agent-7", "BJ-DON-002"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(download).toHaveBeenCalledTimes(1);
   });
 });
