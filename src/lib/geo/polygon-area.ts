@@ -27,6 +27,23 @@ export function estimatePolygonAreaHa(points: readonly LngLat[]): number {
   return areaM2 / 10_000;
 }
 
+/** Distance au sol entre deux points proches, en mètres (même projection que la surface). */
+export function pointDistanceM(a: LngLat, b: LngLat): number {
+  const cosLat = Math.cos(((a.lat + b.lat) / 2) * (Math.PI / 180));
+  const dx = (b.lng - a.lng) * (Math.PI / 180) * EARTH_RADIUS_M * cosLat;
+  const dy = (b.lat - a.lat) * (Math.PI / 180) * EARTH_RADIUS_M;
+  return Math.hypot(dx, dy);
+}
+
+/** Nombre de points distants d'au moins `minSpacingM` de tous ceux déjà retenus. */
+export function countDistinctPoints(points: readonly LngLat[], minSpacingM: number): number {
+  const kept: LngLat[] = [];
+  for (const point of points) {
+    if (kept.every((other) => pointDistanceM(point, other) >= minSpacingM)) kept.push(point);
+  }
+  return kept.length;
+}
+
 /** Ferme l'anneau (premier point répété en fin) attendu par le format GeoJSON Polygon. */
 export function closeRing(points: readonly LngLat[]): LngLat[] {
   if (points.length === 0) return [];

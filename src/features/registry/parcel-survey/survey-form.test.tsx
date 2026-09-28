@@ -48,6 +48,29 @@ describe("relevé à pied", () => {
     );
   });
 
+  it("refuse un coin pris au même endroit que le précédent", async () => {
+    // Ordinateur sans GPS : la même position revient à chaque appui.
+    render(
+      <SurveyForm
+        userId="u1"
+        farm={{ id: "f1" }}
+        parcel={PARCEL}
+        captureCorner={corners([
+          [2.41828, 6.38278],
+          [2.41828, 6.38278],
+        ])}
+      />,
+    );
+    await mark(1);
+    fireEvent.click(screen.getByRole("button", { name: /Marquer ce coin/ }));
+    await waitFor(() => expect(screen.getByText(/au même endroit que le précédent/)).toBeTruthy());
+    expect(screen.queryByText("Coin 2")).toBeNull();
+    expect(screen.getByRole("button", { name: "Terminer le relevé" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
   it("signale un recouvrement avec une autre parcelle sans bloquer", async () => {
     render(
       <SurveyForm

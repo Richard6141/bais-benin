@@ -1,4 +1,4 @@
-import { measurePolygon, writeParcelGeometry } from "./geometry";
+import { invalidContourMessage, measurePolygon, writeParcelGeometry } from "./geometry";
 import { farmTarget, findFarmOfParcel } from "./lookups";
 import { rejected, type SyncHandler } from "./types";
 
@@ -58,11 +58,7 @@ export const parcelGeometrySet: SyncHandler<"parcel.geometry.set"> = {
 
     const measure = await measurePolygon(db, payload.geometry);
     if (!measure.valid) {
-      return rejected(
-        "INVALID_GEOMETRY",
-        `Contour invalide : ${measure.reason ?? "géométrie non valide"}`,
-        "geometry",
-      );
+      return rejected("INVALID_GEOMETRY", invalidContourMessage(measure.reason), "geometry");
     }
 
     const updated = await db.parcel.update({

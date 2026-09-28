@@ -1,7 +1,11 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AgentDatabase } from "@/lib/offline/db";
-import { buildParcelSurveyCommand, buildSatelliteContourCommand } from "./survey-command";
+import {
+  SAME_PLACE_ERROR,
+  buildParcelSurveyCommand,
+  buildSatelliteContourCommand,
+} from "./survey-command";
 
 const farmId = "01923456-0000-7000-8000-000000000010";
 const parcelId = "01923456-0000-7000-8000-000000000020";
@@ -29,6 +33,33 @@ describe("commande de relevé de contour de parcelle", () => {
     });
     expect(built.ok).toBe(false);
     if (!built.ok) expect(built.error).toContain("3 coins");
+  });
+
+  it("refuse des coins pris au même endroit, sans rien mettre en file", () => {
+    // Cas observé en démonstration : ordinateur sans GPS, quatre fois la même position.
+    const same = { lat: 6.38278, lng: 2.41828, accuracyM: 181 };
+    const built = buildParcelSurveyCommand({
+      farmId,
+      parcelId,
+      expectedVersion: 1,
+      corners: [same, same, same, same],
+    });
+    expect(built).toEqual({ ok: false, error: SAME_PLACE_ERROR });
+  });
+
+  it("refuse des coins alignés, qui ne ferment aucune surface", () => {
+    const built = buildParcelSurveyCommand({
+      farmId,
+      parcelId,
+      expectedVersion: 1,
+      corners: [
+        { lat: 9.0, lng: 1.6 },
+        { lat: 9.0, lng: 1.6005 },
+        { lat: 9.0, lng: 1.601 },
+      ],
+    });
+    expect(built.ok).toBe(false);
+    if (!built.ok) expect(built.error).toContain("alignés");
   });
 
   it("construit le polygone fermé, la surface estimée et met la commande en file", async () => {

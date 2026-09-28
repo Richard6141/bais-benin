@@ -10,12 +10,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAgentDatabase } from "@/lib/offline/db";
-import { estimatePolygonAreaHa } from "@/lib/geo/polygon-area";
+import { estimatePolygonAreaHa, pointDistanceM } from "@/lib/geo/polygon-area";
 import { ringsOverlap, selfIntersects } from "@/lib/geo/ring-checks";
 import { useSync } from "@/lib/offline/use-sync";
 import { browserCaptureCorner, type CornerCaptureFunction } from "./corner-capture";
 import { areaGapPercent } from "@/modules/sync/handlers/geometry";
-import { buildParcelSurveyCommand, MIN_SURVEY_CORNERS } from "./survey-command";
+import {
+  buildParcelSurveyCommand,
+  cornersProblem,
+  MIN_CORNER_SPACING_M,
+  MIN_SURVEY_CORNERS,
+} from "./survey-command";
 
 interface SurveyFormProps {
   userId: string;
@@ -53,6 +58,8 @@ export function SurveyForm({
   const areaHa = corners.length >= MIN_SURVEY_CORNERS ? estimatePolygonAreaHa(corners) : null;
   const gapPercent = areaHa === null ? null : areaGapPercent(parcel.declaredAreaHa, areaHa);
   const crossing = selfIntersects(corners);
+  // Coins confondus ou alignés : le serveur refuserait ce contour, on ne l'envoie pas.
+  const shapeProblem = corners.length >= MIN_SURVEY_CORNERS ? cornersProblem(corners) : null;
   const overlapping =
     corners.length >= MIN_SURVEY_CORNERS
       ? otherContours.filter((other) => ringsOverlap(corners, other.ring))
@@ -67,6 +74,13 @@ export function SurveyForm({
         setSampleCount(count);
         setLiveAccuracyM(accuracyM ?? null);
       });
+      const previous = corners[corners.length - 1];
+      if (previous && pointDistanceM(previous, position) < MIN_CORNER_SPACING_M) {
+        setError(
+          "Ce coin est au même endroit que le précédent. Marchez jusqu'à l'angle suivant du champ, puis appuyez.",
+        );
+        return;
+      }
       setCorners((current) => [...current, position]);
     } catch (cause) {
       setError(describeLocateError(cause));
@@ -193,6 +207,13 @@ export function SurveyForm({
             </Alert>
           ) : null}
 
+          {shapeProblem && !crossing ? (
+            <Alert variant="critical" role="alert">
+              <AlertTitle>Contour impossible à fermer</AlertTitle>
+              <AlertDescription>{shapeProblem}</AlertDescription>
+            </Alert>
+          ) : null}
+
           {overlapping.length > 0 ? (
             <Alert variant="warning" role="alert">
               <AlertTitle>Recouvre une autre parcelle</AlertTitle>
@@ -219,7 +240,7 @@ export function SurveyForm({
           </Button>
           <Button
             className="h-12 flex-1"
-            disabled={corners.length < MIN_SURVEY_CORNERS || crossing}
+            disabled={corners.length < MIN_SURVEY_CORNERS || crossing || shapeProblem !== null}
             onClick={() => void submit()}
           >
             Terminer le relevé

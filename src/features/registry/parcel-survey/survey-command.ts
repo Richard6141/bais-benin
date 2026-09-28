@@ -1,10 +1,36 @@
 import type { GeoPosition } from "@/components/forms/location-picker";
-import { closeRing, estimatePolygonAreaHa } from "@/lib/geo/polygon-area";
+import { closeRing, countDistinctPoints, estimatePolygonAreaHa } from "@/lib/geo/polygon-area";
 import type { AgentDatabase } from "@/lib/offline/db";
 import { enqueueCommand } from "@/lib/offline/outbox";
 import type { SyncPayload } from "@/modules/sync/commands";
 
 export const MIN_SURVEY_CORNERS = 3;
+
+/**
+ * En deçà, deux coins désignent le même endroit : l'appareil n'a pas bougé entre deux appuis
+ * (ordinateur sans GPS, position approchée par le réseau). Les angles d'un champ sont bien plus
+ * éloignés ; le serveur refuserait le contour (PostGIS : « Too few points »).
+ */
+export const MIN_CORNER_SPACING_M = 1;
+/** Surface sous laquelle les coins sont alignés : un trait, pas une parcelle (10 m²). */
+export const MIN_CONTOUR_AREA_HA = 0.001;
+
+export const SAME_PLACE_ERROR =
+  "Les coins relevés sont au même endroit : l'appareil n'a pas bougé entre deux appuis. Marchez jusqu'à chaque angle du champ avant d'appuyer.";
+
+/** Raison de refuser des coins avant tout envoi, ou null s'ils ferment une vraie parcelle. */
+export function cornersProblem(corners: readonly { lng: number; lat: number }[]): string | null {
+  if (corners.length < MIN_SURVEY_CORNERS) {
+    return `Relevez au moins ${MIN_SURVEY_CORNERS} coins pour fermer un contour.`;
+  }
+  if (countDistinctPoints(corners, MIN_CORNER_SPACING_M) < MIN_SURVEY_CORNERS) {
+    return SAME_PLACE_ERROR;
+  }
+  if (estimatePolygonAreaHa(corners) < MIN_CONTOUR_AREA_HA) {
+    return "Les coins relevés sont alignés : le contour n'a pas de surface. Relevez les angles du champ.";
+  }
+  return null;
+}
 
 export interface SurveyInput {
   farmId: string;
@@ -26,12 +52,8 @@ export type BuiltSurvey =
 // (`areaHa`) n'est qu'une estimation locale pour comparer tout de suite à la superficie déclarée ;
 // la mesure qui fait foi est recalculée par le serveur (PostGIS) à la synchronisation.
 export function buildParcelSurveyCommand(input: SurveyInput): BuiltSurvey {
-  if (input.corners.length < MIN_SURVEY_CORNERS) {
-    return {
-      ok: false,
-      error: `Relevez au moins ${MIN_SURVEY_CORNERS} coins pour fermer un contour.`,
-    };
-  }
+  const problem = cornersProblem(input.corners);
+  if (problem) return { ok: false, error: problem };
   const ring = closeRing(input.corners);
   const accuracies = input.corners
     .map((c) => c.accuracyM)
@@ -91,6 +113,8 @@ export function buildSatelliteContourCommand(input: SatelliteContourInput): Buil
     return { ok: false, error: "Le contour doit garder au moins trois sommets." };
   }
   const corners = open.map(([lng, lat]) => ({ lng, lat }));
+  const problem = cornersProblem(corners);
+  if (problem) return { ok: false, error: problem };
   const ring = closeRing(corners);
   const payload: SyncPayload["parcel.geometry.set"] = {
     parcelId: input.parcelId,

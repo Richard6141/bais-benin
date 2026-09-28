@@ -27,6 +27,20 @@ export async function measurePolygon(db: Db, polygon: Polygon): Promise<Geometry
   return { valid: row.valid, reason: row.reason, areaHa: Number(row.area_ha) };
 }
 
+/**
+ * Motif de refus lisible par l'agent, à la place du texte anglais de PostGIS
+ * (ST_IsValidReason), qui suit entre crochets le point en cause.
+ */
+export function invalidContourMessage(reason: string | null): string {
+  if (reason && /too few points/i.test(reason)) {
+    return "Contour invalide : les coins relevés sont au même endroit. Il faut au moins trois coins distincts, pris en marchant d'un angle à l'autre.";
+  }
+  if (reason && /self-intersection/i.test(reason)) {
+    return "Contour invalide : deux côtés du contour se croisent. Reprenez les coins dans l'ordre du tour.";
+  }
+  return "Contour invalide : la forme relevée ne ferme pas une parcelle. Reprenez le relevé.";
+}
+
 /** Enregistre le contour, le centroïde et la surface mesurée d'une parcelle. */
 export async function writeParcelGeometry(
   db: Db,

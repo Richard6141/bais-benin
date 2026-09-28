@@ -1,5 +1,6 @@
 import {
   areaGapWarning,
+  invalidContourMessage,
   measurePolygon,
   writeParcelCentroid,
   writeParcelGeometry,
@@ -51,11 +52,7 @@ export const parcelCreate: SyncHandler<"parcel.create"> = {
     if (payload.geometry) {
       const measure = await measurePolygon(db, payload.geometry);
       if (!measure.valid) {
-        return rejected(
-          "INVALID_GEOMETRY",
-          `Contour invalide : ${measure.reason ?? "géométrie non valide"}`,
-          "geometry",
-        );
+        return rejected("INVALID_GEOMETRY", invalidContourMessage(measure.reason), "geometry");
       }
       measuredHa = measure.areaHa;
     }
