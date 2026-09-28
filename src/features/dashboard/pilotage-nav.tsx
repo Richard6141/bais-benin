@@ -63,9 +63,9 @@ const GROUPS = [
   {
     label: "Administration",
     entries: [
+      { href: "/pilotage/qualite", label: "Qualité", match: ["/pilotage/qualite"] },
       // Comptes et communes des agents de terrain (ADR-0013).
       { href: "/pilotage/agents", label: "Agents", match: ["/pilotage/agents"] },
-      { href: "/pilotage/qualite", label: "Qualité", match: ["/pilotage/qualite"] },
       { href: "/pilotage/regles", label: "Règles", match: ["/pilotage/regles"] },
       { href: "/pilotage/assistant", label: "Assistant", match: ["/pilotage/assistant"] },
       { href: "/pilotage/avis", label: "Avis des testeurs", match: ["/pilotage/avis"] },
