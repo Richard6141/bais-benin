@@ -67,11 +67,11 @@ test.describe("page design system", () => {
     await expect(page.getByText("Maïs et niébé")).toBeVisible();
   });
 
-  test("bascule le thème sombre", async ({ page }) => {
+  test("reste en thème clair, sans bouton de bascule", async ({ page }) => {
+    // Un choix sombre déjà enregistré dans le navigateur n'est plus appliqué.
+    await page.addInitScript(() => window.localStorage.setItem("theme", "dark"));
     await page.goto("/design-system");
-    await page.getByRole("button", { name: "Passer au thème sombre" }).click();
-    await expect(page.locator("html")).toHaveClass(/dark/);
-    await page.getByRole("button", { name: "Passer au thème clair" }).click();
+    await expect(page.getByRole("button", { name: /thème (sombre|clair)/ })).toHaveCount(0);
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 

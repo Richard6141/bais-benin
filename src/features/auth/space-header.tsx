@@ -1,7 +1,6 @@
 import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { MinistryLogo } from "@/components/brand/ministry-logo";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import type { RoleCode } from "@/modules/authorization";
 
@@ -29,7 +28,6 @@ export function SpaceHeader({ user }: SpaceHeaderProps) {
             <MinistryLogo />
             <span className="sr-only">, Accueil de la plateforme</span>
           </Link>
-          <ThemeToggle />
         </div>
       </div>
       <div className="bg-band text-band-foreground">

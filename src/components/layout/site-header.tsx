@@ -2,7 +2,6 @@ import { ChevronDown, Menu } from "lucide-react";
 import Link from "next/link";
 import { MinistryLogo } from "@/components/brand/ministry-logo";
 import { HeaderAccountButton } from "@/components/layout/header-account-button";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const NAV = [
   { href: "/", label: "Accueil" },
@@ -27,7 +26,6 @@ export function SiteHeader() {
             <span className="sr-only">, Accueil de la plateforme</span>
           </Link>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <HeaderAccountButton />
           </div>
         </div>
