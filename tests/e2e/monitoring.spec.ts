@@ -112,15 +112,27 @@ test.describe("monitoring, centre d'alertes du ministère", () => {
     test.slow();
     await signInAsMinistry(page, testInfo, "/pilotage/alertes");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Centre d'alertes");
-    await expect(page.getByText("5 communes en alerte")).toBeVisible();
+    // Les cinq épisodes de démonstration (demo-episodes.ts) sont toujours là ; la météo réelle
+    // du jour lue par la CI peut en ajouter d'autres, d'où des bornes et non un total exact.
+    const demo = { warning: ["Djougou", "Adjohoun", "Malanville"], watch: ["Savalou", "Bohicon"] };
+    const legend = page.getByText(/\d+ communes en alerte :/).first();
+    await expect(legend).toBeVisible();
+    for (const name of [...demo.warning, ...demo.watch]) await expect(legend).toContainText(name);
     await expect(page.locator('[data-map-idle="true"]')).toBeVisible({ timeout: 30_000 });
     const list = page.getByRole("list", { name: "Alertes actives" });
-    await expect(list.getByRole("link")).toHaveCount(5);
+    for (const name of [...demo.warning, ...demo.watch]) {
+      await expect(list.getByRole("link", { name: new RegExp(name) }).first()).toBeVisible();
+    }
+    const all = await list.getByRole("link").count();
 
+    // Le filtre garde les vigilances et écarte au moins les trois alertes de démonstration.
     await page.getByLabel("Sévérité").click();
     await page.getByRole("option", { name: "Vigilance" }).click();
     await expect(page).toHaveURL(/severite=WATCH/);
-    await expect(list.getByRole("link")).toHaveCount(2);
+    for (const name of demo.watch) {
+      await expect(list.getByRole("link", { name: new RegExp(name) }).first()).toBeVisible();
+    }
+    await expect.poll(() => list.getByRole("link").count()).toBeLessThanOrEqual(all - 3);
 
     const noHorizontalScroll = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
