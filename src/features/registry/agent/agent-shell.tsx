@@ -21,6 +21,7 @@ import { SpaceNav, type SpaceNavItem } from "@/components/layout/space-nav";
 import { useFeedbackAction } from "@/features/feedback/feedback-button";
 import { GuidedTour } from "@/features/onboarding/guided-tour";
 import { useSync } from "@/lib/offline/use-sync";
+import { useOfflinePreparation } from "./use-offline-preparation";
 
 interface AgentShellProps {
   userId: string;
@@ -60,6 +61,8 @@ const NAV: readonly SpaceNavItem[] = [
 // toujours visible.
 export function AgentShell({ userId, demo = false, children }: AgentShellProps) {
   const sync = useSync(userId);
+  // Le référentiel du périmètre se télécharge seul dès que l'agent est connecté.
+  useOfflinePreparation(userId);
   const feedback = useFeedbackAction();
 
   return (

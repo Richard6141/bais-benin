@@ -10,6 +10,7 @@ import { parseAmount } from "@/components/forms/unit-amount-field";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useOfflinePreparation } from "@/features/registry/agent/use-offline-preparation";
 import { getAgentDatabase } from "@/lib/offline/db";
 import { loadReferentiel } from "@/lib/offline/referentiel-cache";
 import { useSync } from "@/lib/offline/use-sync";
@@ -51,6 +52,7 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const bundle = useLiveQuery(() => loadReferentiel(db), [db]);
+  const preparation = useOfflinePreparation(userId);
 
   useEnrolmentDraft(db, requestedId, (opened) => {
     setDraft(opened);
@@ -113,6 +115,19 @@ export function EnrolmentWizard({ userId, allowedCommuneCodes }: EnrolmentWizard
       <div className="flex flex-col gap-3" aria-busy="true">
         <span className="sr-only">Chargement du brouillon</span>
         <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-40" />
+      </div>
+    );
+  }
+
+  if (bundle === null && preparation === "running") {
+    return (
+      <div className="flex flex-col gap-3" aria-busy="true" aria-live="polite">
+        <p className="text-muted-foreground">
+          Préparation du travail sans réseau : les communes, cultures et campagnes de votre
+          périmètre se téléchargent. L&apos;enregistrement s&apos;ouvre dès qu&apos;elles sont
+          prêtes.
+        </p>
         <Skeleton className="h-40" />
       </div>
     );

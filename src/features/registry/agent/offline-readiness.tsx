@@ -1,26 +1,31 @@
 "use client";
 
-import { useLiveQuery } from "dexie-react-hooks";
-import { Download, WifiOff } from "lucide-react";
+import { Download, RefreshCw, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { getAgentDatabase } from "@/lib/offline/db";
-import { farmsCacheInfo, loadReferentiel } from "@/lib/offline/referentiel-cache";
+import { useOfflinePreparation } from "./use-offline-preparation";
 
 // Rappel de préparation du hors-ligne tant que le référentiel n'est pas sur l'appareil.
-// Disparaît une fois le premier téléchargement fait (parcours F).
+// Connecté, l'agent n'a rien à faire : le téléchargement se lance seul et l'encart le dit. Le
+// bouton ne sert qu'hors réseau ou après un échec. Disparaît une fois le référentiel présent.
 export function OfflineReadiness({ userId }: { userId: string }) {
-  const db = getAgentDatabase(userId);
-  const state = useLiveQuery(
-    async () => {
-      const [bundle, farms] = await Promise.all([loadReferentiel(db), farmsCacheInfo(db)]);
-      return { ready: bundle !== null, farms: farms.count };
-    },
-    [db],
-    null,
-  );
-  if (state === null || state.ready) return null;
+  const preparation = useOfflinePreparation(userId);
+  if (preparation === "checking" || preparation === "ready") return null;
+  if (preparation === "running") {
+    return (
+      <Alert variant="info" aria-live="polite">
+        <RefreshCw aria-hidden className="animate-spin motion-reduce:animate-none" />
+        <AlertTitle>Préparation du travail sans réseau</AlertTitle>
+        <AlertDescription>
+          <p>
+            Les communes, cultures et exploitations de votre périmètre se téléchargent sur ce
+            téléphone. Vous pouvez continuer à travailler.
+          </p>
+        </AlertDescription>
+      </Alert>
+    );
+  }
   return (
     <Alert variant="info">
       <WifiOff aria-hidden />
