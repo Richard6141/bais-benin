@@ -5,7 +5,9 @@ import { maskNpi } from "@/lib/crypto/npi";
 import type { RoleCode, ScopeType } from "@/modules/authorization";
 import { provisionAccount, validateNpiFormat } from "@/modules/identity";
 
-// Ouverture des comptes par l'administration (ADR-0013), en attendant l'écran d'administration.
+// Ouverture des comptes par l'administration (ADR-0013). Les agents de terrain s'ouvrent depuis le
+// pilotage (/pilotage/agents) ; ce script reste pour les autres rôles et le premier compte du
+// ministère.
 // Une inscription sur /connexion ne crée qu'un compte d'agriculteur : un agent, le ministère, une
 // coopérative ou un acheteur reçoit ici un compte lié à son NPI et à son numéro, puis se connecte
 // comme tout le monde (NPI, numéro, code WhatsApp).

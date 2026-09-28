@@ -7,6 +7,18 @@ export {
   type NpiBinding,
 } from "./npi";
 export {
+  createAgent,
+  listAgents,
+  revokeAgent,
+  updateAgentScope,
+  type AgentErrorCode,
+  type AgentOverview,
+  type AgentRow,
+  type AgentScopeView,
+  type RevokedAgentRow,
+  type TerritoryOption,
+} from "./agents";
+export {
   provisionAccount,
   provisionFarmerSignUp,
   type ProvisionInput,

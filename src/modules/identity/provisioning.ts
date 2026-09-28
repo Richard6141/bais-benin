@@ -55,6 +55,8 @@ export interface ProvisionInput {
   scopeType: ScopeType;
   scopeId: string | null;
   name?: string;
+  /** Compte du ministère qui ouvre l'accès, inscrit sur l'affectation et au journal. */
+  grantedById?: string | null;
 }
 
 export type ProvisionResult =
@@ -105,6 +107,7 @@ export async function provisionAccount(input: ProvisionInput): Promise<Provision
     role: input.role,
     scopeType: input.scopeType,
     scopeId: input.scopeId,
+    grantedById: input.grantedById ?? null,
   });
   if (input.role !== "FARMER") await dropAutomaticFarmerRole(userId);
   return { ok: true, userId, created };
