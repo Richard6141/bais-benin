@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/database/client";
 import { seedReferenceData } from "@/database/seed";
+import { recordAudit } from "@/modules/audit";
 import type { Actor } from "@/modules/authorization";
 import {
   createAgent,
@@ -42,7 +43,9 @@ async function cleanUp() {
     select: { id: true },
   });
   const ids = users.map((user) => user.id);
-  await prisma.auditLog.deleteMany({ where: { resourceId: { in: ids } } });
+  await prisma.auditLog.deleteMany({
+    where: { OR: [{ resourceId: { in: ids } }, { actorId: { in: ids } }] },
+  });
   await prisma.user.deleteMany({ where: { id: { in: ids } } });
 }
 
@@ -108,9 +111,16 @@ describe("gestion des agents par le ministère", () => {
     expect(audit).toHaveLength(2);
     expect(audit.every((row) => row.actorId === ministry.userId)).toBe(true);
 
-    const overview = await listAgents(ministry);
+    let overview = await listAgents(ministry);
+    if (!overview.ok) throw new Error("vue refusée");
+    expect(overview.agents.find((agent) => agent.userId === user.id)?.lastLoginAt).toBeNull();
+
+    // La dernière connexion vient du journal d'audit.
+    await recordAudit({ action: "auth.sign_in", actorId: user.id });
+    overview = await listAgents(ministry);
     if (!overview.ok) throw new Error("vue refusée");
     const row = overview.agents.find((agent) => agent.userId === user.id);
+    expect(row?.lastLoginAt).toBeInstanceOf(Date);
     expect(row?.scopes.map((s) => s.label).sort()).toEqual(["Copargo", "Djougou"]);
     expect(row?.phone).toBe("01 90 00 00 61");
     expect(row?.npi).not.toContain(NPIS.new);

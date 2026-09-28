@@ -117,7 +117,7 @@ export async function listAgents(actor: Actor): Promise<AgentResult<AgentOvervie
         scopeType: true,
         scopeId: true,
         grantedAt: true,
-        user: { select: { name: true, phoneNumber: true, lastLoginAt: true } },
+        user: { select: { name: true, phoneNumber: true } },
       },
     }),
     loadTerritories(),
@@ -151,7 +151,7 @@ export async function listAgents(actor: Actor): Promise<AgentResult<AgentOvervie
         demo: isDemoPhone(assignment.user.phoneNumber ?? ""),
         scopes: [],
         farmsRegistered: 0,
-        lastLoginAt: assignment.user.lastLoginAt,
+        lastLoginAt: null,
         since: assignment.grantedAt,
       };
       byUser.set(assignment.userId, row);
@@ -169,17 +169,26 @@ export async function listAgents(actor: Actor): Promise<AgentResult<AgentOvervie
 
   const agents = [...byUser.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
   const userIds = agents.map((agent) => agent.userId);
-  const [farmCounts, npis] = await Promise.all([
+  // Dernière connexion lue au journal d'audit (chaque connexion y est inscrite) : le champ
+  // lastLoginAt du compte n'est pas tenu à jour.
+  const [farmCounts, signIns, npis] = await Promise.all([
     prisma.farm.groupBy({
       by: ["registeredById"],
       where: { registeredById: { in: userIds }, archivedAt: null },
       _count: { _all: true },
     }),
+    prisma.auditLog.groupBy({
+      by: ["actorId"],
+      where: { action: "auth.sign_in", actorId: { in: userIds } },
+      _max: { occurredAt: true },
+    }),
     Promise.all(userIds.map((id) => npiSummary(id).then((summary) => summary.masked))),
   ]);
   const farmsByUser = new Map(farmCounts.map((row) => [row.registeredById, row._count._all]));
+  const lastSignIn = new Map(signIns.map((row) => [row.actorId, row._max.occurredAt]));
   agents.forEach((agent, index) => {
     agent.farmsRegistered = farmsByUser.get(agent.userId) ?? 0;
+    agent.lastLoginAt = lastSignIn.get(agent.userId) ?? null;
     agent.npi = npis[index] ?? null;
   });
 
