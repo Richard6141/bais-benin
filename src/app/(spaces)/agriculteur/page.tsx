@@ -125,12 +125,14 @@ export default async function FarmerSpacePage() {
       <PendingReports userId={user.id} />
 
       <nav aria-label="Actions" className="grid gap-2 sm:grid-cols-3">
+        {/* Hauteur libre : la taille par défaut des boutons impose h-9 dès md, trop bas pour
+            l'icône posée au-dessus du libellé. */}
         {ACTIONS.map((action, index) => (
           <Button
             key={action.href}
             asChild
             variant={index === 0 ? "default" : "outline"}
-            className="h-14 w-full justify-start text-base sm:h-20 sm:flex-col sm:justify-center sm:text-sm"
+            className="h-auto min-h-14 w-full justify-start py-3 text-base whitespace-normal sm:min-h-20 sm:flex-col sm:justify-center sm:gap-1.5 sm:text-sm md:h-auto"
           >
             <Link href={action.href}>
               <action.icon aria-hidden className="size-5" />
